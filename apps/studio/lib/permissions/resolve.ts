@@ -5,6 +5,8 @@ import { ApiError } from "@/lib/schema/errors";
 import { replacePermissionVariables, variablesForActor } from "./variables";
 
 export type PermissionAction = "read" | "create" | "update" | "delete";
+export type AdminCapability =
+  | "schema:read" | "schema:write" | "settings:read" | "settings:write";
 
 export type PermissionResolution = {
   allowed: boolean;
@@ -161,6 +163,21 @@ function capabilityAllows(
   return Array.isArray(actions) && actions.includes(action);
 }
 
+/**
+ * 管理系 capability の判定。
+ * コレクション単位の capabilityAllows とは既定が「逆」であることに注意。
+ *   - capabilityAllows(collections):    capabilities が null/undefined → true（委任元の権限をそのまま継承）
+ *   - capabilityAllowsAdmin(admin):     capabilities が null/undefined → false（管理操作は既定で不許可）
+ * 理由: 管理操作はスキーマ破壊・権限昇格に直結するため、明示的に委譲されたときだけ許す。
+ */
+function capabilityAllowsAdmin(capabilities: unknown, capability: AdminCapability): boolean {
+  if (capabilities === null || capabilities === undefined) return false;
+  if (!isRecord(capabilities)) return false;
+
+  const admin = (capabilities as { admin?: unknown }).admin;
+  return Array.isArray(admin) && admin.includes(capability);
+}
+
 function tenantScopeFilter(actor: Actor): FilterObject | null {
   if (actor.type !== "agent") return null;
   if (actor.tenantScope === null || actor.tenantScope === undefined) return null;
@@ -227,7 +244,10 @@ export async function actorHasAdminAccess(actor: Actor): Promise<boolean> {
   return hasAdminAccess(policyIds);
 }
 
-export async function requireAdminAccess(actor: Actor): Promise<void> {
+export async function requireAdminAccess(actor: Actor, capability: AdminCapability): Promise<void> {
+  if (actor.type === "agent" && !capabilityAllowsAdmin(actor.capabilities, capability)) {
+    throw new ApiError(403, "CAPABILITY_DENIED", "このcapabilityでは管理操作が許可されていません");
+  }
   if (!(await actorHasAdminAccess(actor))) {
     throw new ApiError(403, "ADMIN_ACCESS_REQUIRED", "管理者権限が必要です");
   }

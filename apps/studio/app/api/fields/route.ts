@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:read");
     return ok(await listFields());
   } catch (error) {
     return errorResponse(error);

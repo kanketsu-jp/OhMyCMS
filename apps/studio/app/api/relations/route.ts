@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:read");
     return ok(await listRelations());
   } catch (error) {
     return errorResponse(error);
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:write");
     const body = await readJsonObject(request);
     return ok(await createRelation(body));
   } catch (error) {

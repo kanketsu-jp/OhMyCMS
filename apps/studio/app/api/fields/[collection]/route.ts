@@ -12,7 +12,7 @@ type Context = {
 export async function GET(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:read");
     const { collection } = await ctx.params;
     return ok(await listFields(collection));
   } catch (error) {
@@ -23,7 +23,7 @@ export async function GET(request: Request, ctx: Context) {
 export async function POST(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:write");
     const { collection } = await ctx.params;
     const body = await readJsonObject(request);
     return ok(await createField(collection, body));

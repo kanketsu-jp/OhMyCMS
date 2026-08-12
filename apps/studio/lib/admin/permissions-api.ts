@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
-import { requireAdminAccess, type PermissionAction } from "@/lib/permissions/resolve";
+import { requireAdminAccess, type AdminCapability, type PermissionAction } from "@/lib/permissions/resolve";
 import { getTables } from "@/lib/schema/introspect";
 import { ApiError } from "@/lib/schema/errors";
 
@@ -46,8 +46,8 @@ type AccessRow = {
   policy_name?: string | null;
 };
 
-export async function requireAdmin(actor: Actor): Promise<void> {
-  await requireAdminAccess(actor);
+export async function requireAdmin(actor: Actor, capability: AdminCapability): Promise<void> {
+  await requireAdminAccess(actor, capability);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

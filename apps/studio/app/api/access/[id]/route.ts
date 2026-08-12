@@ -11,7 +11,7 @@ type Context = {
 export async function DELETE(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdmin(actor);
+    await requireAdmin(actor, "settings:write");
     const { id } = await ctx.params;
     await deleteAccess(id);
     return new Response(null, { status: 204 });

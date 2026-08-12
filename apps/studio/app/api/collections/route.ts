@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:read");
     const includeSystem = request.nextUrl.searchParams.get("system") === "true";
     return ok(await listCollections(includeSystem));
   } catch (error) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:write");
     const body = await readJsonObject(request);
     return ok(await createCollection(body));
   } catch (error) {

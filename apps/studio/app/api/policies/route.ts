@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
-    await requireAdmin(actor);
+    await requireAdmin(actor, "settings:read");
     return ok({ data: await listPolicies() });
   } catch (error) {
     return errorResponse(error);
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const actor = await requireActor(request);
-    await requireAdmin(actor);
+    await requireAdmin(actor, "settings:write");
     return ok({ data: await createPolicy(await readJsonObject(request)) }, 201);
   } catch (error) {
     return errorResponse(error);

@@ -16,7 +16,7 @@ type Context = {
 export async function GET(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdmin(actor);
+    await requireAdmin(actor, "settings:read");
     const { id } = await ctx.params;
     return ok({ data: await getPermission(id) });
   } catch (error) {
@@ -27,7 +27,7 @@ export async function GET(request: Request, ctx: Context) {
 export async function PATCH(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdmin(actor);
+    await requireAdmin(actor, "settings:write");
     const { id } = await ctx.params;
     return ok({ data: await updatePermission(id, await readJsonObject(request)) });
   } catch (error) {
@@ -38,7 +38,7 @@ export async function PATCH(request: Request, ctx: Context) {
 export async function DELETE(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdmin(actor);
+    await requireAdmin(actor, "settings:write");
     const { id } = await ctx.params;
     await deletePermission(id);
     return new Response(null, { status: 204 });

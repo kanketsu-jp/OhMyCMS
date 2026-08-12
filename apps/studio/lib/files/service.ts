@@ -1,9 +1,19 @@
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
+import type { Knex } from "knex";
 import sharp from "sharp";
 import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
+import { applyFilter, type FilterObject } from "@/lib/items/filter";
+import type { SchemaOverview } from "@/lib/items/relations";
+import {
+  resolvePermission,
+  type PermissionAction,
+  type PermissionResolution,
+} from "@/lib/permissions/resolve";
 import { ApiError } from "@/lib/schema/errors";
+import { getSchemaOverview } from "@/lib/schema/introspect";
+import type { RelationMeta } from "@/lib/schema/models";
 import { getStorage } from "@/lib/storage";
 
 const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
@@ -67,6 +77,8 @@ type FolderRow = {
   name: string;
   parent: string | null;
 };
+
+type SystemCollection = "directus_files" | "directus_folders";
 
 export type UploadFileInput = {
   filename: string;
@@ -165,8 +177,50 @@ async function imageMetadata(buffer: Buffer): Promise<{
   }
 }
 
-async function findFile(id: string): Promise<FileRow> {
-  const row = await db<FileRow>("directus_files").where({ id }).first();
+async function relationRows(): Promise<RelationMeta[]> {
+  return db<RelationMeta>("directus_relations").select("*");
+}
+
+function assertPermission(permission: PermissionResolution): void {
+  if (!permission.allowed) {
+    throw new ApiError(403, "PERMISSION_DENIED", "権限がありません");
+  }
+}
+
+async function permissionForAction(
+  actor: Actor,
+  collection: SystemCollection,
+  action: PermissionAction,
+): Promise<PermissionResolution> {
+  const permission = await resolvePermission(actor, collection, action);
+  assertPermission(permission);
+  return permission;
+}
+
+function applyRowFilter(
+  query: Knex.QueryBuilder,
+  rowFilter: FilterObject | null,
+  collection: SystemCollection,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+): void {
+  if (!rowFilter) return;
+  applyFilter(
+    query as Knex.QueryBuilder<Record<string, unknown>, unknown[]>,
+    rowFilter,
+    { collection, schemaOverview, relations },
+  );
+}
+
+async function findFile(
+  id: string,
+  rowFilter: FilterObject | null,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+): Promise<FileRow> {
+  const query = db<FileRow>("directus_files").where({ id });
+  applyRowFilter(query, rowFilter, "directus_files", schemaOverview, relations);
+  const row = await query.first();
   if (!row) {
     throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
   }
@@ -223,7 +277,10 @@ export async function uploadFile(actor: Actor, input: UploadFileInput): Promise<
   }
 }
 
-export async function listFiles(_actor: Actor, input: ListInput): Promise<FileRow[]> {
+export async function listFiles(actor: Actor, input: ListInput): Promise<FileRow[]> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_files", "read");
+  const relations = permission.rowFilter ? await relationRows() : [];
   const { limit, offset } = parseList(input);
   const query = db<FileRow>("directus_files")
     .select("*")
@@ -233,11 +290,15 @@ export async function listFiles(_actor: Actor, input: ListInput): Promise<FileRo
   if (input.folder) {
     query.where("folder", input.folder);
   }
+  applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
   return query;
 }
 
-export async function getFile(_actor: Actor, id: string): Promise<FileRow> {
-  return findFile(id);
+export async function getFile(actor: Actor, id: string): Promise<FileRow> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_files", "read");
+  const relations = permission.rowFilter ? await relationRows() : [];
+  return findFile(id, permission.rowFilter, schemaOverview, relations);
 }
 
 export async function updateFile(
@@ -245,6 +306,9 @@ export async function updateFile(
   id: string,
   body: Record<string, unknown>,
 ): Promise<FileRow> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_files", "update");
+  const relations = permission.rowFilter ? await relationRows() : [];
   const allowed = new Set(["title", "description", "tags", "folder"]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) {
@@ -264,6 +328,9 @@ export async function updateFile(
 
   const [row] = await db<FileRow>("directus_files")
     .where({ id })
+    .modify((query) => {
+      applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
+    })
     .update({
       ...update,
       modified_by: actorUserId(actor),
@@ -277,8 +344,11 @@ export async function updateFile(
   return row;
 }
 
-export async function deleteFile(_actor: Actor, id: string): Promise<void> {
-  const row = await findFile(id);
+export async function deleteFile(actor: Actor, id: string): Promise<void> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_files", "delete");
+  const relations = permission.rowFilter ? await relationRows() : [];
+  const row = await findFile(id, permission.rowFilter, schemaOverview, relations);
   const key = ensureStoredFile(row);
   const storage = getStorage();
   if (storage.deletePrefix) {
@@ -286,7 +356,9 @@ export async function deleteFile(_actor: Actor, id: string): Promise<void> {
   } else {
     await storage.delete(key);
   }
-  await db<FileRow>("directus_files").where({ id }).delete();
+  const deleteQuery = db<FileRow>("directus_files").where({ id });
+  applyRowFilter(deleteQuery, permission.rowFilter, "directus_files", schemaOverview, relations);
+  await deleteQuery.delete();
 }
 
 function parseDimension(value: string | null | undefined, field: string): number | undefined {
@@ -357,8 +429,11 @@ async function bufferFromStorage(key: string): Promise<Buffer> {
   return Buffer.from(await new Response(body).arrayBuffer());
 }
 
-export async function getAsset(_actor: Actor, id: string, input: TransformInput): Promise<AssetResult> {
-  const row = await findFile(id);
+export async function getAsset(actor: Actor, id: string, input: TransformInput): Promise<AssetResult> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_files", "read");
+  const relations = permission.rowFilter ? await relationRows() : [];
+  const row = await findFile(id, permission.rowFilter, schemaOverview, relations);
   const originalKey = ensureStoredFile(row);
   const originalHeaders = safeDeliveryHeaders(row.type, row.filename_download);
 
@@ -420,25 +495,54 @@ export async function getAsset(_actor: Actor, id: string, input: TransformInput)
   };
 }
 
-export async function listFolders(_actor: Actor, input: ListInput): Promise<FolderRow[]> {
+export async function listFolders(actor: Actor, input: ListInput): Promise<FolderRow[]> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_folders", "read");
+  const relations = permission.rowFilter ? await relationRows() : [];
   const { limit, offset } = parseList(input);
-  return db<FolderRow>("directus_folders").select("*").orderBy("name").limit(limit).offset(offset);
+  const query = db<FolderRow>("directus_folders")
+    .select("*")
+    .orderBy("name")
+    .limit(limit)
+    .offset(offset);
+  applyRowFilter(query, permission.rowFilter, "directus_folders", schemaOverview, relations);
+  return query;
 }
 
-export async function createFolder(_actor: Actor, body: Record<string, unknown>): Promise<FolderRow> {
+export async function createFolder(actor: Actor, body: Record<string, unknown>): Promise<FolderRow> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_folders", "create");
+  const relations = permission.rowFilter ? await relationRows() : [];
   const name = body.name;
   if (typeof name !== "string" || name.trim() === "") {
     throw new ApiError(400, "INVALID_FIELD", "nameは必須です");
   }
   const parent = optionalString(body.parent, "parent") ?? null;
-  const [row] = await db<FolderRow>("directus_folders")
-    .insert({ id: randomUUID(), name: name.trim(), parent })
-    .returning("*");
-  return row;
+  return db.transaction(async (trx) => {
+    const [row] = await trx<FolderRow>("directus_folders")
+      .insert({ id: randomUUID(), name: name.trim(), parent })
+      .returning("*");
+
+    if (permission.rowFilter) {
+      const visibleQuery = trx<FolderRow>("directus_folders").where({ id: row.id });
+      applyRowFilter(visibleQuery, permission.rowFilter, "directus_folders", schemaOverview, relations);
+      const visible = await visibleQuery.first();
+      if (!visible) {
+        throw new ApiError(403, "PERMISSION_DENIED", "作成した行が権限範囲外です");
+      }
+    }
+
+    return row;
+  });
 }
 
-export async function getFolder(_actor: Actor, id: string): Promise<FolderRow> {
-  const row = await db<FolderRow>("directus_folders").where({ id }).first();
+export async function getFolder(actor: Actor, id: string): Promise<FolderRow> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_folders", "read");
+  const relations = permission.rowFilter ? await relationRows() : [];
+  const query = db<FolderRow>("directus_folders").where({ id });
+  applyRowFilter(query, permission.rowFilter, "directus_folders", schemaOverview, relations);
+  const row = await query.first();
   if (!row) {
     throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
   }
@@ -446,10 +550,13 @@ export async function getFolder(_actor: Actor, id: string): Promise<FolderRow> {
 }
 
 export async function updateFolder(
-  _actor: Actor,
+  actor: Actor,
   id: string,
   body: Record<string, unknown>,
 ): Promise<FolderRow> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_folders", "update");
+  const relations = permission.rowFilter ? await relationRows() : [];
   const allowed = new Set(["name", "parent"]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) {
@@ -474,6 +581,9 @@ export async function updateFolder(
 
   const [row] = await db<FolderRow>("directus_folders")
     .where({ id })
+    .modify((query) => {
+      applyRowFilter(query, permission.rowFilter, "directus_folders", schemaOverview, relations);
+    })
     .update(update)
     .returning("*");
   if (!row) {
@@ -482,7 +592,17 @@ export async function updateFolder(
   return row;
 }
 
-export async function deleteFolder(_actor: Actor, id: string): Promise<void> {
+export async function deleteFolder(actor: Actor, id: string): Promise<void> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_folders", "delete");
+  const relations = permission.rowFilter ? await relationRows() : [];
+  const visibleQuery = db<FolderRow>("directus_folders").where({ id });
+  applyRowFilter(visibleQuery, permission.rowFilter, "directus_folders", schemaOverview, relations);
+  const visible = await visibleQuery.first();
+  if (!visible) {
+    throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
+  }
+
   const file = await db<FileRow>("directus_files").where({ folder: id }).first();
   if (file) {
     throw new ApiError(409, "FOLDER_NOT_EMPTY", "フォルダ配下にファイルがあります");
@@ -491,7 +611,9 @@ export async function deleteFolder(_actor: Actor, id: string): Promise<void> {
   if (child) {
     throw new ApiError(409, "FOLDER_NOT_EMPTY", "フォルダ配下にフォルダがあります");
   }
-  const deleted = await db<FolderRow>("directus_folders").where({ id }).delete();
+  const deleteQuery = db<FolderRow>("directus_folders").where({ id });
+  applyRowFilter(deleteQuery, permission.rowFilter, "directus_folders", schemaOverview, relations);
+  const deleted = await deleteQuery.delete();
   if (!deleted) {
     throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
   }

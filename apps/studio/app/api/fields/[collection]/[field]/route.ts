@@ -13,7 +13,7 @@ type Context = {
 export async function GET(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:read");
     const { collection, field } = await ctx.params;
     const result = await getField(collection, field);
     if (!result) {
@@ -28,7 +28,7 @@ export async function GET(request: Request, ctx: Context) {
 export async function PATCH(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:write");
     const { collection, field } = await ctx.params;
     const body = await readJsonObject(request);
     return ok(await updateField(collection, field, body));
@@ -40,7 +40,7 @@ export async function PATCH(request: Request, ctx: Context) {
 export async function DELETE(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:write");
     const { collection, field } = await ctx.params;
     return ok(await deleteField(collection, field));
   } catch (error) {

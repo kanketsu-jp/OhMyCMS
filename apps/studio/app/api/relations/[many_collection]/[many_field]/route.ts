@@ -17,7 +17,7 @@ type Context = {
 export async function GET(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:read");
     const { many_collection, many_field } = await ctx.params;
     const result = await getRelation(many_collection, many_field);
     if (!result) {
@@ -32,7 +32,7 @@ export async function GET(request: Request, ctx: Context) {
 export async function PATCH(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:write");
     const { many_collection, many_field } = await ctx.params;
     const body = await readJsonObject(request);
     return ok(await updateRelation(many_collection, many_field, body));
@@ -44,7 +44,7 @@ export async function PATCH(request: Request, ctx: Context) {
 export async function DELETE(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
-    await requireAdminAccess(actor);
+    await requireAdminAccess(actor, "schema:write");
     const { many_collection, many_field } = await ctx.params;
     return ok(await deleteRelation(many_collection, many_field));
   } catch (error) {

@@ -617,6 +617,27 @@ function withGeneratedPrimaryKey(
   return payload;
 }
 
+async function assertRowsVisibleAfterWrite(
+  trx: Knex.Transaction,
+  collection: string,
+  primaryKey: string,
+  rows: Item[],
+  permission: PermissionResolution,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+): Promise<void> {
+  if (!permission.rowFilter || rows.length === 0) return;
+
+  const ids = rows.map((row) => row[primaryKey]);
+  const check = trx(collection);
+  whereInValues(check, primaryKey, ids);
+  applyFilter(check, permission.rowFilter, { collection, schemaOverview, relations });
+  const visible = await check.select(primaryKey);
+  if (visible.length !== rows.length) {
+    throw new ApiError(403, "PERMISSION_DENIED", "書き込んだ内容が権限の範囲外です");
+  }
+}
+
 export async function createItems(
   actor: Actor,
   collection: string,
@@ -625,16 +646,28 @@ export async function createItems(
   const schemaOverview = await getSchemaOverview();
   const columns = assertUserCollection(collection, schemaOverview);
   const permission = await permissionForAction(actor, collection, "create");
-  const primaryKey = columns.find((column) => column.is_primary_key);
+  const primaryKeyColumn = columns.find((column) => column.is_primary_key);
+  const primaryKey = getPrimaryKey(schemaOverview, collection);
+  const relations = permission.rowFilter ? await relationRows() : [];
   const rows = normalizeCreatePayload(body).map((payload) => {
     assertPayloadColumns(payload, collection, schemaOverview);
     assertPayloadAllowed(payload, permission.allowedFields);
-    return withGeneratedPrimaryKey(payload, primaryKey);
+    return withGeneratedPrimaryKey(payload, primaryKeyColumn);
   });
 
   const inserted = await db.transaction(async (trx) => {
     if (rows.length === 0) return [];
-    return trx(collection).insert(rows).returning("*");
+    const writtenRows = await trx(collection).insert(rows).returning("*");
+    await assertRowsVisibleAfterWrite(
+      trx,
+      collection,
+      primaryKey,
+      writtenRows as Item[],
+      permission,
+      schemaOverview,
+      relations,
+    );
+    return writtenRows;
   }) as Item[];
 
   const filtered = filterResultFields(inserted, permission.allowedFields) as Item[];
@@ -671,6 +704,15 @@ export async function updateItem(
     if (rows.length === 0) {
       throw new ApiError(404, "ITEM_NOT_FOUND", "アイテムが見つかりません");
     }
+    await assertRowsVisibleAfterWrite(
+      trx,
+      collection,
+      primaryKey,
+      rows as Item[],
+      permission,
+      schemaOverview,
+      relations,
+    );
     return rows[0] as Item;
   });
 

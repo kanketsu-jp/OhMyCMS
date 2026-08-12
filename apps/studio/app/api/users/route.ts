@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
-    await requireAdmin(actor);
+    await requireAdmin(actor, "settings:read");
     const rows = await db("directus_users")
       .select(
         "id",
