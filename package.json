@@ -12,7 +12,8 @@
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v",
     "docker:logs": "docker compose logs -f studio",
-    "migrate": "pnpm --filter @ohmycms/studio migrate"
+    "migrate": "pnpm --filter @ohmycms/studio migrate",
+    "acceptance": "node acceptance/run.mjs"
   },
   "devDependencies": {
     "lefthook": "^2.1.10"
