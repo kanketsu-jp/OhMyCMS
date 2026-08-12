@@ -1,0 +1,49 @@
+# 受入ハーネス専用の studio。本番構成には持ち込まない。
+#
+# なぜ専用サービスが要るか（2つとも実測に基づく）:
+#
+#  1. **本番ビルドでは dev-login が存在しない。**
+#     app/api/auth/dev-login/route.ts は `process.env.NODE_ENV !== "production"` が条件だが、
+#     next build は NODE_ENV をインライン展開するため、本番成果物では分岐ごと消えている。
+#     受入基準8（他人の行に直打ち）と9（SVG/HTML が attachment）は
+#     ログイン済みセッションを3つ使い分ける必要があるので、dev ビルドが要る。
+#
+#  2. **compose.yml は container_name を固定していて並列に立てられない。**
+#     -p でプロジェクト名を分けても同じコンテナ名を取り合う。
+#     そこで別名のサービス(studio-acc / ohmycms-studio-acc)を足し、
+#     **既存の db サービスをそのまま再利用**する。down -v はしない。
+#     → 他ペインのスタックを止めずに基準8・9 を判定できる。
+#
+# 🚨 これは開発ビルドなので、**本番ビルドでも同じ結果になるかは別の話**。
+#    ハーネスの出力にもその旨を出している。本番ビルドでの確認は infra の F0c/F0d と
+#    F9 の総合受入で改めて行う。
+#
+# 使い方（run.mjs が叩く。手で試すときは下記）:
+#   docker compose -f compose.yml -f acceptance/compose.acceptance.yml up -d studio-acc
+#   docker compose -f compose.yml -f acceptance/compose.acceptance.yml down studio-acc
+
+services:
+  studio-acc:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: source
+    image: ohmycms-studio-acc
+    container_name: ohmycms-studio-acc
+    user: root
+    working_dir: /app/apps/studio
+    command: ["npx", "next", "dev", "--hostname", "0.0.0.0", "--port", "3000"]
+    ports:
+      # 3000=トラックC / 3777=A / 3888=B / 6006=Storybook と取り合わない。
+      - "3999:3000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-cms}:${POSTGRES_PASSWORD:-cms}@db:5432/${POSTGRES_DB:-cms}
+      # 受入基準8・9 の検証にセッションが要るため。**本番では絶対に設定しない。**
+      ALLOW_DEV_LOGIN: "true"
+      # トラックA のストレージ(ohmycms-storage)を汚さないよう、別の場所へ吐かせる。
+      STORAGE_LOCAL_ROOT: /app/.storage-acceptance
+      OHMYCMS_DEFAULT_LOCALE: ${OHMYCMS_DEFAULT_LOCALE:-}
+      OHMYCMS_PROJECT_NAME: ${OHMYCMS_PROJECT_NAME:-}
+    depends_on:
+      db:
+        condition: service_healthy

@@ -1,0 +1,258 @@
+#!/usr/bin/env node
+/**
+ * OhMyCMS v0.9 受入ハーネス。
+ *
+ *   pnpm acceptance                  … docker を触らずに判定できるものだけ実行
+ *   pnpm acceptance --docker         … docker compose down -v → up も含めて実行（🚨 §注意）
+ *   pnpm acceptance --json           … 機械可読な出力（CI 用）
+ *   pnpm acceptance --only 7,8       … 指定した項目だけ
+ *   pnpm acceptance --base-url URL   … 既に起動しているサーバーへ向ける
+ *
+ * 🚨 --docker の注意:
+ *   compose.yml は container_name を固定しているので、-p でプロジェクトを分けても
+ *   並列に立てられない。`down -v` は他ペインのスタックと DB ボリュームを消す。
+ *   **全ペインを止めてから**使うこと。
+ *
+ * 依存は0本（Node の標準機能だけ）。ブラウザ自動操作ライブラリも入れない。
+ */
+
+import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { probeStatus, waitForHealth } from "./lib/http.mjs";
+import { renderJson, renderTable } from "./lib/report.mjs";
+import {
+  compose,
+  dockerAvailable,
+  run,
+  REPO_ROOT,
+  runningOhmycmsContainers,
+} from "./lib/proc.mjs";
+import { STATUS, result } from "./lib/result.mjs";
+
+import { check as check01 } from "./checks/01-docker-up.mjs";
+import { check as check02 } from "./checks/02-env-only.mjs";
+import { check3, check4, check5, check6 } from "./checks/03-06-pending.mjs";
+import { check as check07 } from "./checks/07-i18n.mjs";
+import { check as check08 } from "./checks/08-row-permission.mjs";
+import { check as check09 } from "./checks/09-svg-attachment.mjs";
+
+/** 仕様 §5-6: 3000 は トラックC の専有。docker 側は 3999 を使う。 */
+const DOCKER_PORT = 3999;
+/** dev モードの studio（受入基準8・9 用）。compose.acceptance.yml と揃えること。 */
+const DEV_PORT = 3999;
+
+function parseArgs(argv) {
+  const args = {
+    docker: false,
+    json: false,
+    only: null,
+    baseUrl: null,
+    noUp: false,
+    down: false,
+    red: null,
+    help: false,
+  };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--docker") args.docker = true;
+    else if (arg === "--json") args.json = true;
+    else if (arg === "--no-up") args.noUp = true;
+    else if (arg === "--down") args.down = true;
+    else if (arg === "--help" || arg === "-h") args.help = true;
+    else if (arg === "--only") args.only = (argv[++i] ?? "").split(",").map((n) => Number(n.trim()));
+    else if (arg === "--red") args.red = (argv[++i] ?? "").split(",").map((n) => Number(n.trim()));
+    else if (arg === "--base-url") args.baseUrl = argv[++i];
+  }
+  return args;
+}
+
+const HELP = `OhMyCMS v0.9 受入ハーネス
+
+  pnpm acceptance                  docker を触らずに判定できるものだけ
+  pnpm acceptance --docker         docker compose down -v → up も実行（全ペインを止めてから）
+  pnpm --silent acceptance --json  機械可読な出力（pnpm のバナーを混ぜないため --silent）
+                                   CI からは node acceptance/run.mjs --json でもよい
+  pnpm acceptance --only 7,8       指定した項目だけ
+  pnpm acceptance --base-url URL   既に起動しているサーバーへ向ける
+  pnpm acceptance --no-up          studio-acc を自動起動しない
+  pnpm acceptance --down           studio-acc を止めて終了する
+  pnpm acceptance --red 8          RED 確認: その項目をわざと壊して FAIL になることを見る
+
+判定は PASS / FAIL / SKIP / BLOCKED / MANUAL の5種類。
+**PASS 以外が1つでもあれば未達（exit 1）**。未実装のものを PASS にはしない。
+
+受入基準8・9 は acceptance/compose.acceptance.yml の studio-acc（開発ビルド・3999）へ
+向けて実行する。本番ビルドでは dev-login が消えていてセッションを作れないため。
+🚨 したがって 8・9 の結果は **開発ビルドでの結果**であり、本番ビルドでも同じかは別の話。
+`;
+
+/** .env.example をコピーして STUDIO_PORT だけ足した一時 env を作る。元の .env は触らない。 */
+function makeEnvFile(port) {
+  const example = readFileSync(join(REPO_ROOT, ".env.example"), "utf8");
+  const dir = mkdtempSync(join(tmpdir(), "ohmycms-acc-"));
+  const file = join(dir, "acceptance.env");
+  // 「.env.example をコピーしただけで動く」ことの検証なので、中身は足さずに
+  // STUDIO_PORT だけ上書きする（他ペインとポートを取り合わないため）。
+  writeFileSync(file, `${example}\nSTUDIO_PORT=${port}\n`);
+  return file;
+}
+
+async function gitHead() {
+  const probe = await run("git", ["rev-parse", "--short", "HEAD"]);
+  return probe.code === 0 ? probe.stdout.trim() : "unknown";
+}
+
+/** --only で絞られたとき、指定 id のどれかが対象に入っているか。 */
+function wantsAny(args, ids) {
+  return !args.only || ids.some((id) => args.only.includes(id));
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    process.stdout.write(HELP);
+    return 0;
+  }
+
+  const startedAt = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const head = await gitHead();
+
+  const envFile = makeEnvFile(DOCKER_PORT);
+  const context = {
+    dockerAllowed: args.docker,
+    dockerBaseUrl: `http://localhost:${DOCKER_PORT}`,
+    dockerPort: DOCKER_PORT,
+    composeFiles: ["compose.yml"],
+    envFile,
+    // 受入基準8・9 が叩く先。--base-url が無ければ dev モードの studio。
+    baseUrl: args.baseUrl ?? `http://localhost:${DEV_PORT}`,
+    // RED 確認用。指定した項目をわざと壊れた状態で走らせる（F9h 受入基準3）。
+    red: args.red ?? [],
+  };
+
+  if (context.red.length > 0 && !args.json) {
+    process.stderr.write(
+      `\n⚠ RED 確認モード: 項目 ${context.red.join(",")} をわざと壊して実行します。` +
+        "FAIL になるのが正しい結果です。\n\n",
+    );
+  }
+
+  const ACC_COMPOSE = ["compose.yml", "acceptance/compose.acceptance.yml"];
+
+  if (args.down) {
+    const stop = await compose(ACC_COMPOSE, ["--env-file", envFile, "rm", "-sf", "studio-acc"]);
+    process.stdout.write(
+      stop.code === 0
+        ? "studio-acc を止めました（db は残しています）\n"
+        : `studio-acc の停止に失敗: exit ${stop.code}\n${stop.stderr}\n`,
+    );
+    return stop.code === 0 ? 0 : 1;
+  }
+
+  // ── 受入基準8・9 のために dev モードの studio を立てる ──
+  // 既に応答しているなら何もしない。--base-url が指定されていれば触らない。
+  let devBuildTarget = false;
+  if (!args.baseUrl && !args.noUp && (wantsAny(args, [8, 9]))) {
+    const already = await probeStatus(context.baseUrl);
+    if (already !== 200) {
+      const docker = await dockerAvailable();
+      if (docker.ok) {
+        if (!args.json) process.stderr.write("studio-acc（開発ビルド・3999）を起動しています…\n");
+        const up = await compose(ACC_COMPOSE, [
+          "--env-file", envFile, "up", "-d", "--build", "studio-acc",
+        ]);
+        if (up.code !== 0 && !args.json) {
+          process.stderr.write(`studio-acc の起動に失敗: exit ${up.code}\n${up.stderr.slice(-800)}\n`);
+        }
+        await waitForHealth(context.baseUrl, { timeoutMs: 240_000 });
+      }
+    }
+    devBuildTarget = (await probeStatus(context.baseUrl)) === 200;
+  }
+  context.devBuildTarget = devBuildTarget;
+
+  // --docker のとき、他ペインのスタックを壊さないよう先に警告する。
+  if (args.docker) {
+    const running = await runningOhmycmsContainers();
+    if (running.length > 0 && !args.json) {
+      process.stderr.write(
+        `\n⚠ 稼働中の ohmycms コンテナが ${running.length} 個あります。` +
+          `--docker はこれらを down -v で消します:\n` +
+          running.map((c) => `    ${c.name}  ${c.ports}`).join("\n") +
+          "\n\n",
+      );
+    }
+  }
+
+  const results = [];
+
+  const wanted = (id) => !args.only || args.only.includes(id);
+
+  const runCheck = async (id, fn, title) => {
+    if (!wanted(id)) return;
+    try {
+      results.push(await fn(context));
+    } catch (error) {
+      results.push(
+        result({
+          id,
+          title,
+          status: STATUS.FAIL,
+          details: [
+            "ハーネス自身が例外で落ちました（チェック対象の問題とは限りません）:",
+            `    ${error?.stack ?? error}`,
+          ],
+        }),
+      );
+    }
+  };
+
+  await runCheck(1, check01, "docker compose up だけで起動する");
+  await runCheck(2, check02, "環境変数だけで設定が完結する");
+  if (wanted(3)) results.push(check3());
+  if (wanted(4)) results.push(check4());
+  if (wanted(5)) results.push(check5());
+  if (wanted(6)) results.push(check6());
+  await runCheck(7, check07, "UI が日本語・英語に切り替わる / ハードコード無し");
+  await runCheck(8, check08, "他人の行に直打ち → 403/404");
+  await runCheck(9, check09, "SVG/HTML が attachment で配信される");
+
+  results.sort((a, b) => a.id - b.id);
+
+  // 🚨 基準8・9 は開発ビルドの studio-acc で判定している。
+  //    本番ビルドでも同じ結果になるかは別の話なので、出力に必ず残す（司令塔の指示・2026-08-13）。
+  if (context.devBuildTarget) {
+    for (const r of results) {
+      if (r.id === 8 || r.id === 9) {
+        r.details.push(
+          "⚠ この判定は **開発ビルド**（acceptance/compose.acceptance.yml の studio-acc・3999）での結果です。" +
+            "本番ビルドでは dev-login が消えるためセッションを作れず、ここでは判定できません。" +
+            "本番ビルドでの確認は F0c/F0d と F9 の総合受入で別途行ってください。",
+        );
+      }
+    }
+  }
+
+  const meta = {
+    startedAt,
+    finishedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+    head,
+    baseUrl: context.baseUrl,
+  };
+
+  if (args.json) process.stdout.write(`${renderJson(results, meta)}\n`);
+  else process.stdout.write(renderTable(results, meta));
+
+  const achieved = results.every((r) => r.status === STATUS.PASS);
+  return achieved ? 0 : 1;
+}
+
+main().then(
+  (code) => process.exit(code),
+  (error) => {
+    process.stderr.write(`受入ハーネスが落ちました: ${error?.stack ?? error}\n`);
+    process.exit(2);
+  },
+);
