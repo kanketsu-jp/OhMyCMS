@@ -79,6 +79,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: ランナーが amd64 であること
+        # GitHub ホストの ubuntu-latest は amd64。デプロイ先の VPS(Dokploy) も amd64 なので、
+        # この job は **エミュレーション無しの本物の amd64 検証**になる。
+        # ここが x86_64 でなくなったら、以降の「amd64 で動く」という主張が崩れるので先に落とす。
+        run: |
+          arch=$(uname -m)
+          echo "runner arch: $arch"
+          [ "$arch" = "x86_64" ] || { echo "::error::ランナーが amd64 ではありません: $arch"; exit 1; }
+
       - name: .env を用意して起動
         run: |
           cp .env.example .env
@@ -99,6 +108,19 @@ jobs:
       - name: マイグレーションが流れたこと
         run: docker compose logs migrate --no-color | tail -20
 
+      - name: sharp が動くこと（回帰ガード）
+        # 実際に踏んだ壊れ方: next build のファイルトレースがバインディングの .node は運ぶのに、
+        # それがリンクする libvips-cpp.so を運ばず、ファイルのアップロードと画像変換が 500 になった。
+        # /api/health は DB しか見ないのでこれを検知できない。ここで require まで通す。
+        run: |
+          docker compose exec -T studio node -e '
+            const s = require("sharp");
+            console.log("sharp OK / libvips", s.versions.vips);
+          '
+          so=$(docker compose exec -T studio sh -c 'find /app/node_modules -name "libvips-cpp*" | wc -l')
+          echo "同梱されている libvips-cpp: $so 件"
+          [ "$so" -ge 1 ] || { echo "::error::libvips の共有ライブラリがイメージに入っていません"; exit 1; }
+
       - name: 非 root で動いていること
         run: |
           id_out=$(docker compose exec -T studio id)
@@ -116,3 +138,46 @@ jobs:
       - name: 後始末
         if: always()
         run: docker compose down -v
+
+  image:
+    name: デプロイ用 amd64 イメージを焼く
+    # PR ごとには回さない。docker job が同じものを既に amd64 で建てて 200 まで確認しているので、
+    # ここで毎回焼くと CI 時間の二重払いになる。配布物が要るときだけ手動で回す。
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: linux/amd64 で単アーキのイメージを焼く
+        # マルチアーキの manifest は作らない。デプロイ先は VPS(Dokploy) の amd64 だけで、
+        # multi-arch にすると QEMU ビルドで所要時間が数倍になる割に、得るものが
+        # ローカル Mac(arm64) の利便性しかない。ローカルは compose が自前でネイティブに建てる。
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -f docker/Dockerfile \
+            -t ohmycms-studio:${{ github.sha }} \
+            --load .
+
+      - name: 焼いたイメージが amd64 で、sharp まで動くこと
+        run: |
+          arch=$(docker run --rm --entrypoint uname "ohmycms-studio:${{ github.sha }}" -m)
+          echo "image arch: $arch"
+          [ "$arch" = "x86_64" ] || { echo "::error::amd64 になっていません: $arch"; exit 1; }
+          docker run --rm --entrypoint node "ohmycms-studio:${{ github.sha }}" -e '
+            const s = require("sharp");
+            console.log("sharp OK / libvips", s.versions.vips);
+          '
+
+      - name: イメージを tar にして成果物として出す
+        # レジストリはまだ決まっていないため、当面は成果物として持ち出せるようにしておく。
+        # 決まったら docker/login-action + push に差し替える。
+        run: docker save "ohmycms-studio:${{ github.sha }}" -o /tmp/ohmycms-studio-amd64.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ohmycms-studio-amd64
+          path: /tmp/ohmycms-studio-amd64.tar
+          retention-days: 7
