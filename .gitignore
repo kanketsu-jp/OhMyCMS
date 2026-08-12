@@ -12,6 +12,10 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 
+# Storybook のビルド成果物とデバッグログ
+storybook-static/
+debug-storybook.log
+
 # testing
 coverage/
 
