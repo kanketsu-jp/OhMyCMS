@@ -1,0 +1,118 @@
+name: CI
+
+# push では動かさない。まだリモートへ push しておらず、無駄な実行と課金を避けるため。
+# 必要になったら workflow_dispatch で手動実行できる。
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: 秘密の混入検査
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: .env 系が追跡されていないこと
+        run: |
+          # .env.example 以外の .env 系・鍵ファイルが git 管理下に無いことを見る。
+          tracked=$(git ls-files \
+            | grep -E '(^|/)\.env($|\.)|\.pem$|\.p12$|\.key$' \
+            | grep -v -E '(^|/)\.env\.example$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::秘密の可能性があるファイルが追跡されています"
+            echo "$tracked"
+            exit 1
+          fi
+          echo "追跡されている .env 系は .env.example のみ（OK）"
+
+      - name: .gitignore が .env を無視していること
+        run: |
+          # 「.gitignore から .env* が消えていた」を検知する。
+          printf 'DUMMY=1\n' > .env
+          if git check-ignore -q .env; then
+            echo ".env は .gitignore されている（OK）"
+          else
+            echo "::error::.env が .gitignore されていません"
+            exit 1
+          fi
+          rm -f .env
+
+  build:
+    name: ビルドと lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: lint
+        run: pnpm lint
+
+      - name: 型チェック
+        run: pnpm --filter @ohmycms/studio exec tsc --noEmit
+
+      - name: build
+        # lib/db/knex.ts が module 直下で DATABASE_URL を読むため、
+        # ビルドを通すためだけのダミーを渡す（接続はしない。docker/Dockerfile と同じ扱い）。
+        env:
+          DATABASE_URL: postgres://build:build@127.0.0.1:5432/build
+        run: pnpm build
+
+  docker:
+    name: Docker で起動して /api/health が 200
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: .env を用意して起動
+        run: |
+          cp .env.example .env
+          docker compose up -d --build
+
+      - name: /api/health が 200 になるまで待つ
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:3000/api/health || true)
+            echo "試行 $i: $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 5
+          done
+          echo "::error::/api/health が 200 になりませんでした"
+          docker compose logs --no-color | tail -100
+          exit 1
+
+      - name: マイグレーションが流れたこと
+        run: docker compose logs migrate --no-color | tail -20
+
+      - name: 非 root で動いていること
+        run: |
+          id_out=$(docker compose exec -T studio id)
+          echo "$id_out"
+          echo "$id_out" | grep -q 'uid=0(root)' && { echo "::error::root で動いています"; exit 1; }
+          echo "非 root（OK）"
+
+      - name: イメージに .env 系が入っていないこと
+        run: |
+          out=$(docker compose run --rm --no-deps --entrypoint sh studio -c 'ls -a /app' || true)
+          echo "$out"
+          echo "$out" | grep -qE '^\.env' && { echo "::error::イメージに .env 系が入っています"; exit 1; }
+          echo "イメージに .env 系なし（OK）"
+
+      - name: 後始末
+        if: always()
+        run: docker compose down -v

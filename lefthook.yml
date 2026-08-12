@@ -1,0 +1,30 @@
+# コミット前チェック。
+#
+# 方針: pre-commit に置くのは「速いもの」だけ。遅いと必ず --no-verify されて意味を失う。
+# 実測（2026-08-13・このPC）:
+#   tsc --noEmit  2.6 秒  → pre-commit に入れる
+#   eslint        数秒    → 変更された apps/studio のファイルだけに絞る
+# 秘密の混入検査とナレッジ鮮度検査は 1 秒未満。
+
+pre-commit:
+  parallel: true
+  commands:
+    # 秘密の混入。.gitignore を git add -f で越えてきた場合の最後の歯止め。
+    secrets:
+      run: bash .lefthook/no-secrets.sh {staged_files}
+
+    # 変更された apps/studio のファイルだけ lint する。
+    # root を指定すると {staged_files} がそのディレクトリ基準の相対パスになる。
+    lint:
+      root: "apps/studio"
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: pnpm exec eslint {staged_files}
+
+    # 型は全体で見る（部分的な tsc は型エラーを取りこぼす）。
+    typecheck:
+      glob: "apps/studio/**/*.{ts,tsx}"
+      run: pnpm --filter @ohmycms/studio exec tsc --noEmit
+
+    # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
+    knowledge:
+      run: bash .lefthook/rokf-doctor.sh

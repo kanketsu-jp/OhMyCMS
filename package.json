@@ -13,5 +13,8 @@
     "docker:reset": "docker compose down -v",
     "docker:logs": "docker compose logs -f studio",
     "migrate": "pnpm --filter @ohmycms/studio migrate"
+  },
+  "devDependencies": {
+    "lefthook": "^2.1.10"
   }
 }
