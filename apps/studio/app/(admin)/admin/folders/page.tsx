@@ -1,6 +1,7 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FoldersManager } from "@/components/admin/folders-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type FolderRow = {
@@ -10,18 +11,19 @@ type FolderRow = {
 };
 
 export default async function FoldersPage() {
+  const t = await getT("folders");
   const result = await apiFetch<{ data: FolderRow[] }>("/api/folders");
 
   return (
     <div className="max-w-5xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">フォルダ</h1>
-        <p className="mt-1 text-sm text-muted-foreground">ファイル用フォルダを管理します。</p>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
       </div>
       <ErrorBanner message={!result.ok ? result.message : null} />
       <Card>
         <CardHeader>
-          <CardTitle>フォルダ管理</CardTitle>
+          <CardTitle>{t("management_title")}</CardTitle>
         </CardHeader>
         <CardContent>
           {result.ok ? <FoldersManager folders={result.data.data} /> : null}

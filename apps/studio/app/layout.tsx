@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { I18nProvider } from "@/i18n/client";
+import { getLocale, getT } from "@/i18n/server";
+import { messagesFor } from "@/i18n/messages";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,22 +15,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "AI-native CMS",
-  description: "AI-native CMS",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT("common");
+  return {
+    title: t("app_name"),
+    description: t("app_description"),
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Locale resolution order: cookie -> Accept-Language -> env default. See i18n/server.ts.
+  const locale = await getLocale();
+  const messages = messagesFor(locale);
+
   return (
     <html
-      lang="ja"
+      lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <I18nProvider locale={locale} messages={messages}>
+          {children}
+        </I18nProvider>
+      </body>
     </html>
   );
 }

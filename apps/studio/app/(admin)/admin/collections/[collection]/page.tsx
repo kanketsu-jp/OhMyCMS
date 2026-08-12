@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CollectionResult, FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,9 @@ type Props = {
 };
 
 export default async function CollectionDetailPage({ params, searchParams }: Props) {
+  const tCollections = await getT("collections");
+  const tFields = await getT("fields");
+  const tItems = await getT("items");
   const { collection } = await params;
   const query = await searchParams;
   const encoded = encodeURIComponent(collection);
@@ -49,12 +53,12 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/admin/collections" className="text-sm text-muted-foreground hover:underline">
-            コレクション一覧へ
+            {tCollections("back_to_list")}
           </Link>
           <h1 className="mt-2 text-2xl font-semibold">{collection}</h1>
         </div>
         <form action={`/admin/actions/collections/${encoded}/delete`} method="post">
-          <Button type="submit" variant="destructive">コレクション削除</Button>
+          <Button type="submit" variant="destructive">{tCollections("delete_button")}</Button>
         </form>
       </div>
       <ErrorBanner
@@ -69,7 +73,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       ) : null}
       <Card>
         <CardHeader>
-          <CardTitle>フィールド追加</CardTitle>
+          <CardTitle>{tFields("add_title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -78,11 +82,11 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             className="grid gap-4 md:grid-cols-[1fr_180px_140px_120px_auto] md:items-end"
           >
             <div className="space-y-1.5">
-              <Label htmlFor="field">フィールド名</Label>
+              <Label htmlFor="field">{tFields("name_label")}</Label>
               <Input id="field" name="field" required pattern="[A-Za-z_][A-Za-z0-9_]*" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="type">型</Label>
+              <Label htmlFor="type">{tFields("type_label")}</Label>
               <select
                 id="type"
                 name="type"
@@ -95,31 +99,31 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="max_length">最大長</Label>
+              <Label htmlFor="max_length">{tFields("max_length_label")}</Label>
               <Input id="max_length" name="max_length" type="number" min="1" />
             </div>
             <label className="flex h-8 items-center gap-2 text-sm">
               <input type="checkbox" name="required" value="true" className="size-4" />
-              必須
+              {tFields("required_label")}
             </label>
-            <Button type="submit">追加</Button>
+            <Button type="submit">{tFields("add_button")}</Button>
           </form>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>フィールド一覧</CardTitle>
+          <CardTitle>{tFields("list_title")}</CardTitle>
         </CardHeader>
         <CardContent>
           {fieldsResult.ok ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>フィールド</TableHead>
-                  <TableHead>型</TableHead>
-                  <TableHead>必須</TableHead>
-                  <TableHead>主キー</TableHead>
-                  <TableHead>DB型</TableHead>
+                  <TableHead>{tFields("field_header")}</TableHead>
+                  <TableHead>{tFields("type_label")}</TableHead>
+                  <TableHead>{tFields("required_label")}</TableHead>
+                  <TableHead>{tFields("primary_key_header")}</TableHead>
+                  <TableHead>{tFields("db_type_header")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -127,8 +131,8 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                   <TableRow key={field.field}>
                     <TableCell className="font-medium">{field.field}</TableCell>
                     <TableCell>{field.type}</TableCell>
-                    <TableCell>{field.schema?.is_nullable === false ? "はい" : "いいえ"}</TableCell>
-                    <TableCell>{field.schema?.is_primary_key ? "はい" : "いいえ"}</TableCell>
+                    <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
+                    <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
                     <TableCell>{field.schema?.data_type ?? ""}</TableCell>
                   </TableRow>
                 ))}
@@ -140,7 +144,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               href={`/admin/content/${encoded}`}
               className={cn(buttonVariants({ variant: "outline" }))}
             >
-              アイテム管理へ
+              {tItems("manage_link")}
             </Link>
           </div>
         </CardContent>

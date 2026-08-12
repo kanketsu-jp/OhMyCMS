@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 
 type UserRow = {
   id: string;
@@ -52,6 +53,7 @@ function messageFrom(payload: unknown, fallback: string): string {
 
 export function UsersPolicyManager({ users, policies, access }: Props) {
   const router = useRouter();
+  const t = useT("users");
   const [error, setError] = useState<string | null>(null);
 
   async function assign(formData: FormData) {
@@ -67,7 +69,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "割り当てできません"));
+      setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_assign_failed")));
       return;
     }
     router.refresh();
@@ -78,7 +80,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
     const response = await fetch(`/api/access/${id}`, { method: "DELETE" });
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "削除できません"));
+      setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_remove_failed")));
       return;
     }
     router.refresh();
@@ -93,7 +95,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
       ) : null}
       <form action={assign} className="grid gap-4 rounded-md border p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <div className="space-y-1.5">
-          <label htmlFor="user" className="text-sm font-medium">ユーザー</label>
+          <label htmlFor="user" className="text-sm font-medium">{t("user_label")}</label>
           <select id="user" name="user" required className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm">
             {users.map((user) => (
               <option key={user.id} value={user.id}>{user.email}</option>
@@ -101,30 +103,30 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           </select>
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="policy" className="text-sm font-medium">ポリシー</label>
+          <label htmlFor="policy" className="text-sm font-medium">{t("policy_label")}</label>
           <select id="policy" name="policy" required className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm">
             {policies.map((policy) => (
               <option key={policy.id} value={policy.id}>{policy.name}</option>
             ))}
           </select>
         </div>
-        <Button type="submit" disabled={users.length === 0 || policies.length === 0}>割り当て</Button>
+        <Button type="submit" disabled={users.length === 0 || policies.length === 0}>{t("assign_button")}</Button>
       </form>
       <div className="divide-y rounded-md border">
         {access.map((row) => (
           <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
             <div>
               <p className="font-medium">{row.user_email ?? row.role_name ?? row.user ?? row.role}</p>
-              <p className="text-sm text-muted-foreground">ポリシー: {row.policy_name ?? row.policy}</p>
+              <p className="text-sm text-muted-foreground">{t("policy_prefix", { policy: row.policy_name ?? row.policy })}</p>
             </div>
             <Button type="button" variant="destructive" size="sm" onClick={() => void remove(row.id)}>
               <Trash2 />
-              割り当て削除
+              {t("remove_button")}
             </Button>
           </div>
         ))}
         {access.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">ポリシー割り当てはまだありません。</p>
+          <p className="p-3 text-sm text-muted-foreground">{t("empty")}</p>
         ) : null}
       </div>
     </div>

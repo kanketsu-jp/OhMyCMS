@@ -6,6 +6,7 @@ import { Copy, KeyRound, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/i18n/client";
 
 type AgentRow = {
   id: string;
@@ -34,28 +35,29 @@ function messageFrom(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-function parseOptionalJson(text: string, label: string): { ok: true; value: unknown } | { ok: false; message: string } {
+function parseOptionalJson(text: string, invalidMessage: string): { ok: true; value: unknown } | { ok: false; message: string } {
   if (text.trim() === "") return { ok: true, value: null };
   try {
     return { ok: true, value: JSON.parse(text) };
   } catch {
-    return { ok: false, message: `${label} は正しいJSONで入力してください` };
+    return { ok: false, message: invalidMessage };
   }
 }
 
 export function AgentsManager({ agents }: { agents: AgentRow[] }) {
+  const t = useT("agents");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
   async function create(formData: FormData) {
     setError(null);
-    const capabilities = parseOptionalJson(String(formData.get("capabilities") ?? ""), "capabilities");
+    const capabilities = parseOptionalJson(String(formData.get("capabilities") ?? ""), t("invalid_json", { label: "capabilities" }));
     if (!capabilities.ok) {
       setError(capabilities.message);
       return;
     }
-    const tenantScope = parseOptionalJson(String(formData.get("tenant_scope") ?? ""), "tenant_scope");
+    const tenantScope = parseOptionalJson(String(formData.get("tenant_scope") ?? ""), t("invalid_json", { label: "tenant_scope" }));
     if (!tenantScope.ok) {
       setError(tenantScope.message);
       return;
@@ -73,7 +75,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
     });
     const payload = await response.json().catch(() => null) as { token?: string } | unknown;
     if (!response.ok) {
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "発行できません"));
+      setError(messageFrom(payload, response.status === 403 ? t("forbidden") : t("issue_failed")));
       return;
     }
     setToken((payload as { token: string }).token);
@@ -85,7 +87,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
     const response = await fetch(`/api/auth/agents/${id}`, { method: "DELETE" });
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "失効できません"));
+      setError(messageFrom(payload, response.status === 403 ? t("forbidden") : t("revoke_failed")));
       return;
     }
     router.refresh();
@@ -97,13 +99,13 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         <div className="space-y-3 rounded-md border border-destructive/30 bg-destructive/10 p-4">
           <div className="flex items-center gap-2 font-medium text-destructive">
             <KeyRound className="size-4" />
-            発行された生トークン
+            {t("token_heading")}
           </div>
-          <p className="text-sm text-destructive">この画面を閉じると二度と表示できません。</p>
+          <p className="text-sm text-destructive">{t("token_warning")}</p>
           <code className="block overflow-x-auto rounded-md bg-background p-3 text-sm">{token}</code>
           <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(token)}>
             <Copy />
-            コピー
+            {t("copy_button")}
           </Button>
         </div>
       ) : null}
@@ -115,25 +117,25 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
       <form action={create} className="space-y-4 rounded-md border p-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="name">name</Label>
+            <Label htmlFor="name">{t("name_label")}</Label>
             <Input id="name" name="name" required />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="expires_in_days">expires_in_days</Label>
+            <Label htmlFor="expires_in_days">{t("expires_in_days_label")}</Label>
             <Input id="expires_in_days" name="expires_in_days" type="number" min="1" max="365" required />
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="capabilities">capabilities（JSON）</Label>
+            <Label htmlFor="capabilities">{t("capabilities_label")}</Label>
             <textarea id="capabilities" name="capabilities" className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="tenant_scope">tenant_scope（JSON）</Label>
+            <Label htmlFor="tenant_scope">{t("tenant_scope_label")}</Label>
             <textarea id="tenant_scope" name="tenant_scope" className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm" />
           </div>
         </div>
-        <Button type="submit">発行</Button>
+        <Button type="submit">{t("issue_button")}</Button>
       </form>
       <div className="divide-y rounded-md border">
         {agents.map((agent) => (
@@ -141,7 +143,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <div>
               <p className="font-medium">
                 {agent.name}
-                {agent.revoked_at ? <span className="ml-2 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">失効済み</span> : null}
+                {agent.revoked_at ? <span className="ml-2 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t("revoked_badge")}</span> : null}
               </p>
               <p className="text-sm text-muted-foreground">
                 on_behalf_of: {agent.on_behalf_of} / expires_at: {agent.expires_at} / revoked_at: {agent.revoked_at ?? "-"}
@@ -149,12 +151,12 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             </div>
             <Button type="button" variant="destructive" size="sm" disabled={Boolean(agent.revoked_at)} onClick={() => void revoke(agent.id)}>
               <Ban />
-              失効
+              {t("revoke_button")}
             </Button>
           </div>
         ))}
         {agents.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">エージェントはまだありません。</p>
+          <p className="p-3 text-sm text-muted-foreground">{t("empty")}</p>
         ) : null}
       </div>
     </div>

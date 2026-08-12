@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/i18n/client";
 
 type FolderRow = {
   id: string;
@@ -28,6 +29,7 @@ function messageFrom(payload: unknown, fallback: string): string {
 }
 
 export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
+  const t = useT("files");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +38,7 @@ export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
     const response = await fetch("/api/files", { method: "POST", body: formData });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "アップロードできません"));
+      setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_upload_failed")));
       return;
     }
     router.refresh();
@@ -52,14 +54,14 @@ export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
       <form action={upload} className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
         <Input name="file" type="file" required />
         <select name="folder" className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm" defaultValue="">
-          <option value="">フォルダなし</option>
+          <option value="">{t("no_folder_option")}</option>
           {folders.map((folder) => (
             <option key={folder.id} value={folder.id}>{folder.name}</option>
           ))}
         </select>
         <Button type="submit">
           <Upload />
-          アップロード
+          {t("upload_button")}
         </Button>
       </form>
     </div>

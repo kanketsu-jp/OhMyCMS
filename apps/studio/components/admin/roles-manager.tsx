@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/i18n/client";
 import { Label } from "@/components/ui/label";
 
 export type RoleRow = {
@@ -31,6 +32,7 @@ function messageFrom(payload: unknown, fallback: string): string {
 
 export function RolesManager({ roles }: { roles: RoleRow[] }) {
   const router = useRouter();
+  const t = useT("roles");
   const [error, setError] = useState<string | null>(null);
 
   async function create(formData: FormData) {
@@ -47,7 +49,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "作成できません"));
+      setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_create_failed")));
       return;
     }
     router.refresh();
@@ -58,7 +60,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
     const response = await fetch(`/api/roles/${id}`, { method: "DELETE" });
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "削除できません"));
+      setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_remove_failed")));
       return;
     }
     router.refresh();
@@ -73,23 +75,23 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
       ) : null}
       <form action={create} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
         <div className="space-y-1.5">
-          <Label htmlFor="name">ロール名</Label>
+          <Label htmlFor="name">{t("name_label")}</Label>
           <Input id="name" name="name" required />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="description">説明</Label>
+          <Label htmlFor="description">{t("description_label")}</Label>
           <Input id="description" name="description" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="parent">親ロール</Label>
+          <Label htmlFor="parent">{t("parent_label")}</Label>
           <select id="parent" name="parent" className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm">
-            <option value="">なし</option>
+            <option value="">{t("none_option")}</option>
             {roles.map((role) => (
               <option key={role.id} value={role.id}>{role.name}</option>
             ))}
           </select>
         </div>
-        <Button type="submit">作成</Button>
+        <Button type="submit">{t("create_button")}</Button>
       </form>
       <div className="divide-y rounded-md border">
         {roles.map((role) => (
@@ -97,12 +99,12 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
             <div className="min-w-0">
               <p className="font-medium">{role.name}</p>
               <p className="text-sm text-muted-foreground">
-                {role.description || "説明なし"} / 親: {roles.find((item) => item.id === role.parent)?.name ?? "なし"}
+                {role.description || t("no_description")} / {t("parent_colon_label")}{roles.find((item) => item.id === role.parent)?.name ?? t("none_option")}
               </p>
             </div>
             <Button type="button" variant="destructive" size="sm" onClick={() => void remove(role.id)}>
               <Trash2 />
-              削除
+              {t("delete_button")}
             </Button>
           </div>
         ))}

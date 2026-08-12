@@ -4,6 +4,7 @@ import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileDetailManager } from "@/components/admin/file-detail-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type Props = {
@@ -31,6 +32,8 @@ type FolderRow = {
 };
 
 export default async function FileDetailPage({ params }: Props) {
+  const t = await getT("files");
+  const format = await getFormat();
   const { id } = await params;
   const [fileResult, foldersResult] = await Promise.all([
     apiFetch<{ data: FileRow }>(`/api/files/${id}`),
@@ -43,9 +46,9 @@ export default async function FileDetailPage({ params }: Props) {
     <div className="max-w-6xl space-y-6">
       <div>
         <Link href="/admin/files" className="text-sm text-muted-foreground hover:underline">
-          ファイル一覧へ
+          {t("back_to_files")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">{file?.title ?? file?.filename_download ?? "ファイル詳細"}</h1>
+        <h1 className="mt-2 text-2xl font-semibold">{file?.title ?? file?.filename_download ?? t("detail_fallback_title")}</h1>
       </div>
       <ErrorBanner
         message={
@@ -57,7 +60,7 @@ export default async function FileDetailPage({ params }: Props) {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <Card>
             <CardHeader>
-              <CardTitle>プレビュー</CardTitle>
+              <CardTitle>{t("preview_title")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex min-h-80 items-center justify-center overflow-hidden rounded-md bg-muted">
@@ -79,16 +82,17 @@ export default async function FileDetailPage({ params }: Props) {
                 )}
               </div>
               <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-                <div><dt className="text-muted-foreground">id</dt><dd className="break-all">{file.id}</dd></div>
-                <div><dt className="text-muted-foreground">type</dt><dd>{file.type ?? ""}</dd></div>
-                <div><dt className="text-muted-foreground">size</dt><dd>{file.filesize ?? ""}</dd></div>
-                <div><dt className="text-muted-foreground">dimensions</dt><dd>{file.width && file.height ? `${file.width} x ${file.height}` : "-"}</dd></div>
+                <div><dt className="text-muted-foreground">{t("id_label")}</dt><dd className="break-all">{file.id}</dd></div>
+                <div><dt className="text-muted-foreground">{t("type_label")}</dt><dd>{file.type ?? ""}</dd></div>
+                <div><dt className="text-muted-foreground">{t("size_label")}</dt><dd>{format.fileSize(file.filesize)}</dd></div>
+                <div><dt className="text-muted-foreground">{t("dimensions_label")}</dt><dd>{file.width && file.height ? `${file.width} x ${file.height}` : "-"}</dd></div>
+                <div><dt className="text-muted-foreground">{t("uploaded_on")}</dt><dd>{format.dateTime(file.uploaded_on)}</dd></div>
               </dl>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>メタ情報</CardTitle>
+              <CardTitle>{t("metadata_title")}</CardTitle>
             </CardHeader>
             <CardContent>
               <FileDetailManager file={file} folders={foldersResult.ok ? foldersResult.data.data : []} />

@@ -6,6 +6,7 @@ import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/i18n/client";
 
 type FileRow = {
   id: string;
@@ -36,6 +37,7 @@ function messageFrom(payload: unknown, fallback: string): string {
 }
 
 export function FileDetailManager({ file, folders }: { file: FileRow; folders: FolderRow[] }) {
+  const t = useT("files");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +56,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "保存できません"));
+      setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_save_failed")));
       return;
     }
     router.refresh();
@@ -65,7 +67,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
     const response = await fetch(`/api/files/${file.id}`, { method: "DELETE" });
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
-      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "削除できません"));
+      setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_delete_failed")));
       return;
     }
     router.push("/admin/files");
@@ -81,21 +83,21 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
       ) : null}
       <form action={save} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="title">title</Label>
+          <Label htmlFor="title">{t("title_label")}</Label>
           <Input id="title" name="title" defaultValue={file.title ?? ""} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="description">description</Label>
+          <Label htmlFor="description">{t("description_label")}</Label>
           <textarea id="description" name="description" defaultValue={file.description ?? ""} className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="tags">tags</Label>
+          <Label htmlFor="tags">{t("tags_label")}</Label>
           <Input id="tags" name="tags" defaultValue={file.tags ?? ""} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="folder">folder</Label>
+          <Label htmlFor="folder">{t("folder_label")}</Label>
           <select id="folder" name="folder" className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm" defaultValue={file.folder ?? ""}>
-            <option value="">フォルダなし</option>
+            <option value="">{t("no_folder_option")}</option>
             {folders.map((folder) => (
               <option key={folder.id} value={folder.id}>{folder.name}</option>
             ))}
@@ -104,11 +106,11 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
         <div className="flex gap-2">
           <Button type="submit">
             <Save />
-            保存
+            {t("save_button")}
           </Button>
           <Button type="button" variant="destructive" onClick={() => void remove()}>
             <Trash2 />
-            削除
+            {t("delete_button")}
           </Button>
         </div>
       </form>

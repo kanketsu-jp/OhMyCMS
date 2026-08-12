@@ -1,5 +1,6 @@
 import type { FieldResult } from "@/lib/schema/models";
 import { FilePicker } from "@/components/admin/file-picker";
+import { getT } from "@/i18n/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +36,9 @@ function isFileField(field: FieldResult): boolean {
   return field.type === "uuid" && ["file", "image", "thumbnail", "photo"].includes(field.field);
 }
 
-export function ItemForm({ collection, fields, itemId, item }: Props) {
+export async function ItemForm({ collection, fields, itemId, item }: Props) {
+  const t = await getT("fields");
+  const tItems = await getT("items");
   const isEdit = Boolean(item);
   const visibleFields = fields.filter((field) => {
     if (!field.schema) return false;
@@ -89,7 +92,7 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
                   disabled={readonly}
                   className="size-4"
                 />
-                true
+                {t("yes")}
               </label>
             ) : field.type === "json" ? (
               <textarea
@@ -126,9 +129,9 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
         );
       })}
       {visibleFields.length === 0 ? (
-        <p className="text-sm text-muted-foreground">表示できるフィールドがありません。</p>
+        <p className="text-sm text-muted-foreground">{t("empty_fields")}</p>
       ) : null}
-      <Button type="submit">{isEdit ? "保存" : "作成"}</Button>
+      <Button type="submit">{isEdit ? tItems("save_button") : tItems("create_button")}</Button>
     </form>
   );
 }

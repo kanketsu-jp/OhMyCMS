@@ -1,6 +1,7 @@
 import { AgentsManager } from "@/components/admin/agents-manager";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type AgentRow = {
@@ -16,18 +17,19 @@ type AgentRow = {
 };
 
 export default async function AgentsPage() {
+  const t = await getT("agents");
   const result = await apiFetch<{ data: AgentRow[] }>("/api/auth/agents");
 
   return (
     <div className="max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">エージェント</h1>
-        <p className="mt-1 text-sm text-muted-foreground">エージェントトークンを発行・失効します。</p>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
       </div>
       <ErrorBanner message={!result.ok ? result.message : null} />
       <Card>
         <CardHeader>
-          <CardTitle>エージェント管理</CardTitle>
+          <CardTitle>{t("manage_title")}</CardTitle>
         </CardHeader>
         <CardContent>
           {result.ok ? <AgentsManager agents={result.data.data} /> : null}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,6 +36,8 @@ function primaryKey(fields: FieldResult[]): string {
 }
 
 export default async function ContentPage({ params, searchParams }: Props) {
+  const t = await getT("items");
+  const tFields = await getT("fields");
   const { collection } = await params;
   const query = await searchParams;
   const page = Math.max(1, Number(query.page ?? "1") || 1);
@@ -59,12 +62,12 @@ export default async function ContentPage({ params, searchParams }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:underline">
-            フィールド管理へ
+            {tFields("manage_link")}
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold">{collection} のアイテム</h1>
+          <h1 className="mt-2 text-2xl font-semibold">{t("title_for_collection", { collection })}</h1>
         </div>
         <Link href={`/admin/content/${encoded}/new`} className={cn(buttonVariants())}>
-          新規アイテム
+          {t("new_item")}
         </Link>
       </div>
       <ErrorBanner
@@ -79,7 +82,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
       ) : null}
       <Card>
         <CardHeader>
-          <CardTitle>一覧</CardTitle>
+          <CardTitle>{t("list_title")}</CardTitle>
         </CardHeader>
         <CardContent>
           {itemsResult.ok ? (
@@ -90,7 +93,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                     {columns.map((field) => (
                       <TableHead key={field.field}>{field.field}</TableHead>
                     ))}
-                    <TableHead className="w-44">操作</TableHead>
+                    <TableHead className="w-44">{t("actions_header")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -109,11 +112,11 @@ export default async function ContentPage({ params, searchParams }: Props) {
                               href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
                               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                             >
-                              編集
+                              {t("edit_button")}
                             </Link>
                             <form action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`} method="post">
                               <input type="hidden" name="_method" value="delete" />
-                              <Button type="submit" variant="destructive" size="sm">削除</Button>
+                              <Button type="submit" variant="destructive" size="sm">{t("delete_button")}</Button>
                             </form>
                           </div>
                         </TableCell>
@@ -123,19 +126,19 @@ export default async function ContentPage({ params, searchParams }: Props) {
                 </TableBody>
               </Table>
               <div className="mt-4 flex items-center justify-between text-sm">
-                <span>{total} 件中 {offset + 1} - {Math.min(offset + limit, total)} 件</span>
+                <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
                 <div className="flex gap-2">
                   <Link
                     href={`/admin/content/${encoded}?page=${Math.max(1, page - 1)}`}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
                   >
-                    前へ
+                    {t("prev_page")}
                   </Link>
                   <Link
                     href={`/admin/content/${encoded}?page=${Math.min(pageCount, page + 1)}`}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
                   >
-                    次へ
+                    {t("next_page")}
                   </Link>
                 </div>
               </div>

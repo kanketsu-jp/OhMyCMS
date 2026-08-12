@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/i18n/client";
 
 type FileRow = {
   id: string;
@@ -51,6 +52,7 @@ function isImage(file: FileRow | null): boolean {
 }
 
 export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
+  const t = useT("files");
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<FileRow[]>([]);
   const [value, setValue] = useState(defaultValue);
@@ -65,7 +67,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
     const response = await fetch("/api/files?limit=100", { cache: "no-store" });
     const payload = await response.json().catch(() => null) as ApiList<FileRow> | unknown;
     if (!response.ok) {
-      setError(errorMessage(payload, response.status === 403 ? "権限がありません" : "ファイル一覧を取得できません"));
+      setError(errorMessage(payload, response.status === 403 ? t("error_forbidden") : t("error_files_load_failed")));
       return;
     }
     const rows = (payload as ApiList<FileRow>).data;
@@ -78,7 +80,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
     const response = await fetch("/api/files", { method: "POST", body: formData });
     const payload = await response.json().catch(() => null) as { data?: FileRow } | unknown;
     if (!response.ok) {
-      setError(errorMessage(payload, response.status === 403 ? "権限がありません" : "アップロードできません"));
+      setError(errorMessage(payload, response.status === 403 ? t("error_forbidden") : t("error_upload_failed")));
       return;
     }
     const row = (payload as { data: FileRow }).data;
@@ -101,13 +103,13 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
           <DialogTrigger
             render={<Button type="button" variant="outline" onClick={() => void loadFiles()} />}
           >
-            ファイルを選択
+            {t("select_file_button")}
           </DialogTrigger>
           <DialogContent className="max-h-[84vh] overflow-y-auto sm:max-w-3xl">
             <DialogHeader>
-              <DialogTitle>ファイルを選択</DialogTitle>
+              <DialogTitle>{t("select_file_title")}</DialogTitle>
               <DialogDescription>
-                既存ファイルを選ぶか、この場でアップロードします。
+                {t("select_file_description")}
               </DialogDescription>
             </DialogHeader>
             <form action={upload} className="flex flex-wrap items-end gap-3 rounded-md border p-3">
@@ -116,7 +118,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
               </div>
               <Button type="submit">
                 <Upload />
-                アップロード
+                {t("upload_button")}
               </Button>
             </form>
             {error ? (
@@ -145,7 +147,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
                     ) : (
                       <div className="text-center text-sm text-muted-foreground">
                         <ImageIcon className="mx-auto mb-2 size-8" />
-                        {file.filename_download.split(".").pop()?.toUpperCase() ?? "FILE"}
+                        {file.filename_download.split(".").pop()?.toUpperCase() ?? t("file_extension_fallback")}
                       </div>
                     )}
                   </div>
@@ -159,7 +161,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
         {value ? (
           <Button type="button" variant="ghost" onClick={() => setValue("")}>
             <X />
-            クリア
+            {t("clear_button")}
           </Button>
         ) : null}
       </div>

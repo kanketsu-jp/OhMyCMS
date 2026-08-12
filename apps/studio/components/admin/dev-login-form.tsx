@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function DevLoginForm() {
   const router = useRouter();
+  const t = useT("auth");
   const [email, setEmail] = useState("admin@local");
   const [admin, setAdmin] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function DevLoginForm() {
       const payload = await response.json().catch(() => null) as {
         error?: { message?: string };
       } | null;
-      setError(payload?.error?.message ?? `ログインできませんでした (${response.status})`);
+      setError(payload?.error?.message ?? t("login_failed", { status: response.status }));
       setPending(false);
       return;
     }
@@ -40,7 +42,7 @@ export function DevLoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="dev-email">メールアドレス</Label>
+        <Label htmlFor="dev-email">{t("email_label")}</Label>
         <Input
           id="dev-email"
           type="email"
@@ -56,11 +58,11 @@ export function DevLoginForm() {
           checked={admin}
           onChange={(event) => setAdmin(event.target.checked)}
         />
-        管理者権限でログイン
+        {t("admin_checkbox")}
       </label>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "ログイン中..." : "開発用ログイン"}
+        {pending ? t("dev_login_pending") : t("dev_login")}
       </Button>
     </form>
   );

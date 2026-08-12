@@ -3,6 +3,7 @@ import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ItemForm } from "@/components/admin/item-form";
+import { getT } from "@/i18n/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export default async function NewItemPage({ params, searchParams }: Props) {
+  const t = await getT("items");
   const { collection } = await params;
   const query = await searchParams;
   const encoded = encodeURIComponent(collection);
@@ -21,9 +23,9 @@ export default async function NewItemPage({ params, searchParams }: Props) {
     <div className="max-w-3xl space-y-6">
       <div>
         <Link href={`/admin/content/${encoded}`} className="text-sm text-muted-foreground hover:underline">
-          アイテム一覧へ
+          {t("back_to_list")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">新規アイテム</h1>
+        <h1 className="mt-2 text-2xl font-semibold">{t("new_item")}</h1>
       </div>
       <ErrorBanner message={query.error ?? (!fieldsResult.ok ? fieldsResult.message : null)} />
       <Card>

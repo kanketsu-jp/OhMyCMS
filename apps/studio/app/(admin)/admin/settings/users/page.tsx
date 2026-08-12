@@ -1,6 +1,7 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { UsersPolicyManager } from "@/components/admin/users-policy-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type UserRow = {
@@ -28,6 +29,7 @@ type AccessRow = {
 };
 
 export default async function UsersPage() {
+  const t = await getT("users");
   const [usersResult, policiesResult, accessResult] = await Promise.all([
     apiFetch<{ data: UserRow[] }>("/api/users"),
     apiFetch<{ data: PolicyRow[] }>("/api/policies"),
@@ -37,8 +39,8 @@ export default async function UsersPage() {
   return (
     <div className="max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">ユーザー</h1>
-        <p className="mt-1 text-sm text-muted-foreground">ユーザーへのポリシー割り当てを管理します。</p>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
       </div>
       <ErrorBanner
         message={
@@ -49,7 +51,7 @@ export default async function UsersPage() {
       />
       <Card>
         <CardHeader>
-          <CardTitle>ポリシー割り当て</CardTitle>
+          <CardTitle>{t("assignment_card_title")}</CardTitle>
         </CardHeader>
         <CardContent>
           {usersResult.ok && policiesResult.ok && accessResult.ok ? (

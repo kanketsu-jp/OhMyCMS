@@ -3,6 +3,7 @@ import type { CollectionResult } from "@/lib/schema/models";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PolicyPermissionsManager } from "@/components/admin/policy-permissions-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type Props = {
@@ -27,6 +28,7 @@ type PermissionRow = {
 
 export default async function PolicyDetailPage({ params }: Props) {
   const { id } = await params;
+  const t = await getT("policies");
   const [policyResult, collectionsResult, permissionsResult] = await Promise.all([
     apiFetch<{ data: PolicyRow }>(`/api/policies/${id}`),
     apiFetch<CollectionResult[]>("/api/collections"),
@@ -37,14 +39,12 @@ export default async function PolicyDetailPage({ params }: Props) {
     <div className="max-w-6xl space-y-6">
       <div>
         <Link href="/admin/settings/policies" className="text-sm text-muted-foreground hover:underline">
-          ポリシー一覧へ
+          {t("back_to_list")}
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">
-          {policyResult.ok ? policyResult.data.data.name : "ポリシー詳細"}
+          {policyResult.ok ? policyResult.data.data.name : t("detail_fallback_title")}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          permission行の collection / action / fields / 行フィルタを編集します。
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("detail_description")}</p>
       </div>
       <ErrorBanner
         message={
@@ -55,7 +55,7 @@ export default async function PolicyDetailPage({ params }: Props) {
       />
       <Card>
         <CardHeader>
-          <CardTitle>permission行</CardTitle>
+          <CardTitle>{t("permission_rows_title")}</CardTitle>
         </CardHeader>
         <CardContent>
           {policyResult.ok && collectionsResult.ok && permissionsResult.ok ? (

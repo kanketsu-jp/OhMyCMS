@@ -4,6 +4,7 @@ import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileUploadForm } from "@/components/admin/files-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type Props = {
@@ -26,11 +27,12 @@ type FolderRow = {
   parent: string | null;
 };
 
-function extension(file: FileRow): string {
-  return file.filename_download.split(".").pop()?.toUpperCase() ?? "FILE";
+function extension(file: FileRow, fallback: string): string {
+  return file.filename_download.split(".").pop()?.toUpperCase() ?? fallback;
 }
 
 export default async function FilesPage({ searchParams }: Props) {
+  const t = await getT("files");
   const query = await searchParams;
   const folderQuery = query.folder ? `?folder=${encodeURIComponent(query.folder)}` : "";
   const [filesResult, foldersResult] = await Promise.all([
@@ -43,11 +45,11 @@ export default async function FilesPage({ searchParams }: Props) {
     <div className="max-w-7xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">ファイル</h1>
-          <p className="mt-1 text-sm text-muted-foreground">アップロード済みファイルとメタ情報を管理します。</p>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
         </div>
         <Link href="/admin/folders" className="text-sm text-muted-foreground hover:underline">
-          フォルダ管理へ
+          {t("folders_link")}
         </Link>
       </div>
       <ErrorBanner
@@ -58,7 +60,7 @@ export default async function FilesPage({ searchParams }: Props) {
       />
       <Card>
         <CardHeader>
-          <CardTitle>アップロード</CardTitle>
+          <CardTitle>{t("upload_title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <FileUploadForm folders={folders} />
@@ -66,17 +68,17 @@ export default async function FilesPage({ searchParams }: Props) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>一覧</CardTitle>
+          <CardTitle>{t("list_title")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <form className="flex max-w-sm gap-2" action="/admin/files">
             <select name="folder" className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-sm" defaultValue={query.folder ?? ""}>
-              <option value="">すべてのフォルダ</option>
+              <option value="">{t("all_folders_option")}</option>
               {folders.map((folder) => (
                 <option key={folder.id} value={folder.id}>{folder.name}</option>
               ))}
             </select>
-            <button type="submit" className="rounded-lg border px-3 text-sm hover:bg-muted">絞り込み</button>
+            <button type="submit" className="rounded-lg border px-3 text-sm hover:bg-muted">{t("filter_button")}</button>
           </form>
           {filesResult.ok ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -95,7 +97,7 @@ export default async function FilesPage({ searchParams }: Props) {
                     ) : (
                       <div className="text-center text-muted-foreground">
                         <FileIcon className="mx-auto mb-2 size-10" />
-                        <span className="text-sm font-medium">{extension(file)}</span>
+                        <span className="text-sm font-medium">{extension(file, t("file_extension_fallback"))}</span>
                       </div>
                     )}
                   </div>
@@ -104,7 +106,7 @@ export default async function FilesPage({ searchParams }: Props) {
                 </Link>
               ))}
               {filesResult.data.data.length === 0 ? (
-                <p className="text-sm text-muted-foreground">ファイルはまだありません。</p>
+                <p className="text-sm text-muted-foreground">{t("empty_files")}</p>
               ) : null}
             </div>
           ) : null}

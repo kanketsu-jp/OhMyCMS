@@ -77,6 +77,23 @@ Knexは全DBドライバ(mysql/sqlite3/oracledb等)を動的requireするため�
 
 DB接続文字列、APIキー、署名鍵(`jose`を使ったJWT関連の鍵含む)を `console.log`・エラーメッセージ・コミット履歴に残さない。`.env.local` はgit管理外(`.env.example` のみコミット)。
 
+### 3.8 UI に文言を直接書かない。必ず辞書キーを通す
+
+**このCMSを自作した最大の理由が「全文言が自前の辞書にある」状態**であること(既存CMS 4本はここで脱落し、特に Keystone は Admin UI の `Create` / `Save` / `Delete` が英語のまま残せなかった)。したがって:
+
+- `app/**` `components/**` の表示文言(JSXテキスト、`placeholder` / `title` / `aria-label` / `alt`、クライアントで組み立てるエラー文言)を**リテラルで書かない**。**英語のリテラルも禁止**(日本語だけ消して `Save` が残る事故を防ぐ)。
+- 使い分け: **Server Component** は `import { getT, getFormat } from "@/i18n/server"` → `const t = await getT("files")`。**Client Component**(先頭に `"use client"`)は `import { useT, useFormat } from "@/i18n/client"` → `const t = useT("files")`。
+- **新しい文言を足したら `i18n/messages/ja.json` と `en.json` の両方に足す**(キー集合が一致していないと下記の検証が落ちる)。
+- **日付・数値は `getFormat()` / `useFormat()` を通す**(`toLocaleString()` を直接書かない)。
+- 辞書化しないもの: サーバから返る値(`file.title` 等)、スキーマ識別子(`uuid` / `read` 等)、`htmlFor` / `name` / `href` などの属性値。
+- 検証(`apps/studio` で実行):
+  ```
+  node scripts/check-i18n-hardcoded.mjs   # 日本語・英語のハードコード検出
+  node scripts/check-i18n-keys.mjs        # ja/en のキー集合一致
+  node scripts/check-i18n-usage.mjs       # コードが呼ぶキーと辞書の突き合わせ(両方向)
+  ```
+  🚨 **素の `grep '[ぁ-んァ-ヶ一-龠]'` で確認しないこと。** コメントを誤検出して**正しく完了したファイルでも落ち**、かつ**英語の残りを一切見逃す**(実測で両方確認済み)。
+
 ## 4. 検証の掟
 
 作業結果を「動いた」「表示された」と報告する前に、必ず以下を守ること。
