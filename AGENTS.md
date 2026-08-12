@@ -83,7 +83,10 @@ DB接続文字列、APIキー、署名鍵(`jose`を使ったJWT関連の鍵含�
 
 - `app/**` `components/**` の表示文言(JSXテキスト、`placeholder` / `title` / `aria-label` / `alt`、クライアントで組み立てるエラー文言)を**リテラルで書かない**。**英語のリテラルも禁止**(日本語だけ消して `Save` が残る事故を防ぐ)。
 - 使い分け: **Server Component** は `import { getT, getFormat } from "@/i18n/server"` → `const t = await getT("files")`。**Client Component**(先頭に `"use client"`)は `import { useT, useFormat } from "@/i18n/client"` → `const t = useT("files")`。
-- **新しい文言を足したら `i18n/messages/ja.json` と `en.json` の両方に足す**(キー集合が一致していないと下記の検証が落ちる)。
+- **辞書は名前空間ごとに1ファイル**: `i18n/messages/<locale>/<namespace>.json`。
+  🚨 **単一の巨大 JSON に戻さないこと**(複数の作業者が同時に文言を足すと同じファイルを書き合って片方が消える。名前空間で割ってあるのはそれを防ぐため)。
+- **新しい文言を足したら ja と en の両方に足す**(キー集合が一致していないと下記の検証が落ちる)。
+  既存の名前空間へキーを足すだけなら `i18n/messages.ts` は触らない。**新しい名前空間を作るときだけ** ja/en に JSON を作り、`i18n/messages.ts` の import・`DICTIONARIES`・`NAMESPACES` に1行ずつ足す(登録漏れは `check-i18n-keys.mjs` が検出する)。
 - **日付・数値は `getFormat()` / `useFormat()` を通す**(`toLocaleString()` を直接書かない)。
 - 辞書化しないもの: サーバから返る値(`file.title` 等)、スキーマ識別子(`uuid` / `read` 等)、`htmlFor` / `name` / `href` などの属性値。
 - 検証(`apps/studio` で実行):
