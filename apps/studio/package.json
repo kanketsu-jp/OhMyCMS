@@ -36,7 +36,6 @@
     "@storybook/addon-themes": "^10.5.7",
     "@storybook/nextjs-vite": "^10.5.7",
     "@tailwindcss/postcss": "^4",
-    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^20",
     "@types/pg": "^8.20.3",
     "@types/react": "^19",
