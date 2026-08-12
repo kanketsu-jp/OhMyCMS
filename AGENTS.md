@@ -146,9 +146,10 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 > Claude Code 固有の事柄は `CLAUDE.md` 側に書き、ここには**全エージェント共通のルールだけ**を置く。
 
 <!-- rag-okf:start -->
-[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-12|commit: 1603f6a|docs: 2
+[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-12|commit: 1cd8ceb|docs: 16
 |STOP. このリポジトリ固有の事情はあなたの事前知識にない。下記に該当したら必ず該当ファイルを読む。
-|areas:{}|decisions:{}|glossary:{}|ops:{}
+|apps-studio,nextjs,rest-api,architecture→areas/apps-studio.md
+|areas:{areas/apps-studio.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/no-directus-fork.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/single-nextjs-app-then-hono.md,decisions/two-tier-auth.md,decisions/use-proxy-not-middleware.md}|glossary:{}|ops:{ops/hrdr-panes.md}
 |検索(CLI): rag-okf search "<query>" --json
 |更新: rag-okf refresh]
 <!-- rag-okf:end -->

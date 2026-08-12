@@ -1,6 +1,6 @@
 ---
 name: cms-knowledge
-description: cms 固有の事情（knowledge, repository, docs など）を調べるときに使う。このリポジトリのナレッジを検索し、関連を辿って該当ファイルを読む。
+description: cms 固有の事情（architecture, nextjs, permissions など）を調べるときに使う。このリポジトリのナレッジを検索し、関連を辿って該当ファイルを読む。
 ---
 
 <!-- rag-okf:start -->
@@ -9,7 +9,7 @@ description: cms 固有の事情（knowledge, repository, docs など）を調�
 このリポジトリ固有の事情は、あなたの事前知識にはありません。**推測で答えず、まずナレッジを引いてください。**
 
 - ナレッジの場所: `knowledge/`
-- この案内が作られた時点のコミット: `1603f6a`
+- この案内が作られた時点のコミット: `1cd8ceb`
 
 ## 調べる順番
 
@@ -29,7 +29,7 @@ description: cms 固有の事情（knowledge, repository, docs など）を調�
 
 ## 領域
 
-- No area documents yet.
+- areas/apps-studio.md
 
 ## CLI
 
