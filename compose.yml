@@ -29,6 +29,11 @@ x-app-env: &app-env
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   AUTH_SECRET: ${AUTH_SECRET:-}
   ALLOW_DEV_LOGIN: ${ALLOW_DEV_LOGIN:-}
+  # 表示・ホワイトラベル。既定値はアプリ側にも持たせてあるので、ここは空で渡してよい
+  # （空文字を渡してもアプリ側の既定 ja / OhMyCMS にフォールバックする）。
+  OHMYCMS_DEFAULT_LOCALE: ${OHMYCMS_DEFAULT_LOCALE:-}
+  OHMYCMS_PROJECT_NAME: ${OHMYCMS_PROJECT_NAME:-}
+  OHMYCMS_PROJECT_LOGO_URL: ${OHMYCMS_PROJECT_LOGO_URL:-}
 
 services:
   db:
