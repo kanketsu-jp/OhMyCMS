@@ -1,8 +1,13 @@
-# docker compose -f docker/compose.yml up -d --build だけで DB もアプリも起動する。
+# docker compose up -d --build だけで DB もアプリも起動する。
 #
-# name を明示しているのは、-f docker/compose.yml で叩くと compose がプロジェクト名を
-# ディレクトリ名 "docker" と推測し、ボリュームが docker_ohmycms-db-data、
-# ネットワークが docker_default になって他PJと衝突するため。
+# このファイルをリポジトリルートに置いているのは、compose が .env を
+# 「プロジェクトディレクトリ = compose ファイルのある場所」から読むため。
+# docker/compose.yml に置いて -f docker/compose.yml で叩くと、読まれるのは docker/.env に
+# なってしまい、ルートの .env が黙って無視される（実測）。--env-file を毎回付ければ回避できるが、
+# 受入基準は「docker compose up だけで起動する」なのでフラグ前提にしない。
+#
+# name を明示しているのは、プロジェクト名がディレクトリ名からの推測（この場合 cms）になり、
+# ボリューム名・ネットワーク名が他PJと衝突しうるため。
 name: ohmycms
 
 # 変数の既定値をここに持たせているので、.env が無くても（= .env.example をコピーし忘れても）
@@ -50,7 +55,7 @@ services:
   # スケールアウトしたときに同じ migration が同時に走らないようにするため。
   migrate:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile
       target: migrate
     image: ohmycms-migrate
@@ -63,7 +68,7 @@ services:
 
   studio:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile
       target: runner
     image: ohmycms-studio

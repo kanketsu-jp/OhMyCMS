@@ -6,7 +6,7 @@ AI ネイティブな CMS。pnpm モノレポ構成で、`apps/studio` が Next.
 
 ```bash
 cp .env.example .env
-pnpm docker:up          # = docker compose -f docker/compose.yml --env-file .env up -d --build
+docker compose up -d --build
 ```
 
 `http://localhost:3000` が Studio、`http://localhost:3000/api/health` が 200 になれば完了。
@@ -14,16 +14,16 @@ pnpm docker:up          # = docker compose -f docker/compose.yml --env-file .env
 
 | コマンド | 内容 |
 |---|---|
-| `pnpm docker:up` | ビルドして起動 |
+| `pnpm docker:up` | ビルドして起動（`docker compose up -d --build`） |
 | `pnpm docker:logs` | studio のログを追う |
 | `pnpm docker:down` | 停止（データは残る） |
 | `pnpm docker:reset` | 停止してボリュームごと削除（DB とアップロード済みファイルが消える） |
 
-> ⚠ **`--env-file .env` を省略すると `.env` は読まれない。**
-> `docker compose -f docker/compose.yml ...` の形だと compose のプロジェクトディレクトリが
-> `docker/` になり、探されるのは `docker/.env` でリポジトリルートの `.env` ではない（実測）。
-> `.env` を省いても既定値で起動はするので、**値を変えたのに反映されない**という形で気づきにくい。
-> ルートの `.env` を使うなら必ず `pnpm docker:up`（＝`--env-file .env` 付き）を使う。
+> 📌 **`compose.yml` をリポジトリルートに置いているのは、`.env` を読ませるため。**
+> compose は `.env` を「プロジェクトディレクトリ＝compose ファイルのある場所」から読む。
+> `docker/compose.yml` に置いて `-f docker/compose.yml` で叩くと、探されるのは `docker/.env` で、
+> ルートの `.env` は**黙って無視される**（既定値で起動してしまうため気づきにくい）。
+> ルートに置けばフラグ無しの `docker compose up -d` だけで `.env` が効く。
 
 ## 起動 B: ホストで開発する（DB だけ Docker）
 
@@ -44,8 +44,8 @@ cms/
 ├─ apps/
 │  └─ studio/     Next.js 管理画面 (@ohmycms/studio)
 ├─ docker/
-│  ├─ Dockerfile  Studio 本体（multi-stage: deps → source → builder / migrate / runner）
-│  └─ compose.yml db + migrate + studio（compose プロジェクト名 = ohmycms）
+│  └─ Dockerfile  Studio 本体（multi-stage: deps → source → builder / migrate / runner）
+├─ compose.yml    db + migrate + studio（compose プロジェクト名 = ohmycms）
 ├─ .dockerignore  秘密（.env 系）と node_modules をイメージへ入れないための除外
 ├─ package.json   ルート（pnpm workspace）
 └─ pnpm-workspace.yaml
