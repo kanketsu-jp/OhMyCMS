@@ -11,13 +11,35 @@
  * だから「辞書が引ける」ことを先に確かめる。
  */
 
-import { readFile, readdir } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { run, REPO_ROOT } from "../lib/proc.mjs";
 import { STATUS, assertion, result, statusFromAssertions } from "../lib/result.mjs";
 
 const STUDIO = join(REPO_ROOT, "apps/studio");
+
+/**
+ * RED 確認（`--red 7`）用に、studio を**使い捨てのコピー**へ複製して
+ * わざとハードコードした文言を1行仕込む。
+ *
+ * 🚨 apps/studio は トラック C の専有領域なので、**本物には1バイトも書かない**。
+ *    コピーの中で壊すことで、同じ検査コードが赤くなることを確かめられる。
+ *    （node_modules と .next はコピーしない。検査対象は app/ components/ i18n/ scripts/ だけ）
+ */
+async function makeBrokenCopy() {
+  const dir = await mkdtemp(join(tmpdir(), "ohmycms-red7-"));
+  for (const sub of ["app", "components", "i18n", "scripts"]) {
+    await cp(join(STUDIO, sub), join(dir, sub), { recursive: true });
+  }
+  // check-i18n-hardcoded が拾う場所（components/**/*.tsx）へ、辞書を通さない文言を置く。
+  await writeFile(
+    join(dir, "components", "acc-red-probe.tsx"),
+    'export function AccRedProbe() {\n  return <button title="保存する">Save</button>;\n}\n',
+  );
+  return dir;
+}
 
 const SCRIPTS = [
   {
@@ -37,11 +59,31 @@ const SCRIPTS = [
   },
 ];
 
-export async function check() {
+export async function check(context = {}) {
   const started = Date.now();
   const assertions = [];
   const details = [];
   const repro = [];
+
+  // RED 確認モードのときだけ、壊したコピーを検査対象にする。
+  const sabotage = context.red?.includes(7) ?? false;
+  const studioDir = sabotage ? await makeBrokenCopy() : STUDIO;
+  if (sabotage) {
+    details.push(
+      "⚠ --red 7 が指定されているため、apps/studio を一時ディレクトリへコピーし、" +
+        "そこへ辞書を通さない文言（components/acc-red-probe.tsx）を仕込んで検査しています。" +
+        "**本物の apps/studio は書き換えていません。** この実行結果は FAIL になるのが正しい。",
+    );
+  }
+
+  try {
+    return await runChecks({ studioDir, assertions, details, repro, started, sabotage });
+  } finally {
+    if (sabotage) await rm(studioDir, { recursive: true, force: true });
+  }
+}
+
+async function runChecks({ studioDir, assertions, details, repro, started, sabotage }) {
 
   // ── 肯定形の土台: 辞書そのものが空でないこと ──
   // これを見ずにハードコード検出だけ通すと、「辞書が空だから何も引いていない」状態で
@@ -52,8 +94,8 @@ export async function check() {
   let jaCount = 0;
   let enCount = 0;
   try {
-    jaCount = await countLocale(join(STUDIO, "i18n/messages"), "ja");
-    enCount = await countLocale(join(STUDIO, "i18n/messages"), "en");
+    jaCount = await countLocale(join(studioDir, "i18n/messages"), "ja");
+    enCount = await countLocale(join(studioDir, "i18n/messages"), "en");
   } catch (error) {
     details.push(`辞書を読めませんでした: ${error?.message ?? error}`);
   }
@@ -67,7 +109,7 @@ export async function check() {
 
   // ── トラック C のスクリプトをそのまま呼ぶ ──
   for (const script of SCRIPTS) {
-    const proc = await run("node", [script.file], { cwd: STUDIO, timeoutMs: 120_000 });
+    const proc = await run("node", [script.file], { cwd: studioDir, timeoutMs: 120_000 });
     const ok = proc.code === 0;
     assertions.push(
       assertion(script.kind, script.label, ok, `exit ${proc.code}`, "exit 0"),
