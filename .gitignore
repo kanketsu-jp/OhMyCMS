@@ -1,0 +1,39 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# next.js / build 生成物
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# testing
+coverage/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# vercel
+.vercel
+
+# 秘密
+.env*
+!.env.example
+
+# ローカル実体（アップロードされたファイル）
+.storage/
+
+# このPCだけの作業用（PJに含めない）
+.temp/

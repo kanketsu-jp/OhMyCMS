@@ -1,0 +1,117 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Save, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+type FileRow = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  tags: string | null;
+  folder: string | null;
+};
+
+type FolderRow = {
+  id: string;
+  name: string;
+};
+
+function messageFrom(payload: unknown, fallback: string): string {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    payload.error &&
+    typeof payload.error === "object" &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+  ) {
+    return payload.error.message;
+  }
+  return fallback;
+}
+
+export function FileDetailManager({ file, folders }: { file: FileRow; folders: FolderRow[] }) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(formData: FormData) {
+    setError(null);
+    const body = {
+      title: String(formData.get("title") ?? ""),
+      description: String(formData.get("description") ?? ""),
+      tags: String(formData.get("tags") ?? ""),
+      folder: String(formData.get("folder") ?? "") || null,
+    };
+    const response = await fetch(`/api/files/${file.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "保存できません"));
+      return;
+    }
+    router.refresh();
+  }
+
+  async function remove() {
+    setError(null);
+    const response = await fetch(`/api/files/${file.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      setError(messageFrom(payload, response.status === 403 ? "権限がありません" : "削除できません"));
+      return;
+    }
+    router.push("/admin/files");
+    router.refresh();
+  }
+
+  return (
+    <div className="space-y-4">
+      {error ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+      <form action={save} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="title">title</Label>
+          <Input id="title" name="title" defaultValue={file.title ?? ""} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="description">description</Label>
+          <textarea id="description" name="description" defaultValue={file.description ?? ""} className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="tags">tags</Label>
+          <Input id="tags" name="tags" defaultValue={file.tags ?? ""} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="folder">folder</Label>
+          <select id="folder" name="folder" className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm" defaultValue={file.folder ?? ""}>
+            <option value="">フォルダなし</option>
+            {folders.map((folder) => (
+              <option key={folder.id} value={folder.id}>{folder.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <Button type="submit">
+            <Save />
+            保存
+          </Button>
+          <Button type="button" variant="destructive" onClick={() => void remove()}>
+            <Trash2 />
+            削除
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

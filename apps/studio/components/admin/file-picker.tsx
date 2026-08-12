@@ -1,0 +1,190 @@
+"use client";
+
+import Image from "next/image";
+import { useMemo, useState } from "react";
+import { ImageIcon, Upload, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
+type FileRow = {
+  id: string;
+  filename_download: string;
+  title: string | null;
+  type: string | null;
+};
+
+type ApiList<T> = {
+  data: T[];
+};
+
+type Props = {
+  inputId: string;
+  name: string;
+  defaultValue?: string;
+};
+
+function errorMessage(payload: unknown, fallback: string): string {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    payload.error &&
+    typeof payload.error === "object" &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+  ) {
+    return payload.error.message;
+  }
+  return fallback;
+}
+
+function isImage(file: FileRow | null): boolean {
+  return Boolean(file?.type?.startsWith("image/"));
+}
+
+export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
+  const [open, setOpen] = useState(false);
+  const [files, setFiles] = useState<FileRow[]>([]);
+  const [value, setValue] = useState(defaultValue);
+  const [selected, setSelected] = useState<FileRow | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const selectedFromList = useMemo(
+    () => files.find((file) => file.id === value) ?? selected,
+    [files, selected, value],
+  );
+
+  async function loadFiles() {
+    const response = await fetch("/api/files?limit=100", { cache: "no-store" });
+    const payload = await response.json().catch(() => null) as ApiList<FileRow> | unknown;
+    if (!response.ok) {
+      setError(errorMessage(payload, response.status === 403 ? "権限がありません" : "ファイル一覧を取得できません"));
+      return;
+    }
+    const rows = (payload as ApiList<FileRow>).data;
+    setFiles(rows);
+    setSelected(rows.find((file) => file.id === value) ?? null);
+  }
+
+  async function upload(formData: FormData) {
+    setError(null);
+    const response = await fetch("/api/files", { method: "POST", body: formData });
+    const payload = await response.json().catch(() => null) as { data?: FileRow } | unknown;
+    if (!response.ok) {
+      setError(errorMessage(payload, response.status === 403 ? "権限がありません" : "アップロードできません"));
+      return;
+    }
+    const row = (payload as { data: FileRow }).data;
+    setFiles((current) => [row, ...current.filter((file) => file.id !== row.id)]);
+    setValue(row.id);
+    setSelected(row);
+  }
+
+  function choose(file: FileRow) {
+    setValue(file.id);
+    setSelected(file);
+    setOpen(false);
+  }
+
+  return (
+    <div className="space-y-2">
+      <input id={inputId} type="hidden" name={name} value={value} />
+      <div className="flex flex-wrap items-center gap-2">
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger
+            render={<Button type="button" variant="outline" onClick={() => void loadFiles()} />}
+          >
+            ファイルを選択
+          </DialogTrigger>
+          <DialogContent className="max-h-[84vh] overflow-y-auto sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>ファイルを選択</DialogTitle>
+              <DialogDescription>
+                既存ファイルを選ぶか、この場でアップロードします。
+              </DialogDescription>
+            </DialogHeader>
+            <form action={upload} className="flex flex-wrap items-end gap-3 rounded-md border p-3">
+              <div className="min-w-0 flex-1">
+                <Input name="file" type="file" required />
+              </div>
+              <Button type="submit">
+                <Upload />
+                アップロード
+              </Button>
+            </form>
+            {error ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {files.map((file) => (
+                <button
+                  type="button"
+                  key={file.id}
+                  onClick={() => choose(file)}
+                  className="min-w-0 rounded-md border bg-background p-2 text-left hover:bg-muted"
+                >
+                  <div className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-muted">
+                    {file.type?.startsWith("image/") ? (
+                      <Image
+                        src={`/api/assets/${file.id}?width=200&fit=cover`}
+                        alt={file.title ?? file.filename_download}
+                        width={200}
+                        height={200}
+                        unoptimized
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-center text-sm text-muted-foreground">
+                        <ImageIcon className="mx-auto mb-2 size-8" />
+                        {file.filename_download.split(".").pop()?.toUpperCase() ?? "FILE"}
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-2 truncate text-sm font-medium">{file.title ?? file.filename_download}</p>
+                  <p className="truncate text-xs text-muted-foreground">{file.id}</p>
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+        {value ? (
+          <Button type="button" variant="ghost" onClick={() => setValue("")}>
+            <X />
+            クリア
+          </Button>
+        ) : null}
+      </div>
+      {value ? (
+        <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-2">
+          <div className="flex size-16 items-center justify-center overflow-hidden rounded-md bg-muted">
+            {isImage(selectedFromList) ? (
+              <Image
+                src={`/api/assets/${value}?width=200&fit=cover`}
+                alt={selectedFromList?.title ?? value}
+                width={200}
+                height={200}
+                unoptimized
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <ImageIcon className="size-6 text-muted-foreground" />
+            )}
+          </div>
+          <div className="min-w-0 text-sm">
+            <p className="truncate font-medium">{selectedFromList?.title ?? selectedFromList?.filename_download ?? value}</p>
+            <p className="truncate text-xs text-muted-foreground">{value}</p>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}

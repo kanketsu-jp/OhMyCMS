@@ -1,0 +1,763 @@
+<title>Artifact テンプレート</title>
+
+<!--
+  artifact-standard テンプレート（Zenn デザインベース・モバイルファースト・下層ページ構成）
+
+  ■ 構成
+    1 つの HTML の中に <section data-page="…"> を並べ、目次（home）から降りる。
+    内容を足すときは **ページを増やす**（1 ページを長くしない）。
+    目次は「対応が必要なもの / 対応が終わったもの / よみもの」の 3 区分に固定。
+
+  ■ 回答が要らない資料として使うとき
+    <article class="q"> を 1 つも置かなければ、回答まわりの UI
+    （固定フッター・コピー・件数）は JS が自動で消す。別テンプレートを作らない。
+
+  ■ ページを 1 枚足す手順（これだけ）
+    ① <section data-page="xx" data-title="表示名"> を追加
+    ② home の目次に <button class="nav-card" data-go="xx"> を追加
+       （設問ページなら list-todo + <span class="nav-card-n" data-count="xx">0/0</span>、
+        よみものなら list-doc + 「読む」）
+    ③ ページ末尾に .pager（目次へ / 次へ）を置く
+    CSS と JS は触らない。
+
+  ■ 差し替えるのはここだけ
+    ・BRAND 定数（ロゴ・名前・色。空なら無印）
+    ・FORM 定数（タイトルと保存キー）
+    ・.mast（タイトルとリード文）と 3 区分の目次
+    ・各 <section data-page> の中身
+-->
+
+<style>
+  /* ===== トークン（値の出典は ../zenn.md / 適用ルールは references/design-tokens.md） ===== */
+  :root {
+    --brand:#3ea8ff; --brand-strong:#0f83fd; --brand-weak:#eaf4ff;
+    --text:rgba(0,0,0,.82); --text-2:rgba(0,0,0,.55); --text-3:rgba(0,0,0,.36);
+    --border:#d6e3ed; --border-strong:#b9cede;
+    --bg:#ffffff; --surface:#f1f5f9; --surface-2:#e9eef4;
+    --danger:#f43f5e; --warning:#f59e0b; --success:#10b981;
+    --sh-3:0 -4px 16px rgba(0,0,0,.08);
+    --font:-apple-system,"system-ui","Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif;
+    --mono:SFMono-Regular,Consolas,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --brand:#3ea8ff; --brand-strong:#6dbcff; --brand-weak:#12283d;
+      --text:rgba(255,255,255,.86); --text-2:rgba(255,255,255,.58); --text-3:rgba(255,255,255,.38);
+      --border:#333944; --border-strong:#454d5c;
+      --bg:#16181c; --surface:#1e2128; --surface-2:#262a33;
+      --sh-3:0 -4px 16px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --brand:#3ea8ff; --brand-strong:#6dbcff; --brand-weak:#12283d;
+    --text:rgba(255,255,255,.86); --text-2:rgba(255,255,255,.58); --text-3:rgba(255,255,255,.38);
+    --border:#333944; --border-strong:#454d5c;
+    --bg:#16181c; --surface:#1e2128; --surface-2:#262a33;
+    --sh-3:0 -4px 16px rgba(0,0,0,.5);
+  }
+
+  /* ===== ベース（素がモバイル） ===== */
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body {
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--font); font-size:16px; line-height:1.8;
+    word-break:break-all; overflow-wrap:break-word;
+    padding-bottom:calc(76px + env(safe-area-inset-bottom));
+  }
+  .wrap { padding:0 16px 40px; max-width:820px; margin:0 auto; }
+  code, .mono { font-family:var(--mono); font-size:14px; }
+  code { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:1px 5px; }
+  :focus-visible { outline:2px solid var(--brand); outline-offset:2px; border-radius:4px; }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+
+  /* ===== ヘッダ ===== */
+  .top { position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--border); }
+  .top-in { display:flex; align-items:center; gap:8px; padding:8px 12px; max-width:820px; margin:0 auto; }
+  .top-t { font-size:14px; font-weight:700; margin-right:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .top-n { font-family:var(--mono); font-size:12px; color:var(--text-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .top-n b { color:var(--text); font-size:15px; }
+  .icon {
+    display:flex; align-items:center; justify-content:center;
+    width:44px; height:44px; flex:0 0 44px; border-radius:8px; cursor:pointer;
+    border:1px solid transparent; background:transparent; color:var(--text-2);
+    font-family:var(--font); font-size:18px; line-height:1;
+  }
+  .icon:hover { background:var(--surface); color:var(--text); }
+  .icon[hidden] { display:none; }
+  .meter { height:3px; background:var(--surface-2); }
+  .meter i { display:block; height:100%; width:0%; background:var(--brand); transition:width .25s ease; }
+
+  /* ===== ページ ===== */
+  [data-page] { display:none; }
+  [data-page].is-on { display:block; animation:fade .18s ease-out; }
+  @keyframes fade { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+
+  .mast { padding:24px 0 8px; }
+  .mast h1 { font-size:24px; line-height:1.5; font-weight:700; margin:0 0 8px; text-wrap:balance; }
+  .mast p { margin:0; color:var(--text-2); font-size:15px; }
+  .sec-h { margin:28px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; align-items:baseline; gap:10px; }
+  .sec-h h2 { font-size:16px; font-weight:700; margin:0; }
+  .sec-h span { font-family:var(--mono); font-size:12px; color:var(--text-3); }
+  .sec-note { margin:0 0 12px; color:var(--text-2); font-size:14px; line-height:1.7; }
+
+  /* ===== 目次カード ===== */
+  .nav-list { display:grid; gap:8px; }
+  .nav-card {
+    display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-items:center;
+    border:1px solid var(--border); border-radius:12px; padding:14px 16px;
+    background:var(--bg); color:inherit; cursor:pointer; text-align:left;
+    font-family:var(--font); min-height:44px;
+  }
+  .nav-card:hover { border-color:var(--brand); background:var(--brand-weak); }
+  .nav-card-t { font-size:16px; font-weight:700; line-height:1.6; }
+  .nav-card-d { grid-column:1; font-size:13px; color:var(--text-2); line-height:1.7; }
+  .nav-card-n {
+    grid-row:1 / span 2; font-family:var(--mono); font-size:12px; font-variant-numeric:tabular-nums;
+    color:var(--text-2); border:1px solid var(--border-strong); border-radius:99px; padding:2px 10px; white-space:nowrap;
+  }
+  .nav-card-n[data-full="1"] { color:var(--brand); border-color:var(--brand); }
+  .nav-card[data-state="done"] { background:var(--surface); border-color:var(--border); }
+  .nav-card[data-state="done"] .nav-card-t { color:var(--text-2); }
+  .sec-h.done h2 { color:var(--text-2); }
+
+  /* ===== ブランド（ホワイトラベル。空なら何も出ない） ===== */
+  .brand { display:flex; align-items:center; gap:8px; flex:0 0 auto; text-decoration:none; color:inherit; }
+  .brand[hidden] { display:none; }
+  .brand img, .brand svg { height:22px; width:auto; max-width:112px; display:block; }
+  .brand-name { font-size:14px; font-weight:700; white-space:nowrap; }
+  .foot { margin:32px 0 0; padding-top:16px; border-top:1px solid var(--border); color:var(--text-3); font-size:12px; }
+  .foot[hidden] { display:none; }
+
+  /* ===== よみもの（設問を持たないページ）の本文部品 ===== */
+  .body p { margin:0 0 12px; }
+  .body h3 { font-size:16px; font-weight:700; margin:24px 0 8px; line-height:1.6; }
+  .body ul, .body ol { margin:0 0 12px; padding-left:1.4em; }
+  .body li { margin-bottom:4px; }
+  .card { border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:8px; background:var(--bg); }
+  .card-t { font-family:var(--mono); font-size:12px; color:var(--brand); font-weight:700; }
+  .card h3 { font-size:16px; font-weight:700; margin:4px 0 6px; line-height:1.6; }
+  .card p { margin:0; color:var(--text-2); font-size:14px; line-height:1.8; }
+  .card p + p { margin-top:8px; }
+  .note { border:1px solid var(--brand); background:var(--brand-weak); border-radius:12px; padding:16px; margin:16px 0; }
+  .note h3 { font-size:15px; font-weight:700; margin:0 0 6px; }
+  .note p, .note ol, .note ul { margin:0; font-size:14px; line-height:1.8; }
+  .tbl { overflow-x:auto; margin:0 0 16px; }
+  .tbl table { border-collapse:collapse; width:100%; min-width:460px; font-size:14px; }
+  .tbl th, .tbl td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  .tbl th { background:var(--surface); font-weight:700; }
+  .tbl td { font-variant-numeric:tabular-nums; }
+  .dock[hidden] { display:none; }
+
+  /* ===== 設問 ===== */
+  .q { background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px; }
+  .q[data-done="1"] { border-color:var(--brand); }
+  .q-h { display:flex; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .q-n { font-family:var(--mono); font-size:12px; color:var(--text-3); padding-top:5px; }
+  .q-h h3 { font-size:16px; font-weight:700; line-height:1.6; margin:0; flex:1; }
+  .q-chip {
+    font-size:12px; font-weight:600; white-space:nowrap; align-self:center;
+    padding:2px 8px; border-radius:99px; border:1px solid var(--border-strong); color:var(--text-3);
+  }
+  .q[data-done="1"] .q-chip { border-color:var(--brand); color:var(--brand); background:var(--brand-weak); }
+  .q-why { margin:0 0 12px; color:var(--text-2); font-size:14px; line-height:1.7; }
+
+  .facts { margin:0 0 12px; border:1px solid var(--border); border-radius:8px; background:var(--surface); }
+  .facts > summary {
+    display:flex; align-items:center; gap:8px; cursor:pointer; list-style:none;
+    padding:10px 12px; font-size:14px; font-weight:600; color:var(--text-2); min-height:44px;
+  }
+  .facts > summary::-webkit-details-marker { display:none; }
+  .facts > summary::after {
+    content:""; margin-left:auto; width:8px; height:8px;
+    border-right:2px solid currentColor; border-bottom:2px solid currentColor;
+    transform:rotate(45deg) translateY(-2px); transition:transform .2s ease;
+  }
+  .facts[open] > summary::after { transform:rotate(-135deg) translateY(-2px); }
+  .facts-body { padding:0 12px 12px; display:grid; gap:8px; }
+  .facts-body > div { display:grid; gap:2px; }
+  .facts-body dt { font-size:12px; color:var(--text-3); }
+  .facts-body dd { margin:0; font-size:14px; line-height:1.7; font-variant-numeric:tabular-nums; }
+
+  .opts { border:0; margin:0; padding:0; display:grid; gap:8px; }
+  .opt {
+    display:grid; grid-template-columns:auto 1fr; gap:0 10px; align-items:start;
+    padding:12px; min-height:44px; border:1px solid var(--border); border-radius:8px;
+    background:var(--bg); cursor:pointer;
+  }
+  .opt input[type=radio] { width:20px; height:20px; margin:2px 0 0; accent-color:var(--brand); }
+  .opt:has(input:checked) { border-color:var(--brand); background:var(--brand-weak); }
+  .opt-l { font-size:15px; font-weight:700; line-height:1.6; }
+  .opt-e { grid-column:2; font-size:13px; color:var(--text-2); line-height:1.7; }
+  .rec {
+    display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em;
+    color:var(--brand); border:1px solid var(--brand); border-radius:99px;
+    padding:0 6px; margin-left:6px; vertical-align:2px;
+  }
+  .ti {
+    grid-column:2; margin-top:8px; width:100%;
+    font-family:var(--font); font-size:16px; height:40px; padding:8px 12px;
+    border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text);
+  }
+  textarea.ti { grid-column:1 / -1; height:auto; min-height:88px; line-height:1.8; resize:vertical; }
+  .ti:focus { border-color:var(--brand); outline:none; }
+
+  .pager { display:flex; gap:8px; margin-top:20px; }
+  .pager .btn { flex:1; }
+
+  /* ===== 固定フッター ===== */
+  .dock {
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    background:var(--bg); border-top:1px solid var(--border); box-shadow:var(--sh-3);
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  }
+  .dock-in { max-width:820px; margin:0 auto; display:flex; align-items:center; gap:10px; }
+  .dock-n { font-family:var(--mono); font-size:12px; color:var(--text-2); font-variant-numeric:tabular-nums; }
+
+  .btn {
+    font-family:var(--font); font-size:16px; font-weight:700; line-height:1.5;
+    padding:8px 24px; min-height:44px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--brand); background:transparent; color:var(--brand);
+  }
+  .btn:hover { background:var(--brand-weak); }
+  .btn-primary { background:var(--brand); color:#fff; }
+  .btn-primary:hover { background:var(--brand-strong); border-color:var(--brand-strong); }
+  .btn-ghost { border-color:var(--border-strong); color:var(--text-2); }
+  .btn-ghost:hover { background:var(--surface); }
+  .btn-grow { flex:1; }
+  .btn-sm { font-size:14px; padding:6px 14px; min-height:40px; }
+
+  /* ===== シート（コピー・メニュー共通） ===== */
+  dialog.sheet {
+    border:0; padding:0; margin:0 0 0 auto; width:100%; max-width:100%;
+    max-height:88dvh; position:fixed; inset:auto 0 0 0;
+    background:var(--bg); color:var(--text);
+    border-radius:16px 16px 0 0; box-shadow:var(--sh-3);
+  }
+  @supports not (max-height:88dvh) { dialog.sheet { max-height:88vh; } }
+  dialog.sheet::backdrop { background:rgba(0,0,0,.45); }
+  dialog.sheet[open] { animation:sheet-in .22s ease-out; }
+  @keyframes sheet-in { from { transform:translateY(16px); opacity:0; } to { transform:none; opacity:1; } }
+  @media (prefers-reduced-motion: reduce) { dialog.sheet[open], [data-page].is-on { animation:none; } *,*::after,*::before { transition:none !important; } }
+
+  .sheet-in { display:flex; flex-direction:column; max-height:88dvh; }
+  .sheet-h { display:flex; align-items:center; gap:10px; padding:14px 16px 10px; border-bottom:1px solid var(--border); }
+  .sheet-h h2 { font-size:16px; font-weight:700; margin:0; margin-right:auto; }
+  .tabs { display:flex; gap:6px; padding:12px 16px 0; }
+  .tab {
+    font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer;
+    padding:8px 14px; min-height:40px; border-radius:8px;
+    border:1px solid var(--border); background:var(--bg); color:var(--text-2);
+  }
+  .tab[aria-selected="true"] { border-color:var(--brand); color:var(--brand); background:var(--brand-weak); }
+  .sheet-out {
+    flex:1; min-height:180px; margin:12px 16px; padding:12px;
+    font-family:var(--mono); font-size:13px; line-height:1.7;
+    border:1px solid var(--border); border-radius:8px;
+    background:var(--surface); color:var(--text); resize:none; white-space:pre; overflow:auto;
+  }
+  .sheet-f { display:flex; gap:10px; align-items:center; padding:0 16px calc(16px + env(safe-area-inset-bottom)); }
+  .toast { font-size:13px; font-weight:700; color:var(--success); margin-right:auto; }
+  .toast[data-err="1"] { color:var(--danger); }
+
+  /* ===== メニュー ===== */
+  .menu-body { padding:12px 16px calc(16px + env(safe-area-inset-bottom)); display:grid; gap:16px; }
+  .menu-g { display:grid; gap:8px; }
+  .menu-g > h3 { font-size:12px; font-weight:700; color:var(--text-3); margin:0; }
+  .seg { display:flex; gap:6px; }
+  .seg button {
+    flex:1; font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer;
+    padding:8px 6px; min-height:44px; border-radius:8px;
+    border:1px solid var(--border); background:var(--bg); color:var(--text-2);
+  }
+  .seg button[aria-pressed="true"] { border-color:var(--brand); color:var(--brand); background:var(--brand-weak); }
+  .menu-link {
+    display:flex; align-items:center; gap:10px; min-height:44px;
+    padding:10px 14px; border:1px solid var(--border); border-radius:8px;
+    background:var(--bg); color:var(--text); cursor:pointer;
+    font-family:var(--font); font-size:15px; font-weight:700; text-align:left; width:100%;
+  }
+  .menu-link:hover { border-color:var(--brand); background:var(--brand-weak); }
+  .menu-link span { margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--text-2); font-weight:400; }
+
+  /* ===== 広い画面 ===== */
+  @media (min-width: 768px) {
+    body { padding-bottom:0; }
+    .wrap { padding:0 20px 64px; }
+    .mast { padding:40px 0 8px; }
+    .mast h1 { font-size:32px; }
+    .q, .nav-card { padding:20px; }
+    .dock { display:none; }
+    .top-in { padding:10px 20px; }
+    .top-actions { display:flex; gap:8px; align-items:center; }
+    dialog.sheet {
+      inset:0; margin:auto; width:min(720px, calc(100% - 40px));
+      max-height:min(80dvh, 720px); border-radius:12px;
+    }
+    .sheet-in { max-height:min(80dvh, 720px); }
+    .sheet-f { padding:0 16px 16px; }
+    .menu-body { padding:12px 16px 16px; }
+  }
+  @media (max-width: 767px) { .top-actions { display:none; } }
+</style>
+
+<div class="top">
+  <div class="top-in">
+    <a class="brand" id="brand" hidden></a>
+    <button class="icon" id="btn-back" hidden aria-label="目次へ戻る">&#8592;</button>
+    <span class="top-t" id="top-t">回答フォーム</span>
+    <span class="top-n" id="top-n"><b id="n-done">0</b>/<span id="n-all">0</span></span>
+    <span class="top-actions">
+      <button class="btn btn-primary btn-sm" data-open-sheet>回答をコピー</button>
+    </span>
+    <button class="icon" id="btn-menu" aria-label="メニュー">&#9776;</button>
+  </div>
+  <div class="meter"><i id="meter"></i></div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ トップページ（目次）============ -->
+  <section data-page="home" data-title="回答フォーム">
+    <div class="mast">
+      <h1>ここにフォームのタイトル</h1>
+      <p>何を決めるのか、どう使うのかを 1〜2 文で。</p>
+    </div>
+    <!-- 目次は必ずこの 3 区分。区分を増やさない -->
+    <div class="sec-h" id="h-todo"><h2>対応が必要なもの</h2><span>TODO</span></div>
+    <div class="nav-list" id="list-todo">
+      <button class="nav-card" data-go="qa">
+        <span class="nav-card-t">A. セクション名</span>
+        <span class="nav-card-d">このページで何を決めるかを 1 行</span>
+        <span class="nav-card-n" data-count="qa">0/3</span>
+      </button>
+    </div>
+
+    <!-- 全問答え終えた設問ページは JS がここへ移す。
+         markup 上どうするか（残す／消す）は、次の更新で LLM が判断する（SKILL.md §0-5） -->
+    <div class="sec-h done" id="h-done" hidden><h2>対応が終わったもの</h2><span>DONE</span></div>
+    <div class="nav-list" id="list-done" hidden></div>
+
+    <!-- 答えの要らないページ。移動しない -->
+    <div class="sec-h" id="h-doc"><h2>よみもの</h2><span>DOC</span></div>
+    <div class="nav-list" id="list-doc">
+      <button class="nav-card" data-go="doc">
+        <span class="nav-card-t">読み物のページ</span>
+        <span class="nav-card-d">前提・背景・シナリオなど、答えないページ</span>
+        <span class="nav-card-n">読む</span>
+      </button>
+    </div>
+
+    <p class="foot" id="foot" hidden></p>
+  </section>
+
+  <!-- ============ よみものページ ============ -->
+  <section data-page="doc" data-title="読み物のページ">
+    <div class="sec-h"><h2>読み物のページ</h2><span>DOC</span></div>
+    <div class="body">
+      <p>答えを入力しない説明ページ。長くなるならここも分割して、目次から別ページとして降ろす。</p>
+
+      <div class="card">
+        <div class="card-t">ラベル</div>
+        <h3>時系列・手順・並列する塊はカードにする</h3>
+        <p>段落を続けるより、カードで区切ったほうがスマホで読める。</p>
+      </div>
+
+      <div class="note">
+        <h3>ここが要点</h3>
+        <p>読み手が持ち帰る 1 文をこの形で。1 ページに 1 つまで。</p>
+      </div>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>項目</th><th>値</th><th>備考</th></tr></thead>
+          <tbody><tr><td>横に長い表</td><td>1,234</td><td>表だけが横スクロールする</td></tr></tbody>
+        </table>
+      </div>
+
+      <details class="facts">
+        <summary>細かい根拠（畳んでおく）</summary>
+        <div class="facts-body">本筋に要らない詳細はここへ。スマホで縦を食わない。</div>
+      </details>
+    </div>
+    <div class="pager">
+      <button class="btn btn-ghost" data-go="home">目次へ</button>
+      <button class="btn" data-go="qa">A へ</button>
+    </div>
+  </section>
+
+  <!-- ============ 設問ページ ============ -->
+  <section data-page="qa" data-title="A. セクション名">
+    <div class="sec-h"><h2>A. セクション名</h2><span>01 – 03</span></div>
+    <p class="sec-note">このセクションの前置きを 1 行（不要なら消す）。</p>
+
+    <!-- 型 A: 単一選択（+ 事実の折りたたみ） -->
+    <article class="q" data-id="1" data-q="設問の短いラベル">
+      <div class="q-h"><span class="q-n">01</span><h3>ここに設問。判断そのものを 1 行で書く</h3><span class="q-chip">未回答</span></div>
+      <p class="q-why">なぜ今これを決める必要があるかを 1 行。</p>
+      <details class="facts"><summary>判断に効く事実</summary><dl class="facts-body">
+        <div><dt>項目名</dt><dd>数字や実測値（無いなら「未測定」と書く）</dd></div>
+      </dl></details>
+      <fieldset class="opts"><legend class="sr">選択肢</legend>
+        <label class="opt"><input type="radio" name="q1" value="選択肢 A"><span class="opt-l">選択肢 A<span class="rec">推奨</span></span><span class="opt-e">これを選ぶと何が起きるかを 1 行。</span></label>
+        <label class="opt"><input type="radio" name="q1" value="選択肢 B"><span class="opt-l">選択肢 B</span><span class="opt-e">これを選ぶと何が起きるかを 1 行。</span></label>
+      </fieldset>
+    </article>
+
+    <!-- 型 B: 単一選択 + その他 -->
+    <article class="q" data-id="2" data-q="その他つきの設問">
+      <div class="q-h"><span class="q-n">02</span><h3>選択肢に無い答えもありうる設問</h3><span class="q-chip">未回答</span></div>
+      <fieldset class="opts"><legend class="sr">選択肢</legend>
+        <label class="opt"><input type="radio" name="q2" value="選択肢 A"><span class="opt-l">選択肢 A<span class="rec">推奨</span></span><span class="opt-e">効果を 1 行。</span></label>
+        <label class="opt"><input type="radio" name="q2" value="__other__"><span class="opt-l">その他</span><input type="text" class="ti" placeholder="ここに書く"></label>
+      </fieldset>
+    </article>
+
+    <!-- 型 C: 自由記述 -->
+    <article class="q" data-id="3" data-q="自由記述の設問">
+      <div class="q-h"><span class="q-n">03</span><h3>選択肢を出せない、書いてもらう設問</h3><span class="q-chip">未回答</span></div>
+      <p class="q-why">何を書けばよいかの手がかりを 1 行。</p>
+      <textarea class="ti" data-free="1" placeholder="ここに書く"></textarea>
+    </article>
+
+    <div class="pager">
+      <button class="btn btn-ghost" data-go="home">目次へ</button>
+      <button class="btn btn-primary" data-open-sheet>回答をコピー</button>
+    </div>
+  </section>
+</div>
+
+<div class="dock">
+  <div class="dock-in">
+    <span class="dock-n">全体 <span id="n-done-2">0</span>/<span id="n-all-2">0</span></span>
+    <button class="btn btn-primary btn-grow" data-open-sheet>回答をコピー</button>
+  </div>
+</div>
+
+<dialog class="sheet" id="sheet" aria-labelledby="sheet-title">
+  <div class="sheet-in">
+    <div class="sheet-h">
+      <h2 id="sheet-title">回答をコピー</h2>
+      <button class="btn btn-ghost btn-sm" data-close>閉じる</button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true"  data-fmt="text">文章</button>
+      <button class="tab" role="tab" aria-selected="false" data-fmt="json">JSON</button>
+    </div>
+    <textarea class="sheet-out mono" id="out" spellcheck="false" readonly></textarea>
+    <div class="sheet-f">
+      <span class="toast" id="toast"></span>
+      <button class="btn btn-primary btn-grow" id="btn-copy">コピー</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="menu" aria-labelledby="menu-title">
+  <div class="sheet-in">
+    <div class="sheet-h">
+      <h2 id="menu-title">メニュー</h2>
+      <button class="btn btn-ghost btn-sm" data-close>閉じる</button>
+    </div>
+    <div class="menu-body">
+      <div class="menu-g">
+        <h3>テーマの切り替え</h3>
+        <div class="seg">
+          <button data-theme-set="system" aria-pressed="true">端末に合わせる</button>
+          <button data-theme-set="light"  aria-pressed="false">ライト</button>
+          <button data-theme-set="dark"   aria-pressed="false">ダーク</button>
+        </div>
+      </div>
+      <div class="menu-g">
+        <h3>移動</h3>
+        <button class="menu-link" data-go="home" data-close>トップページ（目次）<span id="menu-n">0/0</span></button>
+        <!-- 主要な下層ページをここに足す -->
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  /* ===== 差し替え 1: ブランド（ホワイトラベル）=====
+     すべて空でよい（＝無印）。{{…}} は置換の目印なので、値が無ければ空文字のままにする。
+     ロゴは外部 URL を参照しない（CSP でブロックされる）。data URI かインライン SVG を入れる。 */
+  const BRAND = {
+    name : '',   // {{brand_name}}   例 'KANKETSU'
+    logo : '',   // {{brand_logo}}   'data:image/svg+xml;base64,…' か '<svg …>…</svg>'
+    color: '',   // {{brand_color}}  例 '#3ea8ff'（空なら既定色）
+    url  : '',   // {{brand_url}}    ロゴのリンク先（空ならリンクにしない）
+    note : ''    // {{brand_note}}   トップ下部の一行（会社名・機密表記など）
+  };
+
+  /* ===== 差し替え 2: この資料の識別情報 ===== */
+  const FORM = {
+    title: '回答フォーム',        // ヘッダと出力の見出し
+    key: 'artifact-v1'           // localStorage のキー。案件ごとに必ず変える
+  };
+
+  const $  = id => document.getElementById(id);
+  const qs = Array.from(document.querySelectorAll('.q'));
+  const pages = Array.from(document.querySelectorAll('[data-page]'));
+  document.title = FORM.title;
+  $('n-all-2').textContent = qs.length;
+  document.querySelectorAll('.nav-card').forEach((c, i) => c.dataset.order = i);
+
+  /* ブランドの適用（空の項目は何も出さない） */
+  (function applyBrand() {
+    if (BRAND.color) {
+      const s = document.documentElement.style;
+      s.setProperty('--brand', BRAND.color);
+      s.setProperty('--brand-strong', BRAND.color);
+      s.setProperty('--brand-weak', 'color-mix(in srgb, ' + BRAND.color + ' 14%, transparent)');
+    }
+    const el = $('brand');
+    if (BRAND.logo) {
+      el.innerHTML = /^\s*<svg/i.test(BRAND.logo)
+        ? BRAND.logo
+        : '<img src="' + BRAND.logo + '" alt="' + (BRAND.name || '') + '">';
+    }
+    if (BRAND.name && !BRAND.logo) {
+      el.insertAdjacentHTML('beforeend', '<span class="brand-name"></span>');
+      el.querySelector('.brand-name').textContent = BRAND.name;
+    }
+    if (BRAND.logo || BRAND.name) {
+      el.hidden = false;
+      if (BRAND.url) { el.href = BRAND.url; el.target = '_blank'; el.rel = 'noopener'; }
+    }
+    if (BRAND.note) { $('foot').textContent = BRAND.note; $('foot').hidden = false; }
+  })();
+
+  /* 設問が 1 つも無い（＝純粋な資料）なら、回答まわりの UI を丸ごと出さない */
+  if (!qs.length) {
+    document.querySelectorAll('[data-open-sheet]').forEach(b => b.hidden = true);
+    document.querySelector('.dock').hidden = true;
+    document.body.style.paddingBottom = '0';
+  }
+
+  /* ---------- ページ遷移 ---------- */
+  let current = 'home';
+  function go(id, push) {
+    const target = pages.find(p => p.dataset.page === id) ? id : 'home';
+    current = target;
+    pages.forEach(p => p.classList.toggle('is-on', p.dataset.page === target));
+    const sec = pages.find(p => p.dataset.page === target);
+    $('top-t').textContent = target === 'home' ? FORM.title : sec.dataset.title;
+    $('btn-back').hidden = target === 'home';
+    window.scrollTo(0, 0);
+    if (push !== false) { try { location.hash = '#/' + target; } catch (e) {} }
+    refresh();
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-go]');
+    if (!b) return;
+    go(b.dataset.go);
+    if (b.hasAttribute('data-close')) { const d = b.closest('dialog'); if (d) d.close(); }
+  });
+  $('btn-back').addEventListener('click', () => go('home'));
+  window.addEventListener('hashchange', () => {
+    const id = (location.hash || '').replace(/^#\/?/, '');
+    if (id && id !== current) go(id, false);
+  });
+
+  /* ---------- テーマ（system / light / dark の 3 状態） ---------- */
+  function setTheme(t) {
+    if (t === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    document.querySelectorAll('[data-theme-set]').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.themeSet === t)));
+    try { localStorage.setItem(FORM.key + ':theme', t); } catch (e) {}
+  }
+  document.querySelectorAll('[data-theme-set]').forEach(b =>
+    b.addEventListener('click', () => setTheme(b.dataset.themeSet)));
+
+  /* ---------- 回答 ---------- */
+  function answerOf(q) {
+    const free = q.querySelector('textarea[data-free]');
+    if (free) return free.value.trim() || null;
+    const r = q.querySelector('input[type=radio]:checked');
+    if (!r) return null;
+    if (r.value === '__other__') {
+      const t = r.closest('.opt').querySelector('.ti');
+      return (t && t.value.trim()) || null;
+    }
+    return r.value;
+  }
+  function save() {
+    try {
+      const o = {};
+      qs.forEach(q => {
+        const free = q.querySelector('textarea[data-free]');
+        if (free) { o[q.dataset.id] = { free: free.value }; return; }
+        const r = q.querySelector('input[type=radio]:checked');
+        if (!r) return;
+        const t = r.closest('.opt').querySelector('.ti');
+        o[q.dataset.id] = { value: r.value, other: t ? t.value : '' };
+      });
+      localStorage.setItem(FORM.key, JSON.stringify(o));
+    } catch (e) {}
+  }
+  function load() {
+    try {
+      const t = localStorage.getItem(FORM.key + ':theme');
+      if (t) setTheme(t);
+      const raw = localStorage.getItem(FORM.key);
+      if (!raw) return;
+      const o = JSON.parse(raw);
+      qs.forEach(q => {
+        const s = o[q.dataset.id];
+        if (!s) return;
+        const free = q.querySelector('textarea[data-free]');
+        if (free && typeof s.free === 'string') { free.value = s.free; return; }
+        const r = q.querySelector('input[type=radio][value="' + String(s.value).replace(/"/g, '\\"') + '"]');
+        if (r) {
+          r.checked = true;
+          const ti = r.closest('.opt').querySelector('.ti');
+          if (ti && s.other) ti.value = s.other;
+        }
+      });
+    } catch (e) {}
+  }
+
+  /* そのページの設問数と回答済み数。設問が無いページ（読み物）は null */
+  function pageStat(id) {
+    const sec = pages.find(p => p.dataset.page === id);
+    if (!sec) return null;
+    const list = Array.from(sec.querySelectorAll('.q'));
+    if (!list.length) return null;
+    return { done: list.filter(q => q.dataset.done === '1').length, all: list.length };
+  }
+
+  /* 全問答え終えた下層ページを、目次の下部（完了セクション）へ移す */
+  function reflowIndex() {
+    const todo = $('list-todo'), done = $('list-done');
+    document.querySelectorAll('.nav-card[data-count]').forEach(card => {
+      const st = pageStat(card.dataset.count);
+      const isDone = !!st && st.done === st.all;
+      card.dataset.state = isDone ? 'done' : 'todo';
+      const target = isDone ? done : todo;
+      if (card.parentElement !== target) target.appendChild(card);
+    });
+    [todo, done].forEach(list => {
+      Array.from(list.children)
+        .sort((a, b) => (+a.dataset.order) - (+b.dataset.order))
+        .forEach(c => list.appendChild(c));
+    });
+    /* 空の区分は見出しごと隠す（3 区分は固定だが、空の見出しは出さない） */
+    const hasDone = done.children.length > 0;
+    done.hidden = !hasDone; $('h-done').hidden = !hasDone;
+    const hasTodo = todo.children.length > 0;
+    todo.hidden = !hasTodo; $('h-todo').hidden = !hasTodo;
+    const doc = $('list-doc'), hDoc = $('h-doc');
+    if (doc && hDoc) { const hasDoc = doc.children.length > 0; doc.hidden = !hasDoc; hDoc.hidden = !hasDoc; }
+  }
+
+  function refresh() {
+    let done = 0;
+    qs.forEach(q => {
+      const a = answerOf(q);
+      q.dataset.done = a ? '1' : '0';
+      q.querySelector('.q-chip').textContent = a ? '回答済' : '未回答';
+      if (a) done++;
+    });
+
+    /* ヘッダの件数は「いま見ているページ」の進捗。トップだけ全体を出す */
+    const scope = current === 'home' ? { done: done, all: qs.length } : pageStat(current);
+    $('top-n').hidden = !scope;
+    if (scope) {
+      $('n-done').textContent = scope.done;
+      $('n-all').textContent  = scope.all;
+      $('meter').style.width  = (scope.all ? scope.done / scope.all * 100 : 0) + '%';
+    } else {
+      $('meter').style.width = '0%';
+    }
+
+    $('n-done-2').textContent = done;
+    $('menu-n').textContent = done + '/' + qs.length;
+
+    document.querySelectorAll('[data-count]').forEach(el => {
+      const st = pageStat(el.dataset.count);
+      if (!st) return;
+      el.textContent = st.done + '/' + st.all;
+      el.dataset.full = st.done === st.all ? '1' : '0';
+    });
+    reflowIndex();
+    save();
+  }
+
+  /* ---------- 出力（文章 / JSON） ---------- */
+  function collect() {
+    return qs.map(q => ({
+      id: Number(q.dataset.id),
+      q: q.dataset.q || q.querySelector('h3').textContent.trim(),
+      answer: answerOf(q)
+    }));
+  }
+  function asText() {
+    const a = collect(), open = a.filter(x => x.answer === null);
+    const lines = [FORM.title + ' — ' + new Date().toISOString().slice(0, 10),
+                   '回答 ' + (a.length - open.length) + '/' + a.length, ''];
+    a.forEach(x => {
+      lines.push(String(x.id).padStart(2, '0') + '. ' + x.q);
+      lines.push('    → ' + (x.answer === null ? '（未回答）' : x.answer));
+      lines.push('');
+    });
+    lines.push('未回答: ' + (open.length ? open.map(x => x.id).join(', ') : 'なし'));
+    return lines.join('\n');
+  }
+  function asJson() {
+    const a = collect();
+    return JSON.stringify({
+      form: FORM.title,
+      date: new Date().toISOString().slice(0, 10),
+      answers: a.filter(x => x.answer !== null),
+      unanswered: a.filter(x => x.answer === null).map(x => x.id)
+    }, null, 2);
+  }
+  let fmt = 'text';
+  function render() { $('out').value = fmt === 'json' ? asJson() : asText(); }
+
+  let toastTimer;
+  function toast(msg, err) {
+    const t = $('toast');
+    t.textContent = msg; t.dataset.err = err ? '1' : '0';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.textContent = ''; }, 2800);
+  }
+  function copy() {
+    const ta = $('out'), text = ta.value;
+    const ok = () => toast('コピーしました');
+    const ng = () => { ta.focus(); ta.select(); toast('選択しました。⌘C / 長押しでコピー', true); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok).catch(ng);
+    } else { ng(); }
+  }
+
+  /* ---------- イベント ---------- */
+  document.addEventListener('change', e => {
+    if (e.target.matches('input[type=radio], .ti')) refresh();
+  });
+  document.addEventListener('input', e => {
+    if (!e.target.matches('.ti')) return;
+    const opt = e.target.closest('.opt');
+    if (opt) { const r = opt.querySelector('input[type=radio]'); if (r && !r.checked) r.checked = true; }
+    refresh();
+  });
+  function openDialog(d) { if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', ''); }
+  document.querySelectorAll('[data-open-sheet]').forEach(b =>
+    b.addEventListener('click', () => { render(); openDialog($('sheet')); }));
+  $('btn-menu').addEventListener('click', () => openDialog($('menu')));
+  document.querySelectorAll('[data-close]').forEach(b =>
+    b.addEventListener('click', () => { const d = b.closest('dialog'); if (d) d.close(); }));
+  document.querySelectorAll('dialog.sheet').forEach(d =>
+    d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+  document.querySelectorAll('.tab').forEach(t =>
+    t.addEventListener('click', () => {
+      fmt = t.dataset.fmt;
+      document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+      render();
+    }));
+  $('btn-copy').addEventListener('click', copy);
+
+  load();
+  refresh();
+  go((location.hash || '').replace(/^#\/?/, '') || 'home', false);
+</script>

@@ -1,0 +1,88 @@
+import { NextResponse } from "next/server";
+import { apiMessage, redirectWithMessage } from "@/lib/admin/forms";
+
+export const runtime = "nodejs";
+
+type Context = {
+  params: Promise<{ collection: string }>;
+};
+
+function parseItemPayload(formData: FormData): { data?: Record<string, unknown>; error?: string } {
+  const payload: Record<string, unknown> = {};
+  const fields = formData.getAll("__field").filter((value): value is string => typeof value === "string");
+
+  for (const field of fields) {
+    const type = formData.get(`__type:${field}`);
+    const nullable = formData.get(`__nullable:${field}`) !== "false";
+    const value = formData.get(`field:${field}`);
+
+    if (type === "boolean") {
+      payload[field] = formData.get(`field:${field}`) === "true";
+      continue;
+    }
+
+    const raw = typeof value === "string" ? value : "";
+    if (raw === "" && nullable && type !== "string") {
+      payload[field] = null;
+      continue;
+    }
+    if (raw === "" && type === "uuid") {
+      continue;
+    }
+
+    if (type === "integer" || type === "float") {
+      payload[field] = raw === "" ? null : Number(raw);
+      continue;
+    }
+    if (type === "bigInteger" || type === "decimal") {
+      payload[field] = raw === "" ? null : raw;
+      continue;
+    }
+    if (type === "json") {
+      if (raw === "" && nullable) {
+        payload[field] = null;
+        continue;
+      }
+      try {
+        payload[field] = JSON.parse(raw);
+      } catch {
+        return { error: `${field} は正しいJSONで入力してください` };
+      }
+      continue;
+    }
+
+    payload[field] = raw;
+  }
+
+  return { data: payload };
+}
+
+export async function POST(request: Request, ctx: Context) {
+  const { collection } = await ctx.params;
+  const encoded = encodeURIComponent(collection);
+  const formData = await request.formData();
+  const parsed = parseItemPayload(formData);
+  const backPath = `/admin/content/${encoded}/new`;
+
+  if (parsed.error || !parsed.data) {
+    return redirectWithMessage(request, backPath, "error", parsed.error ?? "入力が不正です");
+  }
+
+  const response = await fetch(new URL(`/api/items/${encoded}`, request.url), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: request.headers.get("cookie") ?? "",
+    },
+    body: JSON.stringify(parsed.data),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return redirectWithMessage(request, backPath, "error", await apiMessage(response));
+  }
+
+  const url = new URL(`/admin/content/${encoded}`, request.url);
+  url.searchParams.set("notice", "アイテムを作成しました");
+  return NextResponse.redirect(url, { status: 303 });
+}
