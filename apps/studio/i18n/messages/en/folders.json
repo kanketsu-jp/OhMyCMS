@@ -1,0 +1,16 @@
+{
+  "create_button": "Create",
+  "delete_button": "Delete",
+  "description": "Manage folders for files",
+  "empty_folders": "No folders yet",
+  "error_create_failed": "Failed to create folder",
+  "error_delete_failed": "Failed to delete folder",
+  "error_folder_not_empty": "This folder contains files",
+  "error_forbidden": "You do not have permission",
+  "management_title": "Folder management",
+  "name_placeholder": "Folder name",
+  "no_parent_option": "No parent",
+  "none_value": "None",
+  "parent_label": "Parent: {name}",
+  "title": "Folders"
+}

@@ -1,0 +1,13 @@
+{
+  "auth_error": "Authentication error",
+  "collections": "Collections",
+  "collections_error": "Could not load collections",
+  "content_heading": "Content",
+  "files": "Files",
+  "folders": "Folders",
+  "logout": "Log out",
+  "settings_agents": "Settings / Agents",
+  "settings_policies": "Settings / Policies",
+  "settings_roles": "Settings / Roles",
+  "settings_users": "Settings / Users"
+}

@@ -1,0 +1,16 @@
+{
+  "create_button": "作成",
+  "delete_button": "削除",
+  "description": "ロール階層と親ロールを管理します。",
+  "description_label": "説明",
+  "error_create_failed": "作成できません",
+  "error_forbidden": "権限がありません",
+  "error_remove_failed": "削除できません",
+  "manage_card_title": "ロール管理",
+  "name_label": "ロール名",
+  "no_description": "説明なし",
+  "none_option": "なし",
+  "parent_colon_label": "親: ",
+  "parent_label": "親ロール",
+  "title": "ロール"
+}

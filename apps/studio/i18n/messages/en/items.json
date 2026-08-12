@@ -1,0 +1,16 @@
+{
+  "actions_header": "Actions",
+  "back_to_list": "Back to Items",
+  "create_button": "Create",
+  "delete_button": "Delete",
+  "edit_button": "Edit",
+  "edit_item_title": "Edit Item",
+  "list_title": "List",
+  "manage_link": "Manage Items",
+  "new_item": "New Item",
+  "next_page": "Next",
+  "pagination_summary": "{from}-{to} of {total}",
+  "prev_page": "Previous",
+  "save_button": "Save",
+  "title_for_collection": "Items in {collection}"
+}

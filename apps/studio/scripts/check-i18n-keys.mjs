@@ -1,56 +1,61 @@
 #!/usr/bin/env node
 /**
- * ja.json と en.json のキー集合が完全一致することを機械的に検証する。
+ * ja と en のキー集合が完全一致することを機械的に検証する。
  * 受入基準7 用。差分があれば終了コード1で落ちる。
+ *
+ * 辞書は名前空間ごとのファイル（i18n/messages/<locale>/<namespace>.json）。
+ * ディスクの構成とランタイムのローダー（i18n/messages.ts）のズレも同時に検査する。
  *
  *   node scripts/check-i18n-keys.mjs
  */
 
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { assertLoaderInSync, flatten, loadDictionary, namespacesOnDisk } from "./i18n-load.mjs";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const messagesDir = resolve(here, "../i18n/messages");
+let failed = false;
 
-/** 入れ子 JSON を "a.b.c" のフラットなキー集合にする。 */
-function flatten(value, prefix = "", out = new Set()) {
-  for (const [key, child] of Object.entries(value)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    if (child !== null && typeof child === "object" && !Array.isArray(child)) {
-      flatten(child, path, out);
-    } else {
-      out.add(path);
-    }
-  }
-  return out;
+// 1) ローダーとディスクの同期
+const sync = assertLoaderInSync();
+if (sync.ok) {
+  console.log(`名前空間: ${sync.namespaces.length} 個（i18n/messages.ts とディスクが一致）`);
+} else {
+  console.error("■ ローダーとディスクがズレています");
+  console.error(`  ${sync.reason}`);
+  failed = true;
 }
 
-function load(locale) {
-  const file = resolve(messagesDir, `${locale}.json`);
-  return flatten(JSON.parse(readFileSync(file, "utf8")));
+// 2) ja / en で名前空間のファイル構成が同じか
+const jaNs = namespacesOnDisk("ja");
+const enNs = namespacesOnDisk("en");
+const nsOnlyJa = jaNs.filter((n) => !enNs.includes(n));
+const nsOnlyEn = enNs.filter((n) => !jaNs.includes(n));
+if (nsOnlyJa.length || nsOnlyEn.length) {
+  console.error("■ ja と en で名前空間のファイル構成が違います");
+  if (nsOnlyJa.length) console.error(`  en に無い: ${nsOnlyJa.join(", ")}`);
+  if (nsOnlyEn.length) console.error(`  ja に無い: ${nsOnlyEn.join(", ")}`);
+  failed = true;
 }
 
-const ja = load("ja");
-const en = load("en");
-
+// 3) キー集合の一致
+const ja = flatten(loadDictionary("ja"));
+const en = flatten(loadDictionary("en"));
 const onlyInJa = [...ja].filter((k) => !en.has(k)).sort();
 const onlyInEn = [...en].filter((k) => !ja.has(k)).sort();
 
-console.log(`ja.json のキー数: ${ja.size}`);
-console.log(`en.json のキー数: ${en.size}`);
+console.log(`ja のキー数: ${ja.size}`);
+console.log(`en のキー数: ${en.size}`);
 
 if (onlyInJa.length === 0 && onlyInEn.length === 0) {
   console.log("差分: 0 件（キー集合は完全一致）");
-  process.exit(0);
+} else {
+  if (onlyInJa.length > 0) {
+    console.error(`\n■ en に無いキー (${onlyInJa.length} 件):`);
+    for (const key of onlyInJa) console.error(`  - ${key}`);
+  }
+  if (onlyInEn.length > 0) {
+    console.error(`\n■ ja に無いキー (${onlyInEn.length} 件):`);
+    for (const key of onlyInEn) console.error(`  - ${key}`);
+  }
+  failed = true;
 }
 
-if (onlyInJa.length > 0) {
-  console.error(`\nen.json に無いキー (${onlyInJa.length} 件):`);
-  for (const key of onlyInJa) console.error(`  - ${key}`);
-}
-if (onlyInEn.length > 0) {
-  console.error(`\nja.json に無いキー (${onlyInEn.length} 件):`);
-  for (const key of onlyInEn) console.error(`  - ${key}`);
-}
-process.exit(1);
+process.exit(failed ? 1 : 0);

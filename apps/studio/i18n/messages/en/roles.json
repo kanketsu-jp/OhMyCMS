@@ -1,0 +1,16 @@
+{
+  "create_button": "Create",
+  "delete_button": "Delete",
+  "description": "Manage the role hierarchy and parent roles.",
+  "description_label": "Description",
+  "error_create_failed": "Failed to create",
+  "error_forbidden": "You don't have permission",
+  "error_remove_failed": "Failed to remove",
+  "manage_card_title": "Role Management",
+  "name_label": "Role Name",
+  "no_description": "No description",
+  "none_option": "None",
+  "parent_colon_label": "Parent: ",
+  "parent_label": "Parent Role",
+  "title": "Roles"
+}

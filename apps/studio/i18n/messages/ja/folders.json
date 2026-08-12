@@ -1,0 +1,16 @@
+{
+  "create_button": "作成",
+  "delete_button": "削除",
+  "description": "ファイル用フォルダを管理します。",
+  "empty_folders": "フォルダはまだありません。",
+  "error_create_failed": "作成できません",
+  "error_delete_failed": "削除できません",
+  "error_folder_not_empty": "中にファイルがあります",
+  "error_forbidden": "権限がありません",
+  "management_title": "フォルダ管理",
+  "name_placeholder": "フォルダ名",
+  "no_parent_option": "親なし",
+  "none_value": "なし",
+  "parent_label": "親: {name}",
+  "title": "フォルダ"
+}

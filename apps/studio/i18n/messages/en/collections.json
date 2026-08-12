@@ -1,0 +1,15 @@
+{
+  "actions_header": "Actions",
+  "back_to_list": "Back to Collections",
+  "create_button": "Create",
+  "create_title": "Create New",
+  "delete_button": "Delete Collection",
+  "field_count_header": "Fields",
+  "fields_link": "Fields",
+  "items_link": "Items",
+  "list_title": "List",
+  "name_label": "Collection Name",
+  "note_label": "Note",
+  "subtitle": "Create a table and proceed to define its fields.",
+  "title": "Collections"
+}

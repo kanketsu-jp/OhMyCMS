@@ -1,0 +1,16 @@
+{
+  "add_button": "追加",
+  "add_title": "フィールド追加",
+  "db_type_header": "DB型",
+  "empty_fields": "表示できるフィールドがありません。",
+  "field_header": "フィールド",
+  "list_title": "フィールド一覧",
+  "manage_link": "フィールド管理へ",
+  "max_length_label": "最大長",
+  "name_label": "フィールド名",
+  "no": "いいえ",
+  "primary_key_header": "主キー",
+  "required_label": "必須",
+  "type_label": "型",
+  "yes": "はい"
+}

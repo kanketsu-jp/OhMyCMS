@@ -1,0 +1,14 @@
+{
+  "assign_button": "Assign",
+  "assignment_card_title": "Policy Assignments",
+  "description": "Manage policy assignments for users.",
+  "empty": "No policy assignments yet.",
+  "error_assign_failed": "Failed to assign",
+  "error_forbidden": "You don't have permission",
+  "error_remove_failed": "Failed to remove",
+  "policy_label": "Policy",
+  "policy_prefix": "Policy: {policy}",
+  "remove_button": "Remove Assignment",
+  "title": "Users",
+  "user_label": "User"
+}

@@ -14,27 +14,11 @@
 
 import { readFileSync } from "node:fs";
 import { globSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { ROOT as root, flatten, loadDictionary } from "./i18n-load.mjs";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, "..");
-
-function flatten(value, prefix = "", out = new Set()) {
-  for (const [key, child] of Object.entries(value)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    if (child !== null && typeof child === "object" && !Array.isArray(child)) {
-      flatten(child, path, out);
-    } else {
-      out.add(path);
-    }
-  }
-  return out;
-}
-
-const defined = flatten(
-  JSON.parse(readFileSync(resolve(root, "i18n/messages/ja.json"), "utf8")),
-);
+// 辞書は名前空間ごとのファイル。組み立ては i18n-load.mjs に集約している。
+const defined = flatten(loadDictionary("ja"));
 
 const files = globSync("{app,components}/**/*.{tsx,ts}", { cwd: root }).sort();
 

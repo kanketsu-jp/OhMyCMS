@@ -1,0 +1,16 @@
+{
+  "actions_header": "操作",
+  "back_to_list": "アイテム一覧へ",
+  "create_button": "作成",
+  "delete_button": "削除",
+  "edit_button": "編集",
+  "edit_item_title": "アイテム編集",
+  "list_title": "一覧",
+  "manage_link": "アイテム管理へ",
+  "new_item": "新規アイテム",
+  "next_page": "次へ",
+  "pagination_summary": "{total} 件中 {from} - {to} 件",
+  "prev_page": "前へ",
+  "save_button": "保存",
+  "title_for_collection": "{collection} のアイテム"
+}

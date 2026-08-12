@@ -1,0 +1,20 @@
+{
+  "capabilities_label": "capabilities (JSON)",
+  "copy_button": "Copy",
+  "description": "Issue and revoke agent tokens.",
+  "empty": "No agents yet.",
+  "expires_in_days_label": "Expires in (days)",
+  "forbidden": "You don't have permission",
+  "invalid_json": "{label} must be valid JSON",
+  "issue_button": "Issue",
+  "issue_failed": "Failed to issue",
+  "manage_title": "Agent Management",
+  "name_label": "Name",
+  "revoke_button": "Revoke",
+  "revoke_failed": "Failed to revoke",
+  "revoked_badge": "Revoked",
+  "tenant_scope_label": "tenant_scope (JSON)",
+  "title": "Agents",
+  "token_heading": "Issued raw token",
+  "token_warning": "You won't be able to see this again once you close this screen."
+}

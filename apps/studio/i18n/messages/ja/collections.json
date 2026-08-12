@@ -1,0 +1,15 @@
+{
+  "actions_header": "操作",
+  "back_to_list": "コレクション一覧へ",
+  "create_button": "作成",
+  "create_title": "新規作成",
+  "delete_button": "コレクション削除",
+  "field_count_header": "フィールド数",
+  "fields_link": "フィールド",
+  "items_link": "アイテム",
+  "list_title": "一覧",
+  "name_label": "コレクション名",
+  "note_label": "メモ",
+  "subtitle": "テーブルを作成し、フィールド定義へ進みます。",
+  "title": "コレクション"
+}

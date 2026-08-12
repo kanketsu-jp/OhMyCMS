@@ -1,0 +1,20 @@
+{
+  "capabilities_label": "capabilities（JSON）",
+  "copy_button": "コピー",
+  "description": "エージェントトークンを発行・失効します。",
+  "empty": "エージェントはまだありません。",
+  "expires_in_days_label": "有効期限（日数）",
+  "forbidden": "権限がありません",
+  "invalid_json": "{label} は正しいJSONで入力してください",
+  "issue_button": "発行",
+  "issue_failed": "発行できません",
+  "manage_title": "エージェント管理",
+  "name_label": "名前",
+  "revoke_button": "失効",
+  "revoke_failed": "失効できません",
+  "revoked_badge": "失効済み",
+  "tenant_scope_label": "tenant_scope（JSON）",
+  "title": "エージェント",
+  "token_heading": "発行された生トークン",
+  "token_warning": "この画面を閉じると二度と表示できません。"
+}

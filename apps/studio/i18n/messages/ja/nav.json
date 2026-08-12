@@ -1,0 +1,13 @@
+{
+  "auth_error": "認証エラー",
+  "collections": "コレクション",
+  "collections_error": "コレクションを取得できません",
+  "content_heading": "コンテンツ",
+  "files": "ファイル",
+  "folders": "フォルダ",
+  "logout": "ログアウト",
+  "settings_agents": "設定 / エージェント",
+  "settings_policies": "設定 / ポリシー",
+  "settings_roles": "設定 / ロール",
+  "settings_users": "設定 / ユーザー"
+}
