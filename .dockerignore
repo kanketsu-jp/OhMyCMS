@@ -1,0 +1,43 @@
+# ビルドコンテキストから除外するもの。
+# 目的は 2 つ: (1) 秘密をイメージに焼き込まない (2) コンテキスト転送を軽くする。
+
+# --- 秘密 (最優先。.env.example だけは残す) ---
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# --- 依存とビルド生成物 (コンテナ内で入れ直す) ---
+node_modules
+**/node_modules
+.next
+**/.next
+out
+**/out
+build
+**/build
+*.tsbuildinfo
+
+# --- VCS / このPCだけのもの ---
+.git
+.gitignore
+.temp
+.claude
+.vercel
+coverage
+
+# --- ローカル実体 (アップロードされたファイル) ---
+.storage
+**/.storage
+
+# --- OS / エディタ ---
+.DS_Store
+**/.DS_Store
+*.pem
+*.log
+
+# --- Docker 自身 ---
+docker/compose.yml
+.dockerignore

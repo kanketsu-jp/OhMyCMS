@@ -101,7 +101,7 @@ DB接続文字列、APIキー、署名鍵(`jose`を使ったJWT関連の鍵含�
 |health check: curl -sS -o /dev/null -w "%{http_code}" http://localhost:3000/api/health
 ```
 
-## 6. Next.js 16 固有の注意点(要点。詳細は `.temp/2026-08-13/research/nextjs16-and-agents-md.md`)
+## 6. Next.js 16 固有の注意点(要点。詳細は `docs/research/nextjs16-and-agents-md.md`)
 
 IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any Next.js task — Next.js 16のAPIの一部(`"use cache"`, `cacheComponents`, `proxy.ts` 等)は、モデルの学習データの後に追加された可能性がある。記憶に頼らず、`node_modules/next` の型定義・公式ドキュメントで確認すること。
 
@@ -121,9 +121,17 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 
 | 目的 | 場所 |
 |---|---|
-| Next.js 16 の変更点(一次情報URL付き) | `.temp/2026-08-13/research/nextjs16-and-agents-md.md` |
-| 日本語UIの寸法エビデンス | `.temp/2026-08-13/research/ja-en-ui-evidence.md` |
-| 決定ログ(なぜそう決めたか) | `knowledge/decisions/`(整備中。それまでは `.temp/2026-08-13/decisions-log.md`) |
+| Next.js 16 の変更点(一次情報URL付き) | `docs/research/nextjs16-and-agents-md.md` |
+| 日本語UIの寸法エビデンス | `docs/research/ja-en-ui-evidence.md` |
+| 決定ログ(なぜそう決めたか) | `knowledge/decisions/` |
 
 > Claude Code は `CLAUDE.md` から `@AGENTS.md` でこのファイルをインポートしている。
 > Claude Code 固有の事柄は `CLAUDE.md` 側に書き、ここには**全エージェント共通のルールだけ**を置く。
+
+<!-- rag-okf:start -->
+[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-12|commit: 1603f6a|docs: 2
+|STOP. このリポジトリ固有の事情はあなたの事前知識にない。下記に該当したら必ず該当ファイルを読む。
+|areas:{}|decisions:{}|glossary:{}|ops:{}
+|検索(CLI): rag-okf search "<query>" --json
+|更新: rag-okf refresh]
+<!-- rag-okf:end -->

@@ -6,8 +6,12 @@
     "dev": "pnpm --filter @ohmycms/studio dev",
     "build": "pnpm --filter @ohmycms/studio build",
     "lint": "pnpm --filter @ohmycms/studio lint",
-    "db:up": "docker compose -f docker/compose.yml up -d",
+    "db:up": "docker compose -f docker/compose.yml up -d db",
     "db:down": "docker compose -f docker/compose.yml down",
+    "docker:up": "docker compose -f docker/compose.yml --env-file .env up -d --build",
+    "docker:down": "docker compose -f docker/compose.yml down",
+    "docker:reset": "docker compose -f docker/compose.yml down -v",
+    "docker:logs": "docker compose -f docker/compose.yml logs -f studio",
     "migrate": "pnpm --filter @ohmycms/studio migrate"
   }
 }

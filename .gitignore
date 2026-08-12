@@ -37,3 +37,4 @@ yarn-error.log*
 
 # このPCだけの作業用（PJに含めない）
 .temp/
+.rag-okf/
