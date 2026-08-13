@@ -54,7 +54,7 @@ export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
       ) : null}
       <form action={upload.run} className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
         <Input name="file" type="file" required />
-        <select name="folder" className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm" defaultValue="">
+        <select name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm" defaultValue="">
           <option value="">{t("no_folder_option")}</option>
           {folders.map((folder) => (
             <option key={folder.id} value={folder.id}>{folder.name}</option>

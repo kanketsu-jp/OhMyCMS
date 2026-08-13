@@ -20,7 +20,8 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       data-slot="input"
       data-inside-surface={insideSurface ? "true" : undefined}
       className={cn(
-        "h-8 w-full min-w-0 rounded-lg bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm",
+        // 高さは --control-h-*（app/globals.css）だけが決める。SP は指のために 44px。
+        "h-(--control-h) w-full min-w-0 rounded-lg bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-(--control-h-xs) file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:h-(--control-h-pc) md:text-sm",
         insideSurface
           // 面の中: 罫線を持たず背景で区別する
           ? "bg-muted/60 disabled:bg-muted/40"

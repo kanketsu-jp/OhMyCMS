@@ -142,7 +142,7 @@ export function GlobalSearch() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t("open_hint")}
-        className="flex h-8 items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
+        className="flex h-(--control-h) items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm md:h-(--control-h-pc) text-muted-foreground transition-colors hover:bg-muted"
       >
         <SearchIcon className="size-4 shrink-0" />
         <span className="hidden sm:inline">{t("placeholder")}</span>

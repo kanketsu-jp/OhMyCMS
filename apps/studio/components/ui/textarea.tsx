@@ -50,7 +50,9 @@ function NativeSelect({ className, ...props }: React.ComponentProps<"select">) {
       data-slot="native-select"
       data-inside-surface={insideSurface ? "true" : undefined}
       className={cn(
-        "h-8 w-full min-w-0 rounded-lg bg-transparent px-2.5 text-sm transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+        // 高さは --control-h-*（app/globals.css）だけが決める。SP は指のために 44px。
+        // 🚨 文字は text-base（16px）から。SP で 16px を割ると iOS が focus 時に画面を拡大する（憲章 §7 R5）。
+        "h-(--control-h) w-full min-w-0 rounded-lg bg-transparent px-2.5 text-base transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:h-(--control-h-pc) md:text-sm",
         insideSurface
           ? "bg-muted/60 disabled:bg-muted/40"
           : "border border-input focus-visible:border-ring disabled:bg-input/50 dark:bg-input/30",

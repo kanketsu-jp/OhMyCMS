@@ -52,6 +52,39 @@
 }
 
 :root {
+  /* --- 操作部品（ボタン・入力・select・textarea）の高さ ---------------------
+     🚨 **ここが唯一の定義場所**。`h-8` のような素の数字を部品側に直接書かない。
+     参照は Tailwind v4 の変数記法で `h-(--control-h)` と書く
+     （`--height-*` という theme 名前空間は v4 に存在せず、`h-*` は `--spacing-*` 由来のため。
+      `@theme` に足すと `p-control` `w-control` まで生えてしまうので、素の CSS 変数にしてある）。
+
+     🚨 **SP が既定で、PC で縮める**（憲章 §7「PC で作ってから SP に縮めない」）。
+     だから素の値が 44px で、`md:` から PC の値へ**下げる**向きに書く。逆に書かない。
+
+     値の根拠（`.temp/design-audit/dimensions-v2.md` §3。design が確定させた）:
+       44px … Apple HIG「最小タップ領域 44×44pt」。参考にしている X / Coinbase / Believe は3つとも iOS
+       🚨 **WCAG 2.5.8 の 24px を下限に使わない。** あれは法的な最低限であって設計目標ではない
+          （design が一度 24px へ下げて「指摘済みなのに直っていない」を作った。その撤回が v2）
+
+     🚨 --control-h と --control-h-sm の**名前と値は design との契約**で、auth(p9) も参照する。
+        勝手に変えないこと。 */
+  --control-h: 2.75rem; /* 44px  既定。SP の操作部品はすべてこれ */
+  --control-h-sm: 2.25rem; /* 36px  密な文脈 */
+
+  /* PC 側は **未確定**（design が Mobbin で X を見て決める）。
+     それまで現状の見た目を保つための置き場で、確定したらここだけ書き換える。 */
+  --control-h-pc: 2rem; /* 32px  PC のフォーム内の既定（現状維持） */
+  --control-h-pc-sm: 1.75rem; /* 28px  PC の sm（現状維持） */
+  --control-h-pc-lg: 2.25rem; /* 36px  PC の lg（現状維持） */
+  /* 24px は言語切替（LocaleSwitcher）だけの暫定。v1.0 で ButtonGroup 44px に置き換わって消える。
+     design が「既知の例外」として管理しているので、他へ広げないこと。 */
+  --control-h-xs: 1.5rem; /* 24px */
+
+  /* 角丸のトークンは作っていない。`rounded-lg` が既に `--radius` を経由しているので、
+     操作部品の角丸は `--radius` を動かせば変わる（knob を二重に作らない）。
+     🚨 dimensions-v2.md は `--control-radius: 0.5rem` を「いまの rounded-lg 相当」としているが、
+     このプロジェクトの `--radius` は 0.625rem(10px) なので、そのまま入れると 10px→8px の**変更**になる。 */
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

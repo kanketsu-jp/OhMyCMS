@@ -65,7 +65,7 @@ export default async function FilesPage({ searchParams }: Props) {
       <Surface>
         <SurfaceTitle>{t("list_title")}</SurfaceTitle>
         <form className="flex max-w-sm gap-2" action="/admin/files">
-          <select name="folder" className="h-8 min-w-0 flex-1 rounded-lg bg-muted/60 px-2 text-sm" defaultValue={query.folder ?? ""}>
+          <select name="folder" className="h-(--control-h) min-w-0 flex-1 rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm" defaultValue={query.folder ?? ""}>
             <option value="">{t("all_folders_option")}</option>
             {folders.map((folder) => (
               <option key={folder.id} value={folder.id}>{folder.name}</option>
