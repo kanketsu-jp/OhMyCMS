@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BellIcon,
   DatabaseIcon,
-  HomeIcon,
   ImageIcon,
   LogOut,
   MenuIcon,
@@ -73,13 +73,13 @@ export function MobileNav({ items, settings, settingsLabel, collections, content
   //   右が 96px なら 320px で **4個→38px** で 44px を割る / 3個なら 51px
   // ⑨ の「4つ」は**右がアイコン1つ前提の計算**だった。
   const quick = [
-    { href: "/admin", label: t("home"), icon: HomeIcon },
     { href: "/admin/collections", label: t("collections"), icon: DatabaseIcon },
     { href: "/admin/files", label: t("files"), icon: ImageIcon },
+    { href: "/admin/notifications", label: t("notifications"), icon: BellIcon },
   ];
 
-  const isCurrent = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  // /admin は /admin/collections へ転送されるので、ここに「ホーム」は無い（⑰）
+  const isCurrent = (href: string) => pathname.startsWith(href);
 
   return (
     <nav

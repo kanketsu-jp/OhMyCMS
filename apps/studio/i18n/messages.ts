@@ -20,7 +20,6 @@ import enAgents from "./messages/en/agents.json";
 import enAuth from "./messages/en/auth.json";
 import enCollections from "./messages/en/collections.json";
 import enCommon from "./messages/en/common.json";
-import enDashboard from "./messages/en/dashboard.json";
 import enErrors from "./messages/en/errors.json";
 import enFields from "./messages/en/fields.json";
 import enFiles from "./messages/en/files.json";
@@ -44,7 +43,6 @@ import jaAgents from "./messages/ja/agents.json";
 import jaAuth from "./messages/ja/auth.json";
 import jaCollections from "./messages/ja/collections.json";
 import jaCommon from "./messages/ja/common.json";
-import jaDashboard from "./messages/ja/dashboard.json";
 import jaErrors from "./messages/ja/errors.json";
 import jaFields from "./messages/ja/fields.json";
 import jaFiles from "./messages/ja/files.json";
@@ -70,7 +68,6 @@ export const NAMESPACES = [
   "auth",
   "collections",
   "common",
-  "dashboard",
   "errors",
   "fields",
   "files",
@@ -97,7 +94,6 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     auth: jaAuth,
     collections: jaCollections,
     common: jaCommon,
-    dashboard: jaDashboard,
     errors: jaErrors,
     fields: jaFields,
     files: jaFiles,
@@ -122,7 +118,6 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     auth: enAuth,
     collections: enCollections,
     common: enCommon,
-    dashboard: enDashboard,
     errors: enErrors,
     fields: enFields,
     files: enFiles,

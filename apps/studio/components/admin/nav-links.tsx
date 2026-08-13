@@ -43,8 +43,8 @@ export function NavLinks({ items, settings, settingsLabel, onNavigate }: Props) 
   const inSettings = pathname.startsWith("/admin/settings");
 
   const row = (item: NavLink, indent = false) => {
-    const current =
-      item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+    // /admin は /admin/collections へ転送されるので、特別扱いは要らない（⑰）
+    const current = pathname.startsWith(item.href);
     return (
       <Link
         key={item.href}

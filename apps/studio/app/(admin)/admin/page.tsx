@@ -1,29 +1,19 @@
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { Surface, SurfaceTitle } from "@/components/ui/surface";
-import { getT } from "@/i18n/server";
-import { cn } from "@/lib/utils";
+import { redirect } from "next/navigation";
 
-export default async function AdminPage() {
-  const t = await getT("dashboard");
-
-  return (
-    <div className="max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("description")}
-        </p>
-      </div>
-      <Surface>
-        <SurfaceTitle>{t("schema_management_title")}</SurfaceTitle>
-        <Link
-          href="/admin/collections"
-          className={cn(buttonVariants(), "w-fit")}
-        >
-          {t("open_collections_button")}
-        </Link>
-      </Surface>
-    </div>
-  );
+/**
+ * 管理画面のトップは**持たない**。`/admin/collections` へ送る。
+ *
+ * 堀池さん（原文・2026-08-14）:
+ * 「**ホームは必要ない。代わりにホームはコレクションにする。**
+ *   ルールとして、**ページではまずそれを見せる。**」
+ *
+ * 🚨 ここには「コレクション一覧を開く」ボタンが1つあるだけだった。
+ * **1つのリンクのためだけのページ**で、開くたびにもう1回押させていた。
+ *
+ * 🚨 **同じ画面に URL を2つ持たせない。** 中身を `/admin/collections` と同じにするのではなく、
+ * **転送**にしてある。正は `/admin/collections` の1つだけ。
+ * （files と folders を2画面に割っていたのと同じ誤りを繰り返さないため）
+ */
+export default function AdminPage() {
+  redirect("/admin/collections");
 }
