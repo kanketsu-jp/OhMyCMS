@@ -400,12 +400,10 @@ export type FileRecord = {
    *   `next/image` へ渡すときだけ `blurDataURL` へ読み替える（変換は `@ohmycms/sdk/next` の中だけ）。
    */
   blur_data_url: string | null;
-  /**
-   * 圧縮版のキー。null なら圧縮版が無い（元をそのまま配信する）。
-   * 🚨 これを見て配信先を決めるのは**サーバの仕事**。SDK が URL を組み立てるときは
-   *   常に `/api/assets/<id>` を指す（`assetUrl`）。ここからキーを組み立てないこと。
-   */
-  compressed_key: string | null;
+  // 🚨 `compressed_key`（圧縮版のストレージキー）は**ここに置かない**。
+  //   API が返さなくなった（司令塔の指示・2026-08-13「内部キーを載せない。S3 のキー構造が漏れる」）。
+  //   一度この型に足したが、**返らないものを「必ず来る」と宣言すると型が嘘になる**ので外した。
+  //   配信先を圧縮版にするかはサーバの中だけで決まる。SDK は常に `/api/assets/<id>` を指す。
   description: string | null;
   tags: unknown | null;
   [key: string]: unknown;

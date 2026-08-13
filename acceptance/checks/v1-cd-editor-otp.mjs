@@ -43,15 +43,21 @@ export async function checkTiptap(context) {
   }
   const admin = auth.session;
 
-  // 実装されているか（フィールド型として使えるか）を対象に聞く
-  const fieldTypes = await admin.get("/api/fields");
-  const hasRichText = fieldTypes.status === 200 && /rich_?text|tiptap/i.test(fieldTypes.text);
+  // ── 実装されているかを対象に聞く ──
+  // 🚨 **リッチテキストは「フィールド型」ではない**（tiptap の指摘・2026-08-13）。
+  //   型は既存の `json`（jsonb）のままで、**`meta.interface === "richtext"`** で表す。
+  //   実行時にスキーマが変わる CMS なので、本文のたびに SQL 型を増やすと DDL が増える。
+  //   jsonb + interface なら GUI でフィールドを足すだけで済む。
+  //   → 私は最初 `rich_text` / `tiptap` という**型名**を探していた。**探す場所が違った。**
+  const fields = await admin.get("/api/fields");
+  const hasRichText =
+    fields.status === 200 && /"interface"\s*:\s*"richtext"/.test(fields.text);
   if (!hasRichText) {
     return skip(11, "V1-C Tiptap の WYSIWYG",
-      "リッチテキストのフィールド型がまだ見当たりません",
+      "リッチテキストの interface がまだ見当たりません（meta.interface === \"richtext\"）",
       [
         "実装されたら、このチェックが自動的に本物へ切り替わります。**測る内容を先に置いておきます**:",
-        "  🟢 保存して読み出すと同じ内容（**JSON で保存**）",
+        "  🟢 保存して読み出すと同じ内容（**JSON/jsonb で保存**。tiptap が確定）",
         "  🔴 🚨 `<script>` を含む内容を保存 → **配信時に実行されない**",
         "     ← 対照実験つき。**危険な形が検出器に引っかかる**ことを先に確かめる",
         "  🟢 検索でヒットする（**プレーンテキストを別列に持つ**設計）",
@@ -60,24 +66,93 @@ export async function checkTiptap(context) {
       ], started);
   }
 
-  // ── 🚨 対照: 検出器が本当に危険な形を見つけられるか ──
-  const dangerous = '<p>ok</p><script>window.__pwned=1</script>';
-  const detector = (html) => /<script/i.test(html);
-  assertions.push(
-    assertion("positive", "対照: 検出器は危険な形（<script>）を検出できる",
-      detector(dangerous), "検出した", "検出する"),
-  );
-  assertions.push(
-    assertion("positive", "対照: 検出器は安全な形を誤検出しない",
-      !detector("<p>ふつうの文章</p>"), "検出しない", "検出しない"),
-  );
+  // ── 本物の検査 ──
+  // 🚨 ここは以前「対照実験」だけを置いていたが、**肯定形しか無い**ためハーネスに
+  //   「両方を持っていない」と落とされた。**検査の不備**であって製品の問題ではなかった。
+  //   interface が入ったので、実際に保存して読み出す形へ差し替える（2026-08-14）。
+  const created = await admin.postJson("/api/collections", {
+    collection,
+    fields: [
+      { field: "id", type: "uuid", meta: { hidden: true }, schema: { is_primary_key: true } },
+      { field: "body", type: "json", meta: { interface: "richtext" } },
+    ],
+  });
+  if (created.status !== 201 && created.status !== 200) {
+    return result({
+      id: 11, title: "V1-C Tiptap の WYSIWYG", status: STATUS.BLOCKED,
+      reason: `検証用のコレクションを作れませんでした（HTTP ${created.status}）`,
+      details: [created.text.slice(0, 200)], ms: Date.now() - started,
+    });
+  }
 
-  details.push("🚨 実際の保存・配信の検査は、フィールド型が入り次第ここへ足す。");
+  try {
+    // 🚨 スクリプトを**中身に含んだ**まま保存する。ここで消してしまうと、
+    //   「配信時に安全になっているか」を確かめられない（入口で消すのは別の設計判断）。
+    const payload = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "ふつうの文章" }] },
+        { type: "paragraph", content: [{ type: "text", text: '<script>window.__pwned=1</script>' }] },
+      ],
+    };
+    const saved = await admin.postJson(`/api/items/${collection}`, { body: payload });
+    const id = saved.json?.data?.id ?? null;
+    const read = id ? await admin.get(`/api/items/${collection}/${id}`) : null;
+    const body = read?.json?.data?.body ?? null;
+
+    // 🚨 **素の JSON.stringify で比べない。** 実測で2つ違いが出る（2026-08-14）:
+    //   ① jsonb が**キーの順番を正規化する**（{"type","text"} → {"text","type"}）
+    //   ② 実装が **`schemaVersion` を足す**
+    //   どちらも中身は保たれているのに「違う」と出た。**製品でなく比較の仕方の誤り。**
+    //   → キー順に依存しない形にし、実装が足したフィールドは差として扱わない。
+    const canonical = (value) => {
+      if (Array.isArray(value)) return value.map(canonical);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(
+          Object.keys(value).sort().map((key) => [key, canonical(value[key])]),
+        );
+      }
+      return value;
+    };
+    const roundTrip =
+      JSON.stringify(canonical(body?.content)) === JSON.stringify(canonical(payload.content)) &&
+      body?.type === payload.type;
+
+    assertions.push(
+      assertion("positive", "リッチテキストを保存して読み出すと中身が保たれる",
+        roundTrip,
+        roundTrip
+          ? `一致（実装が足した項目: ${Object.keys(body ?? {})
+              .filter((k) => !(k in payload))
+              .join(", ") || "なし"}）`
+          : `HTTP ${read?.status ?? "-"} / 中身が違う`,
+        "保存した content と一致"),
+    );
+
+    // 🔴 否定形: **JSON として返る。HTML として返らない。**
+    //   ここが text/html で返るようになると、そのままブラウザが描画してスクリプトが動く
+    //   （v0.9 の SVG と同じ経路）。**配信の型を固定していることを見る。**
+    const contentType = (read?.headers?.get("content-type") ?? "").split(";")[0].trim();
+    assertions.push(
+      assertion("negative", "リッチテキストが HTML として配信されない（JSON で返る）",
+        contentType === "application/json",
+        contentType || "(型なし)", "application/json"),
+    );
+
+    details.push(
+      "🚨 **描画時のサニタイズはここでは測れていません**（unverified）。",
+      "  保存した JSON を HTML にする経路がまだ無いためです。",
+      "  司令塔の整理では**サーバがサニタイズの責任を持つ**方が安全（SDK を使わない経路もあるため）。",
+      "  その経路ができたら、ここに「`<script>` が実行されない形で出る」を足します。",
+    );
+  } finally {
+    await admin.request(`/api/collections/${collection}`, { method: "DELETE" }).catch(() => {});
+  }
 
   const verdict = statusFromAssertions(assertions);
   return result({
     id: 11, title: "V1-C Tiptap の WYSIWYG", status: verdict.status,
-    positive: "検出器が動く", negative: "<script> を検出",
+    positive: "保存して読み出せる", negative: "HTML では返らない",
     details: [...details, ...verdict.details], assertions, ms: Date.now() - started,
   });
 }
