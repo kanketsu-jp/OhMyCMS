@@ -19,12 +19,23 @@
  */
 
 import { randomUUID } from "node:crypto";
+import type { Knex } from "knex";
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db/knex";
 import { ApiError } from "@/lib/schema/errors";
 
 /** 設定テーブルは単一行。DB 側の CHECK 制約と揃えている。 */
 const SINGLE_ROW_ID = 1;
+
+/**
+ * ローカル管理者の内部用メールアドレス。
+ *
+ * 🚨 なぜメールがあるか: メールを使わない方針だが、`directus_sessions.user` は NOT NULL、
+ *    `directus_users.email` も NOT NULL + unique という DB 制約があるため、
+ *    セッションの持ち主として内部専用の固定ユーザーを1人だけ持つ。
+ *    **利用者には一切見せない**（画面にもAPIレスポンスにも出さない）。
+ */
+export const LOCAL_ADMIN_EMAIL = "local-admin@localhost";
 
 /** 既定値。環境変数も DB も無いときはこれで動く。 */
 export const SETTINGS_DEFAULTS = {
@@ -86,6 +97,8 @@ type SettingsRow = {
   updated_at: Date | string | null;
   /** オンボーディングが済んだ時刻。null なら未完了。 */
   onboarding_completed_at: Date | string | null;
+  /** 保存済みのセットアップパスワード(scryptハッシュ)。画面やAPIレスポンスには絶対に出さないこと。 */
+  setup_password: string | null;
 };
 
 async function readRow(): Promise<SettingsRow | null> {
@@ -221,6 +234,43 @@ export async function isOnboardingCompleted(): Promise<boolean> {
   return Boolean(row?.onboarding_completed_at);
 }
 
+/** local-admin ユーザーのIDを返す。居なければ null。 */
+export async function localAdminUserId(): Promise<string | null> {
+  const row = await db("directus_users")
+    .select("id")
+    .where({ email: LOCAL_ADMIN_EMAIL })
+    .first();
+  return row?.id ?? null;
+}
+
+/** 保存済みのセットアップパスワード（scryptハッシュ）。無ければ null。画面やAPIレスポンスへは絶対に出さないこと。 */
+export async function storedSetupPasswordHash(): Promise<string | null> {
+  const row = await readRow();
+  return row?.setup_password ?? null;
+}
+
+/**
+ * セットアップパスワードを保存する（scryptでハッシュ化してから入れる）。
+ * `trx`を渡せばそのトランザクション内で書く（省略時は単独で書く）。
+ */
+export async function saveSetupPassword(
+  plain: string,
+  trx?: Knex.Transaction,
+): Promise<void> {
+  const runner = trx ?? db;
+  const hash = await hashPassword(plain);
+  const existing = await runner("ohmycms_settings")
+    .where({ id: SINGLE_ROW_ID })
+    .first();
+  if (existing) {
+    await runner("ohmycms_settings")
+      .where({ id: SINGLE_ROW_ID })
+      .update({ setup_password: hash });
+  } else {
+    await runner("ohmycms_settings").insert({ id: SINGLE_ROW_ID, setup_password: hash });
+  }
+}
+
 /**
  * オンボーディングの入力を保存し、完了として印を付ける。
  *
@@ -263,7 +313,7 @@ export async function completeOnboarding(
 
 export async function completeOnboardingWithAdmin(
   input: Record<string, unknown>,
-): Promise<{ userId: string; email: string }> {
+): Promise<{ userId: string }> {
   if (await isOnboardingCompleted()) {
     throw new ApiError(
       409,
@@ -272,21 +322,12 @@ export async function completeOnboardingWithAdmin(
     );
   }
 
-  const adminEmail = input.admin_email;
-  if (typeof adminEmail !== "string" || !adminEmail.includes("@")) {
-    throw new ApiError(400, "INVALID_FIELD", "admin_email を指定してください");
-  }
-  const email = adminEmail.trim().toLowerCase();
-  if (!email.includes("@")) {
-    throw new ApiError(400, "INVALID_FIELD", "admin_email を指定してください");
-  }
-
-  const adminPassword = input.admin_password;
-  if (typeof adminPassword !== "string" || adminPassword.length < 8) {
+  const newPassword = input.new_password;
+  if (typeof newPassword !== "string" || newPassword.length < 8) {
     throw new ApiError(
       400,
       "INVALID_FIELD",
-      "admin_password は8文字以上で指定してください",
+      "new_password は8文字以上で指定してください",
     );
   }
 
@@ -294,6 +335,11 @@ export async function completeOnboardingWithAdmin(
     project_name: input.project_name,
     default_locale: input.default_locale,
   });
+
+  // 🚨 directus_users.password と ohmycms_settings.setup_password を同じハッシュにする。
+  //    別々にハッシュ化すると（scryptはソルトがランダムなので）異なる文字列になり、
+  //    「パスワードを変えたのに setup_password 側だけ古いまま」を作れてしまう。
+  const passwordHash = await hashPassword(newPassword);
 
   return db.transaction(async (trx) => {
     const row = await trx<SettingsRow>("ohmycms_settings")
@@ -307,16 +353,6 @@ export async function completeOnboardingWithAdmin(
       );
     }
 
-    const existingUser = await trx("directus_users").select("id").where({ email }).first();
-    if (existingUser) {
-      throw new ApiError(
-        409,
-        "EMAIL_ALREADY_EXISTS",
-        "そのメールアドレスは既に使われています",
-      );
-    }
-
-    const password = await hashPassword(adminPassword);
     const existingPolicy = await trx<{ id: string }>("directus_policies")
       .select("id")
       .where("name", "Administrator")
@@ -335,21 +371,33 @@ export async function completeOnboardingWithAdmin(
       });
     }
 
-    const userId = randomUUID();
-    await trx("directus_users").insert({
-      id: userId,
-      first_name: null,
-      last_name: null,
-      email,
-      password,
-      status: "active",
-      role: null,
-      token: null,
-      last_access: null,
-      provider: "local",
-      external_identifier: null,
-      auth_data: null,
-    });
+    const existingUser = await trx("directus_users")
+      .select("id")
+      .where({ email: LOCAL_ADMIN_EMAIL })
+      .first();
+    let userId: string;
+    if (existingUser) {
+      userId = existingUser.id;
+      await trx("directus_users")
+        .where({ id: userId })
+        .update({ password: passwordHash, status: "active" });
+    } else {
+      userId = randomUUID();
+      await trx("directus_users").insert({
+        id: userId,
+        first_name: null,
+        last_name: null,
+        email: LOCAL_ADMIN_EMAIL,
+        password: passwordHash,
+        status: "active",
+        role: null,
+        token: null,
+        last_access: null,
+        provider: "local",
+        external_identifier: null,
+        auth_data: null,
+      });
+    }
 
     const existingAccess = await trx("directus_access")
       .select("id")
@@ -368,6 +416,7 @@ export async function completeOnboardingWithAdmin(
 
     const payload = {
       ...patch,
+      setup_password: passwordHash,
       onboarding_completed_at: new Date(),
       updated_at: new Date(),
       updated_by: userId,
@@ -379,6 +428,6 @@ export async function completeOnboardingWithAdmin(
       await trx("ohmycms_settings").insert({ id: SINGLE_ROW_ID, ...payload });
     }
 
-    return { userId, email };
+    return { userId };
   });
 }

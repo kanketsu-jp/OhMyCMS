@@ -1,12 +1,14 @@
 {
-  "admin_email_label": "Administrator email",
-  "admin_password_label": "Administrator password",
   "default_password_warning": "The default password is still in use. Change the login password after onboarding is complete.",
   "description": "You can change these later in settings.",
   "failed": "Could not save. Please try again later.",
+  "hide_password": "Hide password",
   "locale_label": "Display language",
+  "new_password_help": "Use at least 8 characters.",
+  "new_password_label": "New password",
   "project_name_help": "Displayed in the admin header and login screen.",
   "project_name_label": "Service name",
+  "show_password": "Show password",
   "submit": "Get started",
   "submit_pending": "Saving...",
   "title": "Initial setup"

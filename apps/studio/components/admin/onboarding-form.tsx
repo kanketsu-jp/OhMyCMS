@@ -2,10 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useLocale, useT } from "@/i18n/client";
@@ -23,8 +29,8 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
   const t = useT("onboarding");
   const tCommon = useT("common");
   const [projectName, setProjectName] = useState(defaultProjectName);
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -37,8 +43,7 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        admin_email: adminEmail,
-        admin_password: adminPassword,
+        new_password: newPassword,
         project_name: projectName,
         default_locale: locale,
       }),
@@ -101,30 +106,39 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
         </div>
         <hr className="border-0 border-t border-border" />
         <div className="flex flex-col gap-2">
-          <Label htmlFor="admin-email">{t("admin_email_label")}</Label>
-          <Input
-            id="admin-email"
-            type="email"
-            value={adminEmail}
-            onChange={(event) => setAdminEmail(event.target.value)}
-            required
-            autoComplete="email"
-            className="h-(--control-h) md:h-(--control-h-pc)"
-          />
-          <Label htmlFor="admin-password">{t("admin_password_label")}</Label>
-          <Input
-            id="admin-password"
-            type="password"
-            value={adminPassword}
-            onChange={(event) => setAdminPassword(event.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            className="h-(--control-h) md:h-(--control-h-pc)"
-          />
+          <Label htmlFor="new-password">{t("new_password_label")}</Label>
+          <InputGroup>
+            <InputGroupInput
+              id="new-password"
+              type={showPassword ? "text" : "password"}
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? t("hide_password") : t("show_password")}
+              >
+                {showPassword ? (
+                  <EyeOffIcon className="size-4" />
+                ) : (
+                  <EyeIcon className="size-4" />
+                )}
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+          <p className="text-xs text-muted-foreground">{t("new_password_help")}</p>
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit" className="min-h-(--control-h) w-full md:min-h-0" disabled={submit.pending || pending}>
+        <Button
+          type="submit"
+          className="min-h-(--control-h) w-full md:min-h-0"
+          disabled={submit.pending || pending}
+        >
           {pending ? t("submit_pending") : t("submit")}
         </Button>
       </form>

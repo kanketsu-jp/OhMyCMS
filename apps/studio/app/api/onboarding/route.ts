@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const user = await completeOnboardingWithAdmin(body);
     const session = await issueSession(user.userId, request);
     const response = ok({
-      data: { type: "human", userId: user.userId, email: user.email, role: null },
+      data: { type: "human", userId: user.userId, role: null },
     });
 
     if (setupAuthorized && setupToken) {

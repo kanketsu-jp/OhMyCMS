@@ -23,7 +23,7 @@ export default async function OnboardingPage() {
 
   const t = await getT("onboarding");
   const settings = await getSettings();
-  const showDefaultPasswordWarning = isDefaultSetupPassword();
+  const showDefaultPasswordWarning = await isDefaultSetupPassword();
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-10">
