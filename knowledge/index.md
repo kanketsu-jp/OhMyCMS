@@ -12,7 +12,7 @@ sources: []
 stale_after: 2027-02-08
 x_rag_okf:
   id: index
-  source_commit: 91507e0
+  source_commit: bf14b78
   source_digest: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   authorship: deterministic
 ---
@@ -25,6 +25,7 @@ x_rag_okf:
 - [デザインの規約（design-system）](./areas/design-system.md) — `areas/design-system`
 - [権限と認可（permissions）](./areas/permissions.md) — `areas/permissions`
 - [指示書は AGENTS.md を正本にする](./decisions/agents-md-as-canonical.md) — `decisions/agents-md-as-canonical`
+- [認証は SAML → メール OTP → パスワードの順に使う](./decisions/auth-methods.md) — `decisions/auth-methods`
 - [CLI と MCP は REST API 経由（DB 直接アクセス禁止）](./decisions/cli-mcp-over-rest.md) — `decisions/cli-mcp-over-rest`
 - [DB は PostgreSQL（Cloudflare D1 は撤回）](./decisions/db-postgres.md) — `decisions/db-postgres`
 - [フォルダは「誰かの持ち物」にしない](./decisions/folders-are-not-owned.md) — `decisions/folders-are-not-owned`
@@ -40,6 +41,7 @@ x_rag_okf:
 - [リレーションを辿るときも、相手側コレクションの権限を必ず通す](./decisions/relation-permission-boundary.md) — `decisions/relation-permission-boundary`
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
 - [v0.9 は Next.js 単一アプリ、分離時は Hono](./decisions/single-nextjs-app-then-hono.md) — `decisions/single-nextjs-app-then-hono`
+- [手順ドキュメントはステップ式で書く。前提を独立させ、スクリーンショットを使わない](./decisions/stepwise-docs.md) — `decisions/stepwise-docs`
 - [二階建て認証（人間とエージェントを分ける）](./decisions/two-tier-auth.md) — `decisions/two-tier-auth`
 - [UI の置き場所は「操作の頻度」で決める](./decisions/ui-placement-by-frequency.md) — `decisions/ui-placement-by-frequency`
 - [middleware.ts でなく proxy.ts を使う](./decisions/use-proxy-not-middleware.md) — `decisions/use-proxy-not-middleware`
