@@ -1,6 +1,6 @@
 import { db } from "@/lib/db/knex";
 import type { Knex } from "knex";
-import { ApiError } from "./errors";
+import { ApiError, rethrowAsConflict } from "./errors";
 import { getColumns, getSchemaOverview, getTables } from "./introspect";
 import type {
   CollectionMeta,
@@ -472,20 +472,27 @@ export async function updateCollection(
 }
 
 export async function deleteCollection(collection: string): Promise<{ collection: string }> {
-  await db.transaction(async (trx) => {
-    assertSafeIdentifier(collection);
-    if (!(await tableExists(trx, collection))) {
-      throw new ApiError(404, "COLLECTION_NOT_FOUND", "コレクションが見つかりません");
-    }
+  // 🚨 下の tableExists は「同時に2回」来ると素通りする（二重クリックの実体は並行）。
+  // 後着は PostgreSQL の undefined_table で弾かれるので、その生エラーを文言へ翻訳する。
+  try {
+    await db.transaction(async (trx) => {
+      assertSafeIdentifier(collection);
+      if (!(await tableExists(trx, collection))) {
+        throw new ApiError(404, "COLLECTION_NOT_FOUND", "コレクションが見つかりません");
+      }
 
-    await trx("directus_relations")
-      .where({ many_collection: collection })
-      .orWhere({ one_collection: collection })
-      .delete();
-    await trx("directus_fields").where({ collection }).delete();
-    await trx("directus_collections").where({ collection }).delete();
-    await trx.raw("DROP TABLE ??", [collection]);
-  });
+      await trx("directus_relations")
+        .where({ many_collection: collection })
+        .orWhere({ one_collection: collection })
+        .delete();
+      await trx("directus_fields").where({ collection }).delete();
+      await trx("directus_collections").where({ collection }).delete();
+      await trx.raw("DROP TABLE ??", [collection]);
+    });
+  } catch (error) {
+    rethrowAsConflict(error);
+    throw error;
+  }
 
   return { collection };
 }
@@ -538,22 +545,30 @@ export async function createField(
   const schema = parseFieldSchema(body.schema);
   const meta = pickAllowed(body.meta, FIELD_META_COLUMNS, "UNSUPPORTED_FIELD_META");
 
-  await db.transaction(async (trx) => {
-    assertSafeIdentifier(collection);
-    assertSafeIdentifier(field);
+  // 🚨 columnExists は「同時に2回」来ると両方が false を見る（二重クリックの実体は並行）。
+  // 後着は PostgreSQL の duplicate_column で弾かれる。データは壊れないが、
+  // 生エラーのままだと「サーバ内部でエラーが発生しました」になるので文言へ翻訳する。
+  try {
+    await db.transaction(async (trx) => {
+      assertSafeIdentifier(collection);
+      assertSafeIdentifier(field);
 
-    if (!(await tableExists(trx, collection))) {
-      throw new ApiError(404, "COLLECTION_NOT_FOUND", "コレクションが見つかりません");
-    }
-    if (await columnExists(trx, collection, field)) {
-      throw new ApiError(409, "FIELD_EXISTS", "フィールドは既に存在します");
-    }
+      if (!(await tableExists(trx, collection))) {
+        throw new ApiError(404, "COLLECTION_NOT_FOUND", "コレクションが見つかりません");
+      }
+      if (await columnExists(trx, collection, field)) {
+        throw new ApiError(409, "FIELD_EXISTS", "フィールドはもう作られています");
+      }
 
-    await addColumn(trx, collection, field, body.type as string, schema);
-    await trx("directus_fields").insert(
-      fieldMetaInsert(collection, field, meta, schema),
-    );
-  });
+      await addColumn(trx, collection, field, body.type as string, schema);
+      await trx("directus_fields").insert(
+        fieldMetaInsert(collection, field, meta, schema),
+      );
+    });
+  } catch (error) {
+    rethrowAsConflict(error);
+    throw error;
+  }
 
   const created = await getField(collection, field);
   if (!created) throw new ApiError(500, "FIELD_NOT_READABLE", "作成結果を取得できませんでした");
