@@ -11,3 +11,4 @@
  */
 
 export { Image, type ImageFile, type ImageProps } from "./image.js";
+export { RichText, type RichTextProps } from "./richtext.js";

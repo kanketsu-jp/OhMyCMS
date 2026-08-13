@@ -1,4 +1,14 @@
 export {
+  ALLOWED_MARK_TYPES,
+  ALLOWED_NODE_TYPES,
+  isAllowedImageSrc,
+  isAllowedLinkHref,
+  isRichTextDocument,
+  richTextToPlainText,
+  type RichTextDocument,
+  type RichTextNode,
+} from "./richtext.js";
+export {
   assetUrl,
   isDisplayableImage,
   type AssetSource,
