@@ -12,9 +12,18 @@ export function errorResponse(error: unknown): Response {
     );
   }
 
-  const message = error instanceof Error ? error.message : String(error);
+  // 🚨 例外メッセージをクライアントへ返さない。
+  // 例外文にはファイルパス・DB の接続先・内部の実装名が混ざる（AGENTS.md §3.7 と同じ考え方）。
+  // ApiError は「こちらが意図して書いた文言」なので返してよいが、
+  // 想定外の例外は**一般化した文言とコードだけ**を返し、詳細はサーバのログにとどめる。
+  console.error("[api] 未処理の例外:", error);
   return Response.json(
-    { error: { code: "INTERNAL_ERROR", message } },
+    {
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "サーバ内部でエラーが発生しました",
+      },
+    },
     { status: 500 },
   );
 }

@@ -68,8 +68,15 @@ for (const file of files) {
   if (!rendersInsideSurface(file, source)) continue;
 
   source.split("\n").forEach((line, i) => {
-    const classAttr = /className=\{?["'`]([^"'`]+)/.exec(line);
-    if (!classAttr) return;
+    // 🚨 className={cn("...", "...")} を読めるようにする。
+    // 以前は /className=\{?["'`]/ で「= の次が引用符」しか見ておらず、
+    // cn( が挟まる 50箇所 / 16ファイルが**丸ごとノーチェック**だった（design 番人の指摘・実証済み）。
+    // → className= 以降に現れる**すべての文字列リテラルを連結**して判定する。
+    if (!line.includes("className")) return;
+    const after = line.slice(line.indexOf("className"));
+    const literals = [...after.matchAll(/["'`]([^"'`]*)["'`]/g)].map((m) => m[1]);
+    if (literals.length === 0) return;
+    const classAttr = [null, literals.join(" ")];
     // 🚨 状態つきのクラス（focus-visible: / hover: / dark: / aria-invalid: など）は面ではない。
     // フォーカスリングやホバーの色を「罫線」「背景」と数えると誤検出になる（実測で判明）。
     const cls = classAttr[1]
