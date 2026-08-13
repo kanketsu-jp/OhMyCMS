@@ -29,6 +29,7 @@
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
+import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
 import { run, REPO_ROOT } from "../lib/proc.mjs";
 
@@ -85,13 +86,48 @@ export async function check(context) {
         details: [
           ...details,
           "立て直す:",
-          "  docker compose -p ohmycms-verify -f acceptance/saml/compose.keycloak.yml up -d",
+          "  docker compose -p ohmycms-saml -f acceptance/saml/compose.keycloak.yml up -d",
           `  STUDIO=${baseUrl} bash acceptance/saml/setup-keycloak.sh`,
-          "🚨 `-p ohmycms-verify` は **minio も使っています**。`--remove-orphans` を付けないこと。",
+          "🚨 Keycloak は **`ohmycms-saml`**、MinIO は **`ohmycms-verify`**（2026-08-14 に分離済み）。",
+          "   落とすときは **`-p` を明示**すること。取り違えると別の検証環境を消す。",
           (setup.stderr || setup.stdout).slice(-200),
         ],
         ms: Date.now() - started,
       });
+    }
+  }
+
+  // ── 🚨 IdP の証明書をアプリ側へ入れ直す ──
+  //   `setup-keycloak.sh` は descriptor を**取ってくるだけ**で、アプリの設定
+  //   （`ohmycms_saml_config`）には入れない。**realm を作り直すと署名証明書が変わる**ので、
+  //   古い証明書のままだと**正しい応答が 401 になる**（症状が「署名が違う」に見えるので
+  //   原因が分かりにくい。saml の警告・2026-08-14）。
+  //   → 毎回 descriptor から取り直して**API 経由で**入れる。
+  //     🚨 DB へ直接書かない。設定の反映は製品の判定を通す（ブートストラップの線引きと同じ）。
+  {
+    const descriptor = await fetch(
+      "http://localhost:3108/realms/ohmycms/protocol/saml/descriptor",
+    ).then((r) => r.text()).catch(() => "");
+    const certificate = descriptor.match(/<ds:X509Certificate>([\s\S]*?)<\/ds:X509Certificate>/)?.[1]
+      ?.replace(/\s+/g, "") ?? null;
+    const entityId = descriptor.match(/entityID="([^"]+)"/)?.[1] ?? null;
+
+    if (certificate && entityId) {
+      const admin = await establishSession(baseUrl, { label: "saml-config", admin: true });
+      if (admin.ok) {
+        const patched = await admin.session.request("/api/settings/saml", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            enabled: true,
+            idp_entity_id: entityId,
+            idp_sso_url: "http://localhost:3108/realms/ohmycms/protocol/saml",
+            idp_certificates: [certificate],
+            sp_entity_id: `${baseUrl}/api/auth/saml/metadata`,
+          }),
+        });
+        details.push(`IdP の証明書を入れ直しました（HTTP ${patched.status}）。`);
+      }
     }
   }
 
