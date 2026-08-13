@@ -6,6 +6,7 @@ import { ColorField } from "@/components/admin/color-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FileDropzone } from "@/components/admin/file-dropzone";
 import { NativeSelect, Textarea } from "@/components/ui/textarea";
 import { useFormat, useT } from "@/i18n/client";
 import { LOCALES } from "@/i18n/config";
@@ -38,6 +39,27 @@ export function SettingsManager({ settings }: { settings: Settings }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // ロゴは「選んだ瞬間にアップロードして ID を持つ」形。
+  // 🚨 堀池さん指示「ファイルidを指定することは gui ではない。ちゃんとアップロード ui を用意する」。
+  //    FileDropzone は File を返すだけなので、ID にするのはこちらの責任。
+  const [logoId, setLogoId] = useState(settings.project_logo ?? "");
+  const [logoError, setLogoError] = useState<string | null>(null);
+
+  async function uploadLogo(files: File[]) {
+    const file = files[0];
+    if (!file) return;
+    setLogoError(null);
+    const body = new FormData();
+    body.append("file", file);
+    const response = await fetch("/api/files", { method: "POST", body });
+    if (!response.ok) {
+      setLogoError(t("error_logo_upload_failed"));
+      return;
+    }
+    const payload = (await response.json()) as { data?: { id?: string } };
+    if (payload.data?.id) setLogoId(payload.data.id);
+    else setLogoError(t("error_logo_upload_failed"));
+  }
 
   const sourceLabel = (key: string) => {
     const source = settings.sources?.[key] ?? "default";
@@ -130,7 +152,33 @@ export function SettingsManager({ settings }: { settings: Settings }) {
           <span className="ml-2">（{sourceLabel("project_color")}）</span>
         </p>
       </div>
-      {field("project_logo", "project_logo_label", "project_logo_help", settings.project_logo ?? "")}
+      <div className="grid gap-2">
+        <Label htmlFor="settings-project_logo">{t("project_logo_label")}</Label>
+        {/* 送信は JSON なので、選んだ結果の ID を隠しフィールドで運ぶ。 */}
+        <input type="hidden" name="project_logo" value={logoId} />
+        {logoId ? (
+          <div className="flex items-center gap-3">
+            {/* プレビュー。外部URLは使わず、必ず自分のアセット経由。 */}
+            <img
+              src={`/api/assets/${logoId}`}
+              alt={t("project_logo_label")}
+              className="h-10 w-auto rounded"
+            />
+            <Button type="button" variant="ghost" size="sm" onClick={() => setLogoId("")}>
+              {t("project_logo_clear")}
+            </Button>
+          </div>
+        ) : (
+          <FileDropzone name="project_logo_file" onSelect={uploadLogo} />
+        )}
+        {logoError ? (
+          <p className="text-xs text-destructive">{logoError}</p>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          {t("project_logo_help")}
+          <span className="ml-2">（{sourceLabel("project_logo")}）</span>
+        </p>
+      </div>
 
       <div className="grid gap-2">
         <Label htmlFor="settings-default_locale">{t("default_locale_label")}</Label>

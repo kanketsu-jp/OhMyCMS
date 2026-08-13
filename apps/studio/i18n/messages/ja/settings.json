@@ -16,7 +16,7 @@
   "project_color_help": "#rrggbb の形式で指定します。",
   "project_color_label": "アクセント色",
   "project_color_picker_label": "アクセント色を選ぶ",
-  "project_logo_help": "アップロード済みのファイルIDを指定します。空にすると文字だけの表示になります。",
+  "project_logo_help": "画像をドラッグ＆ドロップするか、クリックして選びます。空にすると、環境変数のロゴか、文字だけの表示に戻ります。",
   "project_logo_label": "ロゴ",
   "project_name_help": "ヘッダ・ログイン画面・ブラウザのタブに出ます。",
   "project_name_label": "サービス名",
@@ -31,5 +31,7 @@
   "source_environment": "環境変数の初期値",
   "source_heading": "いまの値の出所",
   "title": "全体設定",
-  "updated_at": "最終更新"
+  "updated_at": "最終更新",
+  "project_logo_clear": "ロゴを外す",
+  "error_logo_upload_failed": "ロゴをアップロードできませんでした。"
 }

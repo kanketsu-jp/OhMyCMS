@@ -16,7 +16,7 @@
   "project_color_help": "Use the #rrggbb format.",
   "project_color_label": "Accent color",
   "project_color_picker_label": "Pick the accent color",
-  "project_logo_help": "The ID of an uploaded file. Leave empty to show the name as text only.",
+  "project_logo_help": "Drag and drop an image, or click to choose one. Leave it empty to fall back to the environment variable, or to text only.",
   "project_logo_label": "Logo",
   "project_name_help": "Shown in the header, the login screen and the browser tab.",
   "project_name_label": "Service name",
@@ -31,5 +31,7 @@
   "source_environment": "From an environment variable",
   "source_heading": "Where each value comes from",
   "title": "Settings",
-  "updated_at": "Last updated"
+  "updated_at": "Last updated",
+  "project_logo_clear": "Remove logo",
+  "error_logo_upload_failed": "Could not upload the logo."
 }
