@@ -79,10 +79,17 @@ const inputGroupButtonVariants = cva(
   {
     variants: {
       size: {
-        // 入力の**内側**に載る操作。器（入力）より大きくなれないので、ここだけは SP でも上げない。
+        // 入力の**内側**に載る操作。器（入力）より大きくなれない。
         // 🚨 `md:` まで書くのは、Button 側の default が `md:h-(--control-h-pc)` を持っており、
         //    twMerge は変異体ごとに別クラスとして扱うため、書かないと md で 32px に戻ってしまうから。
-        xs: "h-(--control-h-xs) gap-1 rounded-[calc(var(--radius)-3px)] px-1.5 md:h-(--control-h-xs) [&>svg:not([class*='size-'])]:size-3.5",
+        //
+        // 🚨 **2026-08-14 反転**: ここは元々「器より大きくなれないので、**SP でも上げない**」として
+        // 24px で据え置いていた。だが実測すると、**器（入力）自体が SP で 44px ある**ので、
+        // 44px まで上げても**はみ出さない**（同じ高さになるだけ）。
+        // 「大きくなれない」は正しいが、「だから上げられない」は誤りだった。
+        // → **見た目は 24px のまま、押せる範囲だけ器いっぱいに広げる**。
+        //    アイコンは `size-3.5` のままなので、見え方は変わらない。
+        xs: "min-h-(--control-h) h-(--control-h-xs) gap-1 rounded-[calc(var(--radius)-3px)] px-1.5 md:min-h-(--control-h-pc) md:h-(--control-h-xs) [&>svg:not([class*='size-'])]:size-3.5",
         sm: "",
         "icon-xs":
           "size-(--control-h-xs) rounded-[calc(var(--radius)-3px)] p-0 has-[>svg]:p-0 md:size-(--control-h-xs)",
