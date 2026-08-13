@@ -1,0 +1,32 @@
+{
+  "name": "@ohmycms/sdk",
+  "version": "0.1.0",
+  "description": "OhMyCMS の REST API を型付きで叩くクライアント",
+  "license": "UNLICENSED",
+  "type": "module",
+  "files": ["dist"],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  }
+}

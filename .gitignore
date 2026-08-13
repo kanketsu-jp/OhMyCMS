@@ -42,3 +42,6 @@ yarn-error.log*
 # このPCだけの作業用（PJに含めない）
 .temp/
 .rag-okf/
+
+# ビルド成果物（packages）
+packages/*/dist/

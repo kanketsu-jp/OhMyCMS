@@ -1,0 +1,29 @@
+{
+  "name": "@ohmycms/mcp",
+  "version": "0.1.0",
+  "description": "OhMyCMS の MCP サーバ (stdio)",
+  "license": "UNLICENSED",
+  "type": "module",
+  "files": ["dist"],
+  "bin": {
+    "ohmycms-mcp": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@ohmycms/sdk": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  }
+}

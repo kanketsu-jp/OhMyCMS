@@ -1,0 +1,27 @@
+{
+  "name": "@ohmycms/cli",
+  "version": "0.1.0",
+  "description": "OhMyCMS をコマンドラインから操作する CLI",
+  "license": "UNLICENSED",
+  "type": "module",
+  "files": ["dist"],
+  "bin": {
+    "ohmycms": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@ohmycms/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  }
+}
