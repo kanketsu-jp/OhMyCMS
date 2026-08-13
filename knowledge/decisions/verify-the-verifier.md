@@ -124,6 +124,39 @@ SVG の XSS を確かめたときは、`Content-Disposition: attachment` が付�
 
 **ラベルは着手前の足切り、対照実験は結論の担保**。役割が違うので両方置く。
 
+### 4. 対象に「自分の版」を名乗らせる
+
+ラベルは `docker inspect` でしか読めない。**測る側がアプリから読めるほうが確実**なので、
+ビルド時の SHA を実行時の環境変数として渡し、`/api/version` が返すようにした
+（`OHMYCMS_GIT_COMMIT`。`docker/Dockerfile` と `compose.yml` / `acceptance/compose.acceptance.yml`）。
+
+受入ハーネスは「リポジトリの HEAD」を対象の版として出していたが、
+`studio-acc` は `COPY . .` で**ビルド時のコードを焼き込む**（マウントではない）ので、
+HEAD と中身が一致するとは限らない。**古い対象の結果を、新しい版の結果として記録してしまう。**
+実際に「リポジトリ=ac08384 / 対象の版=b3331e1c」という食い違いが見出しに出た。
+
+    GIT_SHA=$(git rev-parse HEAD) GIT_DIRTY=$(git status --porcelain | wc -l) \
+      docker compose up -d --build
+
+🚨 **渡し忘れると `unknown` になる。「不明」を「一致」と読まないこと。**
+
+配線するときに踏んだ罠が2つある。どちらも**「イメージには値があるのにコンテナでは空」**という形で出る:
+
+1. **`ENV` の継続行（`\`）の中では `ARG` が展開されない。** 実測で空文字になった。
+
+        ENV A=1 \
+            OHMYCMS_GIT_COMMIT=$GIT_SHA     # ❌ 空になる
+        ENV OHMYCMS_GIT_COMMIT=$GIT_SHA     # ✅ 単独行なら展開される
+
+2. 🚨 **compose の `environment` は「未設定なら渡さない」ではなく「空文字で上書きする」。**
+   `OHMYCMS_GIT_COMMIT: ${OHMYCMS_GIT_COMMIT:-}` と書いてあると、
+   **Dockerfile の `ENV` を空で潰す**。イメージ側の値を残したいなら既定値を繋ぐ:
+
+        OHMYCMS_GIT_COMMIT: ${OHMYCMS_GIT_COMMIT:-${GIT_SHA:-unknown}}
+
+   このときも**イメージを調べれば値が入っている**ので、イメージだけ見ると正しく見える。
+   **コンテナの `printenv` まで見ること。**
+
 ### 4. 検査を書いたら、**検査の網目**を疑う
 
 検査スクリプトを書くと「これで漏れない」と感じるが、それは**書いた人が想像できた書き方**しか
