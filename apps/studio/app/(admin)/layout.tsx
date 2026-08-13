@@ -7,6 +7,7 @@ import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
 import { projectName } from "@/lib/settings/project-name";
+import { isOnboardingCompleted } from "@/lib/settings/service";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -34,6 +35,17 @@ export default async function AdminLayout({
   const me = await currentUser();
   if (!me.ok && me.status === 401) {
     redirect("/login");
+  }
+  // オンボーディングが済むまでは管理画面へ入れない。
+  //
+  // 🚨 ただし**開発環境だけ**逃げ道を開ける。DB（ohmycms_settings）は :3101 / :3102 / :3103 で
+  //    共有されているため、この関門があると「オンボーディングを完了させない限り、
+  //    誰も /admin を検証できない」状態が全ペインに同時に効く（実際に base2 と受入ハーネスが止まった）。
+  //    ガードは dev-login と同じ形。**本番ビルドでは NODE_ENV が固定値へ展開され、分岐ごと消える。**
+  const skipOnboardingGate =
+    process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_LOGIN === "true";
+  if (!skipOnboardingGate && (await isOnboardingCompleted()) === false) {
+    redirect("/onboarding");
   }
 
   // 🚨 サイドバーは名前しか描かない。全列のスキーマを引くと、

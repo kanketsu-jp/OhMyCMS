@@ -18,6 +18,8 @@
  *   - 環境変数を毎回 DB へ書き戻す（GUI の変更が起動のたびに巻き戻る）
  */
 
+import { randomUUID } from "node:crypto";
+import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db/knex";
 import { ApiError } from "@/lib/schema/errors";
 
@@ -82,6 +84,8 @@ type SettingsRow = {
   default_locale: string | null;
   public_note: string | null;
   updated_at: Date | string | null;
+  /** オンボーディングが済んだ時刻。null なら未完了。 */
+  onboarding_completed_at: Date | string | null;
 };
 
 async function readRow(): Promise<SettingsRow | null> {
@@ -204,4 +208,177 @@ export async function updateSettings(
   }
 
   return getSettings();
+}
+
+/**
+ * オンボーディング（初回ログイン時に1回だけ出る画面）が済んでいるか。
+ *
+ * 🚨 **行が無い＝未完了**。マイグレーションで初期行を入れていないので、
+ *    起動直後は行そのものが無い（このファイル冒頭の「環境変数は初期値・DB が正」を参照）。
+ */
+export async function isOnboardingCompleted(): Promise<boolean> {
+  const row = await readRow();
+  return Boolean(row?.onboarding_completed_at);
+}
+
+/**
+ * オンボーディングの入力を保存し、完了として印を付ける。
+ *
+ * 🚨 **一度完了したら二度と受け付けない。** そうしないと、この API を叩くだけで
+ *    設定を上書きできてしまう（オンボーディングは認可の軽い入口なので、
+ *    「初回だけ」という制約そのものが防御になっている）。
+ *
+ * `onboarding_completed_at` は `WRITABLE_KEYS` に入れていないため、
+ * 通常の設定 PATCH からは書けない。ここだけが書き込む経路。
+ */
+export async function completeOnboarding(
+  input: Record<string, unknown>,
+  updatedBy: string | null,
+): Promise<Settings> {
+  if (await isOnboardingCompleted()) {
+    throw new ApiError(
+      409,
+      "ONBOARDING_ALREADY_COMPLETED",
+      "初期設定は完了しています",
+    );
+  }
+
+  const patch = validate(input);
+  const existing = await readRow();
+  const payload = {
+    ...patch,
+    onboarding_completed_at: new Date(),
+    updated_at: new Date(),
+    updated_by: updatedBy,
+  };
+
+  if (existing) {
+    await db("ohmycms_settings").where({ id: SINGLE_ROW_ID }).update(payload);
+  } else {
+    await db("ohmycms_settings").insert({ id: SINGLE_ROW_ID, ...payload });
+  }
+
+  return getSettings();
+}
+
+export async function completeOnboardingWithAdmin(
+  input: Record<string, unknown>,
+): Promise<{ userId: string; email: string }> {
+  if (await isOnboardingCompleted()) {
+    throw new ApiError(
+      409,
+      "ONBOARDING_ALREADY_COMPLETED",
+      "初期設定は完了しています",
+    );
+  }
+
+  const adminEmail = input.admin_email;
+  if (typeof adminEmail !== "string" || !adminEmail.includes("@")) {
+    throw new ApiError(400, "INVALID_FIELD", "admin_email を指定してください");
+  }
+  const email = adminEmail.trim().toLowerCase();
+  if (!email.includes("@")) {
+    throw new ApiError(400, "INVALID_FIELD", "admin_email を指定してください");
+  }
+
+  const adminPassword = input.admin_password;
+  if (typeof adminPassword !== "string" || adminPassword.length < 8) {
+    throw new ApiError(
+      400,
+      "INVALID_FIELD",
+      "admin_password は8文字以上で指定してください",
+    );
+  }
+
+  const patch = validate({
+    project_name: input.project_name,
+    default_locale: input.default_locale,
+  });
+
+  return db.transaction(async (trx) => {
+    const row = await trx<SettingsRow>("ohmycms_settings")
+      .where({ id: SINGLE_ROW_ID })
+      .first();
+    if (row?.onboarding_completed_at) {
+      throw new ApiError(
+        409,
+        "ONBOARDING_ALREADY_COMPLETED",
+        "初期設定は完了しています",
+      );
+    }
+
+    const existingUser = await trx("directus_users").select("id").where({ email }).first();
+    if (existingUser) {
+      throw new ApiError(
+        409,
+        "EMAIL_ALREADY_EXISTS",
+        "そのメールアドレスは既に使われています",
+      );
+    }
+
+    const password = await hashPassword(adminPassword);
+    const existingPolicy = await trx<{ id: string }>("directus_policies")
+      .select("id")
+      .where("name", "Administrator")
+      .first();
+    const policyId = existingPolicy?.id ?? randomUUID();
+
+    if (!existingPolicy) {
+      await trx("directus_policies").insert({
+        id: policyId,
+        name: "Administrator",
+        description: "管理者ポリシー",
+        ip_access: null,
+        app_access: true,
+        admin_access: true,
+        enforce_tfa: false,
+      });
+    }
+
+    const userId = randomUUID();
+    await trx("directus_users").insert({
+      id: userId,
+      first_name: null,
+      last_name: null,
+      email,
+      password,
+      status: "active",
+      role: null,
+      token: null,
+      last_access: null,
+      provider: "local",
+      external_identifier: null,
+      auth_data: null,
+    });
+
+    const existingAccess = await trx("directus_access")
+      .select("id")
+      .where({ user: userId, policy: policyId })
+      .first();
+
+    if (!existingAccess) {
+      await trx("directus_access").insert({
+        id: randomUUID(),
+        user: userId,
+        role: null,
+        policy: policyId,
+        sort: null,
+      });
+    }
+
+    const payload = {
+      ...patch,
+      onboarding_completed_at: new Date(),
+      updated_at: new Date(),
+      updated_by: userId,
+    };
+
+    if (row) {
+      await trx("ohmycms_settings").where({ id: SINGLE_ROW_ID }).update(payload);
+    } else {
+      await trx("ohmycms_settings").insert({ id: SINGLE_ROW_ID, ...payload });
+    }
+
+    return { userId, email };
+  });
 }

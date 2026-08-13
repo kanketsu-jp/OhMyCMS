@@ -9,7 +9,6 @@
     "lint": "eslint",
     "migrate": "bun node_modules/knex/bin/cli.js migrate:latest --knexfile lib/db/knexfile.ts",
     "migrate:rollback": "bun node_modules/knex/bin/cli.js migrate:rollback --knexfile lib/db/knexfile.ts",
-    "seed:admin": "bun scripts/seed-admin.ts",
     "storybook": "storybook dev -p 3104 --exact-port --no-open --no-version-updates --disable-telemetry",
     "storybook:build": "storybook build --disable-telemetry",
     "storybook:check": "node .storybook/check-stories.mjs"

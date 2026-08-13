@@ -28,6 +28,7 @@ import enFolders from "./messages/en/folders.json";
 import enItems from "./messages/en/items.json";
 import enNav from "./messages/en/nav.json";
 import enNotifications from "./messages/en/notifications.json";
+import enOnboarding from "./messages/en/onboarding.json";
 import enPolicies from "./messages/en/policies.json";
 import enRelations from "./messages/en/relations.json";
 import enReports from "./messages/en/reports.json";
@@ -49,6 +50,7 @@ import jaFolders from "./messages/ja/folders.json";
 import jaItems from "./messages/ja/items.json";
 import jaNav from "./messages/ja/nav.json";
 import jaNotifications from "./messages/ja/notifications.json";
+import jaOnboarding from "./messages/ja/onboarding.json";
 import jaPolicies from "./messages/ja/policies.json";
 import jaRelations from "./messages/ja/relations.json";
 import jaReports from "./messages/ja/reports.json";
@@ -72,6 +74,7 @@ export const NAMESPACES = [
   "items",
   "nav",
   "notifications",
+  "onboarding",
   "policies",
   "relations",
   "reports",
@@ -96,6 +99,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     items: jaItems,
     nav: jaNav,
     notifications: jaNotifications,
+    onboarding: jaOnboarding,
     policies: jaPolicies,
     relations: jaRelations,
     reports: jaReports,
@@ -118,6 +122,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     items: enItems,
     nav: enNav,
     notifications: enNotifications,
+    onboarding: enOnboarding,
     policies: enPolicies,
     relations: enRelations,
     reports: enReports,

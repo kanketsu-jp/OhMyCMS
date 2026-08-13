@@ -1,4 +1,5 @@
 export const SESSION_COOKIE = "session";
+export const SETUP_COOKIE = "ohmycms_setup";
 export const GOOGLE_STATE_COOKIE = "google_oauth_state";
 export const GOOGLE_CODE_VERIFIER_COOKIE = "google_oauth_code_verifier";
 
@@ -83,6 +84,10 @@ export function deleteCookieHeader(name: string): string {
 
 export function sessionCookieHeader(token: string, maxAge: number): string {
   return cookieHeader(SESSION_COOKIE, token, { maxAge });
+}
+
+export function setupCookieHeader(token: string, maxAge: number): string {
+  return cookieHeader(SETUP_COOKIE, token, { maxAge });
 }
 
 export function oauthCookieHeader(name: string, value: string): string {

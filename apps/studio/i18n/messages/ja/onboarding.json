@@ -1,0 +1,13 @@
+{
+  "admin_email_label": "管理者のメールアドレス",
+  "admin_password_label": "管理者のパスワード",
+  "default_password_warning": "既定のパスワードのままです。オンボーディング完了後にログイン用パスワードを変更してください。",
+  "description": "あとから設定画面で変更できます。",
+  "failed": "保存できませんでした。時間をおいてもう一度お試しください。",
+  "locale_label": "表示言語",
+  "project_name_help": "管理画面のヘッダとログイン画面に表示されます。",
+  "project_name_label": "サービス名",
+  "submit": "はじめる",
+  "submit_pending": "保存しています...",
+  "title": "はじめの設定"
+}
