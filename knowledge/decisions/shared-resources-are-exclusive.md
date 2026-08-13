@@ -63,6 +63,46 @@ Bun 移行（`bun install`）で `node_modules` が丸ごと入れ替わった�
 **同時でも安全なもの**（排他にしない）: `lint` / `tsc` / 単体テスト / ブラウザでの目視 /
 既に起動しているサーバへの HTTP リクエスト。
 
+### 🚨 検証用コンテナは、1つずつ別のプロジェクト名にする（2026-08-14 追記）
+
+> 基準日: 2026-08-14
+
+**`docker compose -p <名前>` の名前を、検証用コンテナごとに分ける**（`ohmycms-<用途>`）。
+**共通の名前に集めない。**
+
+    ❌ minio も keycloak も  -p ohmycms-verify
+    ✅ minio → -p ohmycms-verify  /  keycloak → -p ohmycms-saml
+
+**なぜ。** compose は「そのプロジェクトに属するのに、いま渡されたファイルに書いていない」
+コンテナを **orphan** と呼び、`--remove-orphans` を付けると**消す**。
+名前を共有していると、**互いに相手を orphan として消せる状態**になる。
+
+実際に起きたこと: SAML のテスト IdP（Keycloak）を **`-p ohmycms-verify`** で立てたところ、
+compose が起動時にこう警告した。
+
+    Found orphan containers ([ohmycms-minio-init ohmycms-minio]) for this project.
+    ... you can run this command with the --remove-orphans flag to clean it up.
+
+**storage の minio が同じプロジェクト名を先に使っていた。**
+🚨 **どちらかが `--remove-orphans` を付けた瞬間に、相手の検証環境が消える。**
+（このリポジトリでは 2026-08-13 に**実際に minio が消える事故**が起きている。
+そのときの対策が「別プロジェクト名にする」だったが、**「別」の粒度を決めていなかった**ため、
+検証用が1つの名前に集まってしまった。）
+
+**判断の基準**: プロジェクト名は「**その compose ファイルが上げ下げしてよい範囲**」を宣言するもの。
+**1ファイル1プロジェクト名**にしておけば、`down` や `--remove-orphans` の影響が
+そのファイルの中に閉じる。
+
+**移すときは `--remove-orphans` を付けない**（付けると、移す前の同居相手が巻き込まれる）。
+移し終えたら **移動前後でコンテナ一覧を突き合わせる**。
+
+    docker ps --format '{{.Names}}' | sort > /tmp/before.txt
+    …移動…
+    docker ps --format '{{.Names}}' | sort | diff /tmp/before.txt -
+
+🚨 **「消していないつもり」を、消していない証拠に置き換える。** 実測が無いと、
+消えたことに数時間気づかない（相手のペインが次に使うまで分からない）。
+
 ## 理由
 
 **「各自で確認せよ」は、確認対象が各自のものであるときにだけ正しい。**
