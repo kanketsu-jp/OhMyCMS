@@ -33,6 +33,7 @@ x_rag_okf:
 - [i18n はライブラリを使わず自前実装にする](./decisions/i18n-own-implementation.md) — `decisions/i18n-own-implementation`
 - [i18n は必須（旧PJの方針を反転）](./decisions/i18n-required.md) — `decisions/i18n-required`
 - [設定・スキーマの正本は JSON](./decisions/json-as-source-of-truth.md) — `decisions/json-as-source-of-truth`
+- [検査は「何を見ていないか」を言えて初めて検査になる](./decisions/checks-must-declare-blind-spots.md) — `decisions/checks-must-declare-blind-spots`
 - [migration を足す人は、直前に「他人の未適用分」を確認する](./decisions/migrations-are-shared.md) — `decisions/migrations-are-shared`
 - [開発サーバを外部へ公開しない（公開するのは本番ビルドだけ）](./decisions/never-expose-dev-server.md) — `decisions/never-expose-dev-server`
 - [Directus をフォークしない](./decisions/no-directus-fork.md) — `decisions/no-directus-fork`
