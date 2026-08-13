@@ -15,6 +15,11 @@
 #   検証用のコンテナが本番スタックの操作に巻き込まれない形にする。
 #   （司令塔の決定 knowledge/decisions/shared-resources-are-exclusive.md の穴だった）
 #
+# 🚨 **プロジェクト名は用途ごとに1つ**（`ohmycms-<用途>`）。2026-08-13 に SAML のテスト IdP が
+#   同じ `ohmycms-verify` で立ち上がり、compose が orphan 警告を出した（事故には至っていない）。
+#   **どちらかが --remove-orphans を付けた瞬間に相手が消える**ので、名前を共有しないこと。
+#   MinIO は `ohmycms-verify`／Keycloak は `ohmycms-saml`。
+#
 # 🚨 ただしネットワークは ohmycms 側に**相乗りする**（下の networks 参照）。
 #   分けてしまうと studio / studio-acc のコンテナから `minio:9000` で解決できなくなる。
 #   → 先に ohmycms スタック（compose.yml）を上げてからこちらを立てること。
