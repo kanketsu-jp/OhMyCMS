@@ -106,6 +106,46 @@ node scripts/audit-surface-depth.mjs --base http://localhost:3103 --session <coo
 **誤検出を消したら、必ず陽性対照をもう一度当てて「まだ赤が出る」ことを確認する。**
 （例外を足すたびに検査は鈍る。鈍っていないことを毎回確かめる）
 
+#### 🚨 i18n の検査は「日本語の直書き」しか見つけられない（英語は見ていない）
+
+> 2026-08-14 実測。`check-i18n-hardcoded.mjs` を `.ts` まで広げたあと、**陽性対照を当てた**結果:
+> `app/` に置いた `.ts` の `"保存しました"` → **1件検出** ✅ / 同じファイルの `"Save"` → **0件** ❌
+
+`AGENTS.md §3.8` は「**英語のリテラルも禁止**」と書いていますが、
+**`.ts` の英語文字列は識別子・キー・パスと区別できない**ので、検査は見ていません。
+→ **「i18n 3検査が緑」は「英語が残っていない」を意味しません。**
+
+**守り方は検査ではなく設計側で作る**（実例）:
+`?notice=<key>` は `i18n/notice.ts` の**許可リスト**を通ってから `t()` に掛かる。
+未知の値は `null` になり**何も描かれない**ので、英語の直書きが混ざっても画面には出ない。
+🚨 **サーバから画面へ文字列を素通しする経路を作らない**。キーだけを渡し、辞書は描く側で引く。
+
+#### 🚨 shadcn の手本は **Radix 版**。我々は **base-nova（Base UI）**。同じ名前で作法が違う
+
+> 由来: 2026-08-14。ユーザーメニューを shadcn の `NavUser`（`new-york-v4` = Radix）を手本に作ったところ、
+> **押した瞬間にレンダラごと落ちた**（Chrome の "This page couldn't load"）。
+> 原因は `DropdownMenuLabel` を `DropdownMenuGroup` の外に置いたこと。
+> **Radix では単独で置けるが、Base UI では `GroupLabel` なので Group が必須**で、
+> context 不在の例外が描画中に飛び、React が復帰できなかった。
+
+`components.json` の `style` は **`base-nova`**。`ui.shadcn.com` のブロックやドキュメントの多くは
+`new-york-v4`（Radix）で、**部品名は同じでも中身が別物**。
+
+| 見た目 | Radix（手本） | base-nova（我々） |
+|---|---|---|
+| `DropdownMenuLabel` | どこに置いてもよい | 🚨 **`DropdownMenuGroup` の中だけ** |
+| ポップアップの幅 | `--radix-dropdown-menu-trigger-width` | 🚨 **`--anchor-width`。しかも既定で当たっている** |
+| 子要素の差し替え | `asChild` | 🚨 **`render={<Foo/>}`** |
+
+**守ること:**
+
+1. **手本のソースをコピペしない。** `bunx --bun shadcn@latest add <name>` で**我々の style に解決させる**
+2. **入れた実物を読んでから使う**（型注釈が `MenuPrimitive.GroupLabel.Props` なら、それは*グループの*見出し）
+3. 🚨 **手本の形を採るときは「その形がどの前提の上に立っているか」を先に言う。**
+   `NavUser` の `isMobile ? "bottom" : "right"` は**畳めるレール**が前提で、
+   畳めない我々には**分岐そのものが要らなかった**（base2 の指摘で撤回）
+4. **開いてから測る。** `--click` を通さない監査は、ポップアップについて**何も言っていない**
+
 #### 🚨 「あるか」で数えない。「どの条件で、いくつあるか」で数える
 
 > 由来: 2026-08-14。**同じ日に、同じ形の失敗を design と base2 が別々に踏んだ。**

@@ -119,6 +119,22 @@ const PROBE = String.raw`(() => {
     ? el.checkVisibility()
     : (() => { const s = getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden"; })());
 
+  const srOnly = (el) => {
+    // 🚨 **1辺 4px 以下の箱は「隠してある」であって「小さすぎる操作部品」ではない。**
+    //    指では絶対に押せないので、押す対象として作られていない。
+    //    2026-08-14 実測: FileDropzone の隠し <input type="file" class="sr-only"> が
+    //    「1px しかない」と報告された。**隠すのが正解の実装**（見えている箱で受ける）。
+    //    clip / clip-path を見るだけでは、隠し方の流儀が変わるたびに漏れる（技法に依存しない形にする）。
+    //    🚨 潰れた部品を見逃す心配は要らない。**潰れは別の検査（幅が0・文字が縦積み）が見ている**。
+    const r0 = el.getBoundingClientRect();
+    if (r0.width <= 4 && r0.height <= 4) return true;
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      if (cs.clipPath !== "none" || cs.clip !== "auto") return true;
+    }
+    return false;
+  };
+
   // 🚨 **原則: 面とは「中身を入れる入れ物」**。入れ物でないものは、塗られていても面ではない。
   //    ここを場当たりで足していくと例外だらけになるので、**3種類に分類して**扱う。
   //
@@ -229,18 +245,25 @@ const PROBE = String.raw`(() => {
     for (const c of el.children) walk(c, d, bg);
   })(document.body, 0, getComputedStyle(document.body).backgroundColor);
 
-  const measure = (q) => [...document.querySelectorAll(q)].map((el) => {
+  // 🚨 **要素を持ち回る。寸法の配列を「同じ順で並んでいるはず」で突き合わせない。**
+  //    由来: 2026-08-14。measure が間引いた一方で withTarget が別途 querySelectorAll し直しており、
+  //    **添字がずれて、別の要素の高さを報告した**（隠し select が 1px として §7 に出た）。
+  //    2つの経路で同じものを数えたら、必ずずれる。これも「代理を測らない」の一例。
+  const keep = (el) => el.getBoundingClientRect().height > 0 && shown(el) && !srOnly(el);
+  const pick = (q) => [...document.querySelectorAll(q)].filter(keep);
+  const toItem = (el) => {
     const s = getComputedStyle(el), r = el.getBoundingClientRect();
-    if (r.height === 0) return null;
     return {
       sel: sel(el), h: Math.round(r.height * 10) / 10, w: Math.round(r.width),
       fs: Math.round(px(s.fontSize) * 10) / 10,
       label: (el.textContent || el.getAttribute("placeholder") || el.type || "").trim().slice(0, 20),
     };
-  }).filter(Boolean);
+  };
 
-  const buttons = measure("button, [data-slot=button]");
-  const inputs = measure("input:not([type=hidden]), select, textarea");
+  const buttonEls = pick("button, [data-slot=button]");
+  const inputEls = pick("input:not([type=hidden]), select, textarea");
+  const buttons = buttonEls.map(toItem);
+  const inputs = inputEls.map(toItem);
 
   // 🚨 タップ領域は「ポインタ操作を受け付ける**領域**」で測る。部品の見た目の箱ではない。
   //    WCAG 2.2 SC 2.5.8 の target の定義（一次情報）:
@@ -259,10 +282,8 @@ const PROBE = String.raw`(() => {
     if (!label) return own;
     return Math.max(own, label.getBoundingClientRect().height);
   };
-  const withTarget = (list, q) => {
-    const els = [...document.querySelectorAll(q)].filter((e) => e.getBoundingClientRect().height > 0);
-    return list.map((item, i) => ({ ...item, h: els[i] ? Math.round(targetHeight(els[i]) * 10) / 10 : item.h }));
-  };
+  const withTarget = (els) =>
+    els.map((el) => ({ ...toItem(el), h: Math.round(targetHeight(el) * 10) / 10 }));
   // 🚨 「ボタンは入力より低い」は**同じフォームの中**の話。
   //    ページ全体の最大同士を比べると、別の場所にある lg のボタンと別の入力が比較され、
   //    **正しい実装を違反と報告する**（2026-08-14 実測。トークンは正しく分離されていた）。
@@ -280,8 +301,8 @@ const PROBE = String.raw`(() => {
     if (b >= i) formPairs.push({ button: b, input: i, sel: sel(form) });
   }
 
-  const buttonsT = withTarget(buttons, "button, [data-slot=button]");
-  const inputsT = withTarget(inputs, "input:not([type=hidden]), select, textarea");
+  const buttonsT = withTarget(buttonEls);
+  const inputsT = withTarget(inputEls);
 
   // 🚨 「ボタンは入力より低い」は**ページ内フォームのボタン**の話（憲章 §3 の表）。
   //    「モーダル / SP の主要アクション」は**全幅・pill で大きくする**のが正解なので、比較から外す。
@@ -311,21 +332,6 @@ const PROBE = String.raw`(() => {
   //    2026-08-13 実測: dialog-title の computed は clipPath:none だったが、
   //    **親の dialog-header が sr-only（clip-path: inset(50%)）**だった。
   //    → 祖先まで遡る。本当に潰れた箱は clip を持たないので、これで区別できる。
-  const srOnly = (el) => {
-    // 🚨 **1辺 4px 以下の箱は「隠してある」であって「小さすぎる操作部品」ではない。**
-    //    指では絶対に押せないので、押す対象として作られていない。
-    //    2026-08-14 実測: FileDropzone の隠し <input type="file" class="sr-only"> が
-    //    「1px しかない」と報告された。**隠すのが正解の実装**（見えている箱で受ける）。
-    //    clip / clip-path を見るだけでは、隠し方の流儀が変わるたびに漏れる（技法に依存しない形にする）。
-    //    🚨 潰れた部品を見逃す心配は要らない。**潰れは別の検査（幅が0・文字が縦積み）が見ている**。
-    const r0 = el.getBoundingClientRect();
-    if (r0.width <= 4 && r0.height <= 4) return true;
-    for (let n = el; n && n !== document.body; n = n.parentElement) {
-      const cs = getComputedStyle(n);
-      if (cs.clipPath !== "none" || cs.clip !== "auto") return true;
-    }
-    return false;
-  };
 
   // ── 🚨 「潰れ」の検出 ────────────────────────────────────────────────
   // 由来: 2026-08-13。Surface の外側 div が幅0になり、**ログイン画面の文字が1文字ずつ縦に並んだ**。
