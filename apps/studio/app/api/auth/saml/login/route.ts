@@ -8,7 +8,8 @@
 
 import { getSamlConfig, isSamlUsable } from "@/lib/auth/saml/config";
 import { createSamlClient } from "@/lib/auth/saml/client";
-import { acsUrl, metadataUrl, safeRelativePath } from "@/lib/auth/saml/urls";
+import { safeRelativePath } from "@/lib/auth/urls";
+import { acsUrl, metadataUrl } from "@/lib/auth/saml/urls";
 import { errorResponse } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 

@@ -12,7 +12,8 @@
 
 import { isSecureRequest, sessionCookieHeader } from "@/lib/auth/cookies";
 import { getSamlConfig } from "@/lib/auth/saml/config";
-import { acsUrl, metadataUrl, safeRelativePath } from "@/lib/auth/saml/urls";
+import { safeRelativePath } from "@/lib/auth/urls";
+import { acsUrl, metadataUrl } from "@/lib/auth/saml/urls";
 import { upsertSamlUser, verifySamlResponse } from "@/lib/auth/saml/verify";
 import { issueSession } from "@/lib/auth/sessions";
 import { errorResponse } from "@/lib/schema/api";
