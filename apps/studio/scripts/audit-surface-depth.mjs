@@ -392,6 +392,45 @@ const PROBE = String.raw`(() => {
     }
   }
 
+  // 🚨 「揃って見えるか」は高さだけでは測れない。
+  // 由来: 2026-08-14 堀池「サイドメニューの『設定』アコーディオンの高さが違う」。
+  // 実測すると **箱は全部 44px で揃っていた**。違ったのは align-items（1つだけ flex-start）で、
+  // **文字が箱の上に張り付いていた**。私の検査は高さしか見ていないので**何も報告しなかった**。
+  // 測り方は base2 の提案（Range で「文字が実際に占めている矩形」を取る）。
+  const textOffset = (el) => {
+    const r = el.getBoundingClientRect();
+    if (r.height === 0) return null;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const tr = range.getBoundingClientRect();
+    range.detach?.();
+    if (tr.height === 0) return null;
+    return (tr.top + tr.bottom) / 2 - (r.top + r.bottom) / 2;   // 箱の中心と文字の中心のずれ
+  };
+  const misaligned = [];
+  const seenParents = new Set();
+  for (const el of document.querySelectorAll("a, button, [data-slot=accordion-trigger]")) {
+    const parent = el.parentElement;
+    if (!parent || seenParents.has(parent)) continue;
+    seenParents.add(parent);
+    const rows = [...parent.children]
+      .filter((c) => c.matches("a, button, [data-slot=accordion-trigger]") && shown(c))
+      .map((c) => ({ sel: sel(c), off: textOffset(c), h: Math.round(c.getBoundingClientRect().height) }))
+      .filter((x) => x.off !== null);
+    if (rows.length < 2) continue;
+    const offs = rows.map((x) => x.off);
+    const spread = Math.max(...offs) - Math.min(...offs);
+    // 高さが揃っているのに文字の位置だけずれている、が今回の症状
+    const heights = new Set(rows.map((x) => x.h));
+    if (spread > 2 && heights.size === 1) {
+      const worst = rows.slice().sort((a, b) => Math.abs(b.off) - Math.abs(a.off))[0];
+      misaligned.push({
+        spread: Math.round(spread * 10) / 10, h: worst.h,
+        odd: worst.sel, off: Math.round(worst.off * 10) / 10,
+      });
+    }
+  }
+
   // 🚨 文字そのものを測る。
   // 由来: 2026-08-13 堀池さん「**noto sans じゃない**」。
   // 深さ・幅・寸法をいくら測っても**書体は永久に見つからない**（base の指摘）。
@@ -401,6 +440,8 @@ const PROBE = String.raw`(() => {
   const de = document.documentElement;
 
   return {
+    misaligned: misaligned.slice(0, 5),
+    misalignedCount: misaligned.length,
     doubledRules: doubled.slice(0, 8),
     doubledRulesCount: doubled.length,
     collapsed: collapsed.slice(0, 12),
@@ -503,7 +544,8 @@ function connect(url) {
     const p = pending.get(msg.id);
     if (!p) return;
     pending.delete(msg.id);
-    msg.error ? p.rej(new Error(JSON.stringify(msg.error))) : p.res(msg.result);
+    if (msg.error) p.rej(new Error(JSON.stringify(msg.error)));
+    else p.res(msg.result);
   };
   const send = (method, params = {}) =>
     new Promise((res, rej) => { const i = ++id; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); });
@@ -598,6 +640,13 @@ for (const vp of VIEWPORTS) {
       violations.push({ key, rule: "本文の幅", detail: `body が ${r.bodyWidth}px（画面幅 ${r.viewportWidth}px の 90% 未満）` });
     }
     // 🚨 「潰れ」は最優先。壊れていても他の検査は全部通ってしまうため（2026-08-13 の実例）。
+    if (r.misalignedCount > 0) {
+      violations.push({
+        key, rule: "§1 行の揃い",
+        detail: `${r.misalignedCount} 箇所で、高さは同じなのに文字の縦位置がずれています（align-items の指定漏れ）`,
+        worst: r.misaligned.slice(0, 3),
+      });
+    }
     if (r.doubledRulesCount > 0) {
       violations.push({
         key, rule: "§1 区切りが重複している",
