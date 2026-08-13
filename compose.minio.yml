@@ -1,0 +1,63 @@
+# S3 互換ストレージの検証用（MinIO）。**本番構成には持ち込まない。**
+#
+#   docker compose -f compose.yml -f compose.minio.yml up -d
+#
+# 🚨 なぜ要るか: R2 / GCS の鍵が無くても「**エンドポイントを外から与えれば動く**」ことを
+#   機械で確かめられるようにするため。以前は endpoint が R2 決め打ちで、
+#   GCS でも AWS S3 でも MinIO でも使えなかった（v1-B で外した）。
+#   ここが通れば「S3 互換クライアントとして正しい」ところまでは言える。
+#   GCS 固有の差異（DeleteObjects の可否など）は**鍵をもらうまで unverified**。
+name: ohmycms
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: ohmycms-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    ports:
+      # ポート規約 knowledge/decisions/port-allocation.md に合わせて 31xx 帯を使う。
+      - "${MINIO_PORT:-3106}:9000"
+      - "${MINIO_CONSOLE_PORT:-3107}:9001"
+    volumes:
+      - ohmycms-minio:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # バケットを1度だけ作る使い捨てサービス。
+  minio-init:
+    image: minio/mc:latest
+    container_name: ohmycms-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY_ID:-minioadmin} ${S3_SECRET_ACCESS_KEY:-minioadmin} &&
+      mc mb --ignore-existing local/${S3_BUCKET:-ohmycms} &&
+      echo 'バケットを用意しました: ${S3_BUCKET:-ohmycms}'
+      "
+    restart: "no"
+
+  studio:
+    environment:
+      # 🚨 コンテナ内からは localhost ではなく compose のホスト名で繋ぐ。
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-ohmycms}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      S3_REGION: us-east-1
+      # MinIO はバケットをホスト名でなくパスで表す。
+      S3_FORCE_PATH_STYLE: "true"
+      S3_KEY_PREFIX: ${S3_KEY_PREFIX:-}
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+
+volumes:
+  ohmycms-minio:

@@ -10,10 +10,14 @@ import {
 import type { StorageDriver } from "./driver";
 
 type S3Config = {
-  accountId: string;
+  endpoint: string;
+  region: string;
+  bucket: string;
   accessKeyId: string;
   secretAccessKey: string;
-  bucket: string;
+  forcePathStyle: boolean;
+  /** バケットを複数環境で共有するときの接頭辞。空なら従来どおりのキーになる。 */
+  keyPrefix: string;
 };
 
 async function bodyToBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
@@ -22,14 +26,24 @@ async function bodyToBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
 }
 
 export function createS3Storage(config: S3Config): StorageDriver {
+  // 🚨 endpoint は呼び出し側が決める。ここで R2 の URL を組み立てない
+  //    （以前は決め打ちで、GCS / AWS S3 / MinIO のどれでも使えなかった）。
   const client = new S3Client({
-    endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
-    region: "auto",
+    endpoint: config.endpoint,
+    region: config.region,
+    forcePathStyle: config.forcePathStyle,
     credentials: {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
     },
   });
+
+  /**
+   * 呼び出し側のキーへ接頭辞を付ける。
+   * キー設計は `<uuid>/<ファイル名>` と `<uuid>/transformed/<hash>.<ext>` で、
+   * 接頭辞はその前に付くだけ。**空なら何も変わらない**ので既存ファイルの移行は要らない。
+   */
+  const withPrefix = (key: string) => (config.keyPrefix ? `${config.keyPrefix}/${key}` : key);
 
   return {
     name: "s3",
@@ -37,7 +51,7 @@ export function createS3Storage(config: S3Config): StorageDriver {
       await client.send(
         new PutObjectCommand({
           Bucket: config.bucket,
-          Key: key,
+          Key: withPrefix(key),
           Body: await bodyToBuffer(body),
           ContentType: contentType,
         }),
@@ -45,7 +59,7 @@ export function createS3Storage(config: S3Config): StorageDriver {
     },
     async get(key) {
       const result = await client.send(
-        new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+        new GetObjectCommand({ Bucket: config.bucket, Key: withPrefix(key) }),
       );
       if (!result.Body) {
         throw new Error("S3 object body is empty");
@@ -56,7 +70,7 @@ export function createS3Storage(config: S3Config): StorageDriver {
     async head(key) {
       try {
         const result = await client.send(
-          new HeadObjectCommand({ Bucket: config.bucket, Key: key }),
+          new HeadObjectCommand({ Bucket: config.bucket, Key: withPrefix(key) }),
         );
         return {
           size: result.ContentLength ?? 0,
@@ -73,7 +87,7 @@ export function createS3Storage(config: S3Config): StorageDriver {
       }
     },
     async delete(key) {
-      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
+      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: withPrefix(key) }));
     },
     async deletePrefix(prefix) {
       let continuationToken: string | undefined;
@@ -81,7 +95,7 @@ export function createS3Storage(config: S3Config): StorageDriver {
         const listed = await client.send(
           new ListObjectsV2Command({
             Bucket: config.bucket,
-            Prefix: prefix,
+            Prefix: withPrefix(prefix),
             ContinuationToken: continuationToken,
           }),
         );
