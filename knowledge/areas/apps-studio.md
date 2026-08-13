@@ -47,7 +47,7 @@ v0.9 MVP の時点ではこのアプリが唯一のプロダクトコードで�
 | `lib/auth` | 認証コンテキスト・Cookie・セッション・Google OAuth・暗号（`context.ts` は D-007 の `Actor = HumanActor \| AgentActor` を実装） |
 | `lib/files` | ファイル関連サービス。配信は必ず `/api/assets/<id>` を通す（署名付き URL を出さない）。アップロード時に**配信用の圧縮版**と**読み込み中に出すぼかし**を作る（[[storage-key-prefix-is-fixed]]） |
 | `lib/storage` | S3互換ストレージのアダプタ（`driver.ts` `s3.ts` `local.ts` `index.ts`。D-001 の「S3互換アダプタ方式」を実装）。**エンドポイントは環境変数で外から与える**（R2 / GCS / AWS S3 / MinIO のどれでも同じコード）。読み出しと削除は **`directus_files.storage` に記録された保管先**で行う（今の設定で読むと、S3 へ切り替えた瞬間に過去のファイルが読めなくなる） |
-| `lib/db` | Knex 接続（`knex.ts`）と `knexfile.ts`、`db/migrations`（2026-08-14 時点で 17 本）。🚨 DB は全ペインで1つなので、migrate は**他人の未適用分ごと**走る（[[migrations-are-shared]]） |
+| `lib/db` | Knex 接続（`knex.ts`）と `knexfile.ts`、`db/migrations`（2026-08-14 時点で 26 本）。🚨 DB は全ペインで1つなので、migrate は**他人の未適用分ごと**走る（[[migrations-are-shared]]） |
 | `lib/admin` | **管理画面専用のクライアントヘルパ**。`api.ts`（68行）`forms.ts`（32行）`permissions-api.ts`（356行）。ここだけ `next/*` を import してよい |
 | `components/ui` `components/admin` | UI コンポーネント |
 
