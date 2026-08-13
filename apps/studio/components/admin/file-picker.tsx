@@ -116,7 +116,10 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
             {/* 🚨 「ファイルを選択 / ファイル未選択」を画面に出さない（オーナー指摘）。
                 素の input は FileDropzone の中に隠してある。 */}
             <form action={upload.run} className="grid gap-3">
-              <FileDropzone name="file" />
+              {/* 🚨 `flat` … ダイアログ（`DialogContent` は `bg-popover` を持つ＝**面**）の中なので、
+                  選んだ後の Attachment が器を持つと2段目になる。
+                  実測: 渡す前は pc で **深さ2**（Storybook の Pages/FilePicker で測定）。 */}
+              <FileDropzone name="file" flat label={t("select_file_title")} />
               <Button type="submit" className="w-full md:w-fit" disabled={upload.pending}>
                 <Upload />
                 {t("upload_button")}

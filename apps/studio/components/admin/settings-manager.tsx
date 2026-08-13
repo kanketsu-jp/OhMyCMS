@@ -153,7 +153,13 @@ export function SettingsManager({ settings }: { settings: Settings }) {
         </p>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="settings-project_logo">{t("project_logo_label")}</Label>
+        {/* 🚨 `htmlFor` を書かないこと。ここが指していた `settings-project_logo` は
+            **どこにも存在しない id** だった（素の input を FileDropzone に差し替えたときに
+            指し先だけ消えた）。押しても何も起きないラベルになる。
+            代わりに `id` を振って、FileDropzone に `labelledBy` で指させる。 */}
+        <p id="settings-project_logo-label" className="text-sm font-medium">
+          {t("project_logo_label")}
+        </p>
         {/* 送信は JSON なので、選んだ結果の ID を隠しフィールドで運ぶ。 */}
         <input type="hidden" name="project_logo" value={logoId} />
         {logoId ? (
@@ -169,7 +175,11 @@ export function SettingsManager({ settings }: { settings: Settings }) {
             </Button>
           </div>
         ) : (
-          <FileDropzone name="project_logo_file" onSelect={uploadLogo} />
+          <FileDropzone
+            name="project_logo_file"
+            onSelect={uploadLogo}
+            labelledBy="settings-project_logo-label"
+          />
         )}
         {logoError ? (
           <p className="text-xs text-destructive">{logoError}</p>

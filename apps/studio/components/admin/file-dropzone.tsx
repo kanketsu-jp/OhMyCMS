@@ -1,7 +1,7 @@
 "use client";
 
 import { UploadCloud, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import {
   Attachment,
@@ -54,9 +54,36 @@ type Props = {
    * かえって分かりにくくなる。
    */
   flat?: boolean;
+  /**
+   * この領域が「何の」ファイルを受けるのかを名乗らせる（**省略可**・見出し要素の `id`）。
+   *
+   * 🚨 **4箇所すべて読み上げ名が同じ**だった。中の文字（「ここにファイルをドロップ」）
+   * しか名前が無いので、読み上げで移動する人には**ロゴなのか添付なのかファイル追加なのか
+   * 区別が付かない**。
+   *
+   * 🚨 **`aria-label` で上書きしないこと。** 見えている文字が読み上げ名から消えると、
+   * 音声操作の人が**読み上げどおりに言っても押せなくなる**（WCAG 2.5.3 Label in Name）。
+   * ここでは `aria-labelledby` に **渡された見出しの id と、自分の文字の id を並べる**ので、
+   * 名前は「ロゴ ここにファイルをドロップ」になり、見えている文字が残る。
+   */
+  labelledBy?: string;
+  /**
+   * 見出しの要素が無い場所用（**省略可**）。`labelledBy` と同じ効果を、
+   * **見えない文字をボタンの中に置く**ことで作る（読み上げ名の先頭に足す）。
+   * こちらも `aria-label` ではないので、見えている文字は名前に残る。
+   */
+  label?: string;
 };
 
-export function FileDropzone({ name = "file", onSelect, flat = false }: Props) {
+export function FileDropzone({
+  name = "file",
+  onSelect,
+  flat = false,
+  labelledBy,
+  label,
+}: Props) {
+  // 自分の文字に id を振り、読み上げ名の**末尾**に必ず残るようにする
+  const ownTextId = useId();
   const t = useT("files");
   const format = useFormat();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +120,7 @@ export function FileDropzone({ name = "file", onSelect, flat = false }: Props) {
           塗り（bg）で代用すると「親と違う背景」で同じく面に数えられるので、それも避ける。 */}
       <button
         type="button"
+        aria-labelledby={labelledBy ? `${labelledBy} ${ownTextId}` : undefined}
         onClick={() => inputRef.current?.click()}
         onDragOver={(event) => {
           event.preventDefault();
@@ -112,7 +140,8 @@ export function FileDropzone({ name = "file", onSelect, flat = false }: Props) {
         )}
       >
         <UploadCloud className="size-6" />
-        <span>{over ? t("drop_active") : t("drop_label")}</span>
+        {label ? <span className="sr-only">{label}</span> : null}
+        <span id={ownTextId}>{over ? t("drop_active") : t("drop_label")}</span>
         <span className="text-xs">{t("drop_hint")}</span>
       </button>
 
