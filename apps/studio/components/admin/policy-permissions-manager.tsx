@@ -75,8 +75,7 @@ function FilterBlock({ children }: { children: React.ReactNode }) {
   return (
     <pre
       ref={ref}
-      data-slot="scroll-fade"
-      data-direction="horizontal"
+      data-scroll-fade="horizontal"
       className="overflow-x-auto rounded-md bg-muted p-3 text-xs"
     >
       {children}

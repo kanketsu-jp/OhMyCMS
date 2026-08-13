@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FolderIcon, HomeIcon, ImageIcon, MenuIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useScrollFade } from "@/components/ui/scroll-fade";
 import {
   Sheet,
   SheetContent,
@@ -51,6 +52,8 @@ export function MobileNav({ items, collections, contentHeading }: Props) {
   const t = useT("nav");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  useScrollFade(drawerRef, "vertical");
 
   // 中央に出すのは「毎日行く3つ」だけ。全部並べると指が届く大きさを保てない
   const quick = [
@@ -77,7 +80,13 @@ export function MobileNav({ items, collections, contentHeading }: Props) {
           >
             <MenuIcon />
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 overflow-y-auto">
+          <SheetContent
+            side="left"
+            // 🚨 スクロールするのはこの Popup 自身。行き先が増えると縦にあふれる（憲章 §6）
+            ref={drawerRef}
+            data-scroll-fade="vertical"
+            className="w-72 overflow-y-auto"
+          >
             <SheetHeader>
               <SheetTitle>{t("menu_title")}</SheetTitle>
             </SheetHeader>

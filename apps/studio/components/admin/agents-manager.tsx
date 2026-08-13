@@ -110,8 +110,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
           <p className="text-sm text-destructive">{t("token_warning")}</p>
           <code
             ref={tokenRef}
-            data-slot="scroll-fade"
-            data-direction="horizontal"
+            data-scroll-fade="horizontal"
             className="block overflow-x-auto py-2 font-mono text-sm break-all"
           >{token}</code>
           <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(token)}>

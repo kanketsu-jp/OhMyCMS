@@ -155,9 +155,11 @@
 
 @layer components {
   /* スクロールできることを端のフェードで見せる（憲章 §6 / components/ui/scroll-fade.tsx）。
+     🚨 目印は **専用の data-scroll-fade** にしてある。data-slot を使うと、部品が既に持っている
+     data-slot（select-content / command-list / sheet-content …）を**上書きして潰す**。
      🚨 マスクは**スクロールする要素そのもの**に当たる。外側に巻くと監査が赤のままになる。
      🚨 出し分けは CSS だけでやる。JS は dataset を書き換えるだけで、再描画を起こさない。 */
-  [data-slot="scroll-fade"] {
+  [data-scroll-fade] {
     /* フェードの幅。**変えるならここ1箇所**（design が確定値を出したら差し替える） */
     --scroll-fade-size: 1rem;
     /* 端に着いている間は 0 にして、フェードを消す。
@@ -165,15 +167,15 @@
     --scroll-fade-start: 0px;
     --scroll-fade-end: 0px;
   }
-  [data-slot="scroll-fade"][data-at-start="false"] {
+  [data-scroll-fade][data-at-start="false"] {
     --scroll-fade-start: var(--scroll-fade-size);
   }
-  [data-slot="scroll-fade"][data-at-end="false"] {
+  [data-scroll-fade][data-at-end="false"] {
     --scroll-fade-end: var(--scroll-fade-size);
   }
   /* 🚨 白いグラデーションを重ねる方式にしない（ダークテーマで白い帯が出る）。
      mask-image は下の色に依存しない。影も使わない（影は面なので深さが1段増える）。 */
-  [data-slot="scroll-fade"][data-direction="horizontal"] {
+  [data-scroll-fade="horizontal"] {
     mask-image: linear-gradient(
       to right,
       transparent 0,
@@ -182,7 +184,7 @@
       transparent 100%
     );
   }
-  [data-slot="scroll-fade"][data-direction="vertical"] {
+  [data-scroll-fade="vertical"] {
     mask-image: linear-gradient(
       to bottom,
       transparent 0,

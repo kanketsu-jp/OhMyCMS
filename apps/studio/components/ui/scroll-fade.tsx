@@ -10,34 +10,11 @@ type Props = {
 } & React.ComponentProps<"div">;
 
 /**
- * スクロールできることを、端のフェードで見せる箱。
- *
- * 堀池さん（原文・憲章 §6）:
- * 「**スクロールできる全ての部分には scroll-fade を実装して、スクロールできることが
- *   視覚的にわかるようにする。**」
- *
- * 🚨 **マスクはスクロールする要素そのものに当てる。** 外側に巻いてはいけない
- * （`.temp/design-audit/scroll-fade-spec.md` §1）。監査は
- * **スクロールしている要素の computed style** を見るので、外に巻くと
- * **正しく作ったつもりでも赤が出続ける**。だからこの部品は
- * 「中身を包む器」ではなく、**`overflow` を持つ要素そのもの**を描く。
- *
- * 🚨 **スクロール位置を React の state にしない。** state にするとスクロールのたびに
- * 再描画が走り、憲章 §5-5（再レンダー）に触れる。`scroll` を passive で拾って
- * `dataset` を直接書き換え、**出し分けは CSS に任せる**（app/globals.css の
- * `[data-slot="scroll-fade"]`）。
- *
- * 端のフェードは**その先にまだ続きがあるときだけ**出す。常に両端を出すと、
- * 先頭でも末尾でも「まだ続きがある」と嘘をつくことになる。
- *
- * 🚨 影で代用しないこと。影は「面」なので、面の深さが1段増える（憲章 §1）。
- * 白いグラデーションを重ねる方式も使わない（ダークテーマで白い帯が出る）。
- * `mask-image` は下の色に依存しない。
- */
-/**
  * `<ScrollFade>` で包めない要素（他所の部品が描く popup など）へ、同じ振る舞いだけを付ける。
  * 🚨 **ロジックを2箇所に書かないため**にフックへ出してある。`ScrollFade` もこれを使う。
- * 付ける側は `data-slot="scroll-fade"` と `data-direction` を自分で書くこと（CSS がそれで効く）。
+ * 付ける側は `data-scroll-fade="horizontal" | "vertical"` を自分で書くこと（CSS がそれで効く）。
+ * 🚨 **`data-slot` は使わない。** 部品が既に持っている `data-slot`（select-content /
+ * command-list / sheet-content …）を上書きして潰してしまう（実際に一度やった）。
  */
 export function useScrollFade(
   ref: React.RefObject<HTMLElement | null>,
@@ -72,6 +49,31 @@ export function useScrollFade(
   }, [ref, direction]);
 }
 
+/**
+ * スクロールできることを、端のフェードで見せる箱。
+ *
+ * 堀池さん（原文・憲章 §6）:
+ * 「**スクロールできる全ての部分には scroll-fade を実装して、スクロールできることが
+ *   視覚的にわかるようにする。**」
+ *
+ * 🚨 **マスクはスクロールする要素そのものに当てる。** 外側に巻いてはいけない
+ * （`.temp/design-audit/scroll-fade-spec.md` §1）。監査は
+ * **スクロールしている要素の computed style** を見るので、外に巻くと
+ * **正しく作ったつもりでも赤が出続ける**。だからこの部品は
+ * 「中身を包む器」ではなく、**`overflow` を持つ要素そのもの**を描く。
+ *
+ * 🚨 **スクロール位置を React の state にしない。** state にするとスクロールのたびに
+ * 再描画が走り、憲章 §5-5（再レンダー）に触れる。`scroll` を passive で拾って
+ * `dataset` を直接書き換え、**出し分けは CSS に任せる**（app/globals.css の
+ * `[data-scroll-fade]`）。
+ *
+ * 端のフェードは**その先にまだ続きがあるときだけ**出す。常に両端を出すと、
+ * 先頭でも末尾でも「まだ続きがある」と嘘をつくことになる。
+ *
+ * 🚨 影で代用しないこと。影は「面」なので、面の深さが1段増える（憲章 §1）。
+ * 白いグラデーションを重ねる方式も使わない（ダークテーマで白い帯が出る）。
+ * `mask-image` は下の色に依存しない。
+ */
 export function ScrollFade({
   direction = "horizontal",
   className,
@@ -84,8 +86,7 @@ export function ScrollFade({
   return (
     <div
       ref={ref}
-      data-slot="scroll-fade"
-      data-direction={direction}
+      data-scroll-fade={direction}
       // 初期値。effect が走る前でもフェードが出ないようにしておく
       data-at-start="true"
       data-at-end="true"

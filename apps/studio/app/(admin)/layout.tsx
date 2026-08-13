@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { apiFetch, currentUser } from "@/lib/admin/api";
@@ -9,6 +10,8 @@ import { ScrollFade } from "@/components/ui/scroll-fade";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
 import { projectName } from "@/lib/settings/project-name";
+import { SETUP_COOKIE, parseCookies } from "@/lib/auth/cookies";
+import { isValidSetupSession } from "@/lib/auth/setup-session";
 import { isOnboardingCompleted } from "@/lib/settings/service";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +39,11 @@ export default async function AdminLayout({
   const brand = await projectName(tCommon("app_name"));
   const me = await currentUser();
   if (!me.ok && me.status === 401) {
-    redirect("/login");
+    // 🚨 セットアップの印を持っている人を /login へ返すと輪ができる（2026-08-13 実事故）。
+    //    ログイン → /admin → /login → ログイン … を繰り返し、オンボーディングへ辿り着けない。
+    //    印は「オンボーディングを通す権利」なので、**行き先はオンボーディング**が正しい。
+    const setupToken = parseCookies((await headers()).get("cookie")).get(SETUP_COOKIE) ?? null;
+    redirect(isValidSetupSession(setupToken) ? "/onboarding" : "/login");
   }
   // オンボーディングが済むまでは管理画面へ入れない。
   //
