@@ -22,16 +22,19 @@ ln -sf ../../packages/cli/dist/index.js node_modules/.bin/ohmycms
 PATH="$PWD/node_modules/.bin:$PATH" ohmycms --help
 ```
 
-## 接続先とトークンの決め方
+## 接続先と認証情報の決め方
 
 **上ほど優先**（`--help` にも同じ表がある）:
 
-| 優先 | 出所 | 接続先 | トークン |
+| 優先 | 出所 | 接続先 | 認証情報 |
 |---|---|---|---|
-| 1 | フラグ | `--url` | `--token` |
-| 2 | 環境変数 | `OHMYCMS_URL` | `OHMYCMS_TOKEN` |
+| 1 | フラグ | `--url` | `--token` / `--session-token` |
+| 2 | 環境変数 | `OHMYCMS_URL` | `OHMYCMS_TOKEN` / `OHMYCMS_SESSION_TOKEN` |
 | 3 | 設定ファイル | `~/.config/ohmycms/config.json` | 同左 |
 | 4 | 既定値 | `http://localhost:3000` | （既定値なし） |
+
+トークンとセッションを両方渡したときは**トークン（エージェント）が優先**される
+（API 側が `Authorization: Bearer` を先に見るため。ここを揃えないと表示と実挙動がずれる）。
 
 > 当初の仕様は「環境変数 → 設定ファイル → フラグ」だったが、`--token` で一時的に上書きできない CLI は
 > 使い物にならないため**反転した**（司令塔決定・2026-08-13）。
@@ -44,22 +47,31 @@ $ ls -ld ~/.config/ohmycms          drwx------
 $ ls -l  ~/.config/ohmycms/config.json   -rw-------
 ```
 
-## ログイン
+## ログイン — 二階建て認証をそのまま持っている
 
-🚨 **OhMyCMS には ID / パスワードのログイン API が無い。**
-CLI は「人間が発行したエージェントトークンを預かって動く」設計になっている。
+OhMyCMS は **人はセッション / プログラムはトークン**の二階建て認証。CLI の `login` も 2 通りある。
 
 ```bash
-# 通常: 管理画面で発行したトークンを保存する（保存前に /api/auth/me で検証する）
-ohmycms login --token <トークン> --url http://localhost:3000
+# 開発: 人としてログインする（セッションを預かる）
+ohmycms login --dev-login you@example.test --admin
 
-# 開発時のみ: dev-login でセッションを取り、その場でトークンを発行して保存する
-#（サーバ側で ALLOW_DEV_LOGIN=true かつ NODE_ENV!=production のときだけ動く）
-ohmycms login --dev-login you@example.test --admin \
-  --collection-capability articles:read,create,update,delete
+# 本番・CI: エージェントとして動く（トークンを預かる）
+ohmycms login --token <トークン> --url http://localhost:3000
 ```
 
-### 🚨 capabilities の落とし穴
+| | `--dev-login`（人） | `--token`（エージェント） |
+|---|---|---|
+| 保存するもの | セッションの生トークン | エージェントトークン |
+| 権限 | **そのユーザーの権限がそのまま** | 委任元の権限 **∩ capabilities** |
+| `token create` | **そのまま使える** | 使えない（403 `HUMAN_AUTH_REQUIRED`） |
+| 使える場面 | 開発のみ（`ALLOW_DEV_LOGIN=true` かつ `NODE_ENV!=production`） | どこでも |
+
+🚨 **`--dev-login` はトークンを発行しない**（2026-08-13 の設計判断）。
+以前は `--admin` を付けるとエージェントトークンを発行していたが、それは
+**「テーブルは作れるが行は 1 件も読み書きできない」トークン**になっていた（下記の罠）。
+人としてログインするなら capabilities の概念に触れずに済むので、そちらを既定にした。
+
+### 🚨 capabilities の罠（`token create` で明示的に絞るときの話）
 
 エージェントトークンの権限は **委任元ユーザーの権限 ∩ capabilities**。
 `collections` と `admin` で**既定が逆**なので注意する:
@@ -71,23 +83,34 @@ ohmycms login --dev-login you@example.test --admin \
 | `{admin:[...], collections:{...}}` | ✅ 列挙したコレクションだけ | ✅ 指定した範囲だけ |
 
 **`capabilities` を一度でも指定すると、`collections` を明示しない限り items が全滅する**
-（2026-08-13 実測）。CLI は admin だけを指定したとき警告を出す。
+（2026-08-13 実測）。API 側の fail-closed な作りとしては正しいが、使う側は必ず踏むので
+CLI は admin だけを指定したとき警告を出す。
 
 ```bash
-ohmycms token create --name ci-bot \
+# 記事だけ書かせる
+ohmycms token create --name writer --collection-capability articles:read,create,update
+
+# スキーマ設計まで任せる
+ohmycms token create --name architect \
   --admin-capability schema:read,schema:write \
-  --collection-capability articles:read,create
+  --collection-capability articles:read,create,update,delete
 ```
 
 `--admin-capability` に指定できるのは `schema:read` / `schema:write` / `settings:read` /
 `settings:write` / `all`。
 
+🚨 **`collections` にワイルドカードが無い**ので、「管理操作もできて全コレクションの行も扱える」
+トークンは表現できない（コレクションは GUI で後から増えるため、発行時の列挙は必ず古くなる）。
+それが要る場面では `--dev-login`（人としてのセッション）を使う。
+
 ## コマンド
 
 ```
 ohmycms health                                  API に繋がるか
-ohmycms whoami                                  いまのトークンが誰なのか（値は表示しない）
-ohmycms login / logout
+ohmycms whoami                                  いまの認証情報が誰なのか（値は表示しない）
+ohmycms login --dev-login <メール> [--admin]     人としてログイン（開発のみ）
+ohmycms login --token <トークン>                 エージェントとして動く
+ohmycms logout [--keep-url]
 
 ohmycms collection list [--system]
 ohmycms collection create <名前> [--field title:string ...] [--primary-key id]
@@ -104,7 +127,7 @@ ohmycms item delete <コレクション> <ID> --yes
 
 ohmycms user list
 ohmycms token create --name <名前> [--admin-capability …] [--collection-capability …]
-ohmycms token list / delete <ID>
+ohmycms token list / delete <ID>          ※ 人間のセッションが必要
 ohmycms schema snapshot [--out <ファイル>]
 ```
 
@@ -114,8 +137,8 @@ ohmycms schema snapshot [--out <ファイル>]
 
 - 既定は**人間向け**（日本語の表）
 - `--json` で**機械向け**（stdout には JSON だけ。注意書きは stderr へ出す）
-- **トークンを表示しない。** 表示するのは `token create` の発行直後と、
-  `login --dev-login --print-token` を明示したときだけ
+- **トークンやセッションの値を表示しない。** 表示するのは `token create` の発行直後だけ
+  （サーバは sha256 しか保存しないので、そこを逃すと二度と取れない）
 
 ## 終了コード
 
@@ -124,7 +147,7 @@ ohmycms schema snapshot [--out <ファイル>]
 | 0 | 成功 |
 | 1 | 一般エラー（サーバの 400 / 500） |
 | 2 | 引数の誤り（未知のコマンド・必須フラグ不足・型違い・JSON が壊れている） |
-| 3 | 認証されていない（401・トークンが無い / 無効 / 期限切れ） |
+| 3 | 認証されていない（401・認証情報が無い / 無効 / 期限切れ、または人間のセッションが必要） |
 | 4 | 権限が足りない（403） |
 | 5 | 見つからない（404） |
 | 6 | サーバへ接続できない（接続拒否 / タイムアウト） |
@@ -155,6 +178,8 @@ $ ohmycms health --jsno
 
 - 依存は **`@ohmycms/sdk` だけ**。引数パーサも表の描画も自前（依存を増やさない方針）
 - ビルドは tsup。SDK を bundle に取り込むので、単体の `dist/index.js` だけで動く
-- **引数の検証はトークンの確認より先**に行う。
-  `ohmycms collection create`（名前なし）で「トークンがありません」と言われると原因を誤解するため
+- **引数の検証は認証情報の確認より先**に行う。
+  `ohmycms collection create`（名前なし）で「認証情報がありません」と言われると原因を誤解するため
+- `login --dev-login` が**トークンを発行しない**のは意図的（capabilities の罠を踏ませないため）。
+  絞ったトークンは `token create` で明示的に作る
 - `--sort -views` のように `-` で始まる値を受けるため、真偽フラグの集合を持っている

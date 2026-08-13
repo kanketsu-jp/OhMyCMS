@@ -2,7 +2,7 @@ import type { ParsedArgs } from "./args.js";
 import { usageError } from "./errors.js";
 
 /** どのコマンドでも使える */
-const GLOBAL_FLAGS = ["url", "token", "json", "help", "version"] as const;
+const GLOBAL_FLAGS = ["url", "token", "session-token", "json", "help", "version"] as const;
 
 /**
  * コマンドごとに受け付けるフラグ。
@@ -12,13 +12,13 @@ const GLOBAL_FLAGS = ["url", "token", "json", "help", "version"] as const;
 const COMMAND_FLAGS: Record<string, readonly string[]> = {
   health: [],
   whoami: [],
-  login: ["dev-login", "admin", "name", "expires-in-days", "print-token", "admin-capability", "collection-capability"],
+  login: ["dev-login", "admin"],
   logout: ["keep-url"],
   collection: ["system", "field", "primary-key", "yes"],
   field: ["type", "required", "max-length"],
   item: ["filter", "fields", "sort", "limit", "offset", "page", "count", "data", "yes"],
   user: [],
-  token: ["name", "expires-in-days", "session-token", "admin-capability", "collection-capability"],
+  token: ["name", "expires-in-days", "admin-capability", "collection-capability"],
   schema: ["out", "system"],
 };
 

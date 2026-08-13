@@ -11,7 +11,7 @@ import {
   buildCapabilities,
   collectionCapabilities,
 } from "../capabilities.js";
-import { requireToken, type Context } from "../context.js";
+import { requireAuth, requireHumanCredential, type Context } from "../context.js";
 import { CliError, EXIT, usageError } from "../errors.js";
 import { formatValue, note, print, printJson, printTable } from "../output.js";
 
@@ -29,7 +29,7 @@ export async function item(args: ParsedArgs, context: Context): Promise<number> 
     if (!target) throw usageError("コレクション名を指定してください。", "例: ohmycms item list articles");
     const wantsCount = flagBoolean(args, "count");
     const filter = flagJson(args, "filter") as FilterObject | undefined;
-    requireToken(context);
+    requireAuth(context);
 
     const result = await context.client.items.list(target, {
       ...(filter !== undefined ? { filter } : {}),
@@ -70,7 +70,7 @@ export async function item(args: ParsedArgs, context: Context): Promise<number> 
   if (sub === "get") {
     const id = args.positionals[3];
     if (!target || !id) throw usageError("コレクション名と ID を指定してください。");
-    requireToken(context);
+    requireAuth(context);
     const row = await context.client.items.get(target, id);
     printJson(row);
     return EXIT.OK;
@@ -85,7 +85,7 @@ export async function item(args: ParsedArgs, context: Context): Promise<number> 
         `例: ohmycms item create ${target} --data '{"title":"はじめての記事"}'`,
       );
     }
-    requireToken(context);
+    requireAuth(context);
     if (Array.isArray(data)) {
       const created = await context.client.items.createMany(target, data as Item[]);
       if (context.json) printJson(created);
@@ -106,7 +106,7 @@ export async function item(args: ParsedArgs, context: Context): Promise<number> 
     if (!target || !id) throw usageError("コレクション名と ID を指定してください。");
     const data = flagJson(args, "data");
     if (data === undefined) throw usageError("--data で更新する内容を指定してください。");
-    requireToken(context);
+    requireAuth(context);
     const updated = await context.client.items.update(target, id, data as Item);
     if (context.json) printJson(updated);
     else {
@@ -122,7 +122,7 @@ export async function item(args: ParsedArgs, context: Context): Promise<number> 
     if (!flagBoolean(args, "yes")) {
       throw usageError("消す前に --yes を付けてください。");
     }
-    requireToken(context);
+    requireAuth(context);
     await context.client.items.delete(target, id);
     if (context.json) printJson({ deleted: id });
     else print(`消しました: ${id}`);
@@ -137,7 +137,7 @@ export async function user(args: ParsedArgs, context: Context): Promise<number> 
   if (sub !== "list") {
     throw usageError(`未知のサブコマンドです: user ${sub}`, "ohmycms user --help を見てください。");
   }
-  requireToken(context);
+  requireAuth(context);
 
   const rows = await context.client.users.list();
   if (context.json) {
@@ -162,17 +162,10 @@ export async function user(args: ParsedArgs, context: Context): Promise<number> 
  * トークンの発行は**人間のセッションが必要**（API が requireHumanActor を通す）。
  * エージェントトークンでは発行できないので、セッションを別に受け取る。
  */
-function sessionClient(context: Context, args: ParsedArgs) {
-  const sessionToken =
-    flagString(args, "session-token") ?? process.env.OHMYCMS_SESSION_TOKEN;
-  if (!sessionToken) {
-    throw new CliError(
-      "トークンの発行には人間のセッションが必要です。",
-      EXIT.UNAUTHENTICATED,
-      "ブラウザの session クッキーの値を --session-token で渡すか、環境変数 OHMYCMS_SESSION_TOKEN に設定してください。" +
-        "（開発中なら ohmycms login --dev-login <メール> で一気にトークンを取れます）",
-    );
-  }
+function sessionClient(context: Context) {
+  // 優先順は resolveContext と同じ（フラグ > 環境変数 > 設定ファイル）。
+  // login --dev-login でセッションを保存してあれば、そのまま使える。
+  const sessionToken = requireHumanCredential(context);
   return createClient({ baseUrl: context.client.baseUrl, sessionToken });
 }
 
@@ -188,7 +181,7 @@ export async function token(
     if (!name) {
       throw usageError("--name でトークンの名前を指定してください。", "例: ohmycms token create --name ci-bot");
     }
-    const client = sessionClient(context, args);
+    const client = sessionClient(context);
     const adminCaps = adminCapabilities(args);
     const built = buildCapabilities(adminCaps, collectionCapabilities(argv));
     for (const warning of built.warnings) note(`注意: ${warning}`);
@@ -213,7 +206,7 @@ export async function token(
   }
 
   if (sub === "list") {
-    const client = sessionClient(context, args);
+    const client = sessionClient(context);
     const rows = await client.agents.list();
     if (context.json) {
       printJson(rows);
@@ -236,7 +229,7 @@ export async function token(
   if (sub === "delete") {
     const id = args.positionals[2];
     if (!id) throw usageError("消すトークンの ID を指定してください。");
-    const client = sessionClient(context, args);
+    const client = sessionClient(context);
     await client.agents.delete(id);
     if (context.json) printJson({ deleted: id });
     else print(`トークンを失効しました: ${id}`);

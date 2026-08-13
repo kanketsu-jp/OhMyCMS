@@ -5,8 +5,14 @@ import { CliError, EXIT } from "./errors.js";
 
 export type StoredConfig = {
   url?: string;
-  /** エージェントトークン。**リポジトリ配下には絶対に置かない** */
+  /** エージェントトークン（プログラムとしての認証）。**リポジトリ配下には絶対に置かない** */
   token?: string;
+  /**
+   * 人間セッションの生トークン（人としての認証）。
+   * `login --dev-login` が保存する。エージェントトークンと違い capabilities の絞り込みが無いため、
+   * 委任元ユーザーの権限がそのまま使える。
+   */
+  sessionToken?: string;
 };
 
 /**

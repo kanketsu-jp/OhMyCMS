@@ -34,7 +34,10 @@ const HINTS: Record<string, string> = {
   INVALID_BEARER_TOKEN: "Authorization ヘッダの形式が不正です。トークンの値を確認してください。",
   INVALID_SESSION: "セッションが切れています。--session-token を取り直してください。",
   ADMIN_ACCESS_REQUIRED:
-    "この操作には管理者権限が要ります。トークンの委任元ユーザーが管理者ポリシーを持っているか確認してください。",
+    "この操作には管理者権限が要ります。委任元ユーザーが管理者ポリシーを持っているか確認してください。",
+  CAPABILITY_DENIED:
+    "このトークンには管理操作の capability がありません。ohmycms token create --admin-capability … で発行し直すか、" +
+    "開発中なら ohmycms login --dev-login <メールアドレス> で人としてログインしてください（capabilities の絞り込みがありません）。",
   PERMISSION_DENIED:
     "このコレクションへの権限がありません。管理画面の「ポリシー」で権限を付けてください。",
   FIELD_FORBIDDEN: "権限で許されていない列を指定しています。--fields を見直してください。",
@@ -84,7 +87,7 @@ async function run(argv: readonly string[]): Promise<number> {
     case "whoami":
       return whoami(context);
     case "login":
-      return login(args, context, argv);
+      return login(args, context);
     case "logout":
       return logout(args, context);
     case "collection":

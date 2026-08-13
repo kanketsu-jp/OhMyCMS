@@ -11,9 +11,9 @@ export function printHelp(): void {
 
 コマンド:
   health                                 API に繋がるか確認する
-  whoami                                 いま使っているトークンが誰なのかを表示する
-  login                                  トークンを保存する
-  logout                                 保存したトークンを消す
+  whoami                                 いまの認証情報が誰なのかを表示する
+  login                                  認証情報を保存する（--token / --dev-login）
+  logout                                 保存した認証情報を消す
 
   collection list                        コレクション一覧
   collection create <名前>               コレクションを作る
@@ -33,26 +33,30 @@ export function printHelp(): void {
   schema snapshot                        スキーマ全体を JSON で吐く
 
 共通オプション:
-  --url <URL>          接続先 (既定: ${DEFAULT_URL})
-  --token <トークン>   使うトークン
-  --json               機械向けに JSON で出す (人間向けの装飾を出さない)
-  -h, --help           このヘルプ
-  -v, --version        バージョン
+  --url <URL>              接続先 (既定: ${DEFAULT_URL})
+  --token <トークン>       エージェントトークンで認証する
+  --session-token <値>     人間のセッションで認証する
+  --json                   機械向けに JSON で出す (人間向けの装飾を出さない)
+  -h, --help               このヘルプ
+  -v, --version            バージョン
 
-接続先とトークンの決め方 (上ほど優先):
-  1. フラグ          --url / --token
-  2. 環境変数        OHMYCMS_URL / OHMYCMS_TOKEN
+接続先と認証情報の決め方 (上ほど優先):
+  1. フラグ          --url / --token / --session-token
+  2. 環境変数        OHMYCMS_URL / OHMYCMS_TOKEN / OHMYCMS_SESSION_TOKEN
   3. 設定ファイル    ~/.config/ohmycms/config.json  (XDG_CONFIG_HOME を尊重)
-  4. 既定値          ${DEFAULT_URL} (トークンには既定値は無い)
+  4. 既定値          ${DEFAULT_URL} (認証情報には既定値は無い)
 
   設定ファイルはディレクトリを 700、ファイルを 600 で作る。リポジトリ配下には保存しない。
+  --token と --session-token を両方渡したときは --token (エージェント) が優先される
+  (API 側が Bearer を先に見るため)。
 
 終了コード:
   0 成功 / 1 一般エラー / 2 引数の誤り / 3 認証されていない (401)
   4 権限が足りない (403) / 5 見つからない (404) / 6 サーバへ接続できない
 
 例:
-  ohmycms login --url http://localhost:3000 --token xxxxx
+  ohmycms login --dev-login you@example.test --admin    # 開発: 人としてログイン
+  ohmycms login --token xxxxx --url http://localhost:3000  # 本番: トークンを預ける
   ohmycms collection create articles --field title:string --field views:integer
   ohmycms item create articles --data '{"title":"はじめての記事"}'
   ohmycms item list articles --filter '{"views":{"_gte":100}}' --sort -views --limit 5
@@ -63,33 +67,34 @@ export function printHelp(): void {
 }
 
 const SUBCOMMAND_HELP: Record<string, string> = {
-  login: `ohmycms login — トークンを保存する
+  login: `ohmycms login — 認証情報を保存する
 
-  OhMyCMS には ID/パスワードのログイン API が無い。CLI は
-  「人間が管理画面で発行したエージェントトークンを預かって動く」。
+  OhMyCMS は二階建て認証なので、login も2通りある。
 
   ohmycms login --token <トークン> [--url <URL>]
-      渡されたトークンを設定ファイルへ保存する (これが通常の使い方)
+      **エージェントとして**動く。管理画面や token create で発行したトークンを預かる。
+      CI・自動化・本番はこちら。capabilities で権限が絞られる。
 
-  ohmycms login --dev-login <メールアドレス> [--admin] [--name <トークン名>] [--expires-in-days <1-365>]
-      **開発時のみ。** dev-login でセッションを取り、その場でトークンを発行して保存する。
+  ohmycms login --dev-login <メールアドレス> [--admin]
+      **人としてログインする（開発時のみ）。** セッションを預かる。
       サーバ側で ALLOW_DEV_LOGIN=true かつ NODE_ENV!=production のときだけ動く。
+      🚨 **トークンは発行しない。** capabilities の絞り込みが無いので、
+      そのユーザーの権限がそのまま使える（items も設定も、権限があれば触れる）。
+      絞ったトークンが要るときは、ログイン後に ohmycms token create で明示的に作る。
 
   オプション:
-    --token <トークン>        保存するトークン
-    --url <URL>               接続先も一緒に保存する
-    --dev-login <メール>      開発用ログインを使う
-    --admin                   dev-login で管理者ポリシーを付ける
-    --name <名前>             発行するトークンの名前 (既定: ohmycms-cli)
-    --expires-in-days <日数>  有効期限 1..365 (既定: 30)
-    --admin-capability <csv>  管理操作を許す範囲 (--admin を付けたときは既定で all)
-                              schema:read / schema:write / settings:read / settings:write / all
-    --print-token             発行したトークンを標準出力に出す (既定では出さない)`,
+    --token <トークン>    エージェントトークンを保存する
+    --url <URL>           接続先も一緒に保存する
+    --dev-login <メール>  開発用ログインで人としてログインする
+    --admin               dev-login のユーザーに管理者ポリシーを付ける
 
-  logout: `ohmycms logout — 保存したトークンを消す
+  ※ --token と --dev-login は同時に使えない（どちらで動いているか分からなくなるため）。
+     後から login し直すと、前の認証情報は置き換えられる。`,
 
-  ohmycms logout            設定ファイルを削除する
-  ohmycms logout --keep-url  トークンだけ消して接続先は残す`,
+  logout: `ohmycms logout — 保存した認証情報を消す
+
+  ohmycms logout             設定ファイルを削除する
+  ohmycms logout --keep-url  認証情報だけ消して接続先は残す`,
 
   collection: `ohmycms collection — コレクション (テーブル) を操作する
 
@@ -124,21 +129,33 @@ const SUBCOMMAND_HELP: Record<string, string> = {
 
   token: `ohmycms token — エージェントトークンを発行・管理する
 
-  ohmycms token create --name <名前> [--expires-in-days <1-365>] [--admin-capability <csv>] [--session-token <生トークン>]
+  ohmycms token create --name <名前> [--expires-in-days <1-365>]
+                       [--admin-capability <csv>] [--collection-capability <名前>[:<動作,...>]]
   ohmycms token list
   ohmycms token delete <ID>
 
-  --admin-capability を指定しないと、そのトークンでは**管理操作が全部拒否される**
-  (403 CAPABILITY_DENIED)。コレクション作成・権限設定まで任せるなら明示的に渡す:
-    --admin-capability all
-    --admin-capability schema:read,schema:write
-  指定できるのは schema:read / schema:write / settings:read / settings:write / all。
-  items の読み書きは capabilities を指定しなくても委任元ユーザーの権限を継承する。
+  🚨 **人間のセッションが必要**（エージェントトークンでは 403 HUMAN_AUTH_REQUIRED）。
+  ohmycms login --dev-login でログインしていればそのまま使える。
+  そうでなければ --session-token <生トークン> か環境変数 OHMYCMS_SESSION_TOKEN を渡す。
 
-  発行には**人間のセッションが必要**で、エージェントトークンでは発行できない
-  (API が 403 HUMAN_AUTH_REQUIRED を返す)。セッションは次のどちらかで渡す:
-    --session-token <生トークン>   ブラウザの session クッキーの値
-    環境変数 OHMYCMS_SESSION_TOKEN
+  capabilities の指定は「絞る」ためのもの。**指定の仕方で既定が逆になるので注意**:
+    何も指定しない
+        → items は委任元ユーザーの権限をそのまま継承。**管理操作は全部 403**
+    --admin-capability だけ指定
+        → 管理操作はできるが、**items が全部 403 になる**
+          (API は capabilities があると collections の完全一致でしか items を許さない)
+    --admin-capability と --collection-capability の両方
+        → 指定した範囲だけができる
+
+  --admin-capability:      schema:read / schema:write / settings:read / settings:write / all
+  --collection-capability: <コレクション>[:read,create,update,delete] (繰り返し指定可。
+                           動作を省くと4つ全部)
+
+  例: 記事だけ書かせるトークン
+    ohmycms token create --name writer --collection-capability articles:read,create,update
+  例: スキーマ設計まで任せるトークン
+    ohmycms token create --name architect --admin-capability schema:read,schema:write \
+      --collection-capability articles:read,create,update,delete
 
   発行されたトークンは**この1回しか表示されない** (サーバは sha256 しか保存しない)。`,
 
@@ -153,11 +170,14 @@ const SUBCOMMAND_HELP: Record<string, string> = {
 
   ohmycms user list
 
-  管理者権限が必要 (403 になる場合はトークンの委任元ユーザーが管理者か確認する)。`,
+  管理者権限が必要。403 になる場合は次の2つを確認する:
+    ① 委任元ユーザーが管理者ポリシーを持っているか
+    ② そのトークンの capabilities に settings:read があるか (CAPABILITY_DENIED のとき)`,
 
-  whoami: `ohmycms whoami — いま使っているトークンが誰なのかを表示する
+  whoami: `ohmycms whoami — いまの認証情報が誰なのかを表示する
 
-  接続先・トークンの取得元・API が返した Actor を出す。トークンの値そのものは出さない。`,
+  接続先・認証情報の出所・API が返した Actor を出す。トークンやセッションの値は出さない。
+  エージェントなら capabilities の中身も出るので、「何ができるはずか」を確認できる。`,
 
   health: `ohmycms health — API に繋がるか確認する
 

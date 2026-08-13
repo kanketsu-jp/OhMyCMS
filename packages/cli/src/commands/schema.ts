@@ -6,7 +6,7 @@ import {
   flagString,
   type ParsedArgs,
 } from "../args.js";
-import { requireToken, type Context } from "../context.js";
+import { requireAuth, type Context } from "../context.js";
 import { EXIT, usageError } from "../errors.js";
 import { formatValue, print, printJson, printTable } from "../output.js";
 
@@ -67,7 +67,7 @@ export async function collection(
   const sub = args.positionals[1];
 
   if (sub === "list" || sub === undefined) {
-    requireToken(context);
+    requireAuth(context);
     const rows = await context.client.collections.list({
       system: flagBoolean(args, "system"),
     });
@@ -90,7 +90,7 @@ export async function collection(
   if (sub === "create") {
     const name = args.positionals[2];
     if (!name) throw usageError("コレクション名を指定してください。", "例: ohmycms collection create articles");
-    requireToken(context);
+    requireAuth(context);
 
     const primaryKey = flagString(args, "primary-key") ?? "id";
     const fields: FieldSpec[] = [
@@ -116,7 +116,7 @@ export async function collection(
         "本当に消してよければ --yes を付けてください。",
       );
     }
-    requireToken(context);
+    requireAuth(context);
     const result = await context.client.collections.delete(name);
     if (context.json) printJson(result);
     else print(`コレクションを消しました: ${result.collection}`);
@@ -132,7 +132,7 @@ export async function field(args: ParsedArgs, context: Context): Promise<number>
   if (sub === "list") {
     const target = args.positionals[2];
     if (!target) throw usageError("コレクション名を指定してください。");
-    requireToken(context);
+    requireAuth(context);
     const rows = await context.client.fields.list(target);
     if (context.json) {
       printJson(rows);
@@ -159,7 +159,7 @@ export async function field(args: ParsedArgs, context: Context): Promise<number>
     const type = flagString(args, "type");
     if (!type) throw usageError("--type を指定してください。", `使える型: ${FIELD_TYPES.join(" / ")}`);
     assertFieldType(type);
-    requireToken(context);
+    requireAuth(context);
 
     const maxLength = flagNumber(args, "max-length");
     const spec: FieldSpec = {
@@ -185,7 +185,7 @@ export async function schema(args: ParsedArgs, context: Context): Promise<number
   if (sub !== "snapshot") {
     throw usageError(`未知のサブコマンドです: schema ${sub}`, "ohmycms schema --help を見てください。");
   }
-  requireToken(context);
+  requireAuth(context);
 
   const includeSystem = flagBoolean(args, "system");
   const [collections, fields, relations] = await Promise.all([
