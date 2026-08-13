@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { ImageIcon, Upload, X } from "lucide-react";
+import { FileDropzone } from "@/components/admin/file-dropzone";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,7 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -113,11 +113,11 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
                 {t("select_file_description")}
               </DialogDescription>
             </DialogHeader>
-            <form action={upload.run} className="flex flex-wrap items-end gap-3">
-              <div className="min-w-0 flex-1">
-                <Input name="file" type="file" required />
-              </div>
-              <Button type="submit" disabled={upload.pending}>
+            {/* 🚨 「ファイルを選択 / ファイル未選択」を画面に出さない（オーナー指摘）。
+                素の input は FileDropzone の中に隠してある。 */}
+            <form action={upload.run} className="grid gap-3">
+              <FileDropzone name="file" />
+              <Button type="submit" className="w-full md:w-fit" disabled={upload.pending}>
                 <Upload />
                 {t("upload_button")}
               </Button>
