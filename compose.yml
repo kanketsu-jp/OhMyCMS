@@ -34,7 +34,6 @@ x-app-env: &app-env
   R2_BUCKET: ${R2_BUCKET:-}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-  AUTH_SECRET: ${AUTH_SECRET:-}
   ALLOW_DEV_LOGIN: ${ALLOW_DEV_LOGIN:-}
   # コンテナ内の待ち受けポート。Dockerfile の PORT=3000 を上書きし、公開ポートと一致させる。
   PORT: ${STUDIO_PORT:-3101}

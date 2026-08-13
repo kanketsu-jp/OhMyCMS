@@ -41,32 +41,39 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
   const [pending, setPending] = useState(false);
   const [stage, setStage] = useState<"form" | "done">("form");
 
-  async function handleLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
+  // 🚨 アップロードも「変更を送る」操作なので useSubmitOnce を通す。
+  //    `logoUploading`（useState）では防げない——**setState は非同期**で、
+  //    再レンダーが走る前に2回目が通る（憲章 §5b）。
+  //    🚨 finally を外さないこと。早期 return があると inFlight が残り、
+  //    **二度とアップロードできなくなる**（前任が実測で踏んでいる）。
+  const uploadLogo = useSubmitOnce(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setLogoError(null);
     setLogoUploading(true);
 
-    const formData = new FormData();
-    formData.append("file", file);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const response = await fetch("/api/onboarding/logo", {
-      method: "POST",
-      body: formData,
-    });
+      const response = await fetch("/api/onboarding/logo", {
+        method: "POST",
+        body: formData,
+      });
 
-    setLogoUploading(false);
+      if (!response.ok) {
+        setLogoError(t("logo_failed"));
+        return;
+      }
 
-    if (!response.ok) {
-      setLogoError(t("logo_failed"));
-      return;
+      const payload = (await response.json()) as { data: { id: string } };
+      setLogoId(payload.data.id);
+      setLogoPreview(URL.createObjectURL(file));
+    } finally {
+      setLogoUploading(false);
     }
-
-    const payload = (await response.json()) as { data: { id: string } };
-    setLogoId(payload.data.id);
-    setLogoPreview(URL.createObjectURL(file));
-  }
+  });
 
   const submit = useSubmitOnce(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -221,7 +228,7 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
               id="logo"
               type="file"
               accept="image/*"
-              onChange={handleLogoChange}
+              onChange={uploadLogo.run}
               className="text-sm"
             />
             {logoPreview ? (
