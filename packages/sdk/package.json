@@ -22,6 +22,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
+    "check:framework-free": "node scripts/check-framework-free.mjs",
     "clean": "rm -rf dist"
   },
   "devDependencies": {

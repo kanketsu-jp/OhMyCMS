@@ -1,3 +1,9 @@
+export {
+  assetUrl,
+  isDisplayableImage,
+  type AssetSource,
+  type AssetUrlOptions,
+} from "./assets.js";
 export { createClient, OhMyCmsClient, type ClientOptions } from "./client.js";
 export {
   isApiErrorBody,
