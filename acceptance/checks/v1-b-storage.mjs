@@ -25,12 +25,21 @@ import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
 
 const PREFIX = "accv1b-";
-/** 32x32 の PNG。🚨 1x1 は sharp が 500 を返すので使わない（v0.9 で踏んだ） */
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAOklEQVR4nO3OMQEAAAgDoC1p+hdWwR5I" +
-    "QM7cmZlbrQvYYgNbbGCLDWyxgS02sMUGttjAFhvYYgNbbPABBGYBAdXKzQoAAAAASUVORK5CYII=",
-  "base64",
-);
+/**
+ * 32x32 の PNG（対照用）。
+ *
+ * 🚨 **base64 のリテラルを貼らない。** 以前ここに貼っていた 32x32 の base64 は
+ *   **IDAT の CRC が合っておらず、zlib で展開できない壊れた PNG** だった（storage が発見・2026-08-14）。
+ *   sharp / ffmpeg / 素の zlib の3つが揃って「壊れている」と言った。
+ *   そのせいで「小さい画像にはブラーが付かない」と読み、**実装の不具合だと誤って報告した**。
+ *
+ * 🚨 一番まずいのは、**対照（肯定形）に壊れた画像を使っていたこと**。
+ *   「壊れた画像では null」という否定形と区別がつかなくなる。
+ *   「PNG を上げて取り出せる」は通っていたが、それは**バイト列を往復させていただけ**で、
+ *   **画像として妥当かを一度も確かめていなかった**。
+ *   → 自分で組み立てる（CRC も IDAT も正しくなる）。1x1 は sharp が 500 を返すので使わない。
+ */
+const PNG = makeGradientPng(32, 32);
 const SVG = Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">' +
     "<script>window.__pwned=1</script><rect width=\"10\" height=\"10\" fill=\"red\"/></svg>",
@@ -321,6 +330,21 @@ export async function check(context) {
       assertions.push(
         assertion("positive", "ブラー版が 1KB 未満", blur.length > 0 && blur.length < 1024,
           `${blur.length} 文字`, "1024 文字未満"),
+      );
+
+      // 🚨 **小さい画像にもブラーが付く**（寸法による分岐は無い、と storage が実測で示した）。
+      //   ここを測れるようになったのは、対照 PNG を壊れていないものへ差し替えたから。
+      //   壊れた PNG のままだと「小さいから付かない」と「壊れているから付かない」の
+      //   区別がつかない。**対照が妥当であることが、否定形の意味を決める。**
+      const smallBlur = pngId
+        ? await queryScalar(
+            `select coalesce(blur_data_url, '') from directus_files where id = ${lit(pngId)};`,
+          )
+        : null;
+      assertions.push(
+        assertion("positive", "小さい画像（32x32）にもブラー版が付く",
+          typeof smallBlur === "string" && smallBlur.startsWith("data:image/webp;base64,"),
+          smallBlur ? `${smallBlur.length} 文字` : "(空)", "data:image/webp;base64,"),
       );
     }
 
