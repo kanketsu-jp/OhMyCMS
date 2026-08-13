@@ -9,7 +9,7 @@ generated:
   at: 2026-08-14
 verified: []
 sources:
-  - resource: "repo://apps/studio/lib/db/migrations"
+  - resource: "repo://apps/studio/lib/db/knexfile.ts"
   - resource: "repo://apps/studio/package.json"
 stale_after: 2027-02-14
 x_rag_okf:
