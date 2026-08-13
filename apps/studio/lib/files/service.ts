@@ -485,7 +485,9 @@ export async function listFiles(actor: Actor, input: ListInput): Promise<PublicF
     .orderBy("uploaded_on", "desc")
     .limit(limit)
     .offset(offset);
-  if (input.folder) {
+  if (input.folder === "root") {
+    query.whereNull("folder");
+  } else if (input.folder) {
     query.where("folder", input.folder);
   }
   applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);

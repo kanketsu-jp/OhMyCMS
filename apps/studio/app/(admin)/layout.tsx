@@ -19,7 +19,6 @@ import { isOnboardingCompleted } from "@/lib/settings/service";
 const navItems = [
   { href: "/admin/collections", labelKey: "collections" },
   { href: "/admin/files", labelKey: "files" },
-  { href: "/admin/folders", labelKey: "folders" },
   { href: "/admin/notifications", labelKey: "notifications" },
   { href: "/admin/reports", labelKey: "reports" },
 ];

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FileIcon, Plus } from "lucide-react";
+import { FileIcon, FolderPlus, Plus, Upload } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
-import { PageAction } from "@/components/admin/page-action";
+import { FolderGrid } from "@/components/admin/folder-grid";
 import { ListPagination } from "@/components/admin/list-pagination";
 import {
   GRID_PAGE_SIZE,
@@ -10,6 +10,21 @@ import {
   pageHref,
   splitPage,
 } from "@/components/admin/pagination-href";
+import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -38,44 +53,112 @@ function extension(file: FileRow, fallback: string): string {
   return file.filename_download.split(".").pop()?.toUpperCase() ?? fallback;
 }
 
+function filesHref(folderId: string | null): string {
+  return folderId ? `/admin/files?folder=${folderId}` : "/admin/files";
+}
+
+function folderPath(folders: FolderRow[], folderId: string | null): FolderRow[] {
+  if (!folderId) return [];
+  const byId = new Map(folders.map((folder) => [folder.id, folder]));
+  const path: FolderRow[] = [];
+  const seen = new Set<string>();
+  let cursor = byId.get(folderId) ?? null;
+
+  while (cursor && !seen.has(cursor.id)) {
+    path.unshift(cursor);
+    seen.add(cursor.id);
+    cursor = cursor.parent ? byId.get(cursor.parent) ?? null : null;
+  }
+
+  return path;
+}
+
 export default async function FilesPage({ searchParams }: Props) {
   const t = await getT("files");
   const query = await searchParams;
   const page = currentPage(query.page);
+  const currentFolderId = query.folder && query.folder !== "root" ? query.folder : null;
+  const currentLocation = currentFolderId ?? "root";
 
   // 🚨 全件は取らない（憲章 §4）。1件だけ多く取って「次があるか」を判定し、描くときに切り落とす。
   // COUNT(*) は撃たない。総件数はこの画面では使わない。
   const params = new URLSearchParams({
     limit: String(GRID_PAGE_SIZE + 1),
     offset: String((page - 1) * GRID_PAGE_SIZE),
+    folder: currentLocation,
   });
-  if (query.folder) {
-    params.set("folder", query.folder);
-  }
   const [filesResult, foldersResult] = await Promise.all([
     apiFetch<{ data: FileRow[] }>(`/api/files?${params.toString()}`),
-    apiFetch<{ data: FolderRow[] }>("/api/folders"),
+    apiFetch<{ data: FolderRow[] }>("/api/folders?limit=500"),
   ]);
   const folders = foldersResult.ok ? foldersResult.data.data : [];
+  const childFolders = folders.filter((folder) => folder.parent === currentFolderId);
+  const breadcrumbs = folderPath(folders, currentFolderId);
   const { rows: files, hasNext } = splitPage(
     filesResult.ok ? filesResult.data.data : [],
     GRID_PAGE_SIZE,
   );
+  const newFolderHref = `/admin/files/new-folder?parent=${currentLocation}`;
+  const newFileHref = `/admin/files/new?folder=${currentLocation}`;
 
   return (
-    <div className="max-w-7xl space-y-6">
+    <div className="flex max-w-7xl flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/admin/folders" className="text-sm text-muted-foreground hover:underline">
-            {t("folders_link")}
-          </Link>
-          {/* 🚨 一覧のページは**まず一覧を見せる**（design ⑰）。追加は /admin/files/new へ */}
-          <PageAction href="/admin/files/new" label={t("new_button")} icon={<Plus />} />
-        </div>
+        <Breadcrumb aria-label={t("breadcrumb_label")}>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              {breadcrumbs.length === 0 ? (
+                <BreadcrumbPage>{t("title")}</BreadcrumbPage>
+              ) : (
+                <Link href="/admin/files" className="transition-colors hover:text-foreground">
+                  {t("title")}
+                </Link>
+              )}
+            </BreadcrumbItem>
+            {breadcrumbs.map((folder, index) => (
+              <BreadcrumbItem key={folder.id}>
+                <BreadcrumbSeparator />
+                {index === breadcrumbs.length - 1 ? (
+                  <BreadcrumbPage>{folder.name}</BreadcrumbPage>
+                ) : (
+                  <Link href={filesHref(folder.id)} className="transition-colors hover:text-foreground">
+                    {folder.name}
+                  </Link>
+                )}
+              </BreadcrumbItem>
+            ))}
+          </BreadcrumbList>
+        </Breadcrumb>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button type="button">
+                <Plus />
+                {t("new_button")}
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                render={
+                  <Link href={newFolderHref}>
+                    <FolderPlus />
+                    {t("new_folder_button")}
+                  </Link>
+                }
+              />
+              <DropdownMenuItem
+                render={
+                  <Link href={newFileHref}>
+                    <Upload />
+                    {t("new_file_button")}
+                  </Link>
+                }
+              />
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <ErrorBanner
         message={
@@ -85,17 +168,9 @@ export default async function FilesPage({ searchParams }: Props) {
       />
       <Surface>
         <SurfaceTitle>{t("list_title")}</SurfaceTitle>
-        <form className="flex max-w-sm gap-2" action="/admin/files">
-          <select name="folder" className="h-(--control-h) min-w-0 flex-1 rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={query.folder ?? ""}>
-            <option value="">{t("all_folders_option")}</option>
-            {folders.map((folder) => (
-              <option key={folder.id} value={folder.id}>{folder.name}</option>
-            ))}
-          </select>
-          <button type="submit" className="rounded-lg px-3 text-sm hover:bg-muted">{t("filter_button")}</button>
-        </form>
-        {filesResult.ok ? (
+        {filesResult.ok || foldersResult.ok ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
             {files.map((file) => (
               <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md p-3 hover:bg-muted">
                 {/* 🚨 画像のレターボックス。背景が要るので面に見えるが、面ではない。
@@ -121,8 +196,8 @@ export default async function FilesPage({ searchParams }: Props) {
                 <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
               </Link>
             ))}
-            {files.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("empty_files")}</p>
+            {childFolders.length === 0 && files.length === 0 ? (
+              <p className="col-span-full text-sm text-muted-foreground">{t("empty_folder")}</p>
             ) : null}
           </div>
         ) : null}

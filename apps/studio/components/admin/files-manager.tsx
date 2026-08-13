@@ -29,7 +29,13 @@ function messageFrom(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
+export function FileUploadForm({
+  folders,
+  initialFolder,
+}: {
+  folders: FolderRow[];
+  initialFolder?: string | null;
+}) {
   const t = useT("files");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +62,7 @@ export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
         {/* 🚨 「ファイルを選択 / ファイル未選択」を画面に出さない（オーナー指摘）。
             素の input は FileDropzone の中に隠してある。 */}
         <FileDropzone name="file" />
-        <select name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue="">
+        <select name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={initialFolder === "root" ? "" : initialFolder ?? ""}>
           <option value="">{t("no_folder_option")}</option>
           {folders.map((folder) => (
             <option key={folder.id} value={folder.id}>{folder.name}</option>

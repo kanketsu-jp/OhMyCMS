@@ -1,0 +1,71 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { FolderPlus } from "lucide-react";
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
+import { useT } from "@/i18n/client";
+
+function messageFrom(payload: unknown, fallback: string): string {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    payload.error &&
+    typeof payload.error === "object" &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+  ) {
+    return payload.error.message;
+  }
+  return fallback;
+}
+
+export function NewFolderForm({ parent }: { parent: string | null }) {
+  const t = useT("folders");
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  const create = useSubmitOnce(async (formData: FormData) => {
+    setError(null);
+    const response = await fetch("/api/folders", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: String(formData.get("name") ?? ""),
+        parent,
+      }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      setError(
+        messageFrom(
+          payload,
+          response.status === 403 ? t("error_forbidden") : t("error_create_failed"),
+        ),
+      );
+      return;
+    }
+    router.push(parent ? `/admin/files?folder=${parent}` : "/admin/files");
+    router.refresh();
+  });
+
+  return (
+    <form action={create.run} className="flex flex-col gap-4">
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <Input
+        name="name"
+        required
+        placeholder={t("name_placeholder")}
+        aria-label={t("name_label")}
+      />
+      <Button type="submit" className="w-full md:w-fit" disabled={create.pending}>
+        <FolderPlus />
+        {t("create_button")}
+      </Button>
+    </form>
+  );
+}
