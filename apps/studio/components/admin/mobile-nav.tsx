@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BellIcon,
   DatabaseIcon,
-  ImageIcon,
+  FolderTree,
   LogOut,
   MenuIcon,
 } from "lucide-react";
@@ -74,7 +74,9 @@ export function MobileNav({ items, settings, settingsLabel, collections, content
   // ⑨ の「4つ」は**右がアイコン1つ前提の計算**だった。
   const quick = [
     { href: "/admin/collections", label: t("collections"), icon: DatabaseIcon },
-    { href: "/admin/files", label: t("files"), icon: ImageIcon },
+    // 🚨 画像だけでなく PDF もテキストも入る**保管場所**なので、画像のアイコンにしない。
+    // 堀池さん（原文）:「/admin/files のアイコンは、**folder-tree** をつかう」
+    { href: "/admin/files", label: t("files"), icon: FolderTree },
     { href: "/admin/notifications", label: t("notifications"), icon: BellIcon },
   ];
 
