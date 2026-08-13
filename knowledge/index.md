@@ -39,6 +39,7 @@ x_rag_okf:
 - [ORM は Knex（Prisma / Drizzle は不採用）](./decisions/orm-knex.md) — `decisions/orm-knex`
 - [ポートは 31xx 帯に寄せ、よく使うポートを避ける](./decisions/port-allocation.md) — `decisions/port-allocation`
 - [リレーションを辿るときも、相手側コレクションの権限を必ず通す](./decisions/relation-permission-boundary.md) — `decisions/relation-permission-boundary`
+- [秘密の置き場所は「復元可能性」で決める（ハッシュ化できるものだけ GUI 可）](./decisions/secrets-storage-by-recoverability.md) — `decisions/secrets-storage-by-recoverability`
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
 - [v0.9 は Next.js 単一アプリ、分離時は Hono](./decisions/single-nextjs-app-then-hono.md) — `decisions/single-nextjs-app-then-hono`
 - [手順ドキュメントはステップ式で書く。前提を独立させ、スクリーンショットを使わない](./decisions/stepwise-docs.md) — `decisions/stepwise-docs`
@@ -48,6 +49,8 @@ x_rag_okf:
 - [v0.9 時点で堀池が決めた 6 件](./decisions/v09-open-questions-answered.md) — `decisions/v09-open-questions-answered`
 - [否定形の検証は「検出できること」を先に確かめる](./decisions/verify-the-verifier.md) — `decisions/verify-the-verifier`
 - [通信路が HTTPS かどうかを NODE_ENV で決めない](./decisions/https-is-not-node-env.md) — `decisions/https-is-not-node-env`
+- [保管先のキー設計を固定する（接頭辞は後から変えない）](./decisions/storage-key-prefix-is-fixed.md) — `decisions/storage-key-prefix-is-fixed`
+- [migration を足す人は、直前に「他人の未適用分」を確認する](./decisions/migrations-are-shared.md) — `decisions/migrations-are-shared`
 - [hrdr による多ペイン運用（司令塔 + トラックA/B/C）](./ops/hrdr-panes.md) — `ops/hrdr-panes`
 - [cms](./project.md) — `project`
 

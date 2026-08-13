@@ -28,6 +28,9 @@ export async function POST(request: Request) {
       description: formString(formData, "description"),
       tags: formString(formData, "tags"),
       folder: formString(formData, "folder"),
+      // 🚨 既定は圧縮する。**"false" と明示されたときだけ**切る。
+      //    未指定（undefined）を「切る」と読まないこと。
+      compress: formData.get("compress") === "false" ? false : undefined,
     });
     return ok({ data: row }, 201);
   } catch (error) {

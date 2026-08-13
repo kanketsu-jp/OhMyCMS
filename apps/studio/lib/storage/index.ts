@@ -61,8 +61,127 @@ function readS3Env(): S3Env | null {
   };
 }
 
+/**
+ * 「S3 を設定したつもりで、実はローカルに溜まっている」状態を検出する。
+ *
+ * 🚨 これが一番危ない壊れ方。**本人は S3 に置いたつもり**なので、
+ *    サーバを作り直した日に全部消えるまで気づけない。
+ * 🚨 compose は `${VAR:-}` で**空文字を渡す**ため、「未設定」と「空文字」が区別できない。
+ *    そのため readEnv は trim して空を捨て、**空白だけの値も未設定として扱う**。
+ *
+ * 返すのは**環境変数の名前だけ**。値は返さない（AGENTS.md §3.7）。
+ */
+function missingS3Settings(): string[] {
+  const missing: string[] = [];
+  if (!readEnv("S3_ENDPOINT") && !readEnv("R2_ACCOUNT_ID")) missing.push("S3_ENDPOINT");
+  if (!readEnv("S3_BUCKET") && !readEnv("R2_BUCKET")) missing.push("S3_BUCKET");
+  if (!readEnv("S3_ACCESS_KEY_ID") && !readEnv("R2_ACCESS_KEY_ID")) missing.push("S3_ACCESS_KEY_ID");
+  if (!readEnv("S3_SECRET_ACCESS_KEY") && !readEnv("R2_SECRET_ACCESS_KEY")) {
+    missing.push("S3_SECRET_ACCESS_KEY");
+  }
+  return missing;
+}
+
+/** S3 の設定が「1つでも書かれている」か（＝使うつもりがあったか）。 */
+function hasAnyS3Setting(): boolean {
+  return [
+    "S3_ENDPOINT",
+    "S3_BUCKET",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+    "S3_REGION",
+    "S3_KEY_PREFIX",
+    "R2_ACCOUNT_ID",
+    "R2_BUCKET",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+  ].some((name) => readEnv(name) !== undefined);
+}
+
+export type StorageStatus = {
+  /** いま**書き込んでいる**保管先。 */
+  driver: "local" | "s3";
+  /** S3 のときのバケット名。秘密ではないので出してよい。 */
+  bucket: string | null;
+  /** エンドポイントの**ホスト名だけ**。鍵も署名も含まない。 */
+  endpointHost: string | null;
+  /** 🚨 S3 を設定しかけて、要件を満たさずローカルへ落ちている状態。 */
+  misconfigured: boolean;
+  /** 足りない環境変数の**名前**（値は入れない）。 */
+  missing: string[];
+};
+
+/**
+ * 画面や診断に出すための、いまの保管先の状態。
+ * 🚨 **アクセスキーは返さない**（伏せ字でも返さない）。設定画面へ出すのはここまで。
+ */
+export function getStorageStatus(): StorageStatus {
+  const env = readS3Env();
+  if (env) {
+    let endpointHost: string | null = null;
+    try {
+      endpointHost = new URL(env.endpoint).host;
+    } catch {
+      // 形が壊れていても、ここで落とさない（表示のための情報でしかない）。
+      endpointHost = null;
+    }
+    return {
+      driver: "s3",
+      bucket: env.bucket,
+      endpointHost,
+      misconfigured: false,
+      missing: [],
+    };
+  }
+  const misconfigured = hasAnyS3Setting();
+  return {
+    driver: "local",
+    bucket: null,
+    endpointHost: null,
+    misconfigured,
+    missing: misconfigured ? missingS3Settings() : [],
+  };
+}
+
+// 🚨 警告は**1度だけ**出す。getStorage はリクエストごとに呼ばれるので、
+//    毎回出すとログが埋まり、かえって読まれなくなる。
+let warnedAboutPartialConfig = false;
+
+/** 今の設定で使う保管先。**書き込み先はこれ**。 */
 export function getStorage(): StorageDriver {
   const env = readS3Env();
   if (env) return createS3Storage(env);
+
+  // 🚨 「設定したつもりで空だった」をここで気づかせる。
+  //    ただし**落とさない**（起動時に外部依存でアプリを止めない）。接続の確認は使うときまで待つ。
+  if (!warnedAboutPartialConfig && hasAnyS3Setting()) {
+    warnedAboutPartialConfig = true;
+    console.warn(
+      "[storage] S3 の設定が途中までしか埋まっていないため、ローカルへ保存します。" +
+        `足りない環境変数: ${missingS3Settings().join(", ")}`,
+    );
+  }
   return createLocalStorage();
+}
+
+/**
+ * **保存したときの保管先**を名前から取る（読み出し・削除に使う）。
+ *
+ * 🚨 書き込みは `getStorage()`（今の設定）、読み出しと削除は **`directus_files.storage` に
+ *    記録された保管先**で行う。混ぜると次が起きる:
+ *
+ *    ・ローカルで運用 → 後から S3 を設定 → **過去のファイルが全部読めなくなる**
+ *    ・S3 へ切り替えた後にローカル時代のファイルを削除 → **S3 を見て何も消えず、ゴミが残る**
+ *      （利用者は消したつもりでいる）
+ *
+ * 設定が外れていて解決できないときは **null を返す**。呼び出し側で「保管先が無い」と
+ * はっきり失敗させること。今の設定で代わりに読むと、別の場所を見て 404 になり原因が消える。
+ */
+export function getStorageByName(name: string): StorageDriver | null {
+  if (name === "local") return createLocalStorage();
+  if (name === "s3") {
+    const env = readS3Env();
+    return env ? createS3Storage(env) : null;
+  }
+  return null;
 }

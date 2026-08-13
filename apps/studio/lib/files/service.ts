@@ -14,7 +14,8 @@ import {
 import { ApiError } from "@/lib/schema/errors";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { RelationMeta } from "@/lib/schema/models";
-import { getStorage } from "@/lib/storage";
+import { getStorage, getStorageByName } from "@/lib/storage";
+import type { StorageDriver } from "@/lib/storage/driver";
 
 const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
 const MAX_TRANSFORM_DIMENSION = 4000;
@@ -53,6 +54,104 @@ const DANGEROUS_INLINE_EXT = new Set([
   ".html", ".htm", ".xhtml", ".svg", ".xml", ".mhtml",
 ]);
 
+/**
+ * アップロード時に作る「配信用の圧縮版」の設定。
+ *
+ * 🚨 **元のファイルは消さない。** 圧縮の設定（品質・形式・長辺）は後で必ず変わるし、
+ *    「圧縮しすぎた」は見て気づくまで時間がかかる。**元があれば作り直せる。**
+ *    「後から元を捨てる」は選べるが「捨てた元を取り戻す」は選べない。
+ *
+ * 実測（4000x3000 の画像・ffmpeg mandelbrot の合成画像）:
+ *   PNG  4554KB → webp q80 長辺2000 で **109KB（2.4%）** 214ms
+ *   JPEG 1433KB → 同上           **110KB（7.7%）** 149ms
+ *   avif q50 は 78KB とさらに小さいが **2.6倍遅い**ので既定にしない。
+ */
+const COMPRESS_MAX_DIMENSION = 2000;
+const COMPRESS_QUALITY = 80;
+
+/**
+ * 圧縮の対象にする形式（sharp が読んだ実際の形式で判定する。申告 MIME を信じない）。
+ * 🚨 **svg は入れない。** §3.4 で attachment を強制している当のファイルを
+ *    サーバ側でラスタライズすることになるため（外部参照を辿る経路ができる）。
+ */
+const COMPRESSIBLE_FORMAT = new Set(["jpeg", "png", "webp", "avif", "gif", "tiff"]);
+
+/** 配信用の圧縮版のキー。元と同じ `<uuid>/` の下に置くので、削除は今までどおり前方一致で消える。 */
+function compressedKey(id: string): string {
+  return `${id}/compressed.webp`;
+}
+
+/**
+ * 配信用の圧縮版を作る。作れない・作る意味がないときは **null**（＝元をそのまま使う）。
+ *
+ * 🚨 実測で見つけた、壊れやすい点をすべてここで塞いでいる:
+ *  1. **animated: true で読む**。付けないとアニメ GIF が **10コマ → 1コマ**になる（実測）
+ *  2. **必ず .rotate() を通す**。付けないと EXIF の向き情報が出力時に消え、**横倒しで固定**される（実測）
+ *  3. **出力は WebP。JPEG にしない**。JPEG は**透過が消える**（実測。webp / avif は残る）
+ *  4. **元より小さくならなければ使わない**。既に webp の小さい画像は 158B → 158B で得がなかった（実測）
+ */
+export async function compressImage(
+  body: Buffer,
+  format: string | null,
+): Promise<{ buffer: Buffer; contentType: string } | null> {
+  if (!format || !COMPRESSIBLE_FORMAT.has(format)) return null;
+  try {
+    const compressed = await sharp(body, { animated: true })
+      .rotate()
+      .resize({
+        width: COMPRESS_MAX_DIMENSION,
+        height: COMPRESS_MAX_DIMENSION,
+        fit: "inside",
+        // 🚨 小さい画像を引き伸ばさない（画質を落として容量だけ増える）。
+        withoutEnlargement: true,
+      })
+      .webp({ quality: COMPRESS_QUALITY })
+      .toBuffer();
+    if (compressed.byteLength >= body.byteLength) return null;
+    return { buffer: compressed, contentType: "image/webp" };
+  } catch {
+    // 🚨 圧縮は「配信を軽くする飾り」。失敗してもアップロードは成功させる。
+    return null;
+  }
+}
+
+/**
+ * 読み込み中に出す「ぼかした極小画像」を作る。作れないときは **null**。
+ *
+ * 🚨 **なぜ事前に作るか**: 読み込み中に出すものなので、**その時点で無いと意味がない**。
+ *    オンデマンドだと取りに行く時間が発生し、プレースホルダの意味が消える。
+ *    （サムネは 200px で 16ms なのでオンデマンドのままでよい。実測して確かめた）
+ *
+ * 🚨 **BlurHash を使わない**: 文字列は短い（20-30バイト）が、**クライアントにデコードの
+ *    ライブラリが要る**。極小 WebP の base64 は **142B / dataUrl 215文字**（実測）で、
+ *    差は数百バイトしかなく、`<img src="data:…">` でそのまま出せる。**追加依存ゼロ**。
+ *
+ * 出力は `data:image/webp;base64,…`。next/image の `blurDataURL` にそのまま渡せる。
+ */
+const BLUR_DIMENSION = 20;
+const BLUR_QUALITY = 50;
+
+export async function createBlurDataUrl(
+  body: Buffer,
+  format: string | null,
+): Promise<string | null> {
+  // 🚨 圧縮と同じ判定を使う（SVG を除く画像だけ）。ここを別々にすると片方だけ穴が開く。
+  if (!format || !COMPRESSIBLE_FORMAT.has(format)) return null;
+  try {
+    const blurred = await sharp(body)
+      // 🚨 向きを反映する。付けないと、ぼかしだけ横倒しになって本画像と入れ替わる瞬間に飛ぶ。
+      .rotate()
+      .resize(BLUR_DIMENSION, BLUR_DIMENSION, { fit: "inside" })
+      .blur(1)
+      .webp({ quality: BLUR_QUALITY })
+      .toBuffer();
+    return `data:image/webp;base64,${blurred.toString("base64")}`;
+  } catch {
+    // 🚨 飾りのために本体を落とさない。生成に失敗してもアップロードは成功させる。
+    return null;
+  }
+}
+
 type ResizeFit = "cover" | "contain" | "inside" | "outside";
 
 type FileRow = {
@@ -79,7 +178,27 @@ type FileRow = {
   metadata: unknown;
   focal_point_x: number | null;
   focal_point_y: number | null;
+  /** 読み込み中に出すぼかし画像（data:image/webp;base64,…）。画像でないもの・SVG では null。 */
+  blur_data_url: string | null;
+  /** 配信用の圧縮版のキー。null なら圧縮版なし（元をそのまま配信する）。 */
+  compressed_key: string | null;
 };
+
+/**
+ * API で返してよい形。
+ *
+ * 🚨 **`compressed_key` を外している。** 保管先の中のキー構造（どこに何が置いてあるか）は
+ *    利用者に要らない情報で、出すと**バケットの中身の当て方の手がかり**になる。
+ *    ぼかし（blur_data_url）は表示のための公開情報なので、そのまま返してよい。
+ */
+export type PublicFileRow = Omit<FileRow, "compressed_key">;
+
+function toPublicFile(row: FileRow): PublicFileRow {
+  // compressed_key だけを落とす（他の列は今までどおり返す）。
+  const publicFields: PublicFileRow & { compressed_key?: string | null } = { ...row };
+  delete publicFields.compressed_key;
+  return publicFields;
+}
 
 type FolderRow = {
   id: string;
@@ -97,6 +216,12 @@ export type UploadFileInput = {
   description?: string | null;
   tags?: string | null;
   folder?: string | null;
+  /**
+   * 配信用の圧縮版を作るか。**既定は作る**（省略時 true）。
+   * 🚨 false にしても元は変わらない（元はどちらでもそのまま保存される）。
+   *    切ると配信が重くなるだけで、失うものは無い。
+   */
+  compress?: boolean;
 };
 
 export type ListInput = {
@@ -125,7 +250,8 @@ export type TransformInput = {
   quality?: string | null;
 };
 
-function actorUserId(actor: Actor): string {
+function actorUserId(actor: Actor | null): string | null {
+  if (!actor) return null;
   return actor.type === "human" ? actor.userId : actor.onBehalfOf;
 }
 
@@ -176,18 +302,31 @@ async function imageMetadata(buffer: Buffer): Promise<{
   width: number | null;
   height: number | null;
   type: string | null;
+  /** sharp が読み取った実際の形式（jpeg / png / gif / webp …）。圧縮の可否判定に使う。 */
+  format: string | null;
 }> {
   try {
     const metadata = await sharp(buffer).metadata();
     const format = metadata.format;
     const mime = format === "jpeg" ? "image/jpeg" : `image/${format}`;
+    // 🚨 EXIF の向きが 5〜8 のとき、metadata() が返す寸法は**回す前**のもの。
+    // 配信側は必ず .rotate() を通す（＝画素が起きる）ので、そのまま保存すると
+    // **DB の寸法と実際に表示される画素が縦横逆**になる。
+    // <Image width height> に渡す値なので、ずれると読み込み時に画面が飛び跳ねる。
+    // 実測: orientation=6 の 200x100 → metadata() は 200x100、配信される画素は 100x200。
+    // （sharp 0.35.3 の autoOrient 指定では metadata() の寸法は変わらなかった）
+    const orientation = metadata.orientation ?? 1;
+    const swapped = orientation >= 5 && orientation <= 8;
+    const width = swapped ? metadata.height : metadata.width;
+    const height = swapped ? metadata.width : metadata.height;
     return {
-      width: metadata.width ?? null,
-      height: metadata.height ?? null,
+      width: width ?? null,
+      height: height ?? null,
       type: SUPPORTED_TRANSFORM_MIME.has(mime) ? mime : null,
+      format: format ?? null,
     };
   } catch {
-    return { width: null, height: null, type: null };
+    return { width: null, height: null, type: null, format: null };
   }
 }
 
@@ -248,7 +387,29 @@ function ensureStoredFile(row: FileRow): string {
   return row.filename_disk;
 }
 
-export async function uploadFile(actor: Actor, input: UploadFileInput): Promise<FileRow> {
+/**
+ * 🚨 その行を**保存したときの保管先**を返す。今の設定（getStorage）で読まないこと。
+ *
+ * directus_files.storage には保存時のドライバ名（local / s3）が入っている。
+ * これを見ずに今の設定で読むと、**ローカル運用のまま後から S3 を設定した瞬間に
+ * 過去のファイルが全部 404 になる**（切り替えるまで誰も気づけない壊れ方）。
+ */
+function storageForRow(row: FileRow): StorageDriver {
+  const storage = getStorageByName(row.storage);
+  if (!storage) {
+    // 例: S3 に置いたファイルなのに S3 の設定が外れている。
+    // 今の設定で代わりに読むと「別の場所を見て 404」になり、原因が分からなくなるので、
+    // 保管先が無いことをそのまま失敗として返す。**設定値そのものは出さない**（AGENTS.md §3.7）。
+    throw new ApiError(
+      503,
+      "STORAGE_UNAVAILABLE",
+      "このファイルの保管先が設定されていません",
+    );
+  }
+  return storage;
+}
+
+export async function uploadFile(actor: Actor | null, input: UploadFileInput): Promise<PublicFileRow> {
   if (input.body.byteLength > MAX_UPLOAD_SIZE) {
     throw new ApiError(413, "FILE_TOO_LARGE", "ファイルサイズは50MB以下にしてください");
   }
@@ -263,6 +424,27 @@ export async function uploadFile(actor: Actor, input: UploadFileInput): Promise<
   const now = new Date().toISOString();
 
   await storage.put(key, input.body, contentType);
+
+  // 🚨 配信用の圧縮版とぼかし画像。**失敗してもアップロードは落とさない**
+  //    （飾りのために本体を壊さない）。元のファイルは上で保存済みなので、ここで何が起きても元は無傷。
+  let storedCompressedKey: string | null = null;
+  if (input.compress !== false) {
+    try {
+      const compressed = await compressImage(input.body, detected.format);
+      if (compressed) {
+        await storage.put(compressedKey(id), compressed.buffer, compressed.contentType);
+        // 🚨 置けてから記録する。先に記録すると「あるはずなのに無い」行ができる。
+        storedCompressedKey = compressedKey(id);
+      }
+    } catch {
+      // 保存にも失敗したら圧縮版なしで続ける（配信は元にフォールバックする）。
+      storedCompressedKey = null;
+    }
+  }
+
+  // 🚨 ぼかしは圧縮のトグルと**独立**。圧縮を切っても読み込み中の表示は要る。
+  const blurDataUrl = await createBlurDataUrl(input.body, detected.format);
+
   try {
     const [row] = await db<FileRow>("directus_files")
       .insert({
@@ -282,16 +464,18 @@ export async function uploadFile(actor: Actor, input: UploadFileInput): Promise<
         height: detected.height,
         description: input.description ?? null,
         tags: input.tags ?? null,
+        blur_data_url: blurDataUrl,
+        compressed_key: storedCompressedKey,
       })
       .returning("*");
-    return row;
+    return toPublicFile(row);
   } catch (error) {
     await storage.delete(key);
     throw error;
   }
 }
 
-export async function listFiles(actor: Actor, input: ListInput): Promise<FileRow[]> {
+export async function listFiles(actor: Actor, input: ListInput): Promise<PublicFileRow[]> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_files", "read");
   const relations = permission.rowFilter ? await relationRows() : [];
@@ -305,21 +489,21 @@ export async function listFiles(actor: Actor, input: ListInput): Promise<FileRow
     query.where("folder", input.folder);
   }
   applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
-  return query;
+  return (await query).map(toPublicFile);
 }
 
-export async function getFile(actor: Actor, id: string): Promise<FileRow> {
+export async function getFile(actor: Actor, id: string): Promise<PublicFileRow> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_files", "read");
   const relations = permission.rowFilter ? await relationRows() : [];
-  return findFile(id, permission.rowFilter, schemaOverview, relations);
+  return toPublicFile(await findFile(id, permission.rowFilter, schemaOverview, relations));
 }
 
 export async function updateFile(
   actor: Actor,
   id: string,
   body: Record<string, unknown>,
-): Promise<FileRow> {
+): Promise<PublicFileRow> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_files", "update");
   const relations = permission.rowFilter ? await relationRows() : [];
@@ -355,7 +539,7 @@ export async function updateFile(
   if (!row) {
     throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
   }
-  return row;
+  return toPublicFile(row);
 }
 
 export async function deleteFile(actor: Actor, id: string): Promise<void> {
@@ -364,7 +548,9 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
   const relations = permission.rowFilter ? await relationRows() : [];
   const row = await findFile(id, permission.rowFilter, schemaOverview, relations);
   const key = ensureStoredFile(row);
-  const storage = getStorage();
+  // 🚨 削除も**保存したときの保管先**へ。今の設定で消すと、切り替え前のファイルが
+  //    消えずに残る（利用者は消したつもりでいる）。
+  const storage = storageForRow(row);
   if (storage.deletePrefix) {
     await storage.deletePrefix(`${id}/`);
   } else {
@@ -454,8 +640,8 @@ function safeDeliveryHeaders(type: string | null, filename: string): {
   return { contentType, contentDisposition, contentTypeOptions: "nosniff" };
 }
 
-async function bufferFromStorage(key: string): Promise<Buffer> {
-  const body = await getStorage().get(key);
+async function bufferFromStorage(storage: StorageDriver, key: string): Promise<Buffer> {
+  const body = await storage.get(key);
   if (Buffer.isBuffer(body)) return body;
   return Buffer.from(await new Response(body).arrayBuffer());
 }
@@ -478,8 +664,36 @@ export async function getAsset(actor: Actor, id: string, input: TransformInput):
       input.quality,
   );
 
+  // 🚨 変換キャッシュの読み書きも、元と**同じ保管先**で行う。
+  //    今の設定で書くと「元は local・キャッシュは s3」というちぐはぐになり、
+  //    head と get が別の場所を見る。
+  const storage = storageForRow(row);
+
+  // 🚨 サイズの指定が無いときは、**アップロード時に作った圧縮版**を優先して返す。
+  //    これが「配信を軽くする」の本体。指定があるときは元から変換する（品質を落とさないため）。
+  //
+  //    圧縮版が「有るか」は head で見ている。DB に列を持てば往復を1回減らせるが、
+  //    **列を足さずに動く**ことを優先した（キーの有無がそのまま「圧縮したか」を表す）。
+  //    🚨 SVG / HTML には圧縮版を作らないので、ここは必ず素通りして元が返る
+  //       （＝ attachment の判定はそのまま効く）。
+  if (!hasTransformParams && row.compressed_key) {
+    try {
+      const body = await bufferFromStorage(storage, row.compressed_key);
+      return {
+        body,
+        contentType: "image/webp",
+        contentLength: body.byteLength,
+        // 圧縮版が作られるのは画像だけなので attachment は付かないが、nosniff は必ず付ける。
+        contentTypeOptions: originalHeaders.contentTypeOptions,
+      };
+    } catch {
+      // 🚨 圧縮版が消えていても（手で消した・移行の取りこぼし）**元から配信を続ける**。
+      //    ここで落とすと、飾りが無いだけでファイルが見えなくなる。
+    }
+  }
+
   if (!hasTransformParams || !row.type || !SUPPORTED_TRANSFORM_MIME.has(row.type)) {
-    const body = await bufferFromStorage(originalKey);
+    const body = await bufferFromStorage(storage, originalKey);
     return {
       body,
       contentType: originalHeaders.contentType,
@@ -501,11 +715,10 @@ export async function getAsset(actor: Actor, id: string, input: TransformInput):
   });
   const hash = createHash("sha256").update(normalized).digest("hex");
   const transformedKey = `${id}/transformed/${hash}.${output.ext}`;
-  const storage = getStorage();
   const cached = await storage.head(transformedKey);
 
   if (cached) {
-    const body = await bufferFromStorage(transformedKey);
+    const body = await bufferFromStorage(storage, transformedKey);
     return {
       body,
       contentType: output.mime,
@@ -514,7 +727,7 @@ export async function getAsset(actor: Actor, id: string, input: TransformInput):
     };
   }
 
-  const original = await bufferFromStorage(originalKey);
+  const original = await bufferFromStorage(storage, originalKey);
   let pipeline = sharp(original).rotate();
   if (width || height) {
     pipeline = pipeline.resize({ width, height, fit, withoutEnlargement: false });

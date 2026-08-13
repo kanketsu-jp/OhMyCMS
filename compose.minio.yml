@@ -1,13 +1,34 @@
 # S3 互換ストレージの検証用（MinIO）。**本番構成には持ち込まない。**
 #
-#   docker compose -f compose.yml -f compose.minio.yml up -d
+#   立てる:  docker compose -p ohmycms-verify -f compose.minio.yml up -d
+#   落とす:  docker compose -p ohmycms-verify -f compose.minio.yml down
 #
 # 🚨 なぜ要るか: R2 / GCS の鍵が無くても「**エンドポイントを外から与えれば動く**」ことを
 #   機械で確かめられるようにするため。以前は endpoint が R2 決め打ちで、
 #   GCS でも AWS S3 でも MinIO でも使えなかった（v1-B で外した）。
 #   ここが通れば「S3 互換クライアントとして正しい」ところまでは言える。
 #   GCS 固有の差異（DeleteObjects の可否など）は**鍵をもらうまで unverified**。
-name: ohmycms
+#
+# 🚨 **プロジェクト名を ohmycms から分けている**（-p ohmycms-verify）。実測で踏んだため:
+#   同じ `ohmycms` プロジェクトに置いていたところ、**別ペインの docker compose 操作
+#   （--remove-orphans）で ohmycms-minio が消え**、検証の途中で ECONNREFUSED になった。
+#   検証用のコンテナが本番スタックの操作に巻き込まれない形にする。
+#   （司令塔の決定 knowledge/decisions/shared-resources-are-exclusive.md の穴だった）
+#
+# 🚨 ただしネットワークは ohmycms 側に**相乗りする**（下の networks 参照）。
+#   分けてしまうと studio / studio-acc のコンテナから `minio:9000` で解決できなくなる。
+#   → 先に ohmycms スタック（compose.yml）を上げてからこちらを立てること。
+#
+# アプリ側への設定は**このファイルでは注入しない**。`.env` かシェルの環境変数で渡す:
+#   S3_ENDPOINT=http://minio:9000   ← 🚨 コンテナ内からは localhost ではなく compose のホスト名
+#   S3_BUCKET=ohmycms
+#   S3_ACCESS_KEY_ID=minioadmin
+#   S3_SECRET_ACCESS_KEY=minioadmin
+#   S3_REGION=us-east-1
+#   S3_FORCE_PATH_STYLE=true        ← MinIO はバケットをホスト名でなくパスで表す
+# compose.yml の x-app-env が既に ${S3_*} を読むので、studio には .env だけで届く。
+# ホスト（bun run dev / verify:s3）から叩くときは S3_ENDPOINT=http://localhost:3106。
+name: ohmycms-verify
 
 services:
   minio:
@@ -19,6 +40,7 @@ services:
       MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
     ports:
       # ポート規約 knowledge/decisions/port-allocation.md に合わせて 31xx 帯を使う。
+      # 3106 = MinIO API / 3107 = MinIO コンソール。
       - "${MINIO_PORT:-3106}:9000"
       - "${MINIO_CONSOLE_PORT:-3107}:9001"
     volumes:
@@ -44,20 +66,13 @@ services:
       "
     restart: "no"
 
-  studio:
-    environment:
-      # 🚨 コンテナ内からは localhost ではなく compose のホスト名で繋ぐ。
-      S3_ENDPOINT: http://minio:9000
-      S3_BUCKET: ${S3_BUCKET:-ohmycms}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
-      S3_REGION: us-east-1
-      # MinIO はバケットをホスト名でなくパスで表す。
-      S3_FORCE_PATH_STYLE: "true"
-      S3_KEY_PREFIX: ${S3_KEY_PREFIX:-}
-    depends_on:
-      minio-init:
-        condition: service_completed_successfully
+networks:
+  # 🚨 ohmycms スタックのネットワークへ相乗りする（external なので作りも消しもしない）。
+  #   これで studio / studio-acc から `minio:9000` で引ける。
+  #   compose.yml を先に上げていないと "network not found" で失敗する。
+  default:
+    name: ohmycms_default
+    external: true
 
 volumes:
   ohmycms-minio:

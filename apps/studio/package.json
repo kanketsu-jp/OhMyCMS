@@ -11,11 +11,20 @@
     "migrate:rollback": "bun node_modules/knex/bin/cli.js migrate:rollback --knexfile lib/db/knexfile.ts",
     "storybook": "storybook dev -p 3104 --exact-port --no-open --no-version-updates --disable-telemetry",
     "storybook:build": "storybook build --disable-telemetry",
-    "storybook:check": "node .storybook/check-stories.mjs"
+    "storybook:check": "node .storybook/check-stories.mjs",
+    "verify:s3": "bun run scripts/verify-s3-storage.ts",
+    "verify:compress": "bun run scripts/verify-compression.ts",
+    "migrate:storage": "bun run scripts/migrate-storage.ts",
+    "migrate:status": "bun node_modules/knex/bin/cli.js migrate:status --knexfile lib/db/knexfile.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1102.0",
     "@base-ui/react": "^1.6.0",
+    "@tiptap/extension-image": "3.30.1",
+    "@tiptap/extension-table": "3.30.1",
+    "@tiptap/pm": "3.30.1",
+    "@tiptap/react": "3.30.1",
+    "@tiptap/starter-kit": "3.30.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
