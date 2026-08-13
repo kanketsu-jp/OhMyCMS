@@ -1,4 +1,5 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { MailTestButton } from "@/components/admin/mail-test-button";
 import { SettingsManager } from "@/components/admin/settings-manager";
 import { apiFetch } from "@/lib/admin/api";
 import { getT } from "@/i18n/server";
@@ -20,7 +21,10 @@ export default async function GeneralSettingsPage() {
       </div>
 
       {result.ok ? (
-        <SettingsManager settings={result.data.data} />
+        <>
+          <SettingsManager settings={result.data.data} />
+          <MailTestButton />
+        </>
       ) : (
         <ErrorBanner message={result.message} />
       )}

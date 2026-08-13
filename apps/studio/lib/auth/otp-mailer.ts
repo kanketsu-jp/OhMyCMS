@@ -58,3 +58,16 @@ export async function sendLoginCodeMail(
     text: `確認コード: ${code}\n\nこのコードは10分間有効です。心当たりが無い場合はこのメールは無視してください。`,
   });
 }
+
+/**
+ * SMTP 設定の疎通確認用テストメール。
+ * 🚨 本文にコードは含めない。宛先は呼び出し側(APIルート)がログイン中の利用者のメールを渡す。
+ */
+export async function sendTestMail(config: MailConfig, to: string): Promise<void> {
+  await transporterFor(config).sendMail({
+    from: config.from,
+    to,
+    subject: "テスト送信です",
+    text: "これは OhMyCMS からのテスト送信です。このメールが届いていれば、確認コード（OTP）の送信に使う SMTP 設定は正しく動作しています。",
+  });
+}
