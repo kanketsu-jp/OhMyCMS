@@ -31,6 +31,9 @@ x-app-env: &app-env
   ALLOW_DEV_LOGIN: ${ALLOW_DEV_LOGIN:-}
   # コンテナ内の待ち受けポート。Dockerfile の PORT=3000 を上書きし、公開ポートと一致させる。
   PORT: ${STUDIO_PORT:-3101}
+  # 最初の管理者（seed サービスが1度だけ作る）。値はログに出さないこと。
+  OHMYCMS_ADMIN_EMAIL: ${OHMYCMS_ADMIN_EMAIL:-}
+  OHMYCMS_ADMIN_PASSWORD: ${OHMYCMS_ADMIN_PASSWORD:-}
   # 表示・ホワイトラベル。既定値はアプリ側にも持たせてあるので、ここは空で渡してよい
   # （空文字を渡してもアプリ側の既定 ja / OhMyCMS にフォールバックする）。
   OHMYCMS_DEFAULT_LOCALE: ${OHMYCMS_DEFAULT_LOCALE:-}
