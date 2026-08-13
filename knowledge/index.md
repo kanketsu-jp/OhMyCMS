@@ -39,6 +39,9 @@ x_rag_okf:
 ## 根拠アーカイブについて（このリポジトリには入っていない）
 
 `knowledge/decisions/*` の `## 根拠` は、前身プロジェクトの知見アーカイブ
+- `decisions/folders-are-not-owned.md` — フォルダは組織全体の整理棚として扱い、所有者で分離しない（Directus と同じ設計）
+- `decisions/i18n-own-implementation.md` — i18n はライブラリを使わず自前実装にする（next.config.ts の編集権が要らない形）
+- `decisions/v09-open-questions-answered.md` — v0.9 時点で堀池が決めた 6 件（ライセンス・配布・RLS・ホワイトラベル・rag-okf・旧PJ）
 `.temp/2026-08-13/knowledge-historys/`（ai-native-cms / directus-mscl / izukurasan）を
 参照していることがある。**このアーカイブは意図的にコミットしていない。**
 
