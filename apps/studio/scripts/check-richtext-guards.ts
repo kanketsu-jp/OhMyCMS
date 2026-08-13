@@ -120,7 +120,32 @@ for (const word of ["安", "太", "項目", "見出", "セル"]) {
   check(plain.includes(word), `プレーンテキストに「${word}」が無い`);
 }
 
-const total = hrefCases.length + srcCases.length + 22;
+// ── 自作ブロックの拡張点（受入基準3） ───────────────────────
+const blocks = sanitizeDocument({
+  type: "doc",
+  content: [
+    // 登録済み。宣言に無い属性を混ぜてある
+    { type: "demoBlock", attrs: { label: "見本の文字", onclick: "alert(1)", href: "javascript:alert(1)" } },
+    // 未登録
+    { type: "notRegisteredBlock", attrs: { label: "通ってはいけない" } },
+    { type: "paragraph", content: [{ type: "text", text: "通常の本文" }] },
+  ],
+} as RichTextDocument);
+
+const blockTypes = (blocks.content ?? []).map((node) => node.type);
+const demo = (blocks.content ?? []).find((node) => node.type === "demoBlock");
+const blocksPlain = toPlainText(blocks);
+
+check(blockTypes.includes("demoBlock"), "登録した自作ブロックが落ちた");
+check(!blockTypes.includes("notRegisteredBlock"), "登録していないブロックが通った");
+check(demo?.attrs?.label === "見本の文字", "宣言した属性が消えた");
+check(!(demo?.attrs && "onclick" in demo.attrs), "宣言に無い属性 onclick が残った");
+check(!(demo?.attrs && "href" in demo.attrs), "宣言に無い属性 href が残った");
+check(blocksPlain.includes("見本の文字"), "自作ブロックの文字が検索用に拾われていない");
+check(blocksPlain.includes("通常の本文"), "通常の本文まで消えた");
+check(!blocksPlain.includes("通ってはいけない"), "登録していないブロックの文字が拾われた");
+
+const total = hrefCases.length + srcCases.length + 22 + 8;
 if (failed > 0) {
   console.error(`\n本文ガード: ${failed} 件 FAILED`);
   process.exit(1);

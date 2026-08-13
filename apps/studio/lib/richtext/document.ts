@@ -8,6 +8,12 @@
  * 🚨 Next.js に依存させない（AGENTS.md §3.6）。React への変換は components 側が持つ。
  */
 
+import {
+  blockDefinition,
+  blockNames,
+  type RichTextBlockDefinition,
+} from "./blocks";
+
 /** doc に必ず持たせる版番号。ノードの形を変えたら上げて、逐次マイグレーションを書く */
 export const RICHTEXT_SCHEMA_VERSION = 1;
 
@@ -50,7 +56,7 @@ export type RichTextDocument = RichTextNode & {
  *
  * 見出しは editor 側で h2〜h4 に絞ってある（h1 は画面が持つ）。
  */
-const ALLOWED_NODE_TYPES = new Set([
+const BUILTIN_NODE_TYPES = [
   "doc",
   "paragraph",
   "text",
@@ -67,7 +73,13 @@ const ALLOWED_NODE_TYPES = new Set([
   "tableRow",
   "tableCell",
   "tableHeader",
-]);
+];
+
+/**
+ * 組み込み + 自作ブロック（`lib/richtext/blocks.ts` の登録簿）。
+ * 🚨 自作ブロックを増やすときに**このファイルは触らない**。登録簿に1件足すだけで通るようにしてある。
+ */
+const ALLOWED_NODE_TYPES = new Set([...BUILTIN_NODE_TYPES, ...blockNames()]);
 
 /**
  * 保存してよい装飾の種類。
@@ -171,6 +183,14 @@ function sanitizeNodes(nodes: RichTextNode[]): RichTextNode[] {
       continue;
     }
 
+    const block = blockDefinition(node.type);
+    if (block) {
+      // 自作ブロックは、登録簿が宣言した属性しか持てない。
+      // 宣言に無いキーは落とす（`onclick` のようなものを attrs に忍ばせられないように）
+      result.push({ ...node, attrs: sanitizeBlockAttrs(block, node.attrs) });
+      continue;
+    }
+
     const marks = node.marks?.filter((mark) => {
       if (!mark || !ALLOWED_MARK_TYPES.has(mark.type)) return false;
       if (mark.type !== "link") return true;
@@ -184,6 +204,36 @@ function sanitizeNodes(nodes: RichTextNode[]): RichTextNode[] {
     });
   }
 
+  return result;
+}
+
+/**
+ * 自作ブロックの属性を、登録簿の宣言どおりに削る。
+ * 宣言に無いキーは落とし、値の種類が合わないものも落とす。
+ */
+function sanitizeBlockAttrs(
+  block: RichTextBlockDefinition,
+  attrs: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  if (!attrs) return result;
+
+  for (const [key, kind] of Object.entries(block.attrs)) {
+    const value = attrs[key];
+    if (value === undefined || value === null) continue;
+
+    if (kind === "text") {
+      if (typeof value === "string") result[key] = value;
+      continue;
+    }
+    if (kind === "asset") {
+      if (isAllowedImageSrc(value)) result[key] = value;
+      continue;
+    }
+    if (kind === "url") {
+      if (isAllowedLinkHref(value)) result[key] = value;
+    }
+  }
   return result;
 }
 
@@ -204,6 +254,16 @@ export function toPlainText(doc: unknown): string {
 
 function collectText(node: RichTextNode, parts: string[]): void {
   if (typeof node.text === "string") parts.push(node.text);
+
+  // 🚨 自作ブロックは中に文字を持たない（atom）ので、放っておくと検索に出ない。
+  // 登録簿が `searchableAttrs` で指定した属性を、検索用の文字として拾う。
+  const block = blockDefinition(node.type);
+  if (block?.searchableAttrs) {
+    for (const key of block.searchableAttrs) {
+      const value = node.attrs?.[key];
+      if (typeof value === "string" && value !== "") parts.push(value, "\n");
+    }
+  }
 
   for (const child of node.content ?? []) {
     collectText(child, parts);

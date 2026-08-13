@@ -18,6 +18,7 @@ import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
+import { richTextBlockExtensions } from "@/components/admin/rich-text-blocks";
 import {
   Bold,
   Code,
@@ -153,6 +154,8 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
       // 画像は自分のアセット配信経路だけ。外部 URL は入れさせない
       TiptapImage.configure({ allowBase64: false }),
       TableKit.configure({ table: { resizable: false } }),
+      // 自作ブロック。増やすのは lib/richtext/blocks.ts の登録簿だけで済む
+      ...richTextBlockExtensions,
     ],
     content: initial,
     editorProps: {
