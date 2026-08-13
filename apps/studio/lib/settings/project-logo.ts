@@ -11,7 +11,11 @@ export async function projectLogo(): Promise<string | null> {
   try {
     const settings = await getSettings();
     const id = settings.project_logo?.trim();
-    if (id) return `/api/assets/${encodeURIComponent(id)}?width=64&fit=contain`;
+    // 🚨 `width` は**画面での最大幅 128px（max-w-32）の2倍**にしてある。
+    // 64 で配信すると、480x48 のような横長のロゴが **64x6** まで縮められ、
+    // それを 128px 幅で描くので**2倍に引き伸ばされてぼやける**（実測。高精細画面では4倍）。
+    // `fit=contain` は変えないこと。`cover` にすると横長のロゴが切れる。
+    if (id) return `/api/assets/${encodeURIComponent(id)}?width=256&fit=contain`;
     const url = process.env.OHMYCMS_PROJECT_LOGO_URL?.trim();
     return url && url.length > 0 ? url : null;
   } catch {
