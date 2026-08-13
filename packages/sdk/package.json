@@ -4,7 +4,9 @@
   "description": "OhMyCMS の REST API を型付きで叩くクライアント",
   "license": "UNLICENSED",
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,6 +15,23 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./next": {
+      "types": "./dist/next/index.d.ts",
+      "import": "./dist/next/index.js",
+      "require": "./dist/next/index.cjs"
+    }
+  },
+  "peerDependencies": {
+    "next": ">=15",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
     }
   },
   "engines": {
@@ -28,6 +47,9 @@
   "devDependencies": {
     "@types/node": "^22.19.2",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@types/react": "^19",
+    "next": "16.2.12",
+    "react": "19.2.4"
   }
 }

@@ -4,6 +4,9 @@
     "lib": ["ES2023", "DOM"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    // 🚨 src/next/ の .tsx を型検査・dts 生成するために要る。
+    //   react-jsx なので `import React` は不要（基礎側は JSX を使わないので影響しない）。
+    "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,

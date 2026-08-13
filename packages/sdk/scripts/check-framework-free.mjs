@@ -75,14 +75,35 @@ if (controlFailures.length > 0) {
 }
 
 // ── 本検査 ──
+// 🚨 **`src/next/` だけは依存してよい**（そこが Next.js 特化の入口だから）。
+//   それ以外に1行でも混ざると、素の HTML で使う人に React が付いてくる。
+//   → 「全体で禁止」ではなく「**境界の外側だけ禁止**」を見る。
+const NEXT_DIR = join(SRC, "next");
+const isNextEntry = (file) => file.startsWith(`${NEXT_DIR}/`);
+
 const violations = [];
+let nextDirImports = 0;
 for (const file of walk(SRC)) {
   const source = readFileSync(file, "utf8");
   for (const specifier of moduleSpecifiers(source)) {
-    if (isForbidden(specifier)) {
-      violations.push(`${relative(ROOT, file)} → ${specifier}`);
+    if (!isForbidden(specifier)) continue;
+    if (isNextEntry(file)) {
+      nextDirImports += 1;
+      continue;
     }
+    violations.push(`${relative(ROOT, file)} → ${specifier}`);
   }
+}
+
+// 🚨 **境界が空になっていないことも見る。**
+//   `src/next/` が react/next を1つも import していないなら、
+//   「依存が無い」のではなく**中身が消えている**か、検査が対象を取り違えている。
+//   （今日「対照そのものが壊れていた」を踏んだので、ここも空振りを検出する）
+if (nextDirImports === 0) {
+  console.error("🚨 src/next/ が react / next を1つも import していません。");
+  console.error("  Next.js 特化の入口なのに依存が無いのは、中身が消えているか、");
+  console.error("  この検査が対象を取り違えています。どちらも見逃してはいけない状態です。");
+  process.exit(1);
 }
 
 if (violations.length > 0) {
@@ -94,4 +115,7 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`✅ 基礎モジュールは react / next に依存していません（対照 ${control.length} 件も通過）`);
+console.log(
+  `✅ 基礎は react / next に依存していません（対照 ${control.length} 件も通過）。` +
+    ` src/next/ の ${nextDirImports} 件だけが依存しています（そこが境界）。`,
+);
