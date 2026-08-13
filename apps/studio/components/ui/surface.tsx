@@ -97,9 +97,13 @@ export function Surface({
           className={cn(
             "flex min-w-0 flex-col gap-4",
             padded && !nested && "px-0 py-4 @md/surface:p-4",
-            // SP（狭い器）ではカードにせず上下の Divider だけ。@md 以上で初めて面になる。
+            // SP（狭い器）ではカードにせず Divider だけ。@md 以上で初めて面になる。
+            // 🚨 `border-y`（上下）にすると、面を縦に並べたとき
+            // **下の線と次の面の上の線で2本**になる（オーナー指摘「区切りが重複している」）。
+            // 区切りは**面と面の境目に1本**あればよいので、上だけにする。
+            // 1箇所直せば全ページに効く。
             effectiveTone === "outline" &&
-              "border-y border-border @md/surface:rounded-xl @md/surface:border",
+              "border-t border-border @md/surface:rounded-xl @md/surface:border",
             effectiveTone === "muted" && "@md/surface:rounded-xl @md/surface:bg-muted/40",
             className,
           )}
