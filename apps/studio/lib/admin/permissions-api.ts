@@ -4,6 +4,7 @@ import { db } from "@/lib/db/knex";
 import { requireAdminAccess, type AdminCapability, type PermissionAction } from "@/lib/permissions/resolve";
 import { getTables } from "@/lib/schema/introspect";
 import { ApiError } from "@/lib/schema/errors";
+import { parseListRange, type ListRangeInput } from "@/lib/list-range";
 
 const actions = new Set<PermissionAction>(["read", "create", "update", "delete"]);
 
@@ -157,8 +158,10 @@ export async function assertRoleParentDoesNotCycle(roleId: string, parent: strin
   }
 }
 
-export async function listRoles(): Promise<RoleRow[]> {
-  return db<RoleRow>("directus_roles").select("*").orderBy("name");
+export async function listRoles(range: ListRangeInput = {}): Promise<RoleRow[]> {
+  // 🚨 全件取得を書かない（憲章 §4）。range を省いても既定の上限が効く。
+  const { limit, offset } = parseListRange(range);
+  return db<RoleRow>("directus_roles").select("*").orderBy("name").limit(limit).offset(offset);
 }
 
 export async function createRole(body: Record<string, unknown>): Promise<RoleRow> {
@@ -201,8 +204,9 @@ export async function deleteRole(id: string): Promise<void> {
   if (!deleted) throw new ApiError(404, "ROLE_NOT_FOUND", "ロールが見つかりません");
 }
 
-export async function listPolicies(): Promise<PolicyRow[]> {
-  return db<PolicyRow>("directus_policies").select("*").orderBy("name");
+export async function listPolicies(range: ListRangeInput = {}): Promise<PolicyRow[]> {
+  const { limit, offset } = parseListRange(range);
+  return db<PolicyRow>("directus_policies").select("*").orderBy("name").limit(limit).offset(offset);
 }
 
 export async function createPolicy(body: Record<string, unknown>): Promise<PolicyRow> {
@@ -244,8 +248,16 @@ export async function deletePolicy(id: string): Promise<void> {
   if (!deleted) throw new ApiError(404, "POLICY_NOT_FOUND", "ポリシーが見つかりません");
 }
 
-export async function listPermissions(policy?: string | null): Promise<PermissionRow[]> {
-  const query = db<PermissionRow>("directus_permissions").select("*").orderBy("id");
+export async function listPermissions(
+  policy?: string | null,
+  range: ListRangeInput = {},
+): Promise<PermissionRow[]> {
+  const { limit, offset } = parseListRange(range);
+  const query = db<PermissionRow>("directus_permissions")
+    .select("*")
+    .orderBy("id")
+    .limit(limit)
+    .offset(offset);
   if (policy) query.where({ policy });
   return query;
 }
@@ -312,7 +324,8 @@ function parseAccessTarget(body: Record<string, unknown>): { role: string | null
   return { role, user };
 }
 
-export async function listAccess(): Promise<AccessRow[]> {
+export async function listAccess(range: ListRangeInput = {}): Promise<AccessRow[]> {
+  const { limit, offset } = parseListRange(range);
   return db("directus_access")
     .leftJoin("directus_roles", "directus_access.role", "directus_roles.id")
     .leftJoin("directus_users", "directus_access.user", "directus_users.id")
@@ -328,7 +341,9 @@ export async function listAccess(): Promise<AccessRow[]> {
       { policy_name: "directus_policies.name" },
     ])
     .orderBy("directus_access.sort", "asc")
-    .orderBy("directus_access.id", "asc");
+    .orderBy("directus_access.id", "asc")
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function createAccess(body: Record<string, unknown>): Promise<AccessRow> {

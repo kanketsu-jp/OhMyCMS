@@ -1,6 +1,13 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { UsersPolicyManager } from "@/components/admin/users-policy-manager";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
+import { ListPagination } from "@/components/admin/list-pagination";
+import {
+  PAGE_SIZE,
+  currentPage,
+  pageHref,
+  splitPage,
+} from "@/components/admin/pagination-href";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -28,13 +35,33 @@ type AccessRow = {
   policy_name?: string | null;
 };
 
-export default async function UsersPage() {
+type Props = {
+  searchParams: Promise<{ page?: string }>;
+};
+
+export default async function UsersPage({ searchParams }: Props) {
   const t = await getT("users");
+  const query = await searchParams;
+  const page = currentPage(query.page);
+
+  // 🚨 ページを送るのは**割り当ての一覧（access）だけ**。
+  // users と policies は「誰に / どのポリシーを」を選ぶプルダウンの中身なので、
+  // ページで切ると**選べない相手が出る**。ここは既定の上限（100件）に任せる。
+  // 件数が増えたら、プルダウンを検索つき（@shadcn/combobox）に替えるのが筋で、
+  // ページ送りで切るのは筋が悪い。
+  const accessParams = new URLSearchParams({
+    limit: String(PAGE_SIZE + 1),
+    offset: String((page - 1) * PAGE_SIZE),
+  });
   const [usersResult, policiesResult, accessResult] = await Promise.all([
     apiFetch<{ data: UserRow[] }>("/api/users"),
     apiFetch<{ data: PolicyRow[] }>("/api/policies"),
-    apiFetch<{ data: AccessRow[] }>("/api/access"),
+    apiFetch<{ data: AccessRow[] }>(`/api/access?${accessParams.toString()}`),
   ]);
+  const { rows: access, hasNext } = splitPage(
+    accessResult.ok ? accessResult.data.data : [],
+    PAGE_SIZE,
+  );
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -55,7 +82,15 @@ export default async function UsersPage() {
           <UsersPolicyManager
             users={usersResult.data.data}
             policies={policiesResult.data.data}
-            access={accessResult.data.data}
+            access={access}
+          />
+        ) : null}
+        {accessResult.ok ? (
+          <ListPagination
+            page={page}
+            hasNext={hasNext}
+            prevHref={page > 1 ? pageHref("/admin/settings/users", query, page - 1) : null}
+            nextHref={hasNext ? pageHref("/admin/settings/users", query, page + 1) : null}
           />
         ) : null}
       </Surface>

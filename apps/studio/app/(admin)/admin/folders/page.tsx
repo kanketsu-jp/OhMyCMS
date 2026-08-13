@@ -1,5 +1,12 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FoldersManager } from "@/components/admin/folders-manager";
+import { ListPagination } from "@/components/admin/list-pagination";
+import {
+  PAGE_SIZE,
+  currentPage,
+  pageHref,
+  splitPage,
+} from "@/components/admin/pagination-href";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -10,9 +17,25 @@ type FolderRow = {
   parent: string | null;
 };
 
-export default async function FoldersPage() {
+type Props = {
+  searchParams: Promise<{ page?: string }>;
+};
+
+export default async function FoldersPage({ searchParams }: Props) {
   const t = await getT("folders");
-  const result = await apiFetch<{ data: FolderRow[] }>("/api/folders");
+  const query = await searchParams;
+  const page = currentPage(query.page);
+
+  // 🚨 全件は取らない（憲章 §4）。1件だけ多く取って「次があるか」を判定し、描くときに切り落とす。
+  const params = new URLSearchParams({
+    limit: String(PAGE_SIZE + 1),
+    offset: String((page - 1) * PAGE_SIZE),
+  });
+  const result = await apiFetch<{ data: FolderRow[] }>(`/api/folders?${params.toString()}`);
+  const { rows: folders, hasNext } = splitPage(
+    result.ok ? result.data.data : [],
+    PAGE_SIZE,
+  );
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -23,7 +46,15 @@ export default async function FoldersPage() {
       <ErrorBanner message={!result.ok ? result.message : null} />
       <Surface>
         <SurfaceTitle>{t("management_title")}</SurfaceTitle>
-        {result.ok ? <FoldersManager folders={result.data.data} /> : null}
+        {result.ok ? <FoldersManager folders={folders} /> : null}
+        {result.ok ? (
+          <ListPagination
+            page={page}
+            hasNext={hasNext}
+            prevHref={page > 1 ? pageHref("/admin/folders", query, page - 1) : null}
+            nextHref={hasNext ? pageHref("/admin/folders", query, page + 1) : null}
+          />
+        ) : null}
       </Surface>
     </div>
   );
