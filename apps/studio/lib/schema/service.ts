@@ -1,7 +1,7 @@
 import { db } from "@/lib/db/knex";
 import type { Knex } from "knex";
 import { ApiError } from "./errors";
-import { getColumns, getSchemaOverview } from "./introspect";
+import { getColumns, getSchemaOverview, getTables } from "./introspect";
 import type {
   CollectionMeta,
   CollectionResult,
@@ -361,6 +361,34 @@ export async function listCollections(includeSystem: boolean): Promise<Collectio
     .filter((name) => includeSystem || !isSystemTableName(name))
     .sort()
     .map((name) => composeCollection(name, metaByCollection, schemaOverview));
+}
+
+/**
+ * 名前だけを返す軽い一覧。
+ *
+ * 🚨 なぜ別に用意するか:
+ * `listCollections` は `getSchemaOverview()` を呼ぶ。これは
+ * **`information_schema.columns` を主キー・外部キーの副問い合わせと結合して全テーブル分読む**。
+ * サイドバーは名前しか描画しないのに、**管理画面のどのページを開いてもこれが毎回走っていた**。
+ *
+ * 🚨 **件数を絞るだけでは軽くならない。** 返す数を 20 件にしても、
+ * `getSchemaOverview()` は**全テーブルの全列を読んだあと**で捨てるだけだから。
+ * 読む対象そのものを `information_schema.tables` に落とす必要がある。
+ */
+export async function listCollectionNames(
+  includeSystem: boolean,
+): Promise<{ collection: string }[]> {
+  const [tables, metaByCollection] = await Promise.all([
+    getTables(),
+    getCollectionMetaMap(),
+  ]);
+
+  const names = new Set([...tables, ...Array.from(metaByCollection.keys())]);
+
+  return Array.from(names)
+    .filter((name) => includeSystem || !isSystemTableName(name))
+    .sort()
+    .map((collection) => ({ collection }));
 }
 
 export async function getCollection(

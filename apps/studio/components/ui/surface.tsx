@@ -85,7 +85,11 @@ export function Surface({
         外側の div でコンテナを宣言し、内側の section が @md/surface: に反応する。
         （1枚にまとめると SP スタイルのまま固定される。実測で確認済み）
       */}
-      <div className="@container/surface min-w-0">
+      {/* 🚨 幅を必ず持たせる。ここに幅が無いと、flex の子として置かれた面が **0px** になる。
+          内側の section は `w-full`（＝親の幅いっぱい）なので、親が 0 なら 0 のまま。
+          実際に /login が幅 0 になり、文字が1文字ずつ縦に並んだ（2026-08-13）。
+          中央寄せが要る画面は、内側へ `mx-auto` を渡す（className は section に届く）。 */}
+      <div className="@container/surface w-full min-w-0">
         <section
           data-slot="surface"
           data-surface-depth={depth + 1}

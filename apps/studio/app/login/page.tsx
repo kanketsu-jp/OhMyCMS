@@ -15,7 +15,7 @@ export default async function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-10">
       <LocaleSwitcher className="fixed right-4 top-4" />
-      <Surface className="w-full max-w-sm">
+      <Surface className="mx-auto w-full max-w-sm">
         <SurfaceTitle>{brand}</SurfaceTitle>
         <SurfaceDescription>{t("subtitle")}</SurfaceDescription>
         <Link

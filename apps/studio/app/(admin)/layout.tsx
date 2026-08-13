@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
-import type { CollectionResult } from "@/lib/schema/models";
 import { apiFetch, currentUser } from "@/lib/admin/api";
 import { GlobalSearch } from "@/components/admin/global-search";
 import { LocaleSwitcher } from "@/components/admin/locale-switcher";
@@ -37,8 +36,10 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
+  // 🚨 サイドバーは名前しか描かない。全列のスキーマを引くと、
+  // 管理画面のどのページを開いても information_schema の全走査が走る（?names=true で避ける）。
   const collections = me.ok
-    ? await apiFetch<CollectionResult[]>("/api/collections")
+    ? await apiFetch<{ collection: string }[]>("/api/collections?names=true")
     : null;
 
   return (
