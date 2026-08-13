@@ -155,6 +155,27 @@ export async function check(context) {
       "SAML_REPLAY"),
   );
 
+  // ── 🔴 オープンリダイレクト（saml が引き渡し後に見つけた穴の回帰検査）──
+  // 🚨 **RelayState は IdP を往復して戻る＝攻撃者が値を決められる**。
+  //   戻り先の検査に「/ で始まり // でない」だけを使っていて **3通り抜けていた**:
+  //     "/\evil.com" / "/\/evil.com"（特別なスキームでは \ が / として解釈される）
+  //     "/..//evil.com"（正規化されて //evil.com になる）
+  //   → 「ログインしたら偽サイトに着く」が作れていた（修正 9d6dab8）。
+  //   **ACS 側が本丸**（IdP を経由して来るので）。login 側だけ塞いでも足りない。
+  //   🚨 対照つき: 正しい戻り先（/admin/collections）は**そのまま通る**ことも見る。
+  //     これが無いと「全部 /admin に潰している」だけでも緑になる。
+  const redirects = await run("python3", [join(SAML_DIR, "redirect-checks.py")], {
+    env, cwd: REPO_ROOT, timeoutMs: 180_000,
+  });
+  const redirectOk = redirects.code === 0 && /すべて期待どおり/.test(redirects.stdout);
+  const redirectCount = (redirects.stdout.match(/✅/g) ?? []).length;
+  assertions.push(
+    assertion("negative", "戻り先を細工しても外部サイトへ出せない（login と ACS の両方）",
+      redirectOk, redirectOk ? `${redirectCount} 件すべて期待どおり`
+        : (redirects.stderr || redirects.stdout).slice(-160),
+      "全件通過"),
+  );
+
   details.push(
     "🚨 **実物の IdP（Entra ID / Google Workspace）は未確認**（unverified）。",
     "  ここで通ったのは **Keycloak（モック）まで**です。テナントが要ります。",
