@@ -1,5 +1,4 @@
 {
-  "default_password_warning": "既定のパスワードのままです。オンボーディング完了後にログイン用パスワードを変更してください。",
   "description": "あとから設定画面で変更できます。",
   "done_description": "次のものは、あとから変えられます。",
   "done_later": "あとで設定できるようになります",
@@ -16,6 +15,7 @@
   "logo_help": "管理画面のヘッダに表示されます。",
   "logo_label": "ロゴ",
   "logo_uploading": "アップロードしています...",
+  "new_password_default_note": "いまは既定のパスワードのままです。ここで決めた値に変わります。",
   "new_password_help": "8文字以上で入力してください。",
   "new_password_label": "新しいパスワード",
   "optional_heading": "あとでも変えられます",

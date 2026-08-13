@@ -32,11 +32,15 @@ export default async function OnboardingPage() {
           <h1 className="text-xl font-semibold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
-        {showDefaultPasswordWarning ? (
-          <p className="text-sm text-destructive">{t("default_password_warning")}</p>
-        ) : null}
         <hr className="border-0 border-t border-border" />
-        <OnboardingForm defaultProjectName={settings.project_name} />
+        {/* 🚨 「既定のパスワードのまま」の表示は、**フォーム側が持つ**。
+            ここ（Server Component）で描くと、完了へ切り替わったあとも消えない。
+            切り替えはクライアントが持っているので、サーバは再実行されない。
+            → **状態を変える場所と、それを表示する場所を一致させる**（design 指摘・2026-08-13）。 */}
+        <OnboardingForm
+          defaultProjectName={settings.project_name}
+          usingDefaultPassword={showDefaultPasswordWarning}
+        />
       </div>
     </main>
   );

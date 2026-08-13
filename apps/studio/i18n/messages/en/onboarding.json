@@ -1,5 +1,4 @@
 {
-  "default_password_warning": "The default password is still in use. Change the login password after onboarding is complete.",
   "description": "You can change these later in settings.",
   "done_description": "You can change these later.",
   "done_later": "You will be able to configure this later.",
@@ -16,6 +15,7 @@
   "logo_help": "Displayed in the admin header.",
   "logo_label": "Logo",
   "logo_uploading": "Uploading...",
+  "new_password_default_note": "The default password is still in use. It will be replaced by the value you set here.",
   "new_password_help": "Use at least 8 characters.",
   "new_password_label": "New password",
   "optional_heading": "You can change these later",

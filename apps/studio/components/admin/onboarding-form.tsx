@@ -22,9 +22,11 @@ import { cn } from "@/lib/utils";
 
 type OnboardingFormProps = {
   defaultProjectName: string;
+  /** 既定のパスワードのままか。🚨 表示はこの部品が持つ（完了へ切り替えるのもこの部品なので）。 */
+  usingDefaultPassword: boolean;
 };
 
-export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
+export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: OnboardingFormProps) {
   const router = useRouter();
   const locale = useLocale();
   const t = useT("onboarding");
@@ -216,6 +218,11 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
             </InputGroupAddon>
           </InputGroup>
           <p className="text-xs text-muted-foreground">{t("new_password_help")}</p>
+          {/* 🚨 赤い警告にしない。すぐ下に入力欄があり、これから普通に決めてもらう場面なので
+              「何かがおかしい」の色は強すぎる（design 指摘）。完了画面では stage で消える。 */}
+          {usingDefaultPassword ? (
+            <p className="text-xs text-muted-foreground">{t("new_password_default_note")}</p>
+          ) : null}
         </div>
         <hr className="border-0 border-t border-border" />
         <div className="flex flex-col gap-4">

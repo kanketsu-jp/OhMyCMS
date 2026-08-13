@@ -13,9 +13,6 @@ import { projectName } from "@/lib/settings/project-name";
 export default async function LoginPage() {
   const t = await getT("auth");
   const tCommon = await getT("common");
-  // 🚨 default_password_warning は onboarding 名前空間のキーを流用する（ログイン画面専用の
-  //    別キーを新設せず、オンボーディング画面と文言を一本化するため）。
-  const tOnboarding = await getT("onboarding");
   const settings = await getSettings();
   const brand = await projectName(tCommon("app_name"));
   const otpEnabled = mailConfig() !== null;
@@ -32,7 +29,7 @@ export default async function LoginPage() {
         ) : null}
         {showDefaultPasswordWarning ? (
           <p className="text-center text-sm text-destructive">
-            {tOnboarding("default_password_warning")}
+            {t("default_password_notice")}
           </p>
         ) : null}
         <SetupForm />
