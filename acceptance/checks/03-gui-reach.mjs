@@ -103,8 +103,32 @@ export async function check(context) {
     );
   }
 
+  // ── 🚨 オンボーディング未完了なら「判定不能」。**FAIL にしない** ──
+  //   /admin が /onboarding へ飛ぶのは**正しい挙動**（初期設定が済んでいないだけ）。
+  //   これを FAIL にすると「アプリが壊れている」と誤読させる。
+  //   壊れているのか、まだ設定していないのかは**別のこと**（BLOCKED と FAIL の区別）。
+  const preflight = await admin.get("/admin");
+  const onboardingRedirect =
+    (preflight.status === 307 || preflight.status === 302) &&
+    (preflight.headers.get("location") ?? "").includes("/onboarding");
+  if (onboardingRedirect) {
+    return blocked(
+      "オンボーディングが未完了です（/admin → /onboarding）",
+      [
+        "**アプリは壊れていません。** 初期設定が済んでいないので、管理画面へ入れないのが正しい挙動です。",
+        "受入基準3 は「ログインした人が全機能へ到達できるか」を見るので、この状態では判定できません。",
+        "",
+        "判定するには、対象で初期設定を済ませてください（環境変数の管理者 → /onboarding）。",
+        "🚨 **共有 DB の単一行（ohmycms_settings）なので、済ませると他の対象にも効きます。**",
+        "  堀池さんに初期設定を体験してもらう予定があるなら、**先に確認してから**済ませること。",
+      ],
+      [`curl -sS -o /dev/null -w '%{http_code}' ${baseUrl}/onboarding`],
+      started,
+    );
+  }
+
   // ── 肯定形1: ナビに必須機能が揃っていて、全部 200 で開ける ──
-  const shell = await admin.get("/admin");
+  const shell = preflight.status === 200 ? preflight : await admin.get("/admin");
   const hrefs = [
     ...new Set(
       [...shell.text.matchAll(/href="(\/[^"#?]*)"/g)]

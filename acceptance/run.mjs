@@ -20,7 +20,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { probeBuildKind, probeStatus, waitForHealth } from "./lib/http.mjs";
+import { probeBuildKind, probeStatus, probeTargetCommit, waitForHealth } from "./lib/http.mjs";
 import { renderJson, renderTable } from "./lib/report.mjs";
 import {
   compose,
@@ -199,9 +199,10 @@ async function main() {
       const docker = await dockerAvailable();
       if (docker.ok) {
         if (!args.json) process.stderr.write("studio-acc（開発ビルド・3999）を起動しています…\n");
+        // 焼き込む版を渡しておくと、次回から「対象がどの版か」を言える
         const up = await compose(ACC_COMPOSE, [
           "--env-file", envFile, "up", "-d", "--build", "studio-acc",
-        ]);
+        ], { env: { OHMYCMS_GIT_COMMIT: head } });
         if (up.code !== 0 && !args.json) {
           process.stderr.write(`studio-acc の起動に失敗: exit ${up.code}\n${up.stderr.slice(-800)}\n`);
         }
@@ -215,6 +216,8 @@ async function main() {
   //   「開発ビルドでの結果です」の但し書きが**消えていた**。
   //   どの環境に対する結果かが混ざると、後で判断を誤る（司令塔の指摘・2026-08-13）。
   const buildKind = await probeBuildKind(context.baseUrl);
+  // 🚨 リポジトリの HEAD ではなく、**対象が動かしている版**を取る（焼き込みで古いことがある）
+  const targetCommit = buildKind === "dev" ? await probeTargetCommit(context.baseUrl) : null;
   devBuildTarget = buildKind === "dev";
   context.devBuildTarget = devBuildTarget;
   context.buildKind = buildKind;
@@ -287,6 +290,7 @@ async function main() {
     head,
     baseUrl: context.baseUrl,
     buildKind: context.buildKind,
+    targetCommit,
   };
 
   if (args.json) process.stdout.write(`${renderJson(results, meta)}\n`);

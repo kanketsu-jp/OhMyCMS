@@ -149,3 +149,29 @@ export async function probeBuildKind(baseUrl) {
   if (response.status === 404) return "production";
   return "dev";
 }
+
+/**
+ * **対象が実際に動かしているコードの版**を取る。
+ *
+ * 🚨 リポジトリの HEAD は「対象の版」ではない。
+ *   studio-acc は Dockerfile の `COPY . .` で**ビルド時のコードを焼き込む**（volumes マウントは無い）。
+ *   だから作業ツリーを更新しても、**焼き直すまで対象は古いまま**。
+ *   実測（2026-08-13）: 作業ツリーに /api/auth/setup があるのに、
+ *   :3103 のコンテナには無く 404 だった。HEAD を見出しに出すと**嘘になる**。
+ *
+ * 版は `/api/version` の `commit`（`OHMYCMS_GIT_COMMIT` 由来）から取る。
+ * 渡されていなければ null。**null を「一致している」と解釈しないこと。**
+ *
+ * @returns {Promise<string|null>}
+ */
+export async function probeTargetCommit(baseUrl) {
+  const session = new Session(baseUrl, "version");
+  const login = await session.postJson("/api/auth/dev-login?admin=true", {
+    email: "acc-version-probe@example.com",
+  });
+  if (login.status !== 200) return null;
+  const response = await session.get("/api/version");
+  if (response.status !== 200) return null;
+  const commit = response.json?.data?.commit;
+  return typeof commit === "string" && commit.trim() !== "" ? commit.trim() : null;
+}

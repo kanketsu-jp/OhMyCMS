@@ -56,7 +56,9 @@ export function renderTable(results, meta) {
   const lines = [];
   lines.push("");
   lines.push(
-    `━━ OhMyCMS v0.9 受入ハーネス ━━  ${meta.startedAt}  HEAD=${meta.head}  対象=${meta.baseUrl ?? "-"}` +
+    `━━ OhMyCMS v0.9 受入ハーネス ━━  ${meta.startedAt}  リポジトリ=${meta.head}  対象=${meta.baseUrl ?? "-"}` +
+      // 🚨 対象は焼き込みで古いことがある。リポジトリの HEAD を対象の版として書かない
+      `  対象の版=${meta.targetCommit ?? "不明"}` +
       // 🚨 どの環境に対する結果かをヘッダへ必ず出す。dev と本番で結果が変わる項目があるため
       `  [${meta.buildKind === "dev" ? "開発ビルド" : meta.buildKind === "production" ? "本番ビルド" : "到達不可"}]`,
   );
@@ -132,6 +134,7 @@ export function renderJson(results, meta) {
       head: meta.head,
       baseUrl: meta.baseUrl ?? null,
       buildKind: meta.buildKind ?? null,
+      targetCommit: meta.targetCommit ?? null,
       achieved,
       exitCode: achieved ? 0 : 1,
       counts: results.reduce((acc, r) => {
