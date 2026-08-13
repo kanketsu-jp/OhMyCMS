@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
 type FileRow = {
@@ -75,7 +76,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
     setSelected(rows.find((file) => file.id === value) ?? null);
   }
 
-  async function upload(formData: FormData) {
+  const upload = useSubmitOnce(async (formData: FormData) => {
     setError(null);
     const response = await fetch("/api/files", { method: "POST", body: formData });
     const payload = await response.json().catch(() => null) as { data?: FileRow } | unknown;
@@ -87,7 +88,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
     setFiles((current) => [row, ...current.filter((file) => file.id !== row.id)]);
     setValue(row.id);
     setSelected(row);
-  }
+  });
 
   function choose(file: FileRow) {
     setValue(file.id);
@@ -112,11 +113,11 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
                 {t("select_file_description")}
               </DialogDescription>
             </DialogHeader>
-            <form action={upload} className="flex flex-wrap items-end gap-3">
+            <form action={upload.run} className="flex flex-wrap items-end gap-3">
               <div className="min-w-0 flex-1">
                 <Input name="file" type="file" required />
               </div>
-              <Button type="submit">
+              <Button type="submit" disabled={upload.pending}>
                 <Upload />
                 {t("upload_button")}
               </Button>

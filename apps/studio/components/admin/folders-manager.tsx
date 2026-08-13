@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FolderPlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
 type FolderRow = {
@@ -36,7 +37,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  async function create(formData: FormData) {
+  const create = useSubmitOnce(async (formData: FormData) => {
     setError(null);
     const response = await fetch("/api/folders", {
       method: "POST",
@@ -52,9 +53,9 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
       return;
     }
     router.refresh();
-  }
+  });
 
-  async function remove(id: string) {
+  const remove = useSubmitOnce(async (id: string) => {
     setError(null);
     const response = await fetch(`/api/folders/${id}`, { method: "DELETE" });
     if (!response.ok) {
@@ -63,7 +64,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
       return;
     }
     router.refresh();
-  }
+  }, (id) => id);
 
   return (
     <div className="space-y-4">
@@ -72,7 +73,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create} className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
+      <form action={create.run} className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
         <Input name="name" required placeholder={t("name_placeholder")} />
         <select name="parent" className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm" defaultValue="">
           <option value="">{t("no_parent_option")}</option>
@@ -80,7 +81,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
             <option key={folder.id} value={folder.id}>{folder.name}</option>
           ))}
         </select>
-        <Button type="submit">
+        <Button type="submit" disabled={create.pending}>
           <FolderPlus />
           {t("create_button")}
         </Button>
@@ -92,7 +93,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
               <p className="font-medium">{folder.name}</p>
               <p className="text-sm text-muted-foreground">{t("parent_label", { name: folders.find((item) => item.id === folder.parent)?.name ?? t("none_value") })}</p>
             </div>
-            <Button type="button" variant="destructive" size="sm" onClick={() => void remove(folder.id)}>
+            <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(folder.id)} onClick={() => void remove.run(folder.id)}>
               <Trash2 />
               {t("delete_button")}
             </Button>

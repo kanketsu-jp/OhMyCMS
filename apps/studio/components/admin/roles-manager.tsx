@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
 import { Label } from "@/components/ui/label";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 
 export type RoleRow = {
   id: string;
@@ -35,7 +36,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
   const t = useT("roles");
   const [error, setError] = useState<string | null>(null);
 
-  async function create(formData: FormData) {
+  const create = useSubmitOnce(async (formData: FormData) => {
     setError(null);
     const body = {
       name: String(formData.get("name") ?? ""),
@@ -53,9 +54,9 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
       return;
     }
     router.refresh();
-  }
+  });
 
-  async function remove(id: string) {
+  const remove = useSubmitOnce(async (id: string) => {
     setError(null);
     const response = await fetch(`/api/roles/${id}`, { method: "DELETE" });
     if (!response.ok) {
@@ -64,7 +65,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
       return;
     }
     router.refresh();
-  }
+  }, (id) => id);
 
   return (
     <div className="space-y-4">
@@ -73,7 +74,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
+      <form action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
         <div className="space-y-1.5">
           <Label htmlFor="name">{t("name_label")}</Label>
           <Input id="name" name="name" required />
@@ -91,7 +92,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
             ))}
           </select>
         </div>
-        <Button type="submit">{t("create_button")}</Button>
+        <Button type="submit" disabled={create.pending}>{t("create_button")}</Button>
       </form>
       <div className="divide-y border-t">
         {roles.map((role) => (
@@ -102,7 +103,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
                 {role.description || t("no_description")} / {t("parent_colon_label")}{roles.find((item) => item.id === role.parent)?.name ?? t("none_option")}
               </p>
             </div>
-            <Button type="button" variant="destructive" size="sm" onClick={() => void remove(role.id)}>
+            <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(role.id)} onClick={() => void remove.run(role.id)}>
               <Trash2 />
               {t("delete_button")}
             </Button>

@@ -6,6 +6,7 @@ import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
 type FileRow = {
@@ -41,7 +42,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  async function save(formData: FormData) {
+  const save = useSubmitOnce(async (formData: FormData) => {
     setError(null);
     const body = {
       title: String(formData.get("title") ?? ""),
@@ -60,9 +61,9 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
       return;
     }
     router.refresh();
-  }
+  });
 
-  async function remove() {
+  const remove = useSubmitOnce(async () => {
     setError(null);
     const response = await fetch(`/api/files/${file.id}`, { method: "DELETE" });
     if (!response.ok) {
@@ -72,7 +73,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
     }
     router.push("/admin/files");
     router.refresh();
-  }
+  });
 
   return (
     <div className="space-y-4">
@@ -81,7 +82,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
           {error}
         </div>
       ) : null}
-      <form action={save} className="space-y-4">
+      <form action={save.run} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="title">{t("title_label")}</Label>
           <Input id="title" name="title" defaultValue={file.title ?? ""} />
@@ -104,11 +105,11 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
           </select>
         </div>
         <div className="flex gap-2">
-          <Button type="submit">
+          <Button type="submit" disabled={save.pending}>
             <Save />
             {t("save_button")}
           </Button>
-          <Button type="button" variant="destructive" onClick={() => void remove()}>
+          <Button type="button" variant="destructive" disabled={remove.pending} onClick={() => void remove.run()}>
             <Trash2 />
             {t("delete_button")}
           </Button>

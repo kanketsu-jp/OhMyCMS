@@ -7,6 +7,7 @@ import { ShieldAlert, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +39,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
   const t = useT("policies");
   const [error, setError] = useState<string | null>(null);
 
-  async function create(formData: FormData) {
+  const create = useSubmitOnce(async (formData: FormData) => {
     setError(null);
     const body = {
       name: String(formData.get("name") ?? ""),
@@ -57,9 +58,9 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
       return;
     }
     router.refresh();
-  }
+  });
 
-  async function remove(id: string) {
+  const remove = useSubmitOnce(async (id: string) => {
     setError(null);
     const response = await fetch(`/api/policies/${id}`, { method: "DELETE" });
     if (!response.ok) {
@@ -68,7 +69,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
       return;
     }
     router.refresh();
-  }
+  }, (id) => id);
 
   return (
     <div className="space-y-4">
@@ -77,7 +78,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create} className="space-y-4">
+      <form action={create.run} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>
@@ -101,7 +102,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
             </span>
           </label>
         </div>
-        <Button type="submit">{t("create_button")}</Button>
+        <Button type="submit" disabled={create.pending}>{t("create_button")}</Button>
       </form>
       <div className="divide-y border-t">
         {policies.map((policy) => (
@@ -117,7 +118,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
               <Link href={`/admin/settings/policies/${policy.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                 {t("edit_permissions_link")}
               </Link>
-              <Button type="button" variant="destructive" size="sm" onClick={() => void remove(policy.id)}>
+              <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(policy.id)} onClick={() => void remove.run(policy.id)}>
                 <Trash2 />
                 {t("delete_button")}
               </Button>

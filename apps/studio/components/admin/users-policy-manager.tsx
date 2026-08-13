@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
 type UserRow = {
@@ -56,7 +57,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
   const t = useT("users");
   const [error, setError] = useState<string | null>(null);
 
-  async function assign(formData: FormData) {
+  const assign = useSubmitOnce(async (formData: FormData) => {
     setError(null);
     const body = {
       user: String(formData.get("user") ?? ""),
@@ -73,9 +74,9 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
       return;
     }
     router.refresh();
-  }
+  });
 
-  async function remove(id: string) {
+  const remove = useSubmitOnce(async (id: string) => {
     setError(null);
     const response = await fetch(`/api/access/${id}`, { method: "DELETE" });
     if (!response.ok) {
@@ -84,7 +85,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
       return;
     }
     router.refresh();
-  }
+  }, (id) => id);
 
   return (
     <div className="space-y-4">
@@ -93,7 +94,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           {error}
         </div>
       ) : null}
-      <form action={assign} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      <form action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <div className="space-y-1.5">
           <label htmlFor="user" className="text-sm font-medium">{t("user_label")}</label>
           <select id="user" name="user" required className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm">
@@ -110,7 +111,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
             ))}
           </select>
         </div>
-        <Button type="submit" disabled={users.length === 0 || policies.length === 0}>{t("assign_button")}</Button>
+        <Button type="submit" disabled={assign.pending || users.length === 0 || policies.length === 0}>{t("assign_button")}</Button>
       </form>
       <div className="divide-y border-t">
         {access.map((row) => (
@@ -119,7 +120,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
               <p className="font-medium">{row.user_email ?? row.role_name ?? row.user ?? row.role}</p>
               <p className="text-sm text-muted-foreground">{t("policy_prefix", { policy: row.policy_name ?? row.policy })}</p>
             </div>
-            <Button type="button" variant="destructive" size="sm" onClick={() => void remove(row.id)}>
+            <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(row.id)} onClick={() => void remove.run(row.id)}>
               <Trash2 />
               {t("remove_button")}
             </Button>

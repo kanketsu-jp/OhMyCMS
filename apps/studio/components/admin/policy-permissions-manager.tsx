@@ -6,6 +6,7 @@ import { Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
 type PermissionRow = {
@@ -88,7 +89,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
     setFilterJson(jsonText(row.permissions));
   }
 
-  async function save() {
+  const save = useSubmitOnce(async () => {
     setError(null);
     const parsed = parseJsonOrNull(filterJson);
     if (!parsed.ok) {
@@ -114,9 +115,9 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
     }
     resetForm();
     router.refresh();
-  }
+  });
 
-  async function remove(id: number) {
+  const remove = useSubmitOnce(async (id: number) => {
     setError(null);
     const response = await fetch(`/api/permissions/${id}`, { method: "DELETE" });
     if (!response.ok) {
@@ -125,7 +126,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
       return;
     }
     router.refresh();
-  }
+  }, (id) => String(id));
 
   return (
     <div className="space-y-6">
@@ -208,7 +209,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           <p className="text-xs leading-5 text-muted-foreground">{t("filter_json_help_combination")}</p>
         </div>
         <div className="flex gap-2">
-          <Button type="button" onClick={() => void save()} disabled={!collection}>
+          <Button type="button" onClick={() => void save.run()} disabled={save.pending || !collection}>
             <Save />
             {editing ? t("update_button") : t("add_button")}
           </Button>
@@ -227,7 +228,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => startEdit(row)}>{t("edit_button")}</Button>
-                <Button type="button" variant="destructive" size="sm" onClick={() => void remove(row.id)}>
+                <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(String(row.id))} onClick={() => void remove.run(row.id)}>
                   <Trash2 />
                   {t("delete_button")}
                 </Button>

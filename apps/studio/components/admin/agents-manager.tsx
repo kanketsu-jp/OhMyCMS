@@ -6,6 +6,7 @@ import { Copy, KeyRound, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
 type AgentRow = {
@@ -50,7 +51,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  async function create(formData: FormData) {
+  const create = useSubmitOnce(async (formData: FormData) => {
     setError(null);
     const capabilities = parseOptionalJson(String(formData.get("capabilities") ?? ""), t("invalid_json", { label: "capabilities" }));
     if (!capabilities.ok) {
@@ -80,9 +81,9 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
     }
     setToken((payload as { token: string }).token);
     router.refresh();
-  }
+  });
 
-  async function revoke(id: string) {
+  const revoke = useSubmitOnce(async (id: string) => {
     setError(null);
     const response = await fetch(`/api/auth/agents/${id}`, { method: "DELETE" });
     if (!response.ok) {
@@ -91,7 +92,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
       return;
     }
     router.refresh();
-  }
+  }, (id) => id);
 
   return (
     <div className="space-y-4">
@@ -114,7 +115,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create} className="space-y-4">
+      <form action={create.run} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>
@@ -135,7 +136,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <textarea id="tenant_scope" name="tenant_scope" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-sm" />
           </div>
         </div>
-        <Button type="submit">{t("issue_button")}</Button>
+        <Button type="submit" disabled={create.pending}>{t("issue_button")}</Button>
       </form>
       <div className="divide-y border-t">
         {agents.map((agent) => (
@@ -149,7 +150,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
                 on_behalf_of: {agent.on_behalf_of} / expires_at: {agent.expires_at} / revoked_at: {agent.revoked_at ?? "-"}
               </p>
             </div>
-            <Button type="button" variant="destructive" size="sm" disabled={Boolean(agent.revoked_at)} onClick={() => void revoke(agent.id)}>
+            <Button type="button" variant="destructive" size="sm" disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)} onClick={() => void revoke.run(agent.id)}>
               <Ban />
               {t("revoke_button")}
             </Button>

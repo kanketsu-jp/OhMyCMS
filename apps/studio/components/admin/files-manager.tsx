@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
 type FolderRow = {
@@ -33,7 +34,7 @@ export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  async function upload(formData: FormData) {
+  const upload = useSubmitOnce(async (formData: FormData) => {
     setError(null);
     const response = await fetch("/api/files", { method: "POST", body: formData });
     const payload = await response.json().catch(() => null);
@@ -42,7 +43,7 @@ export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
       return;
     }
     router.refresh();
-  }
+  });
 
   return (
     <div className="space-y-3">
@@ -51,7 +52,7 @@ export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={upload} className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
+      <form action={upload.run} className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
         <Input name="file" type="file" required />
         <select name="folder" className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm" defaultValue="">
           <option value="">{t("no_folder_option")}</option>
@@ -59,7 +60,7 @@ export function FileUploadForm({ folders }: { folders: FolderRow[] }) {
             <option key={folder.id} value={folder.id}>{folder.name}</option>
           ))}
         </select>
-        <Button type="submit">
+        <Button type="submit" disabled={upload.pending}>
           <Upload />
           {t("upload_button")}
         </Button>

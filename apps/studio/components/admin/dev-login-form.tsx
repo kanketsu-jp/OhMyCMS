@@ -6,6 +6,7 @@ import { useT } from "@/i18n/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 
 export function DevLoginForm() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export function DevLoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  const submit = useSubmitOnce(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPending(true);
     setError(null);
@@ -37,10 +38,10 @@ export function DevLoginForm() {
 
     router.push("/admin");
     router.refresh();
-  }
+  });
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit.run} className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="dev-email">{t("email_label")}</Label>
         <Input
@@ -61,7 +62,7 @@ export function DevLoginForm() {
         {t("admin_checkbox")}
       </label>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button type="submit" className="w-full" disabled={submit.pending || pending}>
         {pending ? t("dev_login_pending") : t("dev_login")}
       </Button>
     </form>
