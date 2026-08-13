@@ -13,8 +13,8 @@ sources:
 stale_after: 2027-02-08
 x_rag_okf:
   id: project
-  source_commit: bf14b78
-  source_digest: "sha256:b7cdaf3803bd12f23883fc13c04461956f009c982d2d3790fdfb29f59eb55e95"
+  source_commit: 6ffa5c7
+  source_digest: "sha256:04ebfb9c77f191e97bbacfa0aa41745f687a234c507d78a3e360b82ade24ac22"
   authorship: deterministic
 ---
 
@@ -26,8 +26,8 @@ x_rag_okf:
 ## いま何をしているか
 > 基準日: 2026-08-13
 
-- Recent active areas: apps/studio (78 changes), acceptance/checks (3 changes), acceptance/lib (2 changes)
-- HEAD: bf14b78
+- Recent active areas: apps/studio (75 changes), acceptance/checks (13 changes), packages/sdk (5 changes)
+- HEAD: 6ffa5c7
 
 ## 主要な領域
 <!-- rag-okf:todo -->
