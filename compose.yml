@@ -29,6 +29,8 @@ x-app-env: &app-env
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   AUTH_SECRET: ${AUTH_SECRET:-}
   ALLOW_DEV_LOGIN: ${ALLOW_DEV_LOGIN:-}
+  # コンテナ内の待ち受けポート。Dockerfile の PORT=3000 を上書きし、公開ポートと一致させる。
+  PORT: ${STUDIO_PORT:-3101}
   # 表示・ホワイトラベル。既定値はアプリ側にも持たせてあるので、ここは空で渡してよい
   # （空文字を渡してもアプリ側の既定 ja / OhMyCMS にフォールバックする）。
   OHMYCMS_DEFAULT_LOCALE: ${OHMYCMS_DEFAULT_LOCALE:-}
@@ -79,10 +81,12 @@ services:
     image: ohmycms-studio
     container_name: ohmycms-studio
     ports:
-      # 🚨 左（ホスト側）だけ変える。右のコンテナ内ポート 3000 は絶対に変えない。
-      #    requestOrigin() が host ヘッダから自分の URL を組み立てるため、
-      #    公開ポート != コンテナ内ポート だと管理画面が全ページ 500 になる。
-      - "${STUDIO_PORT:-3101}:3000"
+      # 🚨 公開ポートとコンテナ内ポートを**一致させる**。
+      #    requestOrigin() が host ヘッダから自分の URL を組み立てて自分自身を fetch するため、
+      #    ズレていると内部呼び出しが ECONNREFUSED になり、管理画面が全ページ 500 になる。
+      #    実測: 3101:3000 では /api/health と /login は 200 だが **/admin は 500**。
+      #          curl で API だけ叩くと気づけない（AGENTS.md §4「curl を表示確認と書かない」の実例）。
+      - "${STUDIO_PORT:-3101}:${STUDIO_PORT:-3101}"
     environment: *app-env
     volumes:
       # S3 未設定時のローカルフォールバック先。コンテナを作り直しても消えないようにする。

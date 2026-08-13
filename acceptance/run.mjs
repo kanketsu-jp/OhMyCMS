@@ -40,16 +40,39 @@ import { check as check07 } from "./checks/07-i18n.mjs";
 import { check as check08 } from "./checks/08-row-permission.mjs";
 import { check as check09 } from "./checks/09-svg-attachment.mjs";
 
-/** ポート割り当ては knowledge/decisions/port-allocation.md。docker 側は 3103。 */
+/**
+ * ポート割り当ては knowledge/decisions/port-allocation.md。
+ * 🚨 DEV_PORT(studio-acc) と**必ず別**にする。規約表の「受入ハーネス 3103」は studio-acc を指すので、
+ *    基準1・2 が立てる本番スタックは 3105 を使う。同じにすると F9 で取り合う（sdk が実測で発見）。
+ */
 // 🚨 基準1・2 が立てる **本番構成のスタック**が使うポート。
 // studio-acc（開発ビルド・3999）と**必ず別**にする。同じにすると
 // 「ハーネス自身が立てた studio-acc が 3999 を掴んだまま、
 //  基準1 の up が同じ 3999 へ bind しようとして落ちる」。
 // 実際にそれで基準1 が FAIL した（2026-08-13）。
-const DOCKER_PORT = 3103;
+const DOCKER_PORT = 3105;
 /** dev モードの studio（受入基準8・9 用）。compose.acceptance.yml と揃えること。
  *  ポート規約: 受入ハーネスは 3103（knowledge/decisions/port-allocation.md）。 */
 const DEV_PORT = 3103;
+
+/**
+ * 🚨 **--docker の本番スタックと studio-acc は別のポートでなければならない。**
+ * 同じ番号だと、studio-acc が起動したまま --docker を打った瞬間にポートを取り合い、
+ * 「なぜか起動しない」という分かりにくい失敗になる。
+ * ポート規約（knowledge/decisions/port-allocation.md）では
+ * Studio 本番=3101 / 受入ハーネス(studio-acc)=3103。
+ * 番号の割り当ては infra の担当なので、ここでは**黙って直さず、気づける形で止める**。
+ */
+function assertPortsDoNotCollide() {
+  if (DOCKER_PORT !== DEV_PORT) return;
+  process.stderr.write(
+    `\n🚨 ハーネスの設定が壊れています: DOCKER_PORT と DEV_PORT がどちらも ${DOCKER_PORT} です。\n` +
+      "   DOCKER_PORT = --docker で立てる本番スタック / DEV_PORT = studio-acc（受入用の開発ビルド）。\n" +
+      "   同じ番号だと両方を同時に立てられません（F9 の総合受入で必ず踏みます）。\n" +
+      "   ポート規約: Studio 本番 3101 / 開発 3102 / 受入ハーネス 3103 / Storybook 3104\n" +
+      "   → acceptance/run.mjs の DOCKER_PORT を 3101 へ（割り当ての判断は infra）。\n\n",
+  );
+}
 
 function parseArgs(argv) {
   const args = {
@@ -123,6 +146,14 @@ async function main() {
     process.stdout.write(HELP);
     return 0;
   }
+
+  // 🚨 --docker は両方のポートを使うので、衝突していたら**走らせない**。
+  //    走らせてしまうと「起動しない」だけが見えて、原因がポートだと分からない。
+  if (args.docker && DOCKER_PORT === DEV_PORT) {
+    assertPortsDoNotCollide();
+    return 2;
+  }
+  if (DOCKER_PORT === DEV_PORT && !args.json) assertPortsDoNotCollide();
 
   const startedAt = new Date().toISOString().replace("T", " ").slice(0, 19);
   const head = await gitHead();
