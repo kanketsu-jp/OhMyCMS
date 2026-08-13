@@ -347,10 +347,53 @@ export async function createAccess(body: Record<string, unknown>): Promise<Acces
       sort: null,
     })
     .returning("*");
+
+  // 本人へ通知する（F2 §2-F の「何が通知を生むか」の最小の1つ）。
+  await notifyPolicyChange(user, policy, "granted");
   return row;
 }
 
 export async function deleteAccess(id: string): Promise<void> {
+  // 消す前に「誰のどのポリシーだったか」を控える（消したあとでは分からない）。
+  const target = await db<AccessRow>("directus_access").where({ id }).first();
   const deleted = await db<AccessRow>("directus_access").where({ id }).delete();
   if (!deleted) throw new ApiError(404, "ACCESS_NOT_FOUND", "ポリシー割り当てが見つかりません");
+
+  await notifyPolicyChange(target?.user ?? null, target?.policy ?? null, "revoked");
+}
+
+/**
+ * ポリシーの付け外しを本人へ通知する。
+ *
+ * 🚨 **通知に失敗しても、権限の操作そのものは成功のままにする。**
+ *    「通知が送れなかったせいで権限が付かなかった」が一番困る。
+ *    不具合報告のメールと同じ考え方（おまけの処理を本体の成否に混ぜない）。
+ *
+ * ロール宛の割り当ては通知しない（宛先が1人に決まらないため）。
+ * 誰に届くかが曖昧なまま通知を撒くより、出さない方がよい。
+ */
+async function notifyPolicyChange(
+  user: string | null,
+  policy: string | null,
+  kind: "granted" | "revoked",
+): Promise<void> {
+  if (!user || !policy) return;
+
+  try {
+    const row = await db("directus_policies")
+      .where({ id: policy })
+      .first<{ name: string } | undefined>("name");
+
+    const { createNotification } = await import("@/lib/notifications/service");
+    await createNotification({
+      recipient: user,
+      // 文言そのものではなく辞書キーを保存する（言語を切り替えると過去の通知も変わる）。
+      messageKey: kind === "granted" ? "message_policy_granted" : "message_policy_revoked",
+      params: { policy: row?.name ?? policy },
+      link: "/admin/notifications",
+    });
+  } catch {
+    // 握りつぶす。🚨 ここで throw すると権限の付け外しごと失敗する。
+    // エラー内容もログに出さない（ポリシー名や利用者 ID が出るため）。
+  }
 }
