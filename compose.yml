@@ -85,6 +85,10 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       target: runner
+      args:
+        # どの版を焼いたかをイメージに刻む。/api/version と docker inspect の両方で読める。
+        GIT_SHA: ${GIT_SHA:-unknown}
+        GIT_DIRTY: ${GIT_DIRTY:-unknown}
     image: ohmycms-studio
     container_name: ohmycms-studio
     ports:

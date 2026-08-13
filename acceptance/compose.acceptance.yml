@@ -28,6 +28,12 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       target: devserver
+      args:
+        # 🚨 studio-acc は COPY . . でビルド時のコードを焼き込む（マウントではない）ので、
+        #    リポジトリの HEAD と中身が一致するとは限らない。
+        #    /api/version が「対象の版」を名乗れるように、焼いた版を渡す。
+        #    値が渡っていなければ unknown。**不明を「一致」と読まないこと**（sdk の指摘）。
+        GIT_SHA: ${GIT_SHA:-unknown}
     image: ohmycms-studio-acc
     container_name: ohmycms-studio-acc
     user: root
@@ -56,6 +62,12 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-cms}:${POSTGRES_PASSWORD:-cms}@db:5432/${POSTGRES_DB:-cms}
       # 受入基準8・9 の検証にセッションが要るため。**本番では絶対に設定しない。**
       ALLOW_DEV_LOGIN: "true"
+      # 🚨 焼き込んだコードの版。ハーネスが「対象がどの版か」を言うために要る
+      #   （リポジトリの HEAD は対象の版ではない。焼き直すまで古いままなので）
+      # 🚨 既定を空にすると、Dockerfile の ENV（ビルド時に焼いた版）を**空で上書きしてしまう**。
+      # 実測: イメージには値が入っているのにコンテナでは空、という状態になっていた。
+      # GIT_SHA へ繋いで、無ければ unknown。**「不明」を「一致」と読まないこと**（sdk の指摘）。
+      OHMYCMS_GIT_COMMIT: ${OHMYCMS_GIT_COMMIT:-${GIT_SHA:-unknown}}
       # トラックA のストレージ(ohmycms-storage)を汚さないよう、別の場所へ吐かせる。
       STORAGE_LOCAL_ROOT: /app/.storage-acceptance
       OHMYCMS_DEFAULT_LOCALE: ${OHMYCMS_DEFAULT_LOCALE:-}

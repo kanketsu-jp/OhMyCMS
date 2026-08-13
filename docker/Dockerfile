@@ -82,7 +82,13 @@ RUN cd apps/studio && bun run build
 # したがってここだけ Node を載せる。**最終イメージ(runner)は oven/bun のままで、Node は入らない**
 # （受入基準6b は最終イメージに対する基準）。bun へ寄せる意図は保っている。
 FROM node:${NODE_FOR_DEV} AS devserver
+ARG GIT_SHA=unknown
+# 受入ハーネスが「どの版のコードを焼いたコンテナを測ったか」を出せるようにする。
+# 🚨 studio-acc は COPY . . でビルド時のコードを焼き込む（マウントではない）ので、
+#    リポジトリの HEAD と中身が一致するとは限らない。だから対象側から名乗らせる。
 ENV NEXT_TELEMETRY_DISABLED=1
+# 🚨 ENV の継続行（\）の中では ARG が展開されなかった（実測: 空文字になる）。単独行で書く。
+ENV OHMYCMS_GIT_COMMIT=$GIT_SHA
 WORKDIR /app
 COPY --from=source /app ./
 
@@ -102,6 +108,10 @@ ARG GIT_DIRTY=unknown
 # 読み方: docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' <image>
 LABEL org.opencontainers.image.revision=$GIT_SHA
 LABEL app.ohmycms.git-dirty=$GIT_DIRTY
+# /api/version が「どの版が動いているか」を返せるように、実行時にも渡す。
+# ラベルは docker inspect でしか読めないが、これは**アプリから見える**ので
+# 受入ハーネスが「測った対象の版」を出せる（sdk の依頼）。
+ENV OHMYCMS_GIT_COMMIT=$GIT_SHA
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
