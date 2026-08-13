@@ -12,5 +12,7 @@
   "pagination_summary": "{from}-{to} of {total}",
   "prev_page": "Previous",
   "save_button": "Save",
-  "title_for_collection": "Items in {collection}"
+  "title_for_collection": "Items in {collection}",
+  "value_fields_count": "{count} fields",
+  "value_list_count": "{count} items"
 }

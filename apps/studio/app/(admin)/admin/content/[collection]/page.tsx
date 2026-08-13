@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
+import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
+import { isFileField } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -25,11 +27,13 @@ type Props = {
   searchParams: Promise<{ page?: string; error?: string; notice?: string }>;
 };
 
-function renderValue(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
+/**
+ * 🚨 かつてここに `renderValue()` があり、**オブジェクトなら JSON.stringify** していた。
+ * 型を問わず中括弧ごと画面に出るのはそのせい（堀池さん「json がそのまま書かれている」）。
+ * Directus の 18 種の display を読むと、その実装はそこにある **`raw`** と同じで、
+ * 向こうは**利用者が明示的に選んだときだけ**使う。既定にしていたのが誤りだった。
+ * → 判断は lib/schema/displays.ts、描画は components/admin/field-display.tsx へ移した。
+ */
 
 function primaryKey(fields: FieldResult[]): string {
   return fields.find((field) => field.schema?.is_primary_key)?.field ?? "id";
@@ -56,6 +60,37 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const pk = primaryKey(fields);
   const total = itemsResult.ok ? itemsResult.data.meta?.filter_count ?? itemsResult.data.data.length : 0;
   const pageCount = Math.max(1, Math.ceil(total / limit));
+
+  // 🚨 ファイル列に **UUID を出さない**ので、名前とサムネの元をここで**まとめて1回**引く。
+  // 行ごとに引くと N+1 になる（knowledge/decisions/relation-permission-boundary.md）。
+  // 引けなければ何も出さない（id を出すくらいなら空のほうがよい）。
+  const lookup: DisplayLookup = {};
+  const fileColumns = columns.filter((field) => isFileField(field));
+  if (fileColumns.length > 0 && itemsResult.ok) {
+    const ids = new Set<string>();
+    for (const item of itemsResult.data.data) {
+      for (const field of fileColumns) {
+        const value = item[field.field];
+        if (typeof value === "string" && value !== "") ids.add(value);
+      }
+    }
+    if (ids.size > 0) {
+      // 権限は API 側で効く。見えない相手は返ってこない＝画面にも出ない
+      const files = await apiFetch<{ data: { id: string; filename_download: string; type: string | null }[] }>(
+        `/api/files?limit=${ids.size}`,
+      );
+      if (files.ok) {
+        lookup.files = new Map(
+          files.data.data
+            .filter((row) => ids.has(row.id))
+            .map((row) => [
+              row.id,
+              { filename: row.filename_download, isImage: Boolean(row.type?.startsWith("image/")) },
+            ]),
+        );
+      }
+    }
+  }
 
   return (
     <div className="max-w-7xl space-y-6">
@@ -100,7 +135,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                     <TableRow key={id || index}>
                       {columns.map((field) => (
                         <TableCell key={field.field} className="max-w-64 truncate">
-                          {renderValue(item[field.field])}
+                          <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
                         </TableCell>
                       ))}
                       <TableCell>

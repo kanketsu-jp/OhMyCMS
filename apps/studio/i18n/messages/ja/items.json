@@ -12,5 +12,7 @@
   "pagination_summary": "{total} 件中 {from} - {to} 件",
   "prev_page": "前へ",
   "save_button": "保存",
-  "title_for_collection": "{collection} のアイテム"
+  "title_for_collection": "{collection} のアイテム",
+  "value_fields_count": "{count} 項目",
+  "value_list_count": "{count} 件"
 }
