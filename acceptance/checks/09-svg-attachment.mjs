@@ -11,10 +11,10 @@
  *   つまり **本体はちゃんと届いている（200 かつ中身がある）** が前提。
  */
 
+import { PREFIX } from "../lib/fixture.mjs";
 import { Session } from "../lib/http.mjs";
 import { assertion, result, statusFromAssertions } from "../lib/result.mjs";
 
-const PREFIX = "acc-";
 
 const XSS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">
   <rect width="120" height="120" fill="#eee"/>

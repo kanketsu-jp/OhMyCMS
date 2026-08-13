@@ -34,14 +34,14 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { PREFIX, TABLE_PREFIX } from "../lib/fixture.mjs";
 import { Session } from "../lib/http.mjs";
 import { run, REPO_ROOT } from "../lib/proc.mjs";
 import { assertion, result, statusFromAssertions } from "../lib/result.mjs";
 
-const PREFIX = "acc-";
-const COLLECTION = "acc_cli_notes";
+const COLLECTION = `${TABLE_PREFIX}cli_notes`;
 /** 🚨 否定形を自明にしないための「見えてはいけないが実在する」コレクション。 */
-const FORBIDDEN = "acc_cli_secret";
+const FORBIDDEN = `${TABLE_PREFIX}cli_secret`;
 const CLI_DIR = join(REPO_ROOT, "packages/cli");
 
 /** B の終了コード設計（仕様どおり）。 */

@@ -15,14 +15,14 @@
  *   消せないもの（ユーザー行）は cleanupLeftovers に積んで一覧を出す。
  */
 
+import { PREFIX, TABLE_PREFIX } from "../lib/fixture.mjs";
 import { Session } from "../lib/http.mjs";
 import { assertion, result, statusFromAssertions } from "../lib/result.mjs";
 
-const PREFIX = "acc-";
 // 🚨 コレクション名（＝テーブル名）にハイフンは使えない。
 //    実測: {"code":"INVALID_IDENTIFIER","message":"識別子は小文字英字・数字・アンダースコアのみ"}
 //    後片付けで見分けられるよう acc_ 接頭辞にしている。
-const COLLECTION = "acc_notes";
+const COLLECTION = `${TABLE_PREFIX}notes`;
 
 /** 403 か 404 なら「拒否された」とみなす（どちらでもよい。仕様どおり）。 */
 function isDenied(status) {
