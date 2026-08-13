@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, UserMinus } from "lucide-react";
+import { UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
