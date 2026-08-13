@@ -120,7 +120,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
               <p className="font-medium">{row.user_email ?? row.role_name ?? row.user ?? row.role}</p>
               <p className="text-sm text-muted-foreground">{t("policy_prefix", { policy: row.policy_name ?? row.policy })}</p>
             </div>
-            <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(row.id)} onClick={() => void remove.run(row.id)}>
+            <Button type="button" variant="destructive-ghost" size="sm" disabled={remove.isPending(row.id)} onClick={() => void remove.run(row.id)}>
               <Trash2 />
               {t("remove_button")}
             </Button>

@@ -220,7 +220,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                       >
                         <input type="hidden" name="many_collection" value={row.relation.many_collection} />
                         <input type="hidden" name="many_field" value={row.relation.many_field} />
-                        <Button type="submit" variant="destructive" size="sm">
+                        <Button type="submit" variant="destructive-ghost" size="sm">
                           {tRelations("delete_button")}
                         </Button>
                       </form>

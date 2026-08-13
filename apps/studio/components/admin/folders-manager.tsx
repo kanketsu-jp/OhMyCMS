@@ -93,7 +93,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
               <p className="font-medium">{folder.name}</p>
               <p className="text-sm text-muted-foreground">{t("parent_label", { name: folders.find((item) => item.id === folder.parent)?.name ?? t("none_value") })}</p>
             </div>
-            <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(folder.id)} onClick={() => void remove.run(folder.id)}>
+            <Button type="button" variant="destructive-ghost" size="sm" disabled={remove.isPending(folder.id)} onClick={() => void remove.run(folder.id)}>
               <Trash2 />
               {t("delete_button")}
             </Button>

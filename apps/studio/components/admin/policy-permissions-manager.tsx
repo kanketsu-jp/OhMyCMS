@@ -228,7 +228,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => startEdit(row)}>{t("edit_button")}</Button>
-                <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(String(row.id))} onClick={() => void remove.run(row.id)}>
+                <Button type="button" variant="destructive-ghost" size="sm" disabled={remove.isPending(String(row.id))} onClick={() => void remove.run(row.id)}>
                   <Trash2 />
                   {t("delete_button")}
                 </Button>

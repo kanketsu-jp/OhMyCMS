@@ -113,7 +113,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                           </Link>
                           <form action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`} method="post">
                             <input type="hidden" name="_method" value="delete" />
-                            <Button type="submit" variant="destructive" size="sm">{t("delete_button")}</Button>
+                            <Button type="submit" variant="destructive-ghost" size="sm">{t("delete_button")}</Button>
                           </form>
                         </div>
                       </TableCell>

@@ -118,7 +118,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
               <Link href={`/admin/settings/policies/${policy.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                 {t("edit_permissions_link")}
               </Link>
-              <Button type="button" variant="destructive" size="sm" disabled={remove.isPending(policy.id)} onClick={() => void remove.run(policy.id)}>
+              <Button type="button" variant="destructive-ghost" size="sm" disabled={remove.isPending(policy.id)} onClick={() => void remove.run(policy.id)}>
                 <Trash2 />
                 {t("delete_button")}
               </Button>
