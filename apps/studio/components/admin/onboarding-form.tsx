@@ -227,10 +227,14 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
         <div className="flex flex-col gap-4">
           <p className="text-sm font-medium text-muted-foreground">{t("optional_heading")}</p>
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">{t("logo_label")}</p>
+            <p id="onboarding-logo-label" className="text-sm font-medium">{t("logo_label")}</p>
             {/* 選んだものの見せ方（サムネ・題名）は FileDropzone に任せる。
                 ここで img を出すと Attachment と二重になる。 */}
-            <FileDropzone name="logo" onSelect={uploadLogo.run} />
+            <FileDropzone
+              name="logo"
+              labelledBy="onboarding-logo-label"
+              onSelect={uploadLogo.run}
+            />
             {logoUploading ? (
               <p className="text-xs text-muted-foreground">{t("logo_uploading")}</p>
             ) : null}
