@@ -6,14 +6,14 @@ import { createServer } from "./server.js";
  * OhMyCMS の MCP サーバ（stdio）。
  *
  * 環境変数:
- *   OHMYCMS_URL    接続先（既定 http://localhost:3000）
+ *   OHMYCMS_URL    接続先（既定 http://localhost:3102 = Studio の開発ポート）
  *   OHMYCMS_TOKEN  エージェントトークン。**ログにも応答にも出さない**
  *
  * 🚨 stdio は MCP の通信路そのものなので、**stdout に何も書いてはいけない**。
  * 起動時のメッセージやエラーは必ず stderr へ出す。
  */
 async function main(): Promise<void> {
-  const baseUrl = process.env.OHMYCMS_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.OHMYCMS_URL ?? "http://localhost:3102";
   const token = process.env.OHMYCMS_TOKEN;
 
   if (!token) {

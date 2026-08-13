@@ -4,7 +4,9 @@ import { flagBoolean, flagString } from "./args.js";
 import { readConfig } from "./config.js";
 import { CliError, EXIT } from "./errors.js";
 
-export const DEFAULT_URL = "http://localhost:3000";
+// 既定は Studio の開発ポート。3000 は Next.js の既定で他プロジェクトと必ず衝突するため
+// 使わない（knowledge/decisions/port-allocation.md）。
+export const DEFAULT_URL = "http://localhost:3102";
 
 export type Resolved<T> = {
   value: T;

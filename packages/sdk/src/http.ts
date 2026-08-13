@@ -3,7 +3,7 @@ import { isApiErrorBody, OhMyCmsError } from "./errors.js";
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 export type TransportOptions = {
-  /** 例: `http://localhost:3000`。末尾の `/` は落とす */
+  /** 例: `http://localhost:3102`。末尾の `/` は落とす */
   baseUrl: string;
   /** エージェントトークン。`Authorization: Bearer <token>` として送る */
   token?: string | undefined;
@@ -81,7 +81,7 @@ export class Transport {
 
   constructor(private readonly options: TransportOptions) {
     if (!options.baseUrl) {
-      throw new Error("baseUrl は必須です（例: http://localhost:3000）");
+      throw new Error("baseUrl は必須です（例: http://localhost:3102）");
     }
     this.baseUrl = stripTrailingSlash(options.baseUrl);
     const fetchImpl = options.fetch ?? globalThis.fetch;

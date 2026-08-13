@@ -47,8 +47,9 @@ import { check as check09 } from "./checks/09-svg-attachment.mjs";
 //  基準1 の up が同じ 3999 へ bind しようとして落ちる」。
 // 実際にそれで基準1 が FAIL した（2026-08-13）。
 const DOCKER_PORT = 3103;
-/** dev モードの studio（受入基準8・9 用）。compose.acceptance.yml と揃えること。 */
-const DEV_PORT = 3999;
+/** dev モードの studio（受入基準8・9 用）。compose.acceptance.yml と揃えること。
+ *  ポート規約: 受入ハーネスは 3103（knowledge/decisions/port-allocation.md）。 */
+const DEV_PORT = 3103;
 
 function parseArgs(argv) {
   const args = {

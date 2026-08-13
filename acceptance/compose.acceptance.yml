@@ -32,16 +32,19 @@ services:
     container_name: ohmycms-studio-acc
     user: root
     working_dir: /app/apps/studio
-    # 🚨 **公開ポートとコンテナ内のポートを必ず一致させる（3999:3999）。**
+    # 🚨 **公開ポートとコンテナ内のポートを必ず一致させる（3103:3103）。**
     #    lib/admin/api.ts の requestOrigin() は host ヘッダから自分の URL を組み立てて
     #    サーバ側から自分の API を叩く。3999:3000 のように食い違わせると、
     #    コンテナ内で localhost:3999 へ繋ごうとして ECONNREFUSED になり、
     #    **管理画面が全部 500 になる**（実測。ブラウザからは何をしても開けない）。
     #    curl に x-forwarded-host を付ければ回避できるが、ブラウザには付けられない。
-    command: ["npx", "next", "dev", "--hostname", "0.0.0.0", "--port", "3999"]
+    # 🚨 `npx` はベースイメージ（oven/bun）に**存在しない**。bun 移行で npm/npx が消えた
+    #    （実測: npx も npm も無し / bun と node shim だけがある）。`bun x` で next を起動する。
+    command: ["bun", "x", "next", "dev", "--hostname", "0.0.0.0", "--port", "3103"]
     ports:
-      # 3000=トラックC / 3777=A / 3888=B / 6006=Storybook と取り合わない。
-      - "3999:3999"
+      # ポート規約 knowledge/decisions/port-allocation.md:
+      #   本番(Docker) 3101 / dev 3102 / **受入ハーネス 3103** / Storybook 3104 / DB 5436
+      - "3103:3103"
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-cms}:${POSTGRES_PASSWORD:-cms}@db:5432/${POSTGRES_DB:-cms}
       # 受入基準8・9 の検証にセッションが要るため。**本番では絶対に設定しない。**

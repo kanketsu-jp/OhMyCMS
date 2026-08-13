@@ -56,7 +56,7 @@ export function printHelp(): void {
 
 例:
   ohmycms login --dev-login you@example.test --admin    # 開発: 人としてログイン
-  ohmycms login --token xxxxx --url http://localhost:3000  # 本番: トークンを預ける
+  ohmycms login --token xxxxx --url http://localhost:3101  # 本番: トークンを預ける
   ohmycms collection create articles --field title:string --field views:integer
   ohmycms item create articles --data '{"title":"はじめての記事"}'
   ohmycms item list articles --filter '{"views":{"_gte":100}}' --sort -views --limit 5
@@ -131,7 +131,7 @@ const SUBCOMMAND_HELP: Record<string, string> = {
 
   ohmycms token create --name <名前> [--expires-in-days <1-365>]
                        [--admin-capability <csv>] [--collection-capability <名前>[:<動作,...>]]
-  ohmycms token list
+  ohmycms token list [--all]      失効済みは既定で隠す。--all で全部出す
   ohmycms token delete <ID>
 
   🚨 **人間のセッションが必要**（エージェントトークンでは 403 HUMAN_AUTH_REQUIRED）。

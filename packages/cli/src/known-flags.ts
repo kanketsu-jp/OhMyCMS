@@ -18,7 +18,7 @@ const COMMAND_FLAGS: Record<string, readonly string[]> = {
   field: ["type", "required", "max-length"],
   item: ["filter", "fields", "sort", "limit", "offset", "page", "count", "data", "yes"],
   user: [],
-  token: ["name", "expires-in-days", "admin-capability", "collection-capability"],
+  token: ["name", "expires-in-days", "admin-capability", "collection-capability", "all"],
   schema: ["out", "system"],
 };
 

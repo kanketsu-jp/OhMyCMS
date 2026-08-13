@@ -16,6 +16,7 @@ const BOOLEAN_FLAGS = new Set([
   "system",
   "print-token",
   "keep-url",
+  "all",
 ]);
 
 export type ParsedArgs = {

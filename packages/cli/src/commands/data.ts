@@ -207,21 +207,37 @@ export async function token(
 
   if (sub === "list") {
     const client = sessionClient(context);
-    const rows = await client.agents.list();
+    const all = await client.agents.list();
+
+    // 🚨 絞り込みは **CLI（表示）側**でやる。SDK は API が返したものを忠実に返す。
+    //   SDK で隠すと「curl では見えるのに SDK では見えない」がおき、
+    //   権限まわりで「MCP 側でフィルタして隠さない」と決めたのと同じ理由で筋が悪い。
+    //   ここは権限の話ではなく**人間向けの見やすさ**なので、CLI で落として --all で戻せるようにする。
+    const showAll = flagBoolean(args, "all");
+    const rows = showAll ? all : all.filter((row) => !row.revoked_at);
+    const hidden = all.length - rows.length;
+
     if (context.json) {
       printJson(rows);
       return EXIT.OK;
     }
     if (rows.length === 0) {
-      print("発行済みのトークンはありません。");
+      print(
+        hidden > 0
+          ? `有効なトークンはありません（失効済みが ${hidden} 件あります。--all で表示）。`
+          : "発行済みのトークンはありません。",
+      );
       return EXIT.OK;
     }
     printTable(rows, [
       { header: "名前", get: (row) => row.name },
       { header: "ID", get: (row) => row.id },
       { header: "有効期限", get: (row) => row.expires_at },
-      { header: "失効", get: (row) => (row.revoked_at ? "済" : "") },
+      ...(showAll
+        ? [{ header: "失効", get: (row: (typeof rows)[number]) => (row.revoked_at ? "済" : "") }]
+        : []),
     ]);
+    if (hidden > 0) note(`（失効済み ${hidden} 件を隠しています。--all で表示）`);
     note("（トークンの値は保存されていないため表示できません）");
     return EXIT.OK;
   }

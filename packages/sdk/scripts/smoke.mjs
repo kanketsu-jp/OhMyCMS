@@ -2,7 +2,7 @@
  * 起動中の API に対して SDK を実際に叩く疎通スクリプト（F3 の受入基準 3〜5）。
  *
  *   bun --filter @ohmycms/sdk build
- *   OHMYCMS_URL=http://localhost:3000 node scripts/smoke.mjs
+ *   OHMYCMS_URL=http://localhost:3103 node scripts/smoke.mjs   # 受入ハーネスの studio へ
  *
  * 肯定形（権限のあるものは取れる）と否定形（401/403/404 が区別できる）を必ず並べて出す。
  * dev-login を使うので、サーバ側で ALLOW_DEV_LOGIN=true かつ NODE_ENV!=="production" が要る。
@@ -10,7 +10,7 @@
  */
 import { ALL_ADMIN_CAPABILITIES, createClient, isOhMyCmsError } from "../dist/index.js";
 
-const baseUrl = process.env.OHMYCMS_URL ?? "http://localhost:3000";
+const baseUrl = process.env.OHMYCMS_URL ?? "http://localhost:3102";
 const stamp = Date.now();
 const collection = `sdk_smoke_${stamp}`;
 

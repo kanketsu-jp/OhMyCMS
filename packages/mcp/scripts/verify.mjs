@@ -14,7 +14,7 @@ import { ALL_ADMIN_CAPABILITIES, createClient } from "@ohmycms/sdk";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const baseUrl = process.env.OHMYCMS_URL ?? "http://localhost:3000";
+const baseUrl = process.env.OHMYCMS_URL ?? "http://localhost:3102";
 const here = dirname(fileURLToPath(import.meta.url));
 const serverEntry = join(here, "..", "dist", "index.js");
 
