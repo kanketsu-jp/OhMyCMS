@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { sessionCookieHeader } from "@/lib/auth/cookies";
+import { sessionCookieHeader, isSecureRequest } from "@/lib/auth/cookies";
 import { issueSession } from "@/lib/auth/sessions";
 import { db } from "@/lib/db/knex";
 import { errorResponse, ok } from "@/lib/schema/api";
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
     const response = ok({ data: { type: "human", userId: user.id, email, role: null } });
     response.headers.append(
       "Set-Cookie",
-      sessionCookieHeader(session.rawToken, session.maxAge),
+      sessionCookieHeader(session.rawToken, session.maxAge, isSecureRequest(request)),
     );
     return response;
   } catch (error) {

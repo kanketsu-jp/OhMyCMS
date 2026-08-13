@@ -62,6 +62,22 @@ async function psql(sql) {
   return { ok: result.code === 0, out: result.stdout.trim(), err: result.stderr.trim() };
 }
 
+/**
+ * **読み取り専用**の問い合わせ。「API の応答だけでは分からないこと」を確かめるために使う。
+ *
+ * 🚨 用途を限る: **結果の判定材料を DB から取るのはよいが、判定の対象を DB で作らない。**
+ *   例) ファイルがどのストレージへ行ったか（`directus_files.storage`）を読むのは可。
+ *       これは API の応答からは分からず、**ローカルへフォールバックしたのに
+ *       「S3 で動いた」と読める**空の PASS を防ぐため（storage の指摘・2026-08-13）。
+ * @param {string} sql  🚨 値を埋めるときは必ず `lit()` を通すこと
+ */
+export async function queryScalar(sql) {
+  const probe = await psql(sql);
+  return probe.ok ? probe.out : null;
+}
+
+export { lit };
+
 /** DB を触れるか。触れないなら、その理由を返す */
 export async function bootstrapAvailable() {
   const probe = await psql("select 1;");

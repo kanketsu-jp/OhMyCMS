@@ -7,7 +7,7 @@ import {
 } from "@/lib/auth/setup";
 import { issueSetupSession } from "@/lib/auth/setup-session";
 import { issueSession } from "@/lib/auth/sessions";
-import { sessionCookieHeader, setupCookieHeader } from "@/lib/auth/cookies";
+import { sessionCookieHeader, setupCookieHeader, isSecureRequest } from "@/lib/auth/cookies";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 import { isOnboardingCompleted, localAdminUserId } from "@/lib/settings/service";
@@ -51,14 +51,14 @@ export async function POST(request: Request) {
       const response = ok({ data: { type: "human", userId, role: null } });
       response.headers.append(
         "Set-Cookie",
-        sessionCookieHeader(session.rawToken, session.maxAge),
+        sessionCookieHeader(session.rawToken, session.maxAge, isSecureRequest(request)),
       );
       return response;
     }
 
     const session = issueSetupSession();
     const response = ok({ data: { setup: true } });
-    response.headers.append("Set-Cookie", setupCookieHeader(session.token, session.maxAge));
+    response.headers.append("Set-Cookie", setupCookieHeader(session.token, session.maxAge, isSecureRequest(request)));
     return response;
   } catch (error) {
     return errorResponse(error);

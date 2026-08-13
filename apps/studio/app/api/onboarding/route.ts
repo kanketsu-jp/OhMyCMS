@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin/permissions-api";
-import { deleteCookieHeader, parseCookies, sessionCookieHeader, SETUP_COOKIE } from "@/lib/auth/cookies";
+import { deleteCookieHeader, parseCookies, sessionCookieHeader, SETUP_COOKIE, isSecureRequest } from "@/lib/auth/cookies";
 import { requireActor } from "@/lib/auth/context";
 import { issueSession } from "@/lib/auth/sessions";
 import { isValidSetupSession } from "@/lib/auth/setup-session";
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     }
     response.headers.append(
       "Set-Cookie",
-      sessionCookieHeader(session.rawToken, session.maxAge),
+      sessionCookieHeader(session.rawToken, session.maxAge, isSecureRequest(request)),
     );
     return response;
   } catch (error) {

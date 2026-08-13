@@ -16,10 +16,31 @@ type CookieOptions = {
 
 const DEFAULT_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  secure: false,
   sameSite: "lax" as const,
   path: "/",
 };
+
+/**
+ * この要求が本当に HTTPS で来ているか。**Cookie の Secure はこれで決める。**
+ *
+ * 🚨 `NODE_ENV === "production"` で決めてはいけない（2026-08-13 実事故）。
+ *    本番ビルドを**平文 HTTP の LAN アドレス**（`http://192.168.1.14:3101`）で開くと、
+ *    **ブラウザが Secure 付き Cookie を1つも保存しません**。実測:
+ *      `http://localhost:3101`    → Cookie を保持する（localhost は例外的に安全な文脈）
+ *      `http://192.168.1.14:3101` → **保持した Cookie は 0 件**
+ *    症状は「ログインは 200 なのに、次の画面で弾かれる」。オーナーがこれで入れなくなった。
+ *
+ * 🚨 HTTPS で配信しているときは必ず `true` になること（下げてよいのは平文のときだけ）。
+ *    リバースプロキシ越しは `x-forwarded-proto` を見る。
+ */
+export function isSecureRequest(request: Request): boolean {
+  const forwarded = request.headers.get("x-forwarded-proto");
+  if (forwarded) {
+    return forwarded.split(",")[0]?.trim() === "https";
+  }
+  return new URL(request.url).protocol === "https:";
+}
 
 export function parseCookies(cookieHeader: string | null): Map<string, string> {
   const cookies = new Map<string, string>();
@@ -82,14 +103,14 @@ export function deleteCookieHeader(name: string): string {
   });
 }
 
-export function sessionCookieHeader(token: string, maxAge: number): string {
-  return cookieHeader(SESSION_COOKIE, token, { maxAge });
+export function sessionCookieHeader(token: string, maxAge: number, secure = false): string {
+  return cookieHeader(SESSION_COOKIE, token, { maxAge, secure });
 }
 
-export function setupCookieHeader(token: string, maxAge: number): string {
-  return cookieHeader(SETUP_COOKIE, token, { maxAge });
+export function setupCookieHeader(token: string, maxAge: number, secure = false): string {
+  return cookieHeader(SETUP_COOKIE, token, { maxAge, secure });
 }
 
-export function oauthCookieHeader(name: string, value: string): string {
-  return cookieHeader(name, value, { maxAge: 600 });
+export function oauthCookieHeader(name: string, value: string, secure = false): string {
+  return cookieHeader(name, value, { maxAge: 600, secure });
 }

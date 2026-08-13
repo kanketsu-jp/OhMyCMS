@@ -26,7 +26,9 @@
  *
  * 🚨 ただし**未実測**（unverified）: Keycloak を実際に立てて SAML の応答を返させるところまでは
  *   まだ試していない。イメージの存在とアーキテクチャだけを確かめた段階。
- *   ポートは `knowledge/decisions/port-allocation.md` に**空きを取ってから**決める（:3107 を提案）。
+ *   ポートは **:3108 を提案**（`knowledge/decisions/port-allocation.md` へ登録してから使う）。
+ *   🚨 当初 :3107 を提案したが、**MinIO のコンソールが :3107 を取っている**（storage の実測で判明）。
+ *      ポートは「空いているはず」で決めない。**必ず割り当て表と実測で確かめる。**
  * ─────────────────────────────────────────────────────────────
  *
  * 測るもの（肯定形と否定形をセットで）:
@@ -77,7 +79,7 @@ export async function check(context) {
         "        keycloak/keycloak は arm64 対応・今日も更新あり。この Mac は arm64。",
         "  外部の IdP に依存すると、**FAIL が製品の問題か外の問題か区別できなくなります**",
         "  （今日 studio-acc が Google Fonts の 404 で全経路 500 になったのと同じ形）。",
-        "  ポートは :3107 を提案（port-allocation.md へ登録してから使う）。",
+        "  ポートは :3108 を提案（🚨 :3107 は MinIO のコンソールが使っている。storage の実測で判明）。",
         "  🚨 Keycloak で実際に SAML 応答を返させるところは **未実測**です。",
       ],
       ms: Date.now() - started,
@@ -90,7 +92,7 @@ export async function check(context) {
     status: STATUS.BLOCKED,
     reason: `入口はあります（HTTP ${metadata.status}）が、テスト IdP がまだありません`,
     details: [
-      "SP のメタデータが出るようになりました。次は IdP 側（Keycloak :3107）を立てます。",
+      "SP のメタデータが出るようになりました。次は IdP 側（Keycloak :3108）を立てます。",
       "🚨 否定形の4つは「常に 4xx を返す実装」でも全部通るので、",
       "   **正しい Assertion が通ること**を対照として先に置きます。",
     ],

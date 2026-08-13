@@ -4,6 +4,7 @@ import {
   deleteCookieHeader,
   parseCookies,
   sessionCookieHeader,
+  isSecureRequest,
 } from "@/lib/auth/cookies";
 import {
   exchangeGoogleCode,
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
       status: 302,
       headers: { location: new URL("/", request.url).toString() },
     });
-    response.headers.append("Set-Cookie", sessionCookieHeader(session.rawToken, session.maxAge));
+    response.headers.append("Set-Cookie", sessionCookieHeader(session.rawToken, session.maxAge, isSecureRequest(request)));
     return clearOAuthCookies(response);
   } catch (error) {
     return clearOAuthCookies(errorResponse(error));

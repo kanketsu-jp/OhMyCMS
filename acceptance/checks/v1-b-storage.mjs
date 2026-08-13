@@ -17,6 +17,7 @@
  *   先に **PNG が取り出せる**ことを確かめてから、SVG の否定形を見る。
  */
 
+import { bootstrapAvailable, lit, queryScalar } from "../lib/bootstrap.mjs";
 import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
 
@@ -53,32 +54,21 @@ export async function check(context) {
   }
   const admin = auth.session;
 
-  // ── どのドライバで動いているかを対象に聞く（推測しない）──
-  // 🚨 これが分からないと、**ローカル FS で通っただけ**なのに「S3 が動いた」と読める。
-  //   空の PASS を出さないため、答えが無いうちは BLOCKED にする。
-  const health = await admin.get("/api/health");
-  const driver = health.json?.storage?.driver ?? null;
-  details.push(`health: ${health.text.slice(0, 160)}`);
-  if (driver !== "s3") {
+  // ── 🚨 「S3 で動いた」ことをどう証明するか ──
+  //   当初 `/api/health` にドライバ名を出してもらうつもりだったが、**storage の指摘の方が強い**:
+  //   `directus_files.storage` 列を見れば、**その1件がどこへ行ったか**が分かる。
+  //   health は「設定はこうなっている」しか言わないので、**設定はS3なのに実際は
+  //   ローカルへフォールバックしていた**場合を見逃す。判定材料は DB から取る
+  //   （判定の対象を DB で作るのではない。lib/bootstrap.mjs の線引きに従う）。
+  const dbReady = await bootstrapAvailable();
+  if (!dbReady.ok) {
     return result({
-      id: 10,
-      title: "V1-B ストレージ（S3 互換）",
-      status: STATUS.BLOCKED,
-      reason: driver
-        ? `対象のストレージが s3 ではありません（driver=${driver}）`
-        : "対象がどのストレージで動いているか答えません",
+      id: 10, title: "V1-B ストレージ（S3 互換）", status: STATUS.BLOCKED,
+      reason: "ファイルがどこへ行ったかを確かめられません（DB へ psql で入れない）",
       details: [
-        ...details,
-        "🚨 **storage(w4A:pD) へのお願い**: `/api/health` に",
-        '   `"storage": { "driver": "s3" | "local", "bucket": "..." }` を出してください。',
-        "   これが無いと、**ローカル FS で通っただけ**なのに「S3 が動いた」と読めてしまい、",
-        "   受入が空の PASS になります（判定できないものは PASS にしない方針）。",
-        "   秘密（アクセスキー）は出さないでください。driver と bucket 名だけで足ります。",
-        "",
-        "ドライバが s3 になったら、下の検査が自動で走ります:",
-        "  🟢 PNG を上げて取り出せる（対照）",
-        "  🔴 SVG が attachment で返る（S3 経由でも）",
-        "  🔴 期限切れの署名付き URL が 403",
+        ...details, ...(dbReady.detail ?? []),
+        "🚨 HTTP の応答だけでは、**ローカルへフォールバックしたのに 200 が返っている**場合と",
+        "   区別がつきません。それを PASS にすると空の合格になります。",
       ],
       ms: Date.now() - started,
     });
@@ -110,6 +100,29 @@ export async function check(context) {
         `HTTP ${pngAsset?.status ?? "-"} / ${pngType || "(型なし)"}`, "200 かつ image/png"),
     );
 
+    // ── 🚨 本当に S3 へ行ったのか（フォールバックしていないか）──
+    //   これが無いと、S3 が死んでいてローカルへ落ちても 200 が返って PASS になる。
+    const where = pngId
+      ? await queryScalar(`select storage from directus_files where id = ${lit(pngId)};`)
+      : null;
+    if (where !== "s3") {
+      details.push(
+        `🚨 このファイルは **${where ?? "不明"}** へ保存されています（s3 ではありません）。`,
+        "   S3 の設定が入っていないか、**ローカルへフォールバックしています**。",
+        "   ローカルでの往復は v0.9 の基準9 で既に見ているので、ここでは合格にしません。",
+        "   MinIO を混ぜて起動する: docker compose -f compose.yml -f compose.minio.yml up -d",
+      );
+      return result({
+        id: 10, title: "V1-B ストレージ（S3 互換）", status: STATUS.BLOCKED,
+        reason: `ファイルの保存先が s3 ではありません（storage=${where ?? "不明"}）`,
+        details, ms: Date.now() - started,
+      });
+    }
+    assertions.push(
+      assertion("positive", "S3 へ保存されている（ローカルへ落ちていない）",
+        true, "directus_files.storage = s3", "s3"),
+    );
+
     // ── 否定形: SVG は attachment で返る（S3 経由でも） ──
     const svgForm = new FormData();
     svgForm.append("file", new Blob([SVG], { type: "image/svg+xml" }), `${PREFIX}x.svg`);
@@ -122,6 +135,32 @@ export async function check(context) {
       assertion("negative", "SVG が attachment で返る（S3 経由でも）",
         disposition.toLowerCase().includes("attachment"),
         disposition || "(未指定)", "attachment"),
+    );
+
+    assertions.push(
+      assertion("negative", "SVG にも nosniff が付く",
+        (svgAsset?.headers?.get("x-content-type-options") ?? "").includes("nosniff"),
+        svgAsset?.headers?.get("x-content-type-options") ?? "(未指定)", "nosniff"),
+    );
+
+    // ── 🚨 否定形: **MIME を偽った HTML** も attachment になる ──
+    //   storage の指摘（2026-08-13）: 実装は拡張子側でも塞いでいる。**ここが退行しやすい**。
+    //   申告された Content-Type だけを見る作りに戻ると、これだけが通らなくなる。
+    const evilForm = new FormData();
+    evilForm.append(
+      "file",
+      new Blob(["<html><script>window.__pwned=1</script></html>"], { type: "text/plain" }),
+      `${PREFIX}evil.html`,
+    );
+    const evil = await admin.request("/api/files", { method: "POST", body: evilForm });
+    const evilId = evil.json?.data?.id ?? null;
+    if (evilId) uploaded.push(evilId);
+    const evilAsset = evilId ? await admin.get(`/api/assets/${evilId}`) : null;
+    const evilDisposition = evilAsset?.headers?.get("content-disposition") ?? "";
+    assertions.push(
+      assertion("negative", "中身が HTML なら、型を text/plain と偽っても attachment",
+        evilDisposition.toLowerCase().includes("attachment"),
+        evilDisposition || "(未指定)", "attachment"),
     );
 
     // ── 否定形: 署名付き URL を使うなら、期限切れで弾かれる ──

@@ -2,6 +2,7 @@ import {
   GOOGLE_CODE_VERIFIER_COOKIE,
   GOOGLE_STATE_COOKIE,
   oauthCookieHeader,
+  isSecureRequest,
 } from "@/lib/auth/cookies";
 import { randomToken } from "@/lib/auth/crypto";
 import { googleAuthorizationUrl, googleOAuthConfig } from "@/lib/auth/google";
@@ -20,10 +21,10 @@ export async function GET(request: Request) {
       status: 302,
       headers: { location },
     });
-    response.headers.append("Set-Cookie", oauthCookieHeader(GOOGLE_STATE_COOKIE, state));
+    response.headers.append("Set-Cookie", oauthCookieHeader(GOOGLE_STATE_COOKIE, state, isSecureRequest(request)));
     response.headers.append(
       "Set-Cookie",
-      oauthCookieHeader(GOOGLE_CODE_VERIFIER_COOKIE, codeVerifier),
+      oauthCookieHeader(GOOGLE_CODE_VERIFIER_COOKIE, codeVerifier, isSecureRequest(request)),
     );
     return response;
   } catch (error) {

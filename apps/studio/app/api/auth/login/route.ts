@@ -1,4 +1,4 @@
-import { sessionCookieHeader } from "@/lib/auth/cookies";
+import { sessionCookieHeader, isSecureRequest } from "@/lib/auth/cookies";
 import { authenticateWithPassword } from "@/lib/auth/password-login";
 import { issueSession } from "@/lib/auth/sessions";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     });
     response.headers.append(
       "Set-Cookie",
-      sessionCookieHeader(session.rawToken, session.maxAge),
+      sessionCookieHeader(session.rawToken, session.maxAge, isSecureRequest(request)),
     );
     return response;
   } catch (error) {
