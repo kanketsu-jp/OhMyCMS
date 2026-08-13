@@ -195,6 +195,33 @@
   }
 }
 
+@layer components {
+  /* 横断検索から項目へ飛んだとき、**着いた先がどれか**を短く示す（design ②）。
+     lib/search/service.ts が `#settings-xxx` 付きの href を返していて、飛ぶのは既に動く。
+     足りていなかったのは「着いてからどれか分からない」ことだけなので、JS は使わず :target で足す。
+
+     🚨 **光ったままにしない。** 背景や罫線が残ると**面が1段増える**（憲章 §1）。
+     目を引いたら退くのが正しいので、消えるところまでをアニメーションにしてある。
+     🚨 outline を使うのは、border / background / box-shadow のどれでもないから。
+     この3つは面の判定に使われるので、一瞬でも足すと監査が反応しうる。outline は場所も取らない。 */
+  @media (prefers-reduced-motion: no-preference) {
+    [id^="settings-"]:target {
+      animation: ohmycms-target-flash 1.8s ease-out;
+    }
+  }
+  @keyframes ohmycms-target-flash {
+    0%,
+    30% {
+      outline: 3px solid var(--ring);
+      outline-offset: 2px;
+    }
+    100% {
+      outline: 3px solid transparent;
+      outline-offset: 2px;
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

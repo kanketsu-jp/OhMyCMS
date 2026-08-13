@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, Textarea } from "@/components/ui/textarea";
 import { useFormat, useT } from "@/i18n/client";
+import { LOCALES } from "@/i18n/config";
 
 /** lib/settings/service.ts の Settings と同じ形。 */
 type SettingsSource = "database" | "environment" | "default";
@@ -30,6 +31,7 @@ type Settings = {
  */
 export function SettingsManager({ settings }: { settings: Settings }) {
   const t = useT("settings");
+  const tCommon = useT("common");
   const format = useFormat();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -125,8 +127,14 @@ export function SettingsManager({ settings }: { settings: Settings }) {
           name="default_locale"
           defaultValue={settings.default_locale}
         >
-          <option value="ja">ja</option>
-          <option value="en">en</option>
+          {/* 🚨 "ja" / "en" を直書きしない（AGENTS.md §3.8 は英語リテラルも禁止）。
+              言語名は**その言語自身の表記**にする（翻訳しない）。だから ja / en の辞書に
+              同じ値が入っている。locale-switcher.tsx と同じ形。 */}
+          {LOCALES.map((locale) => (
+            <option key={locale} value={locale}>
+              {tCommon(`locale_${locale}`)}
+            </option>
+          ))}
         </NativeSelect>
         <p className="text-xs text-muted-foreground">
           {t("default_locale_help")}

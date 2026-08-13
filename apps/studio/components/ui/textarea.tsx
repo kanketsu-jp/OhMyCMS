@@ -24,7 +24,9 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
       data-slot="textarea"
       data-inside-surface={insideSurface ? "true" : undefined}
       className={cn(
-        "w-full min-w-0 rounded-lg bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none field-sizing-content placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-muted-foreground aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm",
+        // 🚨 `field-sizing-content` は中身の行数に合わせて縮むので、rows を指定していても
+        // **1行ぶん（実測 38px）**まで小さくなる。SP の指の当たり判定を割るので下限を置く。
+        "min-h-(--control-h) w-full min-w-0 rounded-lg bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none field-sizing-content md:min-h-(--control-h-pc) placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-muted-foreground aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm",
         insideSurface
           // 面の中: 罫線を持たず背景で区別する
           ? "bg-muted/60 disabled:bg-muted/40"
