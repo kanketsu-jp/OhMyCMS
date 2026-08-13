@@ -176,13 +176,18 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">{t("idp_heading")}</h2>
 
-        {/* 🚨 §3c「2択を選ばせる」。ただしカードにはしない（面を増やさない）。 */}
-        <div className="flex gap-4 text-sm">
+        {/* 🚨 §3c「2択を選ばせる」。ただしカードにはしない（面を増やさない）。
+            🚨 タップ領域: 素の radio は **13px** で、WCAG 2.2 SC 2.5.8 の 24px すら割る
+               （`scripts/audit-surface-depth.mjs` が SP で検出）。
+               操作の的は `label` 全体なので **行の高さを 44px（`min-h-11`）** にし、
+               つまみ自体も 24px（`size-6`）に上げる。 */}
+        <div className="flex flex-wrap gap-x-6 text-sm">
           {(["metadata", "manual"] as EntryMode[]).map((value) => (
-            <label key={value} className="flex items-center gap-2">
+            <label key={value} className="flex min-h-11 items-center gap-2">
               <input
                 type="radio"
                 name="saml-entry-mode"
+                className="size-6"
                 value={value}
                 checked={mode === value}
                 onChange={() => setMode(value)}
@@ -261,9 +266,11 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
 
       {/* ── 有効化（🚨 締め出さないことを画面で伝える） ── */}
       <section className="space-y-3">
-        <label className="flex items-center gap-2 text-sm">
+        {/* 🚨 radio と同じ理由でタップ領域を上げている（素の checkbox は 13px）。 */}
+        <label className="flex min-h-11 items-center gap-2 text-sm">
           <input
             type="checkbox"
+            className="size-6"
             checked={enabled}
             onChange={(event) => setEnabled(event.target.checked)}
           />
