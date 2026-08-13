@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
@@ -29,10 +30,43 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
   const t = useT("onboarding");
   const tCommon = useT("common");
   const [projectName, setProjectName] = useState(defaultProjectName);
+  const [tenantName, setTenantName] = useState("");
+  const [logoId, setLogoId] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [stage, setStage] = useState<"form" | "done">("form");
+
+  async function handleLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setLogoError(null);
+    setLogoUploading(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/onboarding/logo", {
+      method: "POST",
+      body: formData,
+    });
+
+    setLogoUploading(false);
+
+    if (!response.ok) {
+      setLogoError(t("logo_failed"));
+      return;
+    }
+
+    const payload = (await response.json()) as { data: { id: string } };
+    setLogoId(payload.data.id);
+    setLogoPreview(URL.createObjectURL(file));
+  }
 
   const submit = useSubmitOnce(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -46,18 +80,61 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
         new_password: newPassword,
         project_name: projectName,
         default_locale: locale,
+        tenant_name: tenantName,
+        project_logo: logoId ?? "",
       }),
     });
 
+    setPending(false);
+
     if (!response.ok) {
       setError(t("failed"));
-      setPending(false);
       return;
     }
 
-    router.push("/admin");
-    router.refresh();
+    // 🚨 /admin へ即座に飛ばさない。同じページの中身を完了の表示に差し替える。
+    setStage("done");
   });
+
+  if (stage === "done") {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-semibold">{t("done_title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("done_description")}</p>
+        </div>
+        <ul className="flex flex-col gap-2 text-sm">
+          <li>
+            <Link
+              href="/admin/settings/general"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              {t("done_settings_link")}
+            </Link>
+          </li>
+          <li className="text-muted-foreground">
+            {t("done_tenant")} — {t("done_later")}
+          </li>
+          <li className="text-muted-foreground">
+            {t("done_sso")} — {t("done_later")}
+          </li>
+          <li className="text-muted-foreground">
+            {t("done_storage")} — {t("done_later")}
+          </li>
+        </ul>
+        <Button
+          type="button"
+          className="min-h-(--control-h) w-full md:min-h-0"
+          onClick={() => {
+            router.push("/admin");
+            router.refresh();
+          }}
+        >
+          {t("go_admin")}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -133,11 +210,48 @@ export function OnboardingForm({ defaultProjectName }: OnboardingFormProps) {
           </InputGroup>
           <p className="text-xs text-muted-foreground">{t("new_password_help")}</p>
         </div>
+        <hr className="border-0 border-t border-border" />
+        <div className="flex flex-col gap-4">
+          <p className="text-sm font-medium text-muted-foreground">{t("optional_heading")}</p>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="logo">{t("logo_label")}</Label>
+            {/* 🚨 素の input type="file" でよい（design確認済み）。D&D/サムネの部品（要件A）が
+                入ったら、ここだけ差し替えられる形にしてある。 */}
+            <input
+              id="logo"
+              type="file"
+              accept="image/*"
+              onChange={handleLogoChange}
+              className="text-sm"
+            />
+            {logoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element -- アップロード直後のローカルプレビューのため
+              <img src={logoPreview} alt="" className="h-12 w-12 rounded object-cover" />
+            ) : null}
+            {logoUploading ? (
+              <p className="text-xs text-muted-foreground">{t("logo_uploading")}</p>
+            ) : null}
+            {logoError ? <p className="text-sm text-destructive">{logoError}</p> : null}
+            <p className="text-xs text-muted-foreground">{t("logo_help")}</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="tenant-name">{t("tenant_label")}</Label>
+            <Input
+              id="tenant-name"
+              type="text"
+              value={tenantName}
+              onChange={(event) => setTenantName(event.target.value)}
+              className="h-(--control-h) md:h-(--control-h-pc)"
+            />
+            <p className="text-xs text-muted-foreground">{t("tenant_help")}</p>
+          </div>
+        </div>
+        <hr className="border-0 border-t border-border" />
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button
           type="submit"
           className="min-h-(--control-h) w-full md:min-h-0"
-          disabled={submit.pending || pending}
+          disabled={submit.pending || pending || logoUploading}
         >
           {pending ? t("submit_pending") : t("submit")}
         </Button>

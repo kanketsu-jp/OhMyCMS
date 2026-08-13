@@ -43,6 +43,7 @@ export const SETTINGS_DEFAULTS = {
   project_color: "#111111",
   default_locale: "ja",
   public_note: "",
+  tenant_name: "",
 } as const;
 
 export type Settings = {
@@ -51,6 +52,7 @@ export type Settings = {
   project_color: string;
   default_locale: string;
   public_note: string;
+  tenant_name: string;
   /** 各項目が「DB の値」なのか「環境変数・既定値」なのか。GUI が出所を出せるようにする。 */
   sources: Record<SettingsKey, SettingsSource>;
   updated_at: string | null;
@@ -63,7 +65,8 @@ export type SettingsKey =
   | "project_logo"
   | "project_color"
   | "default_locale"
-  | "public_note";
+  | "public_note"
+  | "tenant_name";
 
 /** GUI から書き換えられる項目。ここに無いキーは PATCH で無視する。 */
 const WRITABLE_KEYS: SettingsKey[] = [
@@ -72,6 +75,7 @@ const WRITABLE_KEYS: SettingsKey[] = [
   "project_color",
   "default_locale",
   "public_note",
+  "tenant_name",
 ];
 
 /** 環境変数から読む「初期値」。空文字は未設定として扱う（compose が空を渡してくるため）。 */
@@ -94,6 +98,7 @@ type SettingsRow = {
   project_color: string | null;
   default_locale: string | null;
   public_note: string | null;
+  tenant_name: string | null;
   updated_at: Date | string | null;
   /** オンボーディングが済んだ時刻。null なら未完了。 */
   onboarding_completed_at: Date | string | null;
@@ -134,6 +139,7 @@ export async function getSettings(): Promise<Settings> {
   const color = resolve("project_color", SETTINGS_DEFAULTS.project_color);
   const locale = resolve("default_locale", SETTINGS_DEFAULTS.default_locale);
   const note = resolve("public_note", SETTINGS_DEFAULTS.public_note);
+  const tenant = resolve("tenant_name", SETTINGS_DEFAULTS.tenant_name);
 
   return {
     project_name: name.value,
@@ -141,6 +147,7 @@ export async function getSettings(): Promise<Settings> {
     project_color: color.value,
     default_locale: locale.value,
     public_note: note.value,
+    tenant_name: tenant.value,
     sources: {
       project_name: name.source,
       // ロゴは環境変数を持たない（ファイルIDなので DB にしか居ない）。
@@ -148,6 +155,7 @@ export async function getSettings(): Promise<Settings> {
       project_color: color.source,
       default_locale: locale.source,
       public_note: note.source,
+      tenant_name: tenant.source,
     },
     updated_at: row?.updated_at
       ? new Date(row.updated_at).toISOString()
@@ -184,6 +192,9 @@ function validate(input: Record<string, unknown>): Partial<Record<SettingsKey, s
     }
     if (key === "project_name" && value.length > 255) {
       throw new ApiError(400, "INVALID_FIELD", "project_name は255文字までです");
+    }
+    if (key === "tenant_name" && value.length > 255) {
+      throw new ApiError(400, "INVALID_FIELD", "tenant_name は255文字までです");
     }
     if (key === "project_color" && value && !/^#[0-9a-fA-F]{3,8}$/.test(value)) {
       throw new ApiError(400, "INVALID_COLOR", "project_color は #rrggbb 形式で指定してください");
@@ -334,6 +345,8 @@ export async function completeOnboardingWithAdmin(
   const patch = validate({
     project_name: input.project_name,
     default_locale: input.default_locale,
+    tenant_name: input.tenant_name,
+    project_logo: input.project_logo,
   });
 
   // 🚨 directus_users.password と ohmycms_settings.setup_password を同じハッシュにする。

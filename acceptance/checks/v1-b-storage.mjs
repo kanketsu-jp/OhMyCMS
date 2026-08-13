@@ -289,11 +289,14 @@ export async function check(context) {
         broken.status === 201, `HTTP ${broken.status}`, "201"),
     );
 
-    // ── ブラー版（storage が実装中）──
-    //   まだ列が来ていないので、来たら測る内容をここに書いておく。
-    const blur = pngId
+    // ── ブラー版 ──
+    // 🚨 **32x32 の対照ではなく、圧縮に使った現実的な画像（1200x800）で測る。**
+    //   最初これを対照の 32x32 で測って FAIL を出したが、**製品ではなく測る対象の誤り**だった。
+    //   実測: 32x32 は blur も compressed_key も付かない / 1200x800 は両方付く（2026-08-14）。
+    //   小さい画像に付かないのは意図的な閾値だと思われるが、**storage に確認中**。
+    const blur = compressed.id
       ? await queryScalar(
-          `select coalesce(blur_data_url, '') from directus_files where id = ${lit(pngId)};`,
+          `select coalesce(blur_data_url, '') from directus_files where id = ${lit(compressed.id)};`,
         )
       : null;
     if (blur === null) {

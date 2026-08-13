@@ -384,8 +384,28 @@ export type FileRecord = {
   uploaded_by: string | null;
   uploaded_on: string;
   filesize: string | number | null;
+  /**
+   * 🚨 **向きを適用した後の寸法**（EXIF の orientation が 5〜8 なら入れ替わっている）。
+   * 配信側は必ず `.rotate()` を通すので、この値が実際の画素と一致する。
+   * `next/image` の `width` / `height` にそのまま渡してよい（渡さないとレイアウトシフトが出る）。
+   */
   width: number | null;
   height: number | null;
+  /**
+   * 読み込み中に出すぼかし。`data:image/webp;base64,…`（実測 167〜215 文字・1KB 未満）。
+   *
+   * 🚨 **null になることがある**（画像でないもの / SVG / 壊れた画像 / 小さすぎる画像 / 生成失敗）。
+   *   **null でも描画は続けること。** 飾りのために本体を落とさない。
+   * 🚨 命名は API・SDK ともに snake_case（この型の他の列と揃えるため）。
+   *   `next/image` へ渡すときだけ `blurDataURL` へ読み替える（変換は `@ohmycms/sdk/next` の中だけ）。
+   */
+  blur_data_url: string | null;
+  /**
+   * 圧縮版のキー。null なら圧縮版が無い（元をそのまま配信する）。
+   * 🚨 これを見て配信先を決めるのは**サーバの仕事**。SDK が URL を組み立てるときは
+   *   常に `/api/assets/<id>` を指す（`assetUrl`）。ここからキーを組み立てないこと。
+   */
+  compressed_key: string | null;
   description: string | null;
   tags: unknown | null;
   [key: string]: unknown;
