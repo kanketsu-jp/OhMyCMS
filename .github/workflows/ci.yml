@@ -61,7 +61,11 @@ jobs:
         run: bun run lint
 
       - name: 型チェック
-        run: bun --filter @ohmycms/studio exec tsc --noEmit
+        # 🚨 bun の --filter は pnpm と違い exec を受け付けない
+        #    （"No packages matched the filter" になる。lefthook で実際に踏んだ）。
+        #    cd してから bun x で直接叩く。
+        working-directory: apps/studio
+        run: bun x tsc --noEmit
 
       - name: build
         # lib/db/knex.ts が module 直下で DATABASE_URL を読むため、
