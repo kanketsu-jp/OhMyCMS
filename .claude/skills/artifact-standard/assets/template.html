@@ -14,9 +14,10 @@
 
   ■ ページを 1 枚足す手順（これだけ）
     ① <section data-page="xx" data-title="表示名"> を追加
-    ② home の目次に <button class="nav-card" data-go="xx"> を追加
-       （設問ページなら list-todo + <span class="nav-card-n" data-count="xx">0/0</span>、
-        よみものなら list-doc + 「読む」）
+    ② home の記事一覧に <button class="nav-card" data-go="xx"> を追加
+       絵文字 <span class="nav-card-e">📖</span> を必ず 1 つ付ける（Zenn の記事サムネの発想）
+       設問ページだけ <span class="nav-card-n" data-count="xx">0/0</span> を足す。
+       設問が無いページにはバッジを付けない（JS が自動で隠すが、そもそも書かない）
     ③ ページ末尾に .pager（目次へ / 次へ）を置く
     CSS と JS は触らない。
 
@@ -101,24 +102,35 @@
   .sec-h span { font-family:var(--mono); font-size:12px; color:var(--text-3); }
   .sec-note { margin:0 0 12px; color:var(--text-2); font-size:14px; line-height:1.7; }
 
-  /* ===== 目次カード ===== */
-  .nav-list { display:grid; gap:8px; }
+  /* ===== 記事カード（Zenn の記事一覧を参考にした形）=====
+     左に絵文字のサムネ、右にタイトルと説明。1 ページ = 1 記事として並べる。
+     ページ同士は紐づいていなくてよい（順路ではなく一覧）。 */
+  .nav-list { display:grid; gap:10px; }
   .nav-card {
-    display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-items:center;
+    display:grid; grid-template-columns:auto 1fr auto; gap:3px 14px; align-items:start;
     border:1px solid var(--border); border-radius:12px; padding:14px 16px;
     background:var(--bg); color:inherit; cursor:pointer; text-align:left;
     font-family:var(--font); min-height:44px;
   }
   .nav-card:hover { border-color:var(--brand); background:var(--brand-weak); }
-  .nav-card-t { font-size:16px; font-weight:700; line-height:1.6; }
-  .nav-card-d { grid-column:1; font-size:13px; color:var(--text-2); line-height:1.7; }
+  .nav-card-e {
+    grid-row:1 / span 2; grid-column:1;
+    width:52px; height:52px; border-radius:10px; flex:0 0 auto;
+    display:grid; place-items:center; font-size:26px; line-height:1;
+    background:var(--surface); border:1px solid var(--border);
+  }
+  .nav-card-t { grid-column:2; font-size:16px; font-weight:700; line-height:1.6; }
+  .nav-card-d { grid-column:2; font-size:13px; color:var(--text-2); line-height:1.7; }
   .nav-card-n {
-    grid-row:1 / span 2; font-family:var(--mono); font-size:12px; font-variant-numeric:tabular-nums;
+    grid-row:1 / span 2; grid-column:3; align-self:center;
+    font-family:var(--mono); font-size:12px; font-variant-numeric:tabular-nums;
     color:var(--text-2); border:1px solid var(--border-strong); border-radius:99px; padding:2px 10px; white-space:nowrap;
   }
+  .nav-card-n[hidden] { display:none; }
   .nav-card-n[data-full="1"] { color:var(--brand); border-color:var(--brand); }
   .nav-card[data-state="done"] { background:var(--surface); border-color:var(--border); }
   .nav-card[data-state="done"] .nav-card-t { color:var(--text-2); }
+  .nav-card[data-state="done"] .nav-card-e { opacity:.6; }
   .sec-h.done h2 { color:var(--text-2); }
 
   /* ===== ブランド（ホワイトラベル。空なら何も出ない） ===== */
@@ -287,6 +299,7 @@
     .mast { padding:40px 0 8px; }
     .mast h1 { font-size:32px; }
     .q, .nav-card { padding:20px; }
+    .nav-card-e { width:56px; height:56px; font-size:28px; }
     .dock { display:none; }
     .top-in { padding:10px 20px; }
     .top-actions { display:flex; gap:8px; align-items:center; }
@@ -327,6 +340,7 @@
     <div class="sec-h" id="h-todo"><h2>対応が必要なもの</h2><span>TODO</span></div>
     <div class="nav-list" id="list-todo">
       <button class="nav-card" data-go="qa">
+        <span class="nav-card-e">📝</span>
         <span class="nav-card-t">A. セクション名</span>
         <span class="nav-card-d">このページで何を決めるかを 1 行</span>
         <span class="nav-card-n" data-count="qa">0/3</span>
@@ -342,9 +356,9 @@
     <div class="sec-h" id="h-doc"><h2>よみもの</h2><span>DOC</span></div>
     <div class="nav-list" id="list-doc">
       <button class="nav-card" data-go="doc">
+        <span class="nav-card-e">📖</span>
         <span class="nav-card-t">読み物のページ</span>
-        <span class="nav-card-d">前提・背景・シナリオなど、答えないページ</span>
-        <span class="nav-card-n">読む</span>
+        <span class="nav-card-d">答えを入力しないページ。1 ページ = 1 記事として独立していてよい</span>
       </button>
     </div>
 
@@ -673,9 +687,11 @@
     $('n-done-2').textContent = done;
     $('menu-n').textContent = done + '/' + qs.length;
 
+    /* 設問のあるページだけバッジを出す。設問が 0 のページで 0/0 を出さない */
     document.querySelectorAll('[data-count]').forEach(el => {
       const st = pageStat(el.dataset.count);
-      if (!st) return;
+      if (!st) { el.hidden = true; return; }
+      el.hidden = false;
       el.textContent = st.done + '/' + st.all;
       el.dataset.full = st.done === st.all ? '1' : '0';
     });
