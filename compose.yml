@@ -32,6 +32,10 @@ x-app-env: &app-env
   # コンテナ内の待ち受けポート。Dockerfile の PORT=3000 を上書きし、公開ポートと一致させる。
   PORT: ${STUDIO_PORT:-3101}
   # 最初の管理者（seed サービスが1度だけ作る）。値はログに出さないこと。
+  # 初回セットアップ用のパスワード。これ1つで管理画面に入り、オンボーディングで本来の管理者を作る。
+  # 🚨 .env に何も書かなくても入れるのが受入基準なので、**既定値を持たせる**。
+  OHMYCMS_SETUP_PASSWORD: ${OHMYCMS_SETUP_PASSWORD:-pass132}
+  # 旧方式（環境変数から管理者を作る）。auth が差し替え中のため、完了連絡まで残す。
   OHMYCMS_ADMIN_EMAIL: ${OHMYCMS_ADMIN_EMAIL:-}
   OHMYCMS_ADMIN_PASSWORD: ${OHMYCMS_ADMIN_PASSWORD:-}
   # 表示・ホワイトラベル。既定値はアプリ側にも持たせてあるので、ここは空で渡してよい
