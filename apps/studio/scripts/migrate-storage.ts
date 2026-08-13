@@ -22,6 +22,15 @@ import { db } from "../lib/db/knex";
 import { getStorage, getStorageByName, getStorageStatus } from "../lib/storage";
 
 const apply = process.argv.includes("--apply");
+/**
+ * 🚨 **1件だけ試せるようにする**（`--id <uuid>`）。
+ *
+ * 共有の DB には他の人が上げた行も入っている。**全部まとめて移す前に1件で確かめられる**方が安全で、
+ * 本番でも「まず1件、目で見てから残り」という進め方ができる。
+ * 指定が無ければ従来どおり local の行を全部対象にする。
+ */
+const idIndex = process.argv.indexOf("--id");
+const onlyId = idIndex === -1 ? null : (process.argv[idIndex + 1] ?? null);
 
 type Row = {
   id: string;
@@ -47,10 +56,13 @@ async function main(): Promise<void> {
   console.log(`移す先: bucket=${status.bucket} host=${status.endpointHost}`);
   console.log(apply ? "モード: 実行（--apply）" : "モード: 下見（何も変えません。実行するには --apply）");
 
-  const rows = await db<Row>("directus_files")
+  const query = db<Row>("directus_files")
     .select("id", "storage", "filename_disk", "filename_download")
     .where({ storage: "local" })
     .orderBy("uploaded_on");
+  if (onlyId) query.andWhere({ id: onlyId });
+  const rows = await query;
+  if (onlyId) console.log(`対象を1件に絞っています: ${onlyId}`);
 
   if (rows.length === 0) {
     console.log("ローカルに置かれたファイルはありません。");
