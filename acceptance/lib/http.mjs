@@ -165,13 +165,15 @@ export async function probeBuildKind(baseUrl) {
  * @returns {Promise<string|null>}
  */
 export async function probeTargetCommit(baseUrl) {
-  const session = new Session(baseUrl, "version");
-  const login = await session.postJson("/api/auth/dev-login?admin=true", {
-    email: "acc-version-probe@example.com",
-  });
-  if (login.status !== 200) return null;
-  const response = await session.get("/api/version");
+  // 🚨 開発ビルドだけでなく**本番ビルドでも**版を取る。
+  //   本番こそ「どの版を測ったか」が要る（出荷物の証明になるため）。
+  const { establishSession } = await import("./session.mjs");
+  const auth = await establishSession(baseUrl, { label: "version" });
+  if (!auth.ok) return null;
+  const response = await auth.session.get("/api/version");
   if (response.status !== 200) return null;
   const commit = response.json?.data?.commit;
-  return typeof commit === "string" && commit.trim() !== "" ? commit.trim() : null;
+  return typeof commit === "string" && commit.trim() !== "" && commit !== "unknown"
+    ? commit.trim()
+    : null;
 }

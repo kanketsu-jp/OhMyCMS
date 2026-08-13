@@ -26,6 +26,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { Session } from "../lib/http.mjs";
+import { establishSession } from "../lib/session.mjs";
 import { McpStdioClient } from "../lib/mcp.mjs";
 import { REPO_ROOT, run } from "../lib/proc.mjs";
 import { STATUS, assertion, result, statusFromAssertions } from "../lib/result.mjs";
@@ -90,13 +91,12 @@ async function setup(baseUrl, stamp, { sabotage = false } = {}) {
   const allowed = `${PREFIX}allowed_${stamp}`;
   const forbidden = `${PREFIX}forbidden_${stamp}`;
 
-  const admin = new Session(baseUrl, "admin");
-  const login = await admin.postJson("/api/auth/dev-login?admin=true", {
-    email: `acc-mcp-${stamp}@example.com`,
-  });
-  if (login.status !== 200) {
-    return { ok: false, reason: `dev-login が使えません (HTTP ${login.status})` };
+  // 開発ビルドなら dev-login、本番ビルドなら .env の管理者でパスワードログイン
+  const auth = await establishSession(baseUrl, { label: `acc-mcp-${stamp}`, admin: true });
+  if (!auth.ok) {
+    return { ok: false, reason: auth.reason, detail: auth.detail };
   }
+  const admin = auth.session;
 
   // 管理トークン: 管理操作 + 2 つのコレクションの行を扱える
   const adminToken = await admin.postJson("/api/auth/agents", {

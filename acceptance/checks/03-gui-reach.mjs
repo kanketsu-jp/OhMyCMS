@@ -22,6 +22,7 @@
  */
 
 import { Session } from "../lib/http.mjs";
+import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
 
 const PREFIX = "acc_reach_";
@@ -86,22 +87,13 @@ export async function check(context) {
     ? [...REQUIRED_NAV, ["/admin/settings/nonexistent", "存在しない機能（--red 用）"]]
     : REQUIRED_NAV;
 
-  const admin = new Session(baseUrl, "admin");
-  const login = await admin.postJson("/api/auth/dev-login?admin=true", {
-    email: `acc-reach-${stamp}@example.com`,
-  });
-  if (login.status !== 200) {
-    return blocked(
-      `dev-login が使えません (HTTP ${login.status})`,
-      [
-        "GUI へログインした状態で到達できるかを見るので、セッションが要ります。",
-        "本番ビルドでは dev-login が消えているため、ここでは判定できません。",
-        "→ 開発ビルド（bun run dev / studio-acc）へ向けてください。",
-      ],
-      ["bun run acceptance --only 3 --base-url http://localhost:3102"],
-      started,
-    );
+  // 開発ビルドなら dev-login、本番ビルドなら .env の管理者でパスワードログイン
+  const auth = await establishSession(baseUrl, { label: `reach-${stamp}`, admin: true });
+  if (!auth.ok) {
+    return blocked(auth.reason, auth.detail, [`bun run acceptance --only 3 --base-url ${baseUrl}`], started);
   }
+  const admin = auth.session;
+  details.push(`ログイン方式: ${auth.method}`);
 
   // ── 🚨 オンボーディング未完了なら「判定不能」。**FAIL にしない** ──
   //   /admin が /onboarding へ飛ぶのは**正しい挙動**（初期設定が済んでいないだけ）。

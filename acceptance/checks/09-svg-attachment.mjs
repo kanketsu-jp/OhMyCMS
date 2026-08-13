@@ -13,6 +13,7 @@
 
 import { PREFIX } from "../lib/fixture.mjs";
 import { Session } from "../lib/http.mjs";
+import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions } from "../lib/result.mjs";
 
 
@@ -57,25 +58,20 @@ export async function check(context) {
   const details = [];
   const uploaded = [];
 
-  const admin = new Session(baseUrl, "admin");
-  const login = await admin.postJson("/api/auth/dev-login?admin=true", {
-    email: `${PREFIX}admin@example.com`,
-  });
-  if (login.status !== 200) {
+  // 開発ビルドなら dev-login、本番ビルドなら .env の管理者でパスワードログイン
+  const auth = await establishSession(baseUrl, { label: `${PREFIX}admin`, admin: true });
+  if (!auth.ok) {
     return result({
       id: 9,
       title: "SVG/HTML が attachment で配信される",
       status: "BLOCKED",
-      reason: `dev-login が使えません (HTTP ${login.status})`,
-      details: [
-        "ファイルのアップロードにログイン済みセッションが要りますが、",
-        "本番ビルドでは dev-login が消えています（NODE_ENV がインライン展開されるため）。",
-        "→ acceptance/compose.acceptance.yml の dev モード studio を起動してください。",
-      ],
-      repro: ["bun run acceptance:up"],
+      reason: auth.reason,
+      details: ["ファイルのアップロードにログイン済みセッションが要ります。", ...auth.detail],
+      repro: [`bun run acceptance --only 9 --base-url ${baseUrl}`],
       ms: Date.now() - started,
     });
   }
+  const admin = auth.session;
 
   try {
     const png = await upload(admin, {

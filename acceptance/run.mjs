@@ -217,7 +217,7 @@ async function main() {
   //   どの環境に対する結果かが混ざると、後で判断を誤る（司令塔の指摘・2026-08-13）。
   const buildKind = await probeBuildKind(context.baseUrl);
   // 🚨 リポジトリの HEAD ではなく、**対象が動かしている版**を取る（焼き込みで古いことがある）
-  const targetCommit = buildKind === "dev" ? await probeTargetCommit(context.baseUrl) : null;
+  const targetCommit = buildKind === "unreachable" ? null : await probeTargetCommit(context.baseUrl);
   devBuildTarget = buildKind === "dev";
   context.devBuildTarget = devBuildTarget;
   context.buildKind = buildKind;
