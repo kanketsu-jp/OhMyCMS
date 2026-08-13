@@ -6,6 +6,7 @@ import { apiFetch, currentUser } from "@/lib/admin/api";
 import { GlobalSearch } from "@/components/admin/global-search";
 import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { MobileNav } from "@/components/admin/mobile-nav";
+import { NavLinks } from "@/components/admin/nav-links";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
@@ -16,19 +17,26 @@ import { isValidSetupSession } from "@/lib/auth/setup-session";
 import { isOnboardingCompleted } from "@/lib/settings/service";
 import { cn } from "@/lib/utils";
 
+// 🚨 上位と「設定」を分ける（design ⑥）。平らに 12 行並べると、同じ接頭辞の settings_* が
+// 7回続いて**上位5項目が埋もれる**。開閉に畳んで 12行 → 6行にする。
 const navItems = [
   { href: "/admin/collections", labelKey: "collections" },
   { href: "/admin/files", labelKey: "files" },
   { href: "/admin/folders", labelKey: "folders" },
   { href: "/admin/notifications", labelKey: "notifications" },
   { href: "/admin/reports", labelKey: "reports" },
-  { href: "/admin/settings/general", labelKey: "settings_general" },
-  { href: "/admin/settings/sso", labelKey: "settings_sso" },
-  { href: "/admin/settings/roles", labelKey: "settings_roles" },
-  { href: "/admin/settings/policies", labelKey: "settings_policies" },
-  { href: "/admin/settings/users", labelKey: "settings_users" },
-  { href: "/admin/settings/agents", labelKey: "settings_agents" },
-  { href: "/admin/settings/version", labelKey: "settings_version" },
+];
+
+// 子は「設定 / 一般」ではなく**「一般」**。親が「設定」なので繰り返さない。
+// 🚨 `settings_*`（長い方）の辞書キーは消していない。他で使われている可能性があるため。
+const settingsItems = [
+  { href: "/admin/settings/general", labelKey: "settings_child_general" },
+  { href: "/admin/settings/sso", labelKey: "settings_child_sso" },
+  { href: "/admin/settings/roles", labelKey: "settings_child_roles" },
+  { href: "/admin/settings/policies", labelKey: "settings_child_policies" },
+  { href: "/admin/settings/users", labelKey: "settings_child_users" },
+  { href: "/admin/settings/agents", labelKey: "settings_child_agents" },
+  { href: "/admin/settings/version", labelKey: "settings_child_version" },
 ];
 
 export default async function AdminLayout({
@@ -88,17 +96,11 @@ export default async function AdminLayout({
             （持たせると、fade の付いていない要素がスクロールして監査が赤になる）。 */}
         <nav className="flex min-h-0 flex-1 flex-col">
           <ScrollFade direction="vertical" className="flex-1 space-y-6 px-3 py-4">
-          <div className="space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
-              >
-                {t(item.labelKey)}
-              </Link>
-            ))}
-          </div>
+          <NavLinks
+            items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+            settings={settingsItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+            settingsLabel={t("settings")}
+          />
           <div>
             <p className="px-3 pb-2 text-xs font-medium text-muted-foreground">
               {t("content_heading")}
@@ -158,6 +160,8 @@ export default async function AdminLayout({
           ラベルはここで辞書を引いて渡す（部品側で引き直さない）。 */}
       <MobileNav
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+        settings={settingsItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+        settingsLabel={t("settings")}
         collections={
           collections?.ok
             ? collections.data.map((row) => ({
