@@ -179,7 +179,20 @@ async function main() {
     baseUrl: args.baseUrl ?? `http://localhost:${DEV_PORT}`,
     // RED 確認用。指定した項目をわざと壊れた状態で走らせる（F9h 受入基準3）。
     red: args.red ?? [],
+    // 🚨 対象が手元かどうか。遠隔（Dokploy 上のインスタンス等）なら、
+    //   手元の情報しか見ていない項目を PASS のままにしない（下の REMOTE_UNMEASURABLE）。
+    remoteTarget: !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(
+      args.baseUrl ?? `http://localhost:${DEV_PORT}`,
+    ),
   };
+
+  if (context.remoteTarget && !args.json) {
+    process.stderr.write(
+      `\n⚠ 対象が手元ではありません（${context.baseUrl}）。\n` +
+        "  手元のリポジトリや docker しか見ていない項目（1・2・7・8・10）は BLOCKED にします。\n" +
+        "  そのままだと「デプロイ先で PASS」という空の合格になるためです。\n\n",
+    );
+  }
 
   if (context.red.length > 0 && !args.json) {
     process.stderr.write(
@@ -287,6 +300,32 @@ async function main() {
   }
 
   results.sort((a, b) => a.id - b.id);
+
+  // ── 🚨 対象が「手元」でないとき、測れていない項目を PASS のままにしない ──
+  //   司令塔の指示（2026-08-13）で、受入を **Dokploy 上のインスタンス**へも回す予定。
+  //   `--base-url` で外は指せるが、**一部の項目は対象を見ていない**ので、
+  //   そのままだと「デプロイ先で 7 PASS」という**空の合格**になる。
+  //   （今日 v0.9 で「開発ビルドで 7 PASS は出荷物の証明にならない」と言われたのと同じ形）
+  const REMOTE_UNMEASURABLE = {
+    1: "docker compose を手元で叩く項目なので、遠隔の対象については何も言えません。",
+    2: "手元の .env.example を見る項目なので、遠隔の対象については何も言えません。",
+    7: "🚨 **この項目は対象へ一切アクセスしていません**（手元のリポジトリの辞書だけを見ます）。"
+      + "デプロイ先の中身が古くても PASS になるため、遠隔の対象では判定できません。",
+    8: "他人の行を作るのに dev-login か DB へのブートストラップが要ります。どちらも手元の docker 前提です。",
+    10: "保存先が s3 かを DB（docker exec psql）で確かめる項目なので、遠隔の対象では確かめられません。",
+  };
+  if (context.remoteTarget) {
+    for (const r of results) {
+      const why = REMOTE_UNMEASURABLE[r.id];
+      if (!why) continue;
+      if (r.status === STATUS.PASS || r.status === STATUS.FAIL) {
+        r.details.push(`⚠ 元の判定: ${r.status}（手元の情報にもとづくもの）`);
+      }
+      r.status = STATUS.BLOCKED;
+      r.reason = `遠隔の対象では判定できません（${context.baseUrl}）`;
+      r.details.push(why);
+    }
+  }
 
   // 🚨 基準8・9 は開発ビルドの studio-acc で判定している。
   //    本番ビルドでも同じ結果になるかは別の話なので、出力に必ず残す（司令塔の指示・2026-08-13）。

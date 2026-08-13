@@ -179,6 +179,38 @@ export async function check(context) {
       );
     }
 
+    // ── ブラー版（storage が実装中）──
+    //   まだ列が来ていないので、来たら測る内容をここに書いておく。
+    const blur = pngId
+      ? await queryScalar(
+          `select coalesce(blur_data_url, '') from directus_files where id = ${lit(pngId)};`,
+        )
+      : null;
+    if (blur === null) {
+      details.push(
+        "ブラー版はまだ来ていません（`blur_data_url` の列が無い）。来たら測る内容:",
+        "  🟢 画像なら `data:image/webp;base64,` で始まる値が返る（storage の実測 215 文字 / 142B）",
+        "  🟢 1KB 未満",
+        "  🔴 PDF・動画・壊れた画像では null",
+        "  🔴 🚨 **SVG では null**（storage の判断。SVG のラスタライズは外部参照を辿る経路があり、",
+        "     §3.4 で attachment を強制している当のファイルをサーバ側で描画することになるため）",
+        "  🔴 🚨 **ブラーの生成に失敗しても、アップロード自体は成功する**（飾りで本体を落とさない）",
+        "  🟢 🚨 **width/height が「向きを適用した後」の寸法**（storage が EXIF の実害を発見・修正済み。",
+        "     orientation=6 で metadata() は 200x100 を返すが配信画素は 100x200。ずれると画面が飛び跳ねる）",
+      );
+    } else {
+      assertions.push(
+        assertion("positive", "画像にブラー版が付く（data:image/webp;base64, で始まる）",
+          blur.startsWith("data:image/webp;base64,"),
+          blur ? `${blur.slice(0, 26)}…（${blur.length} 文字）` : "(空)",
+          "data:image/webp;base64,"),
+      );
+      assertions.push(
+        assertion("positive", "ブラー版が 1KB 未満", blur.length > 0 && blur.length < 1024,
+          `${blur.length} 文字`, "1024 文字未満"),
+      );
+    }
+
     details.push(
       "🚨 **ローカル FS へのフォールバック**（設定が空のとき壊れない）は、" +
         "対象の環境変数を変えて起動し直す必要があるため、この検査には入れていない。" +
