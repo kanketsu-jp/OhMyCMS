@@ -32,6 +32,27 @@ const DB_CONTAINER = "ohmycms-db";
 /** ブートストラップで作った管理者ポリシーの名前（後片付けの目印） */
 export const BOOTSTRAP_POLICY = "acc-bootstrap-admin";
 
+/**
+ * 値を PostgreSQL の文字列リテラルにする。
+ *
+ * 🚨 **`psql -v name=値` + `:'name'` は使えない。** 実測で `-c` では変数が展開されず
+ *   `ERROR: syntax error at or near ":"` になる（psql の変数展開はファイル/対話のときだけ）。
+ *   **私は「infra に勧められた形」を測らずに入れて、本番のブートストラップを壊した**（2026-08-13）。
+ *   →「提案された方式が動く」ことも**実測してから**入れる。
+ *
+ * ここでは JS 側でリテラル化する:
+ *   ・`'` を `''` にする（PostgreSQL の標準）
+ *   ・NUL を含む値は**拒否する**（エスケープでは表現できない）
+ * 呼び出し側の入力検証（正規表現）と**二重**にかけている。
+ * 「呼び出し側が固定文字列だから安全」ではなく、**この関数自身が守る**形にするのが目的。
+ * （自動セキュリティレビューの指摘・2026-08-13。infra 経由で受領）
+ */
+function lit(value) {
+  const text = String(value);
+  if (text.includes("\0")) throw new Error("SQL リテラルに NUL は使えません");
+  return `'${text.replace(/'/g, "''")}'`;
+}
+
 async function psql(sql) {
   const result = await run(
     "docker",
@@ -66,6 +87,9 @@ export async function bootstrapAvailable() {
  * @returns {Promise<{ok:true, session: Session, userId: string} | {ok:false, reason:string, detail:string[]}>}
  */
 export async function bootstrapUser(baseUrl, { email, admin = false }) {
+  if (!/^https?:\/\/[A-Za-z0-9.:_-]+$/.test(baseUrl)) {
+    return { ok: false, reason: `ブートストラップに使えない接続先です: ${baseUrl}`, detail: [] };
+  }
   if (!/^[A-Za-z0-9._@-]+$/.test(email)) {
     return { ok: false, reason: `ブートストラップに使えないメールです: ${email}`, detail: [] };
   }
@@ -80,8 +104,8 @@ export async function bootstrapUser(baseUrl, { email, admin = false }) {
        (id, first_name, last_name, email, password, status, role, token,
         last_access, provider, external_identifier, auth_data)
      values
-       ('${userId}', null, null, '${email}', null, 'active', null, null,
-        now(), 'acceptance', 'acceptance:${email}', null);`,
+       (${lit(userId)}, null, null, ${lit(email)}, null, 'active', null, null,
+        now(), 'acceptance', ${lit(`acceptance:${email}`)}, null);`,
   );
   if (!inserted.ok) {
     return {
@@ -96,25 +120,25 @@ export async function bootstrapUser(baseUrl, { email, admin = false }) {
     //   これが無いと管理 API を1つも叩けず、**検証対象の権限を API で作れない**。
     //   判定そのもの（requireAdmin → hasAdminAccess）は API 側で走る。
     let policyId = (await psql(
-      `select id from directus_policies where name='${BOOTSTRAP_POLICY}';`,
+      `select id from directus_policies where name = ${lit(BOOTSTRAP_POLICY)};`,
     )).out;
     if (!policyId) {
       policyId = randomUUID();
       await psql(
         `insert into directus_policies
            (id, name, description, ip_access, app_access, admin_access, enforce_tfa)
-         values ('${policyId}','${BOOTSTRAP_POLICY}','受入ハーネスのブートストラップ用',null,true,true,false);`,
+         values (${lit(policyId)}, ${lit(BOOTSTRAP_POLICY)}, '受入ハーネスのブートストラップ用', null, true, true, false);`,
       );
     }
     await psql(
       `insert into directus_access (id, role, "user", policy, sort)
-       values ('${randomUUID()}', null, '${userId}', '${policyId}', null);`,
+       values (${lit(randomUUID())}, null, ${lit(userId)}, ${lit(policyId)}, null);`,
     );
   }
 
   const session = await psql(
     `insert into directus_sessions (token, "user", expires, ip, user_agent, data, origin, next_token)
-     values ('${hashed}', '${userId}', now() + interval '1 day', null, 'acceptance', null, '${baseUrl}', null);`,
+     values (${lit(hashed)}, ${lit(userId)}, now() + interval '1 day', null, 'acceptance', null, ${lit(baseUrl)}, null);`,
   );
   if (!session.ok) {
     return {
@@ -137,14 +161,15 @@ export async function bootstrapUser(baseUrl, { email, admin = false }) {
 export async function cleanupBootstrap(emailPrefix) {
   if (!/^[A-Za-z0-9._-]+$/.test(emailPrefix)) return;
   // セッション → access → 利用者 の順（外部キーの向き）
+  const like = `${emailPrefix}%`;
   await psql(
     `delete from directus_sessions where "user" in
-       (select id from directus_users where email like '${emailPrefix}%');`,
+       (select id from directus_users where email like ${lit(like)});`,
   );
   await psql(
     `delete from directus_access where "user" in
-       (select id from directus_users where email like '${emailPrefix}%');`,
+       (select id from directus_users where email like ${lit(like)});`,
   );
-  await psql(`delete from directus_users where email like '${emailPrefix}%';`);
-  await psql(`delete from directus_policies where name='${BOOTSTRAP_POLICY}';`);
+  await psql(`delete from directus_users where email like ${lit(like)};`);
+  await psql(`delete from directus_policies where name = ${lit(BOOTSTRAP_POLICY)};`);
 }
