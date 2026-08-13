@@ -2,14 +2,12 @@ import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
-import { FIELD_INTERFACE_IDS } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { FieldCreateForm } from "@/components/admin/field-create-form";
 import { RelationForm } from "@/components/admin/relation-form";
 import { noticeKeyFromQuery } from "@/i18n/notice";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
   Table,
@@ -20,20 +18,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-
-const fieldTypes = [
-  "string",
-  "integer",
-  "boolean",
-  "uuid",
-  "dateTime",
-  "json",
-  "float",
-  "decimal",
-  "bigInteger",
-  "date",
-  "time",
-];
 
 type Props = {
   params: Promise<{ collection: string }>;
@@ -129,57 +113,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       ) : null}
       <Surface>
         <SurfaceTitle>{tFields("add_title")}</SurfaceTitle>
-        <form
-          action={`/admin/actions/collections/${encoded}/fields`}
-          method="post"
-          className="grid gap-4 md:grid-cols-[1fr_150px_170px_120px_110px_auto] md:items-end"
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="field">{tFields("name_label")}</Label>
-            <Input id="field" name="field" required pattern="[A-Za-z_][A-Za-z0-9_]*" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="type">{tFields("type_label")}</Label>
-            <select
-              id="type"
-              name="type"
-              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
-              defaultValue="string"
-            >
-              {fieldTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-          {/*
-            🚨 「型」は DB の列の型、「編集のしかた」は**その列を何で編集させるか**。
-            本文（リッチテキスト）は json 型 + interface=richtext で表す（新しい SQL 型を足さない）。
-            型に合わない組み合わせはサーバ側で落として既定へ戻す。
-          */}
-          <div className="space-y-1.5">
-            <Label htmlFor="interface">{tFields("interface_label")}</Label>
-            <select
-              id="interface"
-              name="interface"
-              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
-              defaultValue=""
-            >
-              <option value="">{tFields("interface_auto")}</option>
-              {FIELD_INTERFACE_IDS.map((id) => (
-                <option key={id} value={id}>{tFields(`interface_${id}`)}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="max_length">{tFields("max_length_label")}</Label>
-            <Input id="max_length" name="max_length" type="number" min="1" />
-          </div>
-          <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc-field)">
-            <input type="checkbox" name="required" value="true" className="size-4" />
-            {tFields("required_label")}
-          </label>
-          <Button type="submit">{tFields("add_button")}</Button>
-        </form>
+        <FieldCreateForm collection={encoded} />
       </Surface>
       <Surface>
         <SurfaceTitle>{tFields("list_title")}</SurfaceTitle>

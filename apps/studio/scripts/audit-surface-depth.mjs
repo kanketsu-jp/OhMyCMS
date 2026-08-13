@@ -68,8 +68,22 @@ const FILE = arg("file", "");
 const DEFAULT_PATHS = [
   // 🚨 /admin は /admin/collections へ転送される（2026-08-14・⑰ でホームを廃止）。
   //    転送されると「測定不能」になるので、着地先を直接指定する。
+  // 🚨 2026-08-14: **7 ページしか見ていなかった**（実在するのは 22 ページ）。
+  //    最初に外れていたページ（/admin/collections/<id>）を測ったら、
+  //    **堀池さんが指摘したのと同じ「区切りの重複」が3箇所**出た。
+  //    「違反なし」は**ここに並んでいるパスについてだけ**の話。**足すのは見つけた人の仕事**。
+  //    実在するページの一覧: find 'app/(admin)' -name page.tsx
+  //    🚨 [ ] を含むページ（コレクション・アイテム・ファイル詳細）は**実データの id が要る**ので
+  //       ここには書けない。**--paths で必ず別途測ること**（下の DYNAMIC_HINT を読む）。
   "/admin/collections",
+  "/admin/collections/new",
   "/admin/files",
+  "/admin/files/new-folder",
+  "/admin/reports",
+  "/admin/settings/agents",
+  "/admin/settings/roles",
+  "/admin/settings/sso",
+  "/admin/settings/version",
   // 🚨 /admin/folders は 2026-08-14 に /admin/files へ統合され、恒久転送になった
   //    （堀池さん「この二つはどう違うのかわからない」）。**測る対象ではない**ので外す。
   //    転送が生きているかは受入側で curl の実測を貼ること。
@@ -409,6 +423,16 @@ const PROBE = String.raw`(() => {
     if (cs.position === "fixed" || cs.position === "sticky") continue;
     const r = el.getBoundingClientRect();
     if (r.width < 40) continue;
+    // 🚨 **4辺すべてに罫線があって角が丸い箱は「カード」。その上下の辺は区切りではなく輪郭。**
+    //    2026-08-14 実測: Surface は SP で border-t（＝区切り）、
+    //    PC では @md/surface:rounded-xl + @md/surface:border（＝カード）になる。
+    //    カードを縦に並べれば下辺と上辺が 24px 空けて並ぶのは**当たり前**で、重複ではない。
+    //    これを数えたせいで、**正しく作られた3ページを違反として報告した**（今夜7件目の誤検出）。
+    //    🚨 SP 側（角が丸くない・上辺だけ）は今までどおり検出する。オーナー指摘はそちら。
+    const allSides = ["Top", "Right", "Bottom", "Left"]
+      .every((d) => px(cs["border" + d + "Width"]) > 0 && !clear(cs["border" + d + "Color"]));
+    const rounded = px(cs.borderTopLeftRadius) > 0 || px(cs.borderTopRightRadius) > 0;
+    if (allSides && rounded) continue;
     for (const side of ["Top", "Bottom"]) {
       const w = px(cs["border" + side + "Width"]);
       if (w <= 0 || clear(cs["border" + side + "Color"])) continue;

@@ -43,6 +43,11 @@ function AccordionTrigger({
       <AccordionPrimitive.Trigger
         data-slot="accordion-trigger"
         className={cn(
+          // 🚨 **指で押せる高さをここで与える。**写したままだと文字の分（22px）しか無く、
+          // SP で憲章 §7 の 44px を大きく割る（実測）。
+          // 使う側で1つずつ足すと、次に accordion を使う人が必ず忘れる（§6 共通部品側で持つ）。
+          // 🚨 `h-` ではなく `min-h-`。見出しが2行になったときにはみ出すため。
+          "min-h-(--control-h) md:min-h-(--control-h-pc)",
           "group/accordion-trigger relative flex flex-1 items-start justify-between rounded-lg border border-transparent py-2.5 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:after:border-ring aria-disabled:pointer-events-none aria-disabled:opacity-50 **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 **:data-[slot=accordion-trigger-icon]:text-muted-foreground",
           className
         )}
