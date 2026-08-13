@@ -54,6 +54,10 @@ const PORT = Number(arg("cdp-port", "0"));  // 0 = 空きポートを OS に選�
 //    ページを開いただけでは DOM に無いので、**測る前にこれを押す**。
 //    例: --click '[data-slot=global-search-trigger]'
 const CLICK = arg("click", "");
+// 🚨 --dump … 測ったあとの画面の中身を出す。
+//    「深さ=0 / ナビ=0 / 書体=Times」のように**壊れているのに数字だけ出る**とき、
+//    何が起きたのかが分からず止まる（2026-08-14 実測）。数字の裏に画面を貼れるようにする。
+const DUMP = process.argv.includes("--dump");
 
 const DEFAULT_PATHS = [
   // 🚨 /admin は /admin/collections へ転送される（2026-08-14・⑰ でホームを廃止）。
@@ -559,8 +563,23 @@ function connect(url) {
   const pending = new Map();
   let id = 0;
   const ready = new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+  // 🚨 画面側のエラーを拾う受け皿。--dump のときだけ出す。
+  //    レンダラが落ちると Runtime.evaluate は何も言わないので、
+  //    **落ちる直前のコンソール**が唯一の手がかりになる（2026-08-14 実測）。
+  const events = [];
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
+    if (!msg.id) {
+      if (msg.method === "Runtime.exceptionThrown") {
+        const d = msg.params?.exceptionDetails;
+        events.push(`例外: ${d?.exception?.description ?? d?.text ?? "?"}`.split("\n").slice(0, 3).join(" / "));
+      } else if (msg.method === "Runtime.consoleAPICalled" && /error|warning/.test(msg.params?.type)) {
+        events.push(`${msg.params.type}: ${(msg.params.args ?? []).map((a) => a.description ?? a.value ?? "").join(" ").slice(0, 300)}`);
+      } else if (msg.method === "Inspector.targetCrashed") {
+        events.push("🚨 レンダラが落ちました（Inspector.targetCrashed）");
+      }
+      return;
+    }
     const p = pending.get(msg.id);
     if (!p) return;
     pending.delete(msg.id);
@@ -569,7 +588,7 @@ function connect(url) {
   };
   const send = (method, params = {}) =>
     new Promise((res, rej) => { const i = ++id; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); });
-  return { ready, send, close: () => ws.close() };
+  return { ready, send, close: () => ws.close(), drainEvents: () => events.splice(0) };
 }
 
 // ── 実行 ────────────────────────────────────────────────────────────────
@@ -628,23 +647,70 @@ for (const vp of VIEWPORTS) {
 
     // 🚨 --click があれば押してから測る。押せたかどうかを**必ず出力**する
     //    （押せていないのに緑が出るのが、いちばん危ない）。
-    if (CLICK) {
+    // 🚨 `>>` で区切ると順に押す（SP は「ドロワーを開く → ユーザー行を押す」の2段が要る）。
+    // 🚨 **見えている要素だけを押す。** 同じセレクタが PC 用と SP 用で2つ DOM にあり、
+    //    画面幅で片方が display:none になっている構成があるため、
+    //    querySelector の1つ目を押すと**隠れている方**を押してしまう。
+    //    実際に踏んだ: SP で PC サイドバー側の引き金を押し、幅0のメニューを測って「潰れ」と報告した
+    //    （2026-08-14。製品ではなく検査の誤り）。
+    // 🚨 末尾に `?` を付けた段は「あれば押す」。画面幅で片方にしか無いものを1本の指定で書ける
+    //    （SP のドロワーは PC に無い。無いことを違反にすると PC が必ず落ちる）。
+    const key = `${vp.name} ${path}`;
+    let clickFailed = false;
+    for (const raw of CLICK ? CLICK.split(">>").map((s) => s.trim()).filter(Boolean) : []) {
+      const optional = raw.endsWith("?");
+      const step = optional ? raw.slice(0, -1).trim() : raw;
       const clicked = await cdp.send("Runtime.evaluate", {
-        expression: `(() => { const el = document.querySelector(${JSON.stringify(CLICK)});
-          if (!el) return "NOT_FOUND"; el.click();
+        expression: `(() => {
+          const all = [...document.querySelectorAll(${JSON.stringify(step)})];
+          const el = all.find((e) => e.checkVisibility() && e.getBoundingClientRect().width > 0);
+          if (!el) return all.length ? "HIDDEN_ONLY(" + all.length + ")" : "NOT_FOUND";
+          el.click();
           return el.tagName + ":" + (el.textContent || "").trim().slice(0, 20); })()`,
         returnByValue: true,
       });
-      log(`     押した要素: ${clicked.result.value}`);
-      if (clicked.result.value === "NOT_FOUND") {
-        violations.push({ key, rule: "測定不能", detail: `--click の対象が見つかりません: ${CLICK}` });
+      const v = clicked.result.value;
+      if (optional && (v === "NOT_FOUND" || String(v).startsWith("HIDDEN_ONLY"))) {
+        log(`     押した要素: （${step} は この画面幅に無いので飛ばしました）`);
         continue;
+      }
+      log(`     押した要素: ${v}`);
+      if (v === "NOT_FOUND" || String(v).startsWith("HIDDEN_ONLY")) {
+        violations.push({
+          key, rule: "測定不能",
+          detail: v === "NOT_FOUND"
+            ? `--click の対象が見つかりません: ${step}`
+            : `--click の対象が見つかりましたが、すべて画面に出ていません: ${step}`,
+        });
+        clickFailed = true;
+        break;
       }
       await sleep(800); // 開くアニメーションの待ち
     }
-    const { result } = await cdp.send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
-    const r = result.value;
-    const key = `${vp.name} ${path}`;
+    if (clickFailed) continue;
+    if (DUMP) {
+      const d = await cdp.send("Runtime.evaluate", {
+        expression: `({ url: location.pathname, title: document.title,
+                        text: (document.body ? document.body.innerText : "(body なし)").slice(0, 400) })`,
+        returnByValue: true,
+      });
+      const v = d.result.value ?? {};
+      log(`     画面: ${v.url} / ${v.title}\n     ${String(v.text ?? "").replace(/\n+/g, " ⏎ ").slice(0, 300)}`);
+      for (const e of cdp.drainEvents().slice(-6)) log(`     画面側: ${e}`);
+    }
+    const probed = await cdp.send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
+    const r = probed.result.value;
+    // 🚨 PROBE が投げたときに undefined を素通しさせない。
+    //    以前は r.maxDepth を読んで TypeError で落ち、**何が起きたか一切分からなかった**。
+    //    検査は「落ちる」より「なぜ落ちたか言って違反に数える」方が使える。
+    if (!r) {
+      const why = probed.exceptionDetails?.exception?.description
+        ?? probed.exceptionDetails?.text
+        ?? "理由不明（PROBE が値を返しませんでした）";
+      log(`  🚨 ${key}: 測定できません → ${why.split("\n")[0]}`);
+      violations.push({ key, rule: "測定不能", detail: `画面内の測定が失敗しました: ${why.split("\n")[0]}` });
+      continue;
+    }
     report[key] = r;
 
     if (r.maxDepth > MAX_DEPTH) {
