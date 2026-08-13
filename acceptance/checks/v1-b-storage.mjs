@@ -17,6 +17,9 @@
  *   先に **PNG が取り出せる**ことを確かめてから、SVG の否定形を見る。
  */
 
+import { deflateSync } from "node:zlib";
+import { crc32 } from "node:zlib";
+
 import { bootstrapAvailable, lit, queryScalar } from "../lib/bootstrap.mjs";
 import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
@@ -33,6 +36,64 @@ const SVG = Buffer.from(
     "<script>window.__pwned=1</script><rect width=\"10\" height=\"10\" fill=\"red\"/></svg>",
   "utf8",
 );
+
+/**
+ * **写真に近い（滑らかな）PNG を作る。** 圧縮の検証に要る。
+ *
+ * 🚨 ノイズ画像を使わないこと。ノイズは WebP でも小さくならず、storage の実装は
+ *   **太るなら作らない**ので「圧縮されていない」と誤って読める。**製品でなく素材の誤り**になる。
+ * 依存を増やさないため、PNG を手で組み立てる（Node の zlib だけ使う）。
+ */
+function makeGradientPng(width, height) {
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  let offset = 0;
+  for (let y = 0; y < height; y += 1) {
+    raw[offset] = 0; // フィルタ種別 None
+    offset += 1;
+    for (let x = 0; x < width; x += 1) {
+      raw[offset] = Math.floor((x / width) * 255);
+      raw[offset + 1] = Math.floor((y / height) * 255);
+      raw[offset + 2] = Math.floor(((x + y) / (width + height)) * 255);
+      offset += 3;
+    }
+  }
+  const chunk = (type, body) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(body.length);
+    const typed = Buffer.concat([Buffer.from(type, "ascii"), body]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(typed) >>> 0);
+    return Buffer.concat([length, typed, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // ビット深度
+  ihdr[9] = 2; // トゥルーカラー
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", deflateSync(raw)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+async function uploadAndMeasure(admin, body, filename, type, extraFields = {}) {
+  const form = new FormData();
+  form.append("file", new Blob([body], { type }), filename);
+  for (const [key, value] of Object.entries(extraFields)) form.append(key, value);
+  const uploaded = await admin.request("/api/files", { method: "POST", body: form });
+  const id = uploaded.json?.data?.id ?? null;
+  if (!id) return { id: null, status: uploaded.status, bytes: null, servedType: null };
+  const served = await admin.get(`/api/assets/${id}`);
+  const length = Number(served.headers?.get("content-length") ?? NaN);
+  return {
+    id,
+    status: uploaded.status,
+    bytes: Number.isFinite(length) ? length : null,
+    servedType: (served.headers?.get("content-type") ?? "").split(";")[0].trim(),
+  };
+}
 
 export async function check(context) {
   const started = Date.now();
@@ -94,10 +155,14 @@ export async function check(context) {
     //   → Content-Type と本文の有無で見る。バイト列が要るなら fetch を直接使うこと。
     const pngAsset = pngId ? await admin.get(`/api/assets/${pngId}`) : null;
     const pngType = pngAsset?.headers?.get("content-type") ?? "";
-    const gotPng = pngAsset?.status === 200 && pngType.includes("image/png");
+    // 🚨 **`image/png` で固定しない。** storage が圧縮を入れたので、`?width=` の無い配信は
+    //   `<uuid>/compressed.webp` が返る（元が PNG でも **image/webp**）。
+    //   ここの対照が確かめたいのは「上げたものが画像として取り出せる」ことなので、
+    //   **具体的な形式に縛らない**（縛ると圧縮を入れた日に、製品でなく検査が落ちる）。
+    const gotImage = pngAsset?.status === 200 && pngType.startsWith("image/");
     assertions.push(
-      assertion("positive", "対照: PNG を取り出せる（image/png が返る）", gotPng,
-        `HTTP ${pngAsset?.status ?? "-"} / ${pngType || "(型なし)"}`, "200 かつ image/png"),
+      assertion("positive", "対照: 上げた画像を取り出せる（画像として返る）", gotImage,
+        `HTTP ${pngAsset?.status ?? "-"} / ${pngType || "(型なし)"}`, "200 かつ image/*"),
     );
 
     // ── 🚨 本当に S3 へ行ったのか（フォールバックしていないか）──
@@ -178,6 +243,51 @@ export async function check(context) {
           "🚨 実装するなら**期限切れで 403** を測る。",
       );
     }
+
+    // ── 圧縮（storage が実装済み・2026-08-13）──
+    //   🚨 `?width=` の無い配信は `<uuid>/compressed.webp` が返る。元が PNG でも image/webp。
+    const source = makeGradientPng(1200, 800);
+    const compressed = await uploadAndMeasure(
+      admin, source, `${PREFIX}photo.png`, "image/png",
+    );
+    if (compressed.id) uploaded.push(compressed.id);
+    const plain = await uploadAndMeasure(
+      admin, source, `${PREFIX}photo-plain.png`, "image/png", { compress: "false" },
+    );
+    if (plain.id) uploaded.push(plain.id);
+
+    details.push(
+      `圧縮の実測: 元 ${source.length}B → 配信 ${compressed.bytes ?? "?"}B` +
+        `（${compressed.servedType || "型なし"}） / compress=false は ${plain.bytes ?? "?"}B` +
+        `（${plain.servedType || "型なし"}）`,
+    );
+    assertions.push(
+      assertion("positive", "大きい画像は圧縮されて配信される（元より小さい）",
+        typeof compressed.bytes === "number" && compressed.bytes < source.length,
+        `${compressed.bytes ?? "?"}B < ${source.length}B`, "元より小さい"),
+    );
+    // 🚨 対照: **compress=false でも小さくなったら、圧縮していることの証明にならない**
+    //   （単に PNG より WebP が小さいだけ、という説明が残る）。差が出ることを見る。
+    assertions.push(
+      assertion("negative", "compress=false なら圧縮されない（同じ画像で差が出る）",
+        typeof plain.bytes === "number" &&
+          typeof compressed.bytes === "number" &&
+          plain.bytes > compressed.bytes,
+        `compress=false ${plain.bytes ?? "?"}B > 既定 ${compressed.bytes ?? "?"}B`,
+        "指定した方が大きい"),
+    );
+
+    // 🔴 壊れた画像を上げても、アップロードは成功する（飾りで本体を落とさない）
+    const brokenBody = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from("これは PNG のふりをした壊れたファイルです"),
+    ]);
+    const broken = await uploadAndMeasure(admin, brokenBody, `${PREFIX}broken.png`, "image/png");
+    if (broken.id) uploaded.push(broken.id);
+    assertions.push(
+      assertion("negative", "壊れた画像でもアップロード自体は成功する",
+        broken.status === 201, `HTTP ${broken.status}`, "201"),
+    );
 
     // ── ブラー版（storage が実装中）──
     //   まだ列が来ていないので、来たら測る内容をここに書いておく。
