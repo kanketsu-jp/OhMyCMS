@@ -1,3 +1,22 @@
+---
+type: decision
+title: migration を足す人は、直前に「他人の未適用分」を確認する
+description: DB が全ペインで1つなので、knex は未適用の migration を全部まとめて走らせる。自分の1本を足したつもりでも、他ペインが書いて未適用のまま置いている分が一緒に入る。
+tags: [ops, ci, architecture]
+status: active
+generated:
+  by: rag-okf
+  at: 2026-08-14
+verified: []
+sources:
+  - resource: "repo://apps/studio/lib/db/migrations"
+  - resource: "repo://apps/studio/package.json"
+stale_after: 2027-02-14
+x_rag_okf:
+  id: decisions/migrations-are-shared
+  authorship: agent
+---
+
 # migration を足す人は、直前に「他人の未適用分」を確認する
 
 ## 決定

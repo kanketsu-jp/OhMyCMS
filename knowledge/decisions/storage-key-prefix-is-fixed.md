@@ -1,3 +1,23 @@
+---
+type: decision
+title: 保管先のキー設計を固定する（接頭辞は後から変えない）
+description: DB には接頭辞なしのキーを保存し、S3_KEY_PREFIX はドライバ内でだけ前に付ける。空なら従来と完全に同じキーになるので移行が要らないが、後から変えると既存ファイルが迷子になる。
+tags: [architecture, files, ops]
+status: active
+generated:
+  by: rag-okf
+  at: 2026-08-14
+verified: []
+sources:
+  - resource: "repo://apps/studio/lib/storage/s3.ts"
+  - resource: "repo://apps/studio/lib/files/service.ts"
+  - resource: "repo://.env.example"
+stale_after: 2027-02-14
+x_rag_okf:
+  id: decisions/storage-key-prefix-is-fixed
+  authorship: agent
+---
+
 # 保管先のキー設計を固定する（接頭辞は後から変えない）
 
 ## 決定
