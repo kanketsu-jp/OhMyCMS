@@ -44,6 +44,17 @@ services:
       STORAGE_LOCAL_ROOT: /app/.storage-acceptance
       OHMYCMS_DEFAULT_LOCALE: ${OHMYCMS_DEFAULT_LOCALE:-}
       OHMYCMS_PROJECT_NAME: ${OHMYCMS_PROJECT_NAME:-}
+      # 不具合報告のメール送信を検証したいときだけ値を入れる。
+      # 空のままなら送信はスキップされる（それが既定の正しい状態）。
+      OHMYCMS_BUGREPORT_TO: ${OHMYCMS_BUGREPORT_TO:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      # 更新確認の検証用。空なら外部へ一切通信しない（受入基準9）。
+      OHMYCMS_UPDATE_FEED_URL: ${OHMYCMS_UPDATE_FEED_URL:-}
     depends_on:
       db:
         condition: service_healthy
