@@ -283,6 +283,9 @@ const PROBE = String.raw`(() => {
       sel: sel(el), h: Math.round(r.height * 10) / 10, w: Math.round(r.width),
       fs: Math.round(px(s.fontSize) * 10) / 10,
       label: (el.textContent || el.getAttribute("placeholder") || el.type || "").trim().slice(0, 20),
+      // 🚨 sel だけだと**どこの何か分からず直せない**（読み上げ名の検査で同じことを踏んだ）。
+      //    寸法の違反にも実物の断片を添える。
+      html: el.outerHTML.replace(/\s+/g, " ").slice(0, 100),
     };
   };
 
@@ -594,8 +597,8 @@ const PROBE = String.raw`(() => {
     //   44px … WCAG 2.1 SC 2.5.5 Target Size (Enhanced) Level AAA。「at least 44 by 44 CSS pixels」
     //          → SP の主要アクションはここを狙う。全部に課すと「ボタンは入力より低い」と両立しないので、
     //            **違反にはせず参考値として数える**
-    tapTargetsUnder24: [...buttonsT, ...inputsT].filter((x) => x.h < 24).map((x) => ({ h: x.h, fs: x.fs, sel: x.sel })),
-    tapTargetsUnder44: [...buttonsT, ...inputsT].filter((x) => x.h < 44).map((x) => ({ h: x.h, fs: x.fs, sel: x.sel })),
+    tapTargetsUnder24: [...buttonsT, ...inputsT].filter((x) => x.h < 24).map((x) => ({ h: x.h, fs: x.fs, sel: x.sel, html: x.html })),
+    tapTargetsUnder44: [...buttonsT, ...inputsT].filter((x) => x.h < 44).map((x) => ({ h: x.h, fs: x.fs, sel: x.sel, html: x.html })),
     scrollers,
     scrollersWithoutFade: scrollers.filter((s) => !s.faded).length,
     overflowX: de.scrollWidth - de.clientWidth,
