@@ -32,9 +32,11 @@ import enOnboarding from "./messages/en/onboarding.json";
 import enPolicies from "./messages/en/policies.json";
 import enRelations from "./messages/en/relations.json";
 import enReports from "./messages/en/reports.json";
+import enRichtext from "./messages/en/richtext.json";
 import enRoles from "./messages/en/roles.json";
 import enSearch from "./messages/en/search.json";
 import enSettings from "./messages/en/settings.json";
+import enSso from "./messages/en/sso.json";
 import enUsers from "./messages/en/users.json";
 import enVersion from "./messages/en/version.json";
 
@@ -54,9 +56,11 @@ import jaOnboarding from "./messages/ja/onboarding.json";
 import jaPolicies from "./messages/ja/policies.json";
 import jaRelations from "./messages/ja/relations.json";
 import jaReports from "./messages/ja/reports.json";
+import jaRichtext from "./messages/ja/richtext.json";
 import jaRoles from "./messages/ja/roles.json";
 import jaSearch from "./messages/ja/search.json";
 import jaSettings from "./messages/ja/settings.json";
+import jaSso from "./messages/ja/sso.json";
 import jaUsers from "./messages/ja/users.json";
 import jaVersion from "./messages/ja/version.json";
 
@@ -78,9 +82,11 @@ export const NAMESPACES = [
   "policies",
   "relations",
   "reports",
+  "richtext",
   "roles",
   "search",
   "settings",
+  "sso",
   "users",
   "version",
 ] as const;
@@ -103,9 +109,11 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     policies: jaPolicies,
     relations: jaRelations,
     reports: jaReports,
+    richtext: jaRichtext,
     roles: jaRoles,
     search: jaSearch,
     settings: jaSettings,
+    sso: jaSso,
     users: jaUsers,
     version: jaVersion,
   },
@@ -126,9 +134,11 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     policies: enPolicies,
     relations: enRelations,
     reports: enReports,
+    richtext: enRichtext,
     roles: enRoles,
     search: enSearch,
     settings: enSettings,
+    sso: enSso,
     users: enUsers,
     version: enVersion,
   },
