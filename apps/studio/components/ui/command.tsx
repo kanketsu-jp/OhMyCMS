@@ -73,13 +73,20 @@ function CommandInput({
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      {/* 高さは InputGroup（= --control-h-*）に任せる。ここで h-8 を上書きすると SP の 44px が消える。 */}
-      <InputGroup className="rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
+      {/* 高さは InputGroup（= --control-h-*）に任せる。ここで h-8 を上書きすると SP の 44px が消える。
+          🚨 **面の中なので罫線を捨てて塗りだけにする**（憲章 §1 / surface-rules §2-2）。
+          🚨 `border-transparent` ではなく `border-0`。透明でも 1px の枠は場所を取るので、
+          器が 44px でも中の入力が **42px** にしかならなかった（実測）。
+          ダイアログ自体が面レベル1なので、ここで罫線・影・背景を持つと**深さ2**になる。
+          実測で `kinds: [border, shadow, bg]` の深さ2が出ていた（--click で開いてから測って発覚）。 */}
+      <InputGroup className="rounded-lg! border-0! bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn(
             // 🚨 SP で 16px を割ると iOS が focus 時に拡大する（憲章 §7 R5）。
-            "w-full text-base outline-hidden disabled:cursor-not-allowed disabled:text-muted-foreground md:text-sm",
+            // 🚨 `h-full` が要る。無いと入力自身の高さが文字ぶん（24px / PC 20px）にしかならず、
+            //    器が 44px でも**指の当たり判定は 24px**になる（実測で §7 違反として出た）。
+            "h-full w-full text-base outline-hidden disabled:cursor-not-allowed disabled:text-muted-foreground md:text-sm",
             className
           )}
           {...props}
