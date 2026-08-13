@@ -36,6 +36,7 @@ import { join } from "node:path";
 
 import { PREFIX, TABLE_PREFIX } from "../lib/fixture.mjs";
 import { Session } from "../lib/http.mjs";
+import { establishSession } from "../lib/session.mjs";
 import { run, REPO_ROOT } from "../lib/proc.mjs";
 import { assertion, result, statusFromAssertions } from "../lib/result.mjs";
 
@@ -107,33 +108,40 @@ export async function check(context) {
   const snapshotPath = join(configHome, "schema.json");
 
   // 下ごしらえ用の人間セッション（CLI とは別に、REST から検証用データを作る）
-  const admin = new Session(baseUrl, "admin");
-  const adminLogin = await admin.postJson("/api/auth/dev-login?admin=true", {
-    email: `${PREFIX}cli-admin@example.com`,
-  });
-
-  if (adminLogin.status !== 200 || !admin.cookies.get("session")) {
+  // 開発ビルドなら dev-login、本番ビルドなら .env の管理者でパスワードログイン
+  const auth = await establishSession(baseUrl, { label: `${PREFIX}cli-admin`, admin: true });
+  if (!auth.ok) {
     await rm(configHome, { recursive: true, force: true });
     return result({
       id: 4,
       title: "CLI で同じことができる",
       status: "BLOCKED",
-      reason: `dev-login が使えません (HTTP ${adminLogin.status})`,
-      details: [
-        "CLI の login --dev-login も token 系も人間のセッションが要り、",
-        "本番ビルドでは dev-login が消えています。",
-        "→ acceptance/compose.acceptance.yml の dev モード studio を起動してください。",
-      ],
-      repro: ["bun run acceptance --only 4"],
+      reason: auth.reason,
+      details: ["CLI の検証には人間のセッションが要ります。", ...auth.detail],
+      repro: [`bun run acceptance --only 4 --base-url ${baseUrl}`],
       ms: Date.now() - started,
     });
   }
+  const admin = auth.session;
+  const isDevBuild = auth.method === "dev-login";
+  const sessionToken = admin.cookies.get("session") ?? "";
+  details.push(`ログイン方式: ${auth.method}`);
 
-  /** CLI を1回叩く。認証は一時 config から解決させる。 */
+  /**
+   * CLI を1回叩く。認証は一時 config から解決させる。
+   * 🚨 **本番ビルドでは CLI が `login --dev-login` を使えない**（サーバ側に無い）。
+   *   代わりに **人間のセッションを環境変数で渡す**（CLI がその経路を持っている）。
+   *   これが無いと、本番では CLI の受入を1つも測れない。
+   */
   const cli = (args, extraEnv = {}) =>
     run("node", [entry, ...args], {
       timeoutMs: 120_000,
-      env: { XDG_CONFIG_HOME: configHome, OHMYCMS_URL: baseUrl, ...extraEnv },
+      env: {
+        XDG_CONFIG_HOME: configHome,
+        OHMYCMS_URL: baseUrl,
+        ...(isDevBuild ? {} : { OHMYCMS_SESSION_TOKEN: sessionToken }),
+        ...extraEnv,
+      },
     });
 
   try {
@@ -161,11 +169,20 @@ export async function check(context) {
           "ログインしています。この実行結果は FAIL になるのが正しい。",
       );
     }
-    const login = await cli(loginArgs);
-    assertions.push(
-      assertion("positive", "ohmycms login --dev-login が通る", login.code === EXIT.OK,
-        `exit ${login.code}`, "exit 0"),
-    );
+    // 🚨 `login --dev-login` は**開発ビルドにしか無い経路**。
+    //   本番では代わりに、渡した人間のセッションで動くことを見る（下の whoami で確認する）。
+    if (isDevBuild) {
+      const login = await cli(loginArgs);
+      assertions.push(
+        assertion("positive", "ohmycms login --dev-login が通る", login.code === EXIT.OK,
+          `exit ${login.code}`, "exit 0"),
+      );
+    } else {
+      details.push(
+        "本番ビルドなので login --dev-login は使えない（サーバ側に無い）。" +
+          "人間のセッションを OHMYCMS_SESSION_TOKEN で渡して測っている。",
+      );
+    }
 
     // 🚨 login --dev-login は**トークンを発行せずセッションを保存する**（2026-08-13 の変更）。
     //    ここを確かめておかないと、「保存されたのは何か」が曖昧なまま以降が進む。
@@ -175,10 +192,12 @@ export async function check(context) {
       const saved = JSON.parse(await readFile(join(configHome, "ohmycms", "config.json"), "utf8"));
       savedKind = saved?.sessionToken ? "human" : saved?.token ? "agent" : null;
     } catch { /* 下の assertion が拾う */ }
-    assertions.push(
-      assertion("positive", "login --dev-login が人間のセッションを保存する（トークンではない）",
-        savedKind === "human", savedKind ?? "何も保存されていない", "human"),
-    );
+    if (isDevBuild) {
+      assertions.push(
+        assertion("positive", "login --dev-login が人間のセッションを保存する（トークンではない）",
+          savedKind === "human", savedKind ?? "何も保存されていない", "human"),
+      );
+    }
 
     const whoami = await cli(["whoami", "--json"]);
     try {

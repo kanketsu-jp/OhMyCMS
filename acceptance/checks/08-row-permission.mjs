@@ -50,14 +50,22 @@ export async function check(context) {
     return blocked(
       8,
       "他人の行に直打ち → 403/404",
-      `dev-login が使えません (HTTP ${adminLogin.status})`,
+      adminLogin.status === 404
+        ? "本番ビルドでは測れません（一般ユーザーを2人作る手段が無い）"
+        : `dev-login が使えません (HTTP ${adminLogin.status})`,
       [
-        "受入基準8 はログイン済みセッションが3つ（管理者・A・B）要りますが、",
-        "dev-login は NODE_ENV !== 'production' のときだけ有効で、",
-        "next build は NODE_ENV をインライン展開するため本番ビルドでは分岐ごと消えています。",
-        "→ acceptance/compose.acceptance.yml の dev モード studio を起動してください。",
+        "受入基準8 は**ログイン済みセッションが3つ**（管理者・A・B）要ります。",
+        "A と B は**管理者でない別々の利用者**でなければ、「他人の行が見えない」を確かめられません。",
+        "",
+        "🚨 **本番ビルドでは、その2人を機械で作れません**:",
+        "  ・dev-login が無い（next build が NODE_ENV をインライン展開して分岐ごと消すため）",
+        "  ・ユーザーを作る API が無い（管理画面から人が作るしかない）",
+        "つまり**この項目は本番ビルドでは自動判定できません**。PASS にも FAIL にもしません。",
+        "",
+        "→ 開発ビルド（studio-acc / bun run dev）に対して測ってください。そこでは判定できます。",
+        "→ 本番ビルドで確かめたい場合は、管理画面で利用者を2人作ってから人が手で確認してください。",
       ],
-      ["bun run acceptance:up   # dev モードの studio を 3999 で起動する"],
+      [`bun run acceptance --only 8   # 開発ビルド（studio-acc）に対して`],
       started,
     );
   }
