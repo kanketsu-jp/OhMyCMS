@@ -9,12 +9,11 @@ import {
   LogOut,
   MenuIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { NavLinks } from "@/components/admin/nav-links";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useScrollFade } from "@/components/ui/scroll-fade";
 import {
   Sheet,
   SheetContent,
@@ -66,11 +65,6 @@ export function MobileNav({ items, settings, settingsLabel, collections, content
   const t = useT("nav");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  // 🚨 fade を当てるのは**実際にスクロールする要素**。SheetContent 自身ではない
-  //    （ユーザー行を下へ固定したので、スクロールするのは中の子に変わった）。
-  //    ここを移し忘れると、正しく作っても監査が赤のままになる。
-  const listRef = useRef<HTMLDivElement>(null);
-  useScrollFade(listRef, "vertical");
 
   // 🚨 中央は**3つ**。フォルダと通知はメニューから辿れるので落とす（design ⑫。⑨ の「4つ」の訂正）。
   // 右端に split button（「編集 │ ▾」）が入ると **96px 前後**になり、アイコン1つ（44px）より 52px 広い。
@@ -107,11 +101,10 @@ export function MobileNav({ items, settings, settingsLabel, collections, content
             <SheetHeader>
               <SheetTitle>{t("menu_title")}</SheetTitle>
             </SheetHeader>
-            <div
-              ref={listRef}
-              data-scroll-fade="vertical"
-              className="min-h-0 flex-1 overflow-y-auto"
-            >
+            {/* 🚨 fade を当てるのは**実際にスクロールする要素**。SheetContent 自身ではない
+                （ユーザー行を下へ固定したので、スクロールするのは中の子）。
+                `scroll-fade-y` は shadcn のユーティリティで、JS は要らない。 */}
+            <div className="min-h-0 flex-1 overflow-y-auto scroll-fade-y">
               {/* 面を作らない。行のリストにする（憲章 §1「SP はカードをやめて Divider」）。
                   🚨 行き先の描き方は **サイドバー（PC）と同じ部品**を使う。
                   2箇所に書くと、片方だけ直したときに PC と SP で行き先が食い違う。 */}

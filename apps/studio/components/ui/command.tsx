@@ -4,7 +4,6 @@ import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
 
 import { cn } from "@/lib/utils"
-import { useScrollFade } from "@/components/ui/scroll-fade"
 import {
   Dialog,
   DialogContent,
@@ -103,17 +102,11 @@ function CommandList({
   className,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.List>) {
-  // 🚨 スクロールするのはこの要素そのものなので、fade もここに当てる（外側に巻かない）。
-  // 候補が画面に収まらないとき、まだ下に続きがあることを見せる（憲章 §6）。
-  const ref = React.useRef<HTMLDivElement>(null)
-  useScrollFade(ref, "vertical")
   return (
     <CommandPrimitive.List
-      ref={ref}
       data-slot="command-list"
-      data-scroll-fade="vertical"
       className={cn(
-        "no-scrollbar max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto outline-none",
+        "no-scrollbar max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto scroll-fade-y outline-none",
         className
       )}
       {...props}

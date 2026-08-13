@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
-import { useScrollFade } from "@/components/ui/scroll-fade";
 
 type PermissionRow = {
   id: number;
@@ -70,13 +69,9 @@ function fieldsFor(collections: CollectionResult[], collection: string): string[
  * 🚨 マスクはスクロールする <pre> そのものに当てる。外側に巻くと監査が赤のままになる。
  */
 function FilterBlock({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLPreElement>(null);
-  useScrollFade(ref, "horizontal");
   return (
     <pre
-      ref={ref}
-      data-scroll-fade="horizontal"
-      className="overflow-x-auto rounded-md bg-muted p-3 text-xs"
+      className="overflow-x-auto scroll-fade-x rounded-md bg-muted p-3 text-xs"
     >
       {children}
     </pre>
