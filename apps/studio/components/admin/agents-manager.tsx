@@ -114,7 +114,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create} className="space-y-4 rounded-md border p-4">
+      <form action={create} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>
@@ -128,16 +128,16 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="capabilities">{t("capabilities_label")}</Label>
-            <textarea id="capabilities" name="capabilities" className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm" />
+            <textarea id="capabilities" name="capabilities" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-sm" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tenant_scope">{t("tenant_scope_label")}</Label>
-            <textarea id="tenant_scope" name="tenant_scope" className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm" />
+            <textarea id="tenant_scope" name="tenant_scope" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-sm" />
           </div>
         </div>
         <Button type="submit">{t("issue_button")}</Button>
       </form>
-      <div className="divide-y rounded-md border">
+      <div className="divide-y border-t">
         {agents.map((agent) => (
           <div key={agent.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
             <div>
@@ -156,7 +156,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
           </div>
         ))}
         {agents.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">{t("empty")}</p>
+          <p className="py-3 text-sm text-muted-foreground">{t("empty")}</p>
         ) : null}
       </div>
     </div>

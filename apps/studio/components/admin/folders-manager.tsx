@@ -72,9 +72,9 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create} className="grid gap-4 rounded-md border p-4 md:grid-cols-[1fr_220px_auto] md:items-end">
+      <form action={create} className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
         <Input name="name" required placeholder={t("name_placeholder")} />
-        <select name="parent" className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm" defaultValue="">
+        <select name="parent" className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm" defaultValue="">
           <option value="">{t("no_parent_option")}</option>
           {folders.map((folder) => (
             <option key={folder.id} value={folder.id}>{folder.name}</option>
@@ -85,7 +85,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
           {t("create_button")}
         </Button>
       </form>
-      <div className="divide-y rounded-md border">
+      <div className="divide-y border-t">
         {folders.map((folder) => (
           <div key={folder.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
             <div>
@@ -99,7 +99,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
           </div>
         ))}
         {folders.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">{t("empty_folders")}</p>
+          <p className="py-3 text-sm text-muted-foreground">{t("empty_folders")}</p>
         ) : null}
       </div>
     </div>

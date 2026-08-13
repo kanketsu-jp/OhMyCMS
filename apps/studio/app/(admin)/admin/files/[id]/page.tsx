@@ -3,7 +3,7 @@ import Image from "next/image";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileDetailManager } from "@/components/admin/file-detail-manager";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -58,46 +58,43 @@ export default async function FileDetailPage({ params }: Props) {
       />
       {file ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("preview_title")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex min-h-80 items-center justify-center overflow-hidden rounded-md bg-muted">
-                {file.type?.startsWith("image/") ? (
-                  <Image
-                    src={`/api/assets/${file.id}`}
-                    alt={file.title ?? file.filename_download}
-                    width={file.width ?? 1000}
-                    height={file.height ?? 750}
-                    unoptimized
-                    className="max-h-[70vh] max-w-full object-contain"
-                  />
-                ) : (
-                  <div className="text-center text-muted-foreground">
-                    <FileIcon className="mx-auto mb-3 size-12" />
-                    <p className="font-medium">{file.filename_download}</p>
-                    <p className="text-sm">{file.type ?? "application/octet-stream"}</p>
-                  </div>
-                )}
-              </div>
-              <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-                <div><dt className="text-muted-foreground">{t("id_label")}</dt><dd className="break-all">{file.id}</dd></div>
-                <div><dt className="text-muted-foreground">{t("type_label")}</dt><dd>{file.type ?? ""}</dd></div>
-                <div><dt className="text-muted-foreground">{t("size_label")}</dt><dd>{format.fileSize(file.filesize)}</dd></div>
-                <div><dt className="text-muted-foreground">{t("dimensions_label")}</dt><dd>{file.width && file.height ? `${file.width} x ${file.height}` : "-"}</dd></div>
-                <div><dt className="text-muted-foreground">{t("uploaded_on")}</dt><dd>{format.dateTime(file.uploaded_on)}</dd></div>
-              </dl>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("metadata_title")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FileDetailManager file={file} folders={foldersResult.ok ? foldersResult.data.data : []} />
-            </CardContent>
-          </Card>
+          {/*
+            プレビューは「メディアの受け皿」自体が面になる。
+            外側の Surface まで境界を持つと二重になるので tone="plain" にする。
+            docs/design/surface-rules.md §2-2 の選択肢B（面側の境界を外し、内側に持たせる）。
+          */}
+          <Surface tone="plain">
+            <SurfaceTitle>{t("preview_title")}</SurfaceTitle>
+            <div className="flex min-h-80 items-center justify-center overflow-hidden rounded-xl bg-muted">
+              {file.type?.startsWith("image/") ? (
+                <Image
+                  src={`/api/assets/${file.id}`}
+                  alt={file.title ?? file.filename_download}
+                  width={file.width ?? 1000}
+                  height={file.height ?? 750}
+                  unoptimized
+                  className="max-h-[70vh] max-w-full object-contain"
+                />
+              ) : (
+                <div className="text-center text-muted-foreground">
+                  <FileIcon className="mx-auto mb-3 size-12" />
+                  <p className="font-medium">{file.filename_download}</p>
+                  <p className="text-sm">{file.type ?? "application/octet-stream"}</p>
+                </div>
+              )}
+            </div>
+            <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+              <div><dt className="text-muted-foreground">{t("id_label")}</dt><dd className="break-all">{file.id}</dd></div>
+              <div><dt className="text-muted-foreground">{t("type_label")}</dt><dd>{file.type ?? ""}</dd></div>
+              <div><dt className="text-muted-foreground">{t("size_label")}</dt><dd>{format.fileSize(file.filesize)}</dd></div>
+              <div><dt className="text-muted-foreground">{t("dimensions_label")}</dt><dd>{file.width && file.height ? `${file.width} x ${file.height}` : "-"}</dd></div>
+              <div><dt className="text-muted-foreground">{t("uploaded_on")}</dt><dd>{format.dateTime(file.uploaded_on)}</dd></div>
+            </dl>
+          </Surface>
+          <Surface>
+            <SurfaceTitle>{t("metadata_title")}</SurfaceTitle>
+            <FileDetailManager file={file} folders={foldersResult.ok ? foldersResult.data.data : []} />
+          </Surface>
         </div>
       ) : null}
     </div>

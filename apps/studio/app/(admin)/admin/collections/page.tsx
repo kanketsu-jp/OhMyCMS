@@ -4,9 +4,9 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
   Table,
   TableBody,
@@ -38,68 +38,60 @@ export default async function CollectionsPage({ searchParams }: Props) {
       {params.notice ? (
         <div className="rounded-md border bg-muted px-3 py-2 text-sm">{params.notice}</div>
       ) : null}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("create_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form action="/admin/actions/collections" method="post" className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-            <div className="space-y-1.5">
-              <Label htmlFor="collection">{t("name_label")}</Label>
-              <Input id="collection" name="collection" required pattern="[A-Za-z_][A-Za-z0-9_]*" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="note">{t("note_label")}</Label>
-              <Input id="note" name="note" />
-            </div>
-            <Button type="submit">{t("create_button")}</Button>
-          </form>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("list_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {result.ok ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("title")}</TableHead>
-                  <TableHead>{t("field_count_header")}</TableHead>
-                  <TableHead>{t("note_label")}</TableHead>
-                  <TableHead className="w-56">{t("actions_header")}</TableHead>
+      <Surface>
+        <SurfaceTitle>{t("create_title")}</SurfaceTitle>
+        <form action="/admin/actions/collections" method="post" className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+          <div className="space-y-1.5">
+            <Label htmlFor="collection">{t("name_label")}</Label>
+            <Input id="collection" name="collection" required pattern="[A-Za-z_][A-Za-z0-9_]*" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="note">{t("note_label")}</Label>
+            <Input id="note" name="note" />
+          </div>
+          <Button type="submit">{t("create_button")}</Button>
+        </form>
+      </Surface>
+      <Surface>
+        <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+        {result.ok ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("title")}</TableHead>
+                <TableHead>{t("field_count_header")}</TableHead>
+                <TableHead>{t("note_label")}</TableHead>
+                <TableHead className="w-56">{t("actions_header")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {result.data.map((collection) => (
+                <TableRow key={collection.collection}>
+                  <TableCell className="font-medium">{collection.collection}</TableCell>
+                  <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>
+                  <TableCell>{collection.meta?.note ?? ""}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/admin/collections/${collection.collection}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        {t("fields_link")}
+                      </Link>
+                      <Link
+                        href={`/admin/content/${collection.collection}`}
+                        className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                      >
+                        {t("items_link")}
+                      </Link>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {result.data.map((collection) => (
-                  <TableRow key={collection.collection}>
-                    <TableCell className="font-medium">{collection.collection}</TableCell>
-                    <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>
-                    <TableCell>{collection.meta?.note ?? ""}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/admin/collections/${collection.collection}`}
-                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                        >
-                          {t("fields_link")}
-                        </Link>
-                        <Link
-                          href={`/admin/content/${collection.collection}`}
-                          className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-                        >
-                          {t("items_link")}
-                        </Link>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : null}
-        </CardContent>
-      </Card>
+              ))}
+            </TableBody>
+          </Table>
+        ) : null}
+      </Surface>
     </div>
   );
 }

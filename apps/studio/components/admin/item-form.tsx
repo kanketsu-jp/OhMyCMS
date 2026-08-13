@@ -101,7 +101,7 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
                 required={required}
                 readOnly={readonly}
                 defaultValue={valueForInput(value)}
-                className="min-h-36 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="min-h-36 w-full rounded-lg bg-muted/60 px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               />
             ) : (
               <Input

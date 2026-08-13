@@ -30,7 +30,7 @@ export function RelationForm({ collection, collectionNames }: Props) {
         <select
           id="relation-kind"
           name="kind"
-          className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+          className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm"
           value={kind}
           onChange={(event) => setKind(event.target.value as RelationKind)}
           required
@@ -54,7 +54,7 @@ export function RelationForm({ collection, collectionNames }: Props) {
         <select
           id="related-collection"
           name="related_collection"
-          className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+          className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm"
           required
         >
           {collectionNames.map((name) => (

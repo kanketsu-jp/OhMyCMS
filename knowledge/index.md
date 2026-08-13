@@ -12,7 +12,7 @@ sources: []
 stale_after: 2027-02-08
 x_rag_okf:
   id: index
-  source_commit: 2a0b81f
+  source_commit: f35cd91
   source_digest: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   authorship: deterministic
 ---
@@ -35,6 +35,7 @@ x_rag_okf:
 - [面（Surface）は1段まで。入れ子を構造的に禁止する](./decisions/no-nested-surfaces.md) — `decisions/no-nested-surfaces`
 - [組織テーブルを作らない](./decisions/no-organization-table.md) — `decisions/no-organization-table`
 - [ORM は Knex（Prisma / Drizzle は不採用）](./decisions/orm-knex.md) — `decisions/orm-knex`
+- [ポートは 31xx 帯に寄せ、よく使うポートを避ける](./decisions/port-allocation.md) — `decisions/port-allocation`
 - [リレーションを辿るときも、相手側コレクションの権限を必ず通す](./decisions/relation-permission-boundary.md) — `decisions/relation-permission-boundary`
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
 - [v0.9 は Next.js 単一アプリ、分離時は Hono](./decisions/single-nextjs-app-then-hono.md) — `decisions/single-nextjs-app-then-hono`

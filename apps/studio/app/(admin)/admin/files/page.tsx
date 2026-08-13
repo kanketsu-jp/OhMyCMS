@@ -3,7 +3,7 @@ import Image from "next/image";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileUploadForm } from "@/components/admin/files-manager";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -58,60 +58,52 @@ export default async function FilesPage({ searchParams }: Props) {
           (!foldersResult.ok ? foldersResult.message : null)
         }
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("upload_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FileUploadForm folders={folders} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("list_title")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <form className="flex max-w-sm gap-2" action="/admin/files">
-            <select name="folder" className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-sm" defaultValue={query.folder ?? ""}>
-              <option value="">{t("all_folders_option")}</option>
-              {folders.map((folder) => (
-                <option key={folder.id} value={folder.id}>{folder.name}</option>
-              ))}
-            </select>
-            <button type="submit" className="rounded-lg border px-3 text-sm hover:bg-muted">{t("filter_button")}</button>
-          </form>
-          {filesResult.ok ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {filesResult.data.data.map((file) => (
-                <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md border bg-background p-3 hover:bg-muted">
-                  <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
-                    {file.type?.startsWith("image/") ? (
-                      <Image
-                        src={`/api/assets/${file.id}?width=200&fit=cover`}
-                        alt={file.title ?? file.filename_download}
-                        width={200}
-                        height={200}
-                        unoptimized
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-center text-muted-foreground">
-                        <FileIcon className="mx-auto mb-2 size-10" />
-                        <span className="text-sm font-medium">{extension(file, t("file_extension_fallback"))}</span>
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-3 truncate text-sm font-medium">{file.title ?? file.filename_download}</p>
-                  <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
-                </Link>
-              ))}
-              {filesResult.data.data.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("empty_files")}</p>
-              ) : null}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+      <Surface>
+        <SurfaceTitle>{t("upload_title")}</SurfaceTitle>
+        <FileUploadForm folders={folders} />
+      </Surface>
+      <Surface>
+        <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+        <form className="flex max-w-sm gap-2" action="/admin/files">
+          <select name="folder" className="h-8 min-w-0 flex-1 rounded-lg bg-muted/60 px-2 text-sm" defaultValue={query.folder ?? ""}>
+            <option value="">{t("all_folders_option")}</option>
+            {folders.map((folder) => (
+              <option key={folder.id} value={folder.id}>{folder.name}</option>
+            ))}
+          </select>
+          <button type="submit" className="rounded-lg border px-3 text-sm hover:bg-muted">{t("filter_button")}</button>
+        </form>
+        {filesResult.ok ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {filesResult.data.data.map((file) => (
+              <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md border bg-background p-3 hover:bg-muted">
+                <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
+                  {file.type?.startsWith("image/") ? (
+                    <Image
+                      src={`/api/assets/${file.id}?width=200&fit=cover`}
+                      alt={file.title ?? file.filename_download}
+                      width={200}
+                      height={200}
+                      unoptimized
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <FileIcon className="mx-auto mb-2 size-10" />
+                      <span className="text-sm font-medium">{extension(file, t("file_extension_fallback"))}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-3 truncate text-sm font-medium">{file.title ?? file.filename_download}</p>
+                <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
+              </Link>
+            ))}
+            {filesResult.data.data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("empty_files")}</p>
+            ) : null}
+          </div>
+        ) : null}
+      </Surface>
     </div>
   );
 }

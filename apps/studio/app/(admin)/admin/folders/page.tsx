@@ -1,6 +1,6 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FoldersManager } from "@/components/admin/folders-manager";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -21,14 +21,10 @@ export default async function FoldersPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
       </div>
       <ErrorBanner message={!result.ok ? result.message : null} />
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("management_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {result.ok ? <FoldersManager folders={result.data.data} /> : null}
-        </CardContent>
-      </Card>
+      <Surface>
+        <SurfaceTitle>{t("management_title")}</SurfaceTitle>
+        {result.ok ? <FoldersManager folders={result.data.data} /> : null}
+      </Surface>
     </div>
   );
 }

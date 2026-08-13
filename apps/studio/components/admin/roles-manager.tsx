@@ -84,7 +84,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="parent">{t("parent_label")}</Label>
-          <select id="parent" name="parent" className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm">
+          <select id="parent" name="parent" className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm">
             <option value="">{t("none_option")}</option>
             {roles.map((role) => (
               <option key={role.id} value={role.id}>{role.name}</option>
@@ -93,7 +93,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
         </div>
         <Button type="submit">{t("create_button")}</Button>
       </form>
-      <div className="divide-y rounded-md border">
+      <div className="divide-y border-t">
         {roles.map((role) => (
           <div key={role.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
             <div className="min-w-0">

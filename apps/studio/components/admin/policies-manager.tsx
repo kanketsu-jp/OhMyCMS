@@ -77,7 +77,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create} className="space-y-4 rounded-md border p-4">
+      <form action={create} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>
@@ -103,7 +103,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
         </div>
         <Button type="submit">{t("create_button")}</Button>
       </form>
-      <div className="divide-y rounded-md border">
+      <div className="divide-y border-t">
         {policies.map((policy) => (
           <div key={policy.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
             <div className="min-w-0">

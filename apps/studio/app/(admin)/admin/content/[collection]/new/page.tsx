@@ -4,7 +4,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ItemForm } from "@/components/admin/item-form";
 import { getT } from "@/i18n/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 
 type Props = {
   params: Promise<{ collection: string }>;
@@ -28,14 +28,10 @@ export default async function NewItemPage({ params, searchParams }: Props) {
         <h1 className="mt-2 text-2xl font-semibold">{t("new_item")}</h1>
       </div>
       <ErrorBanner message={query.error ?? (!fieldsResult.ok ? fieldsResult.message : null)} />
-      <Card>
-        <CardHeader>
-          <CardTitle>{collection}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ItemForm collection={collection} fields={fields} />
-        </CardContent>
-      </Card>
+      <Surface>
+        <SurfaceTitle>{collection}</SurfaceTitle>
+        <ItemForm collection={collection} fields={fields} />
+      </Surface>
     </div>
   );
 }

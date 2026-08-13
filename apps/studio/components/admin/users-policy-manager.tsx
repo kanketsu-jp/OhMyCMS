@@ -93,10 +93,10 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           {error}
         </div>
       ) : null}
-      <form action={assign} className="grid gap-4 rounded-md border p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      <form action={assign} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <div className="space-y-1.5">
           <label htmlFor="user" className="text-sm font-medium">{t("user_label")}</label>
-          <select id="user" name="user" required className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm">
+          <select id="user" name="user" required className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm">
             {users.map((user) => (
               <option key={user.id} value={user.id}>{user.email}</option>
             ))}
@@ -104,7 +104,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         </div>
         <div className="space-y-1.5">
           <label htmlFor="policy" className="text-sm font-medium">{t("policy_label")}</label>
-          <select id="policy" name="policy" required className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm">
+          <select id="policy" name="policy" required className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm">
             {policies.map((policy) => (
               <option key={policy.id} value={policy.id}>{policy.name}</option>
             ))}
@@ -112,7 +112,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         </div>
         <Button type="submit" disabled={users.length === 0 || policies.length === 0}>{t("assign_button")}</Button>
       </form>
-      <div className="divide-y rounded-md border">
+      <div className="divide-y border-t">
         {access.map((row) => (
           <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
             <div>
@@ -126,7 +126,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           </div>
         ))}
         {access.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">{t("empty")}</p>
+          <p className="py-3 text-sm text-muted-foreground">{t("empty")}</p>
         ) : null}
       </div>
     </div>

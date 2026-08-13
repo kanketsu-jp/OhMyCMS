@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { CollectionResult } from "@/lib/schema/models";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PolicyPermissionsManager } from "@/components/admin/policy-permissions-manager";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -53,20 +53,16 @@ export default async function PolicyDetailPage({ params }: Props) {
           (!permissionsResult.ok ? permissionsResult.message : null)
         }
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("permission_rows_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {policyResult.ok && collectionsResult.ok && permissionsResult.ok ? (
-            <PolicyPermissionsManager
-              policyId={id}
-              collections={collectionsResult.data}
-              permissions={permissionsResult.data.data}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+      <Surface>
+        <SurfaceTitle>{t("permission_rows_title")}</SurfaceTitle>
+        {policyResult.ok && collectionsResult.ok && permissionsResult.ok ? (
+          <PolicyPermissionsManager
+            policyId={id}
+            collections={collectionsResult.data}
+            permissions={permissionsResult.data.data}
+          />
+        ) : null}
+      </Surface>
     </div>
   );
 }

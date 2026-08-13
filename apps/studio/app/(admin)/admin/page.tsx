@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { cn } from "@/lib/utils";
 
@@ -15,19 +15,15 @@ export default async function AdminPage() {
           {t("description")}
         </p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("schema_management_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Link
-            href="/admin/collections"
-            className={cn(buttonVariants(), "w-fit")}
-          >
-            {t("open_collections_button")}
-          </Link>
-        </CardContent>
-      </Card>
+      <Surface>
+        <SurfaceTitle>{t("schema_management_title")}</SurfaceTitle>
+        <Link
+          href="/admin/collections"
+          className={cn(buttonVariants(), "w-fit")}
+        >
+          {t("open_collections_button")}
+        </Link>
+      </Surface>
     </div>
   );
 }

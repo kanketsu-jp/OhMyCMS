@@ -134,7 +134,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           {error}
         </div>
       ) : null}
-      <div className="space-y-4 rounded-md border p-4">
+      <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="collection">{t("collection_label")}</Label>
@@ -146,7 +146,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
                 setSelectedFields([]);
                 setAllFields(true);
               }}
-              className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+              className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm"
             >
               {collections.map((item) => (
                 <option key={item.collection} value={item.collection}>{item.collection}</option>
@@ -159,7 +159,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
               id="action"
               value={action}
               onChange={(event) => setAction(event.target.value as (typeof actions)[number])}
-              className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+              className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm"
             >
               {actions.map((item) => (
                 <option key={item} value={item}>{item}</option>
@@ -174,7 +174,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
             {t("allow_all_label")}
           </label>
           {!allFields ? (
-            <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {columns.map((field) => (
                 <label key={field} className="flex items-center gap-2 text-sm">
                   <input
@@ -201,7 +201,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
             id="permissions"
             value={filterJson}
             onChange={(event) => setFilterJson(event.target.value)}
-            className="min-h-36 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="min-h-36 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             placeholder='{"owner":{"_eq":"$CURRENT_USER"}}'
           />
           <p className="text-xs leading-5 text-muted-foreground">{t("filter_json_help_variables")}</p>
@@ -217,7 +217,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           ) : null}
         </div>
       </div>
-      <div className="divide-y rounded-md border">
+      <div className="divide-y border-t">
         {permissions.map((row) => (
           <div key={row.id} className="space-y-3 p-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -237,7 +237,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           </div>
         ))}
         {permissions.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">{t("no_permissions")}</p>
+          <p className="py-3 text-sm text-muted-foreground">{t("no_permissions")}</p>
         ) : null}
       </div>
     </div>

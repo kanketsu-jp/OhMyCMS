@@ -18,12 +18,15 @@ pre-commit:
     lint:
       root: "apps/studio"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
-      run: pnpm exec eslint {staged_files}
+      run: bun x eslint {staged_files}
 
     # 型は全体で見る（部分的な tsc は型エラーを取りこぼす）。
+    # 🚨 bun の --filter は pnpm と違い exec を受け付けない（"No packages matched the filter" で
+    # 落ちる）。root を指定して、そのディレクトリで直接 tsc を走らせる。実測 1.95 秒。
     typecheck:
-      glob: "apps/studio/**/*.{ts,tsx}"
-      run: pnpm --filter @ohmycms/studio exec tsc --noEmit
+      root: "apps/studio"
+      glob: "*.{ts,tsx}"
+      run: bun x tsc --noEmit
 
     # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
     knowledge:

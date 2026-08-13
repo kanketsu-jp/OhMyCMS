@@ -4,7 +4,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
   Table,
   TableBody,
@@ -80,72 +80,68 @@ export default async function ContentPage({ params, searchParams }: Props) {
       {query.notice ? (
         <div className="rounded-md border bg-muted px-3 py-2 text-sm">{query.notice}</div>
       ) : null}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("list_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {itemsResult.ok ? (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {columns.map((field) => (
-                      <TableHead key={field.field}>{field.field}</TableHead>
-                    ))}
-                    <TableHead className="w-44">{t("actions_header")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {itemsResult.data.data.map((item, index) => {
-                    const id = String(item[pk] ?? "");
-                    return (
-                      <TableRow key={id || index}>
-                        {columns.map((field) => (
-                          <TableCell key={field.field} className="max-w-64 truncate">
-                            {renderValue(item[field.field])}
-                          </TableCell>
-                        ))}
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Link
-                              href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
-                              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                            >
-                              {t("edit_button")}
-                            </Link>
-                            <form action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`} method="post">
-                              <input type="hidden" name="_method" value="delete" />
-                              <Button type="submit" variant="destructive" size="sm">{t("delete_button")}</Button>
-                            </form>
-                          </div>
+      <Surface>
+        <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+        {itemsResult.ok ? (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {columns.map((field) => (
+                    <TableHead key={field.field}>{field.field}</TableHead>
+                  ))}
+                  <TableHead className="w-44">{t("actions_header")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {itemsResult.data.data.map((item, index) => {
+                  const id = String(item[pk] ?? "");
+                  return (
+                    <TableRow key={id || index}>
+                      {columns.map((field) => (
+                        <TableCell key={field.field} className="max-w-64 truncate">
+                          {renderValue(item[field.field])}
                         </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
-                <div className="flex gap-2">
-                  <Link
-                    href={`/admin/content/${encoded}?page=${Math.max(1, page - 1)}`}
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
-                  >
-                    {t("prev_page")}
-                  </Link>
-                  <Link
-                    href={`/admin/content/${encoded}?page=${Math.min(pageCount, page + 1)}`}
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
-                  >
-                    {t("next_page")}
-                  </Link>
-                </div>
+                      ))}
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
+                            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                          >
+                            {t("edit_button")}
+                          </Link>
+                          <form action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`} method="post">
+                            <input type="hidden" name="_method" value="delete" />
+                            <Button type="submit" variant="destructive" size="sm">{t("delete_button")}</Button>
+                          </form>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
+              <div className="flex gap-2">
+                <Link
+                  href={`/admin/content/${encoded}?page=${Math.max(1, page - 1)}`}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
+                >
+                  {t("prev_page")}
+                </Link>
+                <Link
+                  href={`/admin/content/${encoded}?page=${Math.min(pageCount, page + 1)}`}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
+                >
+                  {t("next_page")}
+                </Link>
               </div>
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
+            </div>
+          </>
+        ) : null}
+      </Surface>
     </div>
   );
 }

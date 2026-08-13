@@ -1,6 +1,6 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { UsersPolicyManager } from "@/components/admin/users-policy-manager";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -49,20 +49,16 @@ export default async function UsersPage() {
           (!accessResult.ok ? accessResult.message : null)
         }
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("assignment_card_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {usersResult.ok && policiesResult.ok && accessResult.ok ? (
-            <UsersPolicyManager
-              users={usersResult.data.data}
-              policies={policiesResult.data.data}
-              access={accessResult.data.data}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+      <Surface>
+        <SurfaceTitle>{t("assignment_card_title")}</SurfaceTitle>
+        {usersResult.ok && policiesResult.ok && accessResult.ok ? (
+          <UsersPolicyManager
+            users={usersResult.data.data}
+            policies={policiesResult.data.data}
+            access={accessResult.data.data}
+          />
+        ) : null}
+      </Surface>
     </div>
   );
 }

@@ -88,7 +88,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="description">{t("description_label")}</Label>
-          <textarea id="description" name="description" defaultValue={file.description ?? ""} className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm" />
+          <textarea id="description" name="description" defaultValue={file.description ?? ""} className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 text-sm" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="tags">{t("tags_label")}</Label>
@@ -96,7 +96,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="folder">{t("folder_label")}</Label>
-          <select id="folder" name="folder" className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm" defaultValue={file.folder ?? ""}>
+          <select id="folder" name="folder" className="h-8 w-full rounded-lg bg-muted/60 px-2 text-sm" defaultValue={file.folder ?? ""}>
             <option value="">{t("no_folder_option")}</option>
             {folders.map((folder) => (
               <option key={folder.id} value={folder.id}>{folder.name}</option>

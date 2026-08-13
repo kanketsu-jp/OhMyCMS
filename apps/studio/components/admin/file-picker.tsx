@@ -112,7 +112,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
                 {t("select_file_description")}
               </DialogDescription>
             </DialogHeader>
-            <form action={upload} className="flex flex-wrap items-end gap-3 rounded-md border p-3">
+            <form action={upload} className="flex flex-wrap items-end gap-3">
               <div className="min-w-0 flex-1">
                 <Input name="file" type="file" required />
               </div>

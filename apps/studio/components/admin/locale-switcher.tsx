@@ -17,7 +17,9 @@ export function LocaleSwitcher({ className }: { className?: string }) {
   return (
     <form
       action={setLocaleAction}
-      className={cn("flex items-center rounded-md border p-0.5", className)}
+      // 面の中に置かれるので罫線を持たない（docs/design/surface-rules.md §2-2）。
+      // セグメント切替なので背景で区別する。
+      className={cn("flex items-center rounded-full bg-muted/60 p-0.5", className)}
     >
       {LOCALES.map((locale) => {
         const isActive = locale === current;

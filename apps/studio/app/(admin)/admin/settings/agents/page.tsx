@@ -1,6 +1,6 @@
 import { AgentsManager } from "@/components/admin/agents-manager";
 import { ErrorBanner } from "@/components/admin/error-banner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -27,14 +27,10 @@ export default async function AgentsPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
       </div>
       <ErrorBanner message={!result.ok ? result.message : null} />
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("manage_title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {result.ok ? <AgentsManager agents={result.data.data} /> : null}
-        </CardContent>
-      </Card>
+      <Surface>
+        <SurfaceTitle>{t("manage_title")}</SurfaceTitle>
+        {result.ok ? <AgentsManager agents={result.data.data} /> : null}
+      </Surface>
     </div>
   );
 }

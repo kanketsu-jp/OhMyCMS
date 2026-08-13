@@ -4,7 +4,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ItemForm } from "@/components/admin/item-form";
 import { getT } from "@/i18n/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 
 type Props = {
   params: Promise<{ collection: string; id: string }>;
@@ -42,19 +42,15 @@ export default async function EditItemPage({ params, searchParams }: Props) {
         <div className="rounded-md border bg-muted px-3 py-2 text-sm">{query.notice}</div>
       ) : null}
       {itemResult.ok ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{collection}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ItemForm
-              collection={collection}
-              fields={fields}
-              itemId={id}
-              item={itemResult.data.data}
-            />
-          </CardContent>
-        </Card>
+        <Surface>
+          <SurfaceTitle>{collection}</SurfaceTitle>
+          <ItemForm
+            collection={collection}
+            fields={fields}
+            itemId={id}
+            item={itemResult.data.data}
+          />
+        </Surface>
       ) : null}
     </div>
   );
