@@ -12,6 +12,9 @@ import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
 
 const PREFIX = "accv1_";
+/** `/api/search` の応答から本文の当たりを数える（バケット構造なので items を見る）。 */
+const countItems = (response) =>
+  Array.isArray(response?.json?.data?.items) ? response.json.data.items.length : -1;
 /** 🚨 後片付けの目印。bootstrap の接頭辞と揃える（英数と ._- のみ） */
 const OTP_PREFIX = "accv1d-";
 
@@ -74,13 +77,23 @@ export async function checkTiptap(context) {
   // 🚨 ここは以前「対照実験」だけを置いていたが、**肯定形しか無い**ためハーネスに
   //   「両方を持っていない」と落とされた。**検査の不備**であって製品の問題ではなかった。
   //   interface が入ったので、実際に保存して読み出す形へ差し替える（2026-08-14）。
+  // 🚨 **本文のフィールドは「後から足す」経路で作る。**
+  //   実測（2026-08-14）で経路によって挙動が違った:
+  //     `POST /api/fields/<collection>` で足す      → `body_plain` が作られ、検索も通る
+  //     `POST /api/collections` の `fields` に含める → **`body_plain` が作られない**
+  //   GUI は「コレクションを作る → フィールドを足す」なので、**利用者が通る経路はこちら**。
+  //   まとめて作る経路の抜けは tiptap へ報告済み（受入としては GUI の経路を測る）。
   const created = await admin.postJson("/api/collections", {
     collection,
-    fields: [
-      { field: "id", type: "uuid", meta: { hidden: true }, schema: { is_primary_key: true } },
-      { field: "body", type: "json", meta: { interface: "richtext" } },
-    ],
+    fields: [{ field: "id", type: "uuid", meta: { hidden: true }, schema: { is_primary_key: true } }],
   });
+  if (created.status === 200 || created.status === 201) {
+    await admin.postJson(`/api/fields/${collection}`, {
+      field: "body",
+      type: "json",
+      meta: { interface: "richtext" },
+    });
+  }
   if (created.status !== 201 && created.status !== 200) {
     return result({
       id: 11, title: "V1-C Tiptap の WYSIWYG", status: STATUS.BLOCKED,
@@ -170,6 +183,49 @@ export async function checkTiptap(context) {
           : storedRaw.includes("__pwned") ? "🚨 script が保存されている" : "script は落ち、文章は残った",
         "script は保存されず、文章は残る"),
     );
+
+    // ── 🟢 検索でヒットする（`<field>_plain` が本文と同期している）──
+    // 🚨 本文は jsonb なので ILIKE を当てられない。tiptap が `<field>_plain`（text）を
+    //   相方として持たせ、**同じ書き込みの中で**更新している（855a549）。
+    //   `text` 型にしてあるので横断検索（`isSearchableColumn` が `/char|text|citext/`）が
+    //   **無改修で拾う**＝経路が2つに割れていない。
+    // 🚨 否定形とセットで見る: **差し替えたら古い語では出ない**。
+    //   ヒットするだけなら「一度書いたら消えない」実装でも通ってしまい、
+    //   「検索で出るのに中身が違う」を見逃す。
+    const uniqueWord = `accv1c${Date.now().toString(36)}`;
+    const searchable = await admin.postJson(`/api/items/${collection}`, {
+      body: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: uniqueWord }] }] },
+    });
+    const searchableId = searchable.json?.data?.id ?? null;
+    // 🚨 **応答の形を確かめてから数える。** `/api/search` は配列ではなく
+    //   `{data:{items:[],files:[],collections:[],settings:[],pages:[]}}` のバケット構造。
+    //   最初 `data` を配列と決めつけて -1 件になり、**製品でなく私の想定が違った**（2026-08-14）。
+    const hit = await admin.get(`/api/search?q=${uniqueWord}`);
+    const hitCount = countItems(hit);
+    assertions.push(
+      assertion("positive", "本文が検索でヒットする（<field>_plain が同期している）",
+        hitCount >= 1, `${hitCount} 件`, "1 件以上"),
+    );
+
+    if (searchableId) {
+      const replaced = `accv1c${Date.now().toString(36)}x`;
+      await admin.request(`/api/items/${collection}/${searchableId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          body: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: replaced }] }] },
+        }),
+      });
+      const stale = await admin.get(`/api/search?q=${uniqueWord}`);
+      const fresh = await admin.get(`/api/search?q=${replaced}`);
+      const staleCount = countItems(stale);
+      const freshCount = countItems(fresh);
+      assertions.push(
+        assertion("negative", "差し替えたら古い語では出ない（新しい語では出る）",
+          staleCount === 0 && freshCount >= 1,
+          `古い語 ${staleCount} 件 / 新しい語 ${freshCount} 件`, "古い 0 件・新しい 1 件以上"),
+      );
+    }
 
     details.push(
       "🚨 **描画時のサニタイズはここでは測れていません**（unverified）。",
