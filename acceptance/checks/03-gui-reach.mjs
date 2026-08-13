@@ -41,6 +41,17 @@ const REQUIRED_NAV = [
   ["/admin/settings/agents", "エージェントトークン"],
 ];
 
+/**
+ * 🚨 **200 は「開けた」の証拠にならない。**
+ * 中身が空でも 200 は返る。今日だけで「判定基準そのものが間違っていた」事故が9件出ている
+ * （knowledge/decisions/verify-the-verifier.md）。**判定の前に、判定が事実を写すかを確かめる。**
+ * ここでは「見出しが出ている」「ナビが3本以上ある」を最低条件にしている。
+ *
+ * 🚨 それでも**このチェックはレイアウトを見ていない**。
+ *   幅が 0 でも、CSS が全部落ちても、HTML に見出しがあれば通る。
+ *   **「#3 が PASS」は「画面が正しく見える」ではない。** そこは人が manual-3.md で見る。
+ */
+
 /** 人がブラウザで見るしかない残り。details に必ず出して、忘れられないようにする */
 const MANUAL_RESIDUE = [
   "実際に描画されるか（崩れ・重なり・ダーク/ライト）",
@@ -117,9 +128,21 @@ export async function check(context) {
   );
 
   const broken = [];
+  const empty = [];
   for (const href of hrefs) {
     const page = await admin.get(href);
-    if (page.status !== 200) broken.push(`${href}=${page.status}`);
+    if (page.status !== 200) {
+      broken.push(`${href}=${page.status}`);
+      continue;
+    }
+    // 🚨 **200 を「開けた」の証拠にしない。**
+    //   500 を返さずに中身が空、という壊れ方がある（今日の「判定基準そのものが間違っている」の系統）。
+    //   見出しとナビが両方あって初めて「その画面が組み上がっている」と言える。
+    const hasHeading = /<h1[^>]*>\s*\S/.test(page.text);
+    const hasNav = (page.text.match(/href="\/admin[^"]*"/g) ?? []).length >= 3;
+    if (!hasHeading || !hasNav) {
+      empty.push(`${href}(${hasHeading ? "" : "見出し無し"}${hasNav ? "" : " ナビ無し"})`);
+    }
   }
   assertions.push(
     assertion(
@@ -128,6 +151,15 @@ export async function check(context) {
       broken.length === 0,
       broken.length === 0 ? `${hrefs.length} 本すべて 200` : `開けない: ${broken.join(" ")}`,
       "全部 200",
+    ),
+  );
+  assertions.push(
+    assertion(
+      "positive",
+      "開いた画面が空でない（見出しとナビが出ている）",
+      empty.length === 0,
+      empty.length === 0 ? `${hrefs.length} 本すべて中身あり` : `空: ${empty.join(" ")}`,
+      "全部中身あり",
     ),
   );
 
