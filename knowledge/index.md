@@ -12,7 +12,7 @@ sources: []
 stale_after: 2027-02-08
 x_rag_okf:
   id: index
-  source_commit: 52c3837
+  source_commit: bb89189
   source_digest: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   authorship: deterministic
 ---
@@ -31,6 +31,7 @@ x_rag_okf:
 - [i18n はライブラリを使わず自前実装にする](./decisions/i18n-own-implementation.md) — `decisions/i18n-own-implementation`
 - [i18n は必須（旧PJの方針を反転）](./decisions/i18n-required.md) — `decisions/i18n-required`
 - [設定・スキーマの正本は JSON](./decisions/json-as-source-of-truth.md) — `decisions/json-as-source-of-truth`
+- [開発サーバを外部へ公開しない（公開するのは本番ビルドだけ）](./decisions/never-expose-dev-server.md) — `decisions/never-expose-dev-server`
 - [Directus をフォークしない](./decisions/no-directus-fork.md) — `decisions/no-directus-fork`
 - [面（Surface）は1段まで。入れ子を構造的に禁止する](./decisions/no-nested-surfaces.md) — `decisions/no-nested-surfaces`
 - [組織テーブルを作らない](./decisions/no-organization-table.md) — `decisions/no-organization-table`
