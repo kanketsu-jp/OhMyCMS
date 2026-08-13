@@ -1,8 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FileIcon } from "lucide-react";
+import { FileIcon, Plus } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
-import { FileUploadForm } from "@/components/admin/files-manager";
+import { PageAction } from "@/components/admin/page-action";
 import { ListPagination } from "@/components/admin/list-pagination";
 import {
   GRID_PAGE_SIZE,
@@ -69,9 +69,13 @@ export default async function FilesPage({ searchParams }: Props) {
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
         </div>
-        <Link href="/admin/folders" className="text-sm text-muted-foreground hover:underline">
-          {t("folders_link")}
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/folders" className="text-sm text-muted-foreground hover:underline">
+            {t("folders_link")}
+          </Link>
+          {/* 🚨 一覧のページは**まず一覧を見せる**（design ⑰）。追加は /admin/files/new へ */}
+          <PageAction href="/admin/files/new" label={t("new_button")} icon={<Plus />} />
+        </div>
       </div>
       <ErrorBanner
         message={
@@ -79,10 +83,6 @@ export default async function FilesPage({ searchParams }: Props) {
           (!foldersResult.ok ? foldersResult.message : null)
         }
       />
-      <Surface>
-        <SurfaceTitle>{t("upload_title")}</SurfaceTitle>
-        <FileUploadForm folders={folders} />
-      </Surface>
       <Surface>
         <SurfaceTitle>{t("list_title")}</SurfaceTitle>
         <form className="flex max-w-sm gap-2" action="/admin/files">
