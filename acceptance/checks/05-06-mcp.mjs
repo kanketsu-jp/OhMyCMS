@@ -11,6 +11,11 @@
  *
  * 6 も同じ作法で、一般トークンで拒否 → 管理者トークンで成功、の対で見る。
  *
+ * 5 には**リレーション経由の抜け道**（F2-1 で塞いだもの）の回帰テストも入れている。
+ * ここでも対照実験を先に置く: `parent: null` は「権限で塞いだ」とは限らず
+ * 「リレーションが解決できていないだけ」かもしれないので、
+ * **管理者トークンなら親の列まで取れる**ことを確かめてから否定形を見る。
+ *
  * dist はコミットしていない（ビルド成果物）ので、**判定の前に必ずビルドする**。
  * 「dist があるか」で判定すると clone 直後と CI で必ず SKIP になる。
  *
@@ -26,6 +31,8 @@ import { REPO_ROOT, run } from "../lib/proc.mjs";
 import { STATUS, assertion, result, statusFromAssertions } from "../lib/result.mjs";
 
 const PREFIX = "acc_mcp_";
+/** リレーション経由で漏れてはいけない値。出てきたら一発で分かる文字列にする。 */
+const SECRET = "ACC-MCP-RELATION-SECRET";
 const SERVER_ENTRY = join(REPO_ROOT, "packages/mcp/dist/index.js");
 const BUILD_COMMAND = ["--filter", "./packages/*", "build"];
 
@@ -142,21 +149,55 @@ async function setup(baseUrl, stamp, { sabotage = false } = {}) {
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
 
-  for (const collection of [allowed, forbidden]) {
-    const created = await asAdmin("/api/collections", {
-      collection,
-      fields: [
-        { field: "id", type: "uuid", schema: { is_primary_key: true } },
-        { field: "title", type: "string" },
-      ],
-    });
-    if (created.status !== 200) {
-      return { ok: false, reason: `${collection} を作れません (HTTP ${created.status})` };
-    }
-    const seeded = await asAdmin(`/api/items/${collection}`, { title: `${collection} の中身` });
-    if (seeded.status !== 201) {
-      return { ok: false, reason: `${collection} に行を入れられません (HTTP ${seeded.status})` };
-    }
+  // forbidden は「権限が無いコレクション」であると同時に、
+  // **allowed からリレーションで辿れる親**でもある（F2-1 の回帰テスト用）。
+  const forbiddenCreated = await asAdmin("/api/collections", {
+    collection: forbidden,
+    fields: [
+      { field: "id", type: "uuid", schema: { is_primary_key: true } },
+      { field: "title", type: "string" },
+      { field: "secret", type: "string" },
+    ],
+  });
+  if (forbiddenCreated.status !== 200) {
+    return { ok: false, reason: `${forbidden} を作れません (HTTP ${forbiddenCreated.status})` };
+  }
+  const parentSeeded = await asAdmin(`/api/items/${forbidden}`, {
+    title: `${forbidden} の中身`,
+    secret: SECRET,
+  });
+  if (parentSeeded.status !== 201) {
+    return { ok: false, reason: `${forbidden} に行を入れられません (HTTP ${parentSeeded.status})` };
+  }
+  const parentId = parentSeeded.json?.data?.id;
+
+  const allowedCreated = await asAdmin("/api/collections", {
+    collection: allowed,
+    fields: [
+      { field: "id", type: "uuid", schema: { is_primary_key: true } },
+      { field: "title", type: "string" },
+      { field: "parent", type: "uuid" },
+    ],
+  });
+  if (allowedCreated.status !== 200) {
+    return { ok: false, reason: `${allowed} を作れません (HTTP ${allowedCreated.status})` };
+  }
+  const relation = await asAdmin("/api/relations", {
+    many_collection: allowed,
+    many_field: "parent",
+    many_primary: "id",
+    one_collection: forbidden,
+    one_primary: "id",
+  });
+  if (relation.status !== 200) {
+    return { ok: false, reason: `リレーションを作れません (HTTP ${relation.status})` };
+  }
+  const childSeeded = await asAdmin(`/api/items/${allowed}`, {
+    title: `${allowed} の中身`,
+    parent: parentId,
+  });
+  if (childSeeded.status !== 201) {
+    return { ok: false, reason: `${allowed} に行を入れられません (HTTP ${childSeeded.status})` };
   }
 
   return {
@@ -164,6 +205,7 @@ async function setup(baseUrl, stamp, { sabotage = false } = {}) {
     admin,
     allowed,
     forbidden,
+    parentId,
     adminToken: adminToken.json.token,
     adminAgentId: adminToken.json.data.id,
     limitedToken: limitedToken.json.token,
@@ -171,13 +213,18 @@ async function setup(baseUrl, stamp, { sabotage = false } = {}) {
   };
 }
 
-async function teardown(env) {
+/**
+ * 作ったものを消す。
+ * 🚨 `extra` を忘れない。--red のときは「拒否されるはずのコレクション作成」が**成功してしまう**ので、
+ *   そこで出来たコレクションが残る（2026-08-13 に実際に残した）。
+ */
+async function teardown(env, extra = []) {
   const asAdmin = (path, method) =>
     env.admin.request(path, {
       method,
       headers: { authorization: `Bearer ${env.adminToken}` },
     });
-  for (const collection of [env.allowed, env.forbidden]) {
+  for (const collection of [env.allowed, env.forbidden, ...extra]) {
     await asAdmin(`/api/collections/${collection}`, "DELETE").catch(() => {});
   }
   for (const id of [env.adminAgentId, env.limitedAgentId]) {
@@ -238,9 +285,11 @@ export async function check5(context) {
   const assertions = [];
   const details = [];
   let limited = null;
+  let admin = null;
 
   try {
     limited = await connect(env.limitedToken, baseUrl);
+    admin = await connect(env.adminToken, baseUrl);
 
     // ── ツール一覧が返ること（ここが返らないと以降が意味を持たない） ──
     const tools = await limited.listTools();
@@ -317,6 +366,74 @@ export async function check5(context) {
       ),
     );
 
+    // ── リレーション経由の抜け道が塞がっているか（F2-1 の回帰テスト） ──
+    //
+    // 🚨 ここも「否定形が自明に成立しない」ようにする。
+    //   `parent: null` が返るのは「権限で塞いだ」からとは限らず、
+    //   **リレーションがそもそも解決できていない**だけかもしれない。
+    //   そこで先に管理者トークンで同じクエリを投げ、
+    //   **リレーションを辿れば secret が実際に取れる**ことを確かめてから否定形を見る。
+    //   （2026-08-13 に実際にこの落とし穴を踏みかけた。対照実験が無いと誤読する）
+    const adminRelation = await admin.callTool("ohmycms_items_query", {
+      collection: env.allowed,
+      fields: ["id", "parent.*"],
+    });
+    const adminSawSecret = JSON.stringify(adminRelation.structured ?? {}).includes(SECRET);
+    assertions.push(
+      assertion(
+        "positive",
+        "対照: 管理者トークンならリレーションを辿って親の列まで取れる",
+        !adminRelation.isError && adminSawSecret,
+        adminSawSecret ? "親の列まで取れた" : `取れず (${errorOf(adminRelation)?.code ?? "secret なし"})`,
+        "親の列まで取れる",
+      ),
+    );
+
+    const relationLeak = await limited.callTool("ohmycms_items_query", {
+      collection: env.allowed,
+      fields: ["id", "parent.*"],
+    });
+    const limitedSawSecret = JSON.stringify(relationLeak.structured ?? {}).includes(SECRET);
+    assertions.push(
+      assertion(
+        "negative",
+        "一般トークンは fields のドット記法で親（権限の無いコレクション）を読めない",
+        !limitedSawSecret,
+        limitedSawSecret ? "**親の secret が漏れた**" : "漏れていない",
+        "漏れない",
+      ),
+    );
+
+    const namedLeak = await limited.callTool("ohmycms_items_query", {
+      collection: env.allowed,
+      fields: ["id", "parent.secret"],
+    });
+    assertions.push(
+      assertion(
+        "negative",
+        "親の列を名指し（parent.secret）しても読めない",
+        !JSON.stringify(namedLeak.structured ?? {}).includes(SECRET),
+        JSON.stringify(namedLeak.structured ?? {}).includes(SECRET) ? "**漏れた**" : "漏れていない",
+        "漏れない",
+      ),
+    );
+
+    // filter で親の列を条件にすると、当たり外れから値を復元できてしまう（総当たり）。
+    // 403 で拒否されるのが正しい。
+    const filterProbe = await limited.callTool("ohmycms_items_query", {
+      collection: env.allowed,
+      filter: { parent: { secret: { _contains: SECRET } } },
+    });
+    assertions.push(
+      assertion(
+        "negative",
+        "filter で親の列を条件にすると拒否される（当たり外れから値を当てられないように）",
+        filterProbe.isError && errorOf(filterProbe)?.status === 403,
+        filterProbe.isError ? `${errorOf(filterProbe)?.status} ${errorOf(filterProbe)?.code}` : "通ってしまった",
+        "403",
+      ),
+    );
+
     // ── stdout がプロトコル専用に保たれているか ──
     assertions.push(
       assertion(
@@ -357,6 +474,7 @@ export async function check5(context) {
     );
   } finally {
     if (limited) await limited.stop();
+    if (admin) await admin.stop();
     await teardown(env);
   }
 
@@ -366,7 +484,7 @@ export async function check5(context) {
     title: "MCP 経由で触れ、権限が同じように効く",
     status: verdict.status,
     positive: "許可されたコレクションは読める・書ける",
-    negative: "許可されていないコレクションは 403",
+    negative: "許可されていないコレクションは 403 / リレーション経由でも漏れない",
     details: [...details, ...verdict.details],
     repro,
     assertions,
@@ -518,7 +636,8 @@ export async function check6(context) {
     if (createdPolicyId) {
       await env.admin.delete(`/api/policies/${createdPolicyId}`).catch(() => {});
     }
-    await teardown(env);
+    // --red のときは「拒否されるはず」のコレクション作成が通ってしまうので、それも消す
+    await teardown(env, [`${PREFIX}denied_${stamp}`, `${PREFIX}admin_ok_${stamp}`]);
   }
 
   const verdict = statusFromAssertions(assertions);
