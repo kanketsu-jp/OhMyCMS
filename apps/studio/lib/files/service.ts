@@ -44,6 +44,15 @@ const SUPPORTED_TRANSFORM_MIME = new Set([
 
 const DANGEROUS_INLINE_MIME = new Set(["text/html", "image/svg+xml"]);
 
+/**
+ * 🚨 拡張子でも危険判定する。
+ * 申告 MIME と拡張子が食い違うと inferContentType が application/octet-stream にするため、
+ * MIME だけ見ていると「evil.html を text/plain と偽る」で attachment を回避できてしまう。
+ */
+const DANGEROUS_INLINE_EXT = new Set([
+  ".html", ".htm", ".xhtml", ".svg", ".xml", ".mhtml",
+]);
+
 type ResizeFit = "cover" | "contain" | "inside" | "outside";
 
 type FileRow = {
@@ -423,7 +432,16 @@ function safeDeliveryHeaders(type: string | null, filename: string): {
   const contentType = type && !DANGEROUS_INLINE_MIME.has(type)
     ? type
     : "application/octet-stream";
-  const contentDisposition = type && DANGEROUS_INLINE_MIME.has(type)
+  // 🚨 MIME だけで判断しない。**拡張子でも判断する**。
+  // inferContentType は「申告 MIME と拡張子が食い違う」と application/octet-stream にするため、
+  // evil.html を text/plain と偽って上げると type が octet-stream になり、
+  // DANGEROUS_INLINE_MIME に当たらず attachment が付かなかった（実測で確認）。
+  // 中身は HTML のままなので、拡張子側からも塞ぐ。
+  const ext = path.extname(filename).toLowerCase();
+  const dangerous =
+    (type !== null && DANGEROUS_INLINE_MIME.has(type)) ||
+    DANGEROUS_INLINE_EXT.has(ext);
+  const contentDisposition = dangerous
     ? `attachment; filename="${sanitizeFilename(filename)}"`
     : undefined;
   // 🚨 全レスポンスに nosniff を付ける（多層防御）。
