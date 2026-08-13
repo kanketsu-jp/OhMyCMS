@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
-import { FieldCreateForm } from "@/components/admin/field-create-form";
+import { PageAction } from "@/components/admin/page-action";
 import { RelationForm } from "@/components/admin/relation-form";
 import { noticeKeyFromQuery } from "@/i18n/notice";
 import { getT } from "@/i18n/server";
@@ -96,9 +96,16 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           </Link>
           <h1 className="mt-2 text-2xl font-semibold">{collection}</h1>
         </div>
-        <form action={`/admin/actions/collections/${encoded}/delete`} method="post">
-          <Button type="submit" variant="destructive">{tCollections("delete_button")}</Button>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <PageAction
+            href={`/admin/collections/${encoded}/fields/new`}
+            label={tFields("add_title")}
+            icon={<Plus />}
+          />
+          <form action={`/admin/actions/collections/${encoded}/delete`} method="post">
+            <Button type="submit" variant="destructive">{tCollections("delete_button")}</Button>
+          </form>
+        </div>
       </div>
       <ErrorBanner
         message={
@@ -111,10 +118,6 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       {noticeKey ? (
         <div className="text-sm text-muted-foreground">{tNotice(noticeKey)}</div>
       ) : null}
-      <Surface>
-        <SurfaceTitle>{tFields("add_title")}</SurfaceTitle>
-        <FieldCreateForm collection={encoded} />
-      </Surface>
       <Surface>
         <SurfaceTitle>{tFields("list_title")}</SurfaceTitle>
         {fieldsResult.ok ? (

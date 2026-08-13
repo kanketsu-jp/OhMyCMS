@@ -4,6 +4,7 @@
   "advanced_title": "Advanced",
   "advanced_type_auto": "Automatic (follow the choice above)",
   "advanced_type_label": "Choose the DB type yourself",
+  "back_to_collection": "Back to collection",
   "db_type_header": "DB Type",
   "empty_fields": "No fields to display.",
   "field_header": "Field",
