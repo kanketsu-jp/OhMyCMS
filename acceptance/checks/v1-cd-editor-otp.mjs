@@ -143,6 +143,34 @@ export async function checkTiptap(context) {
         contentType || "(型なし)", "application/json"),
     );
 
+    // ── 🔴 否定形: **保存側も知らないノードを受け付けない** ──
+    // 🚨 tiptap が 11e2336 で塞いだ穴の回帰検査。**私の質問で見つかった**もの:
+    //   それまで保存側にノード／装飾の許可リストが無く、`{type:"script"}` が DB に入っていた。
+    //   描画側（SDK の `<RichText>`）が弾くので実害は出ないが、
+    //   **「保存できるのに描かれない」ねじれ**は、あとで必ず「なぜ出ない」を生む。
+    //   → **両側で弾く**（サーバは外へ出す値、SDK は描き方。片方を通らない経路が穴になる）。
+    const hostile = await admin.postJson(`/api/items/${collection}`, {
+      body: {
+        type: "doc",
+        content: [
+          { type: "script", content: [{ type: "text", text: "window.__pwned=1" }] },
+          { type: "paragraph", content: [{ type: "text", text: "残る文章" }] },
+        ],
+      },
+    });
+    const hostileId = hostile.json?.data?.id ?? null;
+    const storedRaw = hostileId
+      ? JSON.stringify((await admin.get(`/api/items/${collection}/${hostileId}`)).json?.data?.body ?? null)
+      : "";
+    assertions.push(
+      assertion("negative", "知らないノード（script）は保存されない（文章は残る）",
+        hostile.status < 400 && !storedRaw.includes("__pwned") && storedRaw.includes("残る文章"),
+        hostile.status >= 400
+          ? `保存が HTTP ${hostile.status} で拒否された`
+          : storedRaw.includes("__pwned") ? "🚨 script が保存されている" : "script は落ち、文章は残った",
+        "script は保存されず、文章は残る"),
+    );
+
     details.push(
       "🚨 **描画時のサニタイズはここでは測れていません**（unverified）。",
       "  保存した JSON を HTML にする経路がまだ無いためです。",
