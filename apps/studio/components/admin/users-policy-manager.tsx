@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
@@ -120,9 +120,11 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
               <p className="font-medium">{row.user_email ?? row.role_name ?? row.user ?? row.role}</p>
               <p className="text-sm text-muted-foreground">{t("policy_prefix", { policy: row.policy_name ?? row.policy })}</p>
             </div>
-            <Button type="button" variant="destructive-ghost" size="sm" disabled={remove.isPending(row.id)} onClick={() => void remove.run(row.id)}>
-              <Trash2 />
-              {t("remove_button")}
+            <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("remove_button")} disabled={remove.isPending(row.id)} onClick={() => void remove.run(row.id)}>
+              {/* 🚨 ゴミ箱にしない。**割り当てを外す**操作で、ユーザーが消えるわけではない
+                  （ゴミ箱だと「ユーザーごと消える」と誤解される。design ⑬） */}
+              <UserMinus />
+              <span className="hidden md:inline">{t("remove_button")}</span>
             </Button>
           </div>
         ))}

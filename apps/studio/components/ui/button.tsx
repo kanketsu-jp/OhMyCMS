@@ -45,7 +45,10 @@ const buttonVariants = cva(
         default:
           "h-(--control-h) gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 md:h-(--control-h-pc)",
         xs: "h-(--control-h-xs) gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-(--control-h) gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 md:h-(--control-h-pc-sm) [&_svg:not([class*='size-'])]:size-3.5",
+        // 🚨 SP で幅の下限も 44px にする。行の中の操作は SP でアイコンだけになるので、
+        // 高さが 44px でも**幅が 36px**まで縮んで当たり判定を割る（実測。design ⑬）。
+        // 文字が出る PC では不要なので md: で外す。
+        sm: "h-(--control-h) min-w-(--control-h) gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] md:min-w-0 in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 md:h-(--control-h-pc-sm) [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-(--control-h) gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 md:h-(--control-h-pc-lg)",
         icon: "size-(--control-h) md:size-(--control-h-pc)",
         "icon-xs":

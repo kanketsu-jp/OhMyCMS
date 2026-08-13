@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
+import { FIELD_INTERFACE_IDS } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { RelationForm } from "@/components/admin/relation-form";
 import { getT } from "@/i18n/server";
@@ -127,7 +129,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
         <form
           action={`/admin/actions/collections/${encoded}/fields`}
           method="post"
-          className="grid gap-4 md:grid-cols-[1fr_180px_140px_120px_auto] md:items-end"
+          className="grid gap-4 md:grid-cols-[1fr_150px_170px_120px_110px_auto] md:items-end"
         >
           <div className="space-y-1.5">
             <Label htmlFor="field">{tFields("name_label")}</Label>
@@ -143,6 +145,25 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             >
               {fieldTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+          {/*
+            🚨 「型」は DB の列の型、「編集のしかた」は**その列を何で編集させるか**。
+            本文（リッチテキスト）は json 型 + interface=richtext で表す（新しい SQL 型を足さない）。
+            型に合わない組み合わせはサーバ側で落として既定へ戻す。
+          */}
+          <div className="space-y-1.5">
+            <Label htmlFor="interface">{tFields("interface_label")}</Label>
+            <select
+              id="interface"
+              name="interface"
+              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm"
+              defaultValue=""
+            >
+              <option value="">{tFields("interface_auto")}</option>
+              {FIELD_INTERFACE_IDS.map((id) => (
+                <option key={id} value={id}>{tFields(`interface_${id}`)}</option>
               ))}
             </select>
           </div>
@@ -220,8 +241,9 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                       >
                         <input type="hidden" name="many_collection" value={row.relation.many_collection} />
                         <input type="hidden" name="many_field" value={row.relation.many_field} />
-                        <Button type="submit" variant="destructive-ghost" size="sm">
-                          {tRelations("delete_button")}
+                        <Button type="submit" variant="destructive-ghost" size="sm" aria-label={tRelations("delete_button")}>
+                          <Trash2 />
+                          <span className="hidden md:inline">{tRelations("delete_button")}</span>
                         </Button>
                       </form>
                     </TableCell>

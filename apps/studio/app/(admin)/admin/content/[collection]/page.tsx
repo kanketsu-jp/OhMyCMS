@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
@@ -148,7 +149,10 @@ export default async function ContentPage({ params, searchParams }: Props) {
                           </Link>
                           <form action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`} method="post">
                             <input type="hidden" name="_method" value="delete" />
-                            <Button type="submit" variant="destructive-ghost" size="sm">{t("delete_button")}</Button>
+                            <Button type="submit" variant="destructive-ghost" size="sm" aria-label={t("delete_button")}>
+                              <Trash2 />
+                              <span className="hidden md:inline">{t("delete_button")}</span>
+                            </Button>
                           </form>
                         </div>
                       </TableCell>

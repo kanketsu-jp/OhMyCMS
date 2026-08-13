@@ -103,9 +103,9 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
                 {role.description || t("no_description")} / {t("parent_colon_label")}{roles.find((item) => item.id === role.parent)?.name ?? t("none_option")}
               </p>
             </div>
-            <Button type="button" variant="destructive-ghost" size="sm" disabled={remove.isPending(role.id)} onClick={() => void remove.run(role.id)}>
+            <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("delete_button")} disabled={remove.isPending(role.id)} onClick={() => void remove.run(role.id)}>
               <Trash2 />
-              {t("delete_button")}
+              <span className="hidden md:inline">{t("delete_button")}</span>
             </Button>
           </div>
         ))}

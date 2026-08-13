@@ -103,10 +103,13 @@ export function NotificationsManager({
               <Button
                 variant="ghost"
                 size="sm"
+                aria-label={notification.read_at ? t("mark_unread") : t("mark_read")}
                 onClick={() => setRead(notification.id, !notification.read_at)}
               >
                 {notification.read_at ? <Undo2 /> : <Check />}
-                {notification.read_at ? t("mark_unread") : t("mark_read")}
+                <span className="hidden md:inline">
+                  {notification.read_at ? t("mark_unread") : t("mark_read")}
+                </span>
               </Button>
             </li>
           ))}

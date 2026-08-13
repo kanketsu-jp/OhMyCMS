@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Trash2 } from "lucide-react";
+import { Pencil, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -251,10 +251,13 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
                 <p className="text-sm text-muted-foreground">fields: {row.fields || t("fields_unspecified")}</p>
               </div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => startEdit(row)}>{t("edit_button")}</Button>
-                <Button type="button" variant="destructive-ghost" size="sm" disabled={remove.isPending(String(row.id))} onClick={() => void remove.run(row.id)}>
+                <Button type="button" variant="outline" size="sm" aria-label={t("edit_button")} onClick={() => startEdit(row)}>
+                  <Pencil />
+                  <span className="hidden md:inline">{t("edit_button")}</span>
+                </Button>
+                <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("delete_button")} disabled={remove.isPending(String(row.id))} onClick={() => void remove.run(row.id)}>
                   <Trash2 />
-                  {t("delete_button")}
+                  <span className="hidden md:inline">{t("delete_button")}</span>
                 </Button>
               </div>
             </div>

@@ -159,9 +159,9 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
                 on_behalf_of: {agent.on_behalf_of} / expires_at: {agent.expires_at} / revoked_at: {agent.revoked_at ?? "-"}
               </p>
             </div>
-            <Button type="button" variant="destructive-ghost" size="sm" disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)} onClick={() => void revoke.run(agent.id)}>
+            <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("revoke_button")} disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)} onClick={() => void revoke.run(agent.id)}>
               <Ban />
-              {t("revoke_button")}
+              <span className="hidden md:inline">{t("revoke_button")}</span>
             </Button>
           </div>
         ))}
