@@ -31,11 +31,10 @@ const navItems = [
 // 🚨 `settings_*`（長い方）の辞書キーは消していない。他で使われている可能性があるため。
 const settingsItems = [
   { href: "/admin/settings/general", labelKey: "settings_child_general" },
-  // 🚨 SSO はここに戻さないこと（ページが git に入るまで）。
-  // 経緯: 私のコミットが saml(pG) の未コミット行を巻き込み、**リンクだけが git に入った**。
-  // ページ（app/(admin)/admin/settings/sso/page.tsx）は untracked のままなので、
-  // clone した人は**押すと 404**になる。design「リンク先が無いものは押せなくする。
-  // 押せて 404 が最悪」。→ pG がページをコミットするときに、この行と辞書キーも一緒に足す。
+  // 認証まわりなので general の次。ページは saml(pG) が f96973f でコミット済み
+  // （🚨 一度、ページが git に入る前にリンクだけが入って「押すと 404」になった。
+  //  リンク・文言・ページは**必ず同じコミットで**揃える）。
+  { href: "/admin/settings/sso", labelKey: "settings_child_sso" },
   { href: "/admin/settings/roles", labelKey: "settings_child_roles" },
   { href: "/admin/settings/policies", labelKey: "settings_child_policies" },
   { href: "/admin/settings/users", labelKey: "settings_child_users" },

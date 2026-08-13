@@ -17,6 +17,7 @@
   "settings_child_general": "一般",
   "settings_child_policies": "ポリシー",
   "settings_child_roles": "ロール",
+  "settings_child_sso": "SSO",
   "settings_child_users": "ユーザー",
   "settings_child_version": "バージョン",
   "settings_general": "設定 / 一般",
