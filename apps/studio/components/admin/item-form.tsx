@@ -41,6 +41,9 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
   const visibleFields = fields.filter((field) => {
     if (!field.schema) return false;
     if (!isEdit && isGeneratedPrimaryUuid(field)) return false;
+    // 🚨 hidden の列は書き手に見せない。本文の検索用の相方（`<field>_plain`）が
+    // 生のテキスト欄として出てしまうため（中身は本文から導出される）。
+    if (field.meta?.hidden) return false;
     return true;
   });
 

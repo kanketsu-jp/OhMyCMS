@@ -11,6 +11,18 @@
 /** doc に必ず持たせる版番号。ノードの形を変えたら上げて、逐次マイグレーションを書く */
 export const RICHTEXT_SCHEMA_VERSION = 1;
 
+/**
+ * 本文の相方になる、検索用のプレーンテキスト列の名前。
+ *
+ * 🚨 **`text` 型で作ること。** `lib/search/service.ts` の `isSearchableColumn` が
+ * `/char|text|citext/` を見ているので、text なら横断検索(F2-J)が**無改修で拾う**。
+ * jsonb のままだと ILIKE が落ちる（`jsonb ~~* unknown` でエラーになる）ので、
+ * 本文そのものは検索できない。だから相方の列を持つ。
+ */
+export function plainColumnName(field: string): string {
+  return `${field}_plain`;
+}
+
 export type RichTextMark = {
   type: string;
   attrs?: Record<string, unknown>;

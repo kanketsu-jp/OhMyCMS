@@ -15,6 +15,7 @@ import type {
   RelationResult,
 } from "./models";
 import { deriveFieldType, sqlTypeForField } from "./types";
+import { plainColumnName } from "@/lib/richtext/document";
 import { assertSafeIdentifier, isSystemTableName } from "./validate";
 
 const COLLECTION_META_COLUMNS = new Set([
@@ -559,6 +560,84 @@ export async function getField(
   return fields.find((item) => item.field === field) ?? null;
 }
 
+function isRichTextMeta(meta: Record<string, unknown> | undefined): boolean {
+  return meta?.interface === "richtext";
+}
+
+/**
+ * 本文フィールドと、検索用の相方の列（`<field>_plain`）の名前がぶつからないか見る。
+ *
+ * 🚨 このCMSは GUI で誰でもフィールドを作れるので、**利用者が自分で `body_plain` を
+ * 作れてしまう**。あとから本文 `body` を作ると相方の名前が衝突する（逆もある）。
+ * 名前を予約記号で汚すより、**作るときに断る**方を選んだ。
+ */
+async function assertPlainColumnFree(
+  trx: Knex.Transaction,
+  collection: string,
+  field: string,
+  meta: Record<string, unknown> | undefined,
+): Promise<void> {
+  if (isRichTextMeta(meta)) {
+    const plain = plainColumnName(field);
+    assertSafeIdentifier(plain);
+    if (await columnExists(trx, collection, plain)) {
+      throw new ApiError(
+        409,
+        "PLAIN_COLUMN_EXISTS",
+        `本文の検索用に ${plain} を使います。同じ名前のフィールドが既にあるので、どちらかの名前を変えてください`,
+      );
+    }
+    return;
+  }
+
+  // 逆向き: `body_plain` を手で作ろうとしていて、`body` が本文だった場合
+  const suffix = "_plain";
+  if (!field.endsWith(suffix)) return;
+  const owner = field.slice(0, -suffix.length);
+  if (owner === "") return;
+
+  const ownerMeta = await trx("directus_fields")
+    .select("interface")
+    .where({ collection, field: owner })
+    .first() as { interface: string | null } | undefined;
+
+  if (ownerMeta?.interface === "richtext") {
+    throw new ApiError(
+      409,
+      "PLAIN_COLUMN_RESERVED",
+      `${field} は本文フィールド ${owner} の検索用に予約されています。別の名前にしてください`,
+    );
+  }
+}
+
+/**
+ * 本文フィールドを作ったら、検索用の相方の列も同じ取引の中で作る。
+ *
+ * 🚨 `text` 型にすること。`lib/search/service.ts` の `isSearchableColumn` が
+ * `/char|text|citext/` を見ているので、text なら横断検索が無改修で拾う。
+ * `hidden` を立てるのは、書き手に生のテキスト欄を見せないため（中身は本文から導出される）。
+ */
+async function addPlainColumn(
+  trx: Knex.Transaction,
+  collection: string,
+  field: string,
+  meta: Record<string, unknown> | undefined,
+): Promise<void> {
+  if (!isRichTextMeta(meta)) return;
+
+  const plain = plainColumnName(field);
+  assertSafeIdentifier(plain);
+  await trx.raw("ALTER TABLE ?? ADD COLUMN ?? text", [collection, plain]);
+  await trx("directus_fields").insert({
+    collection,
+    field: plain,
+    interface: "input",
+    hidden: true,
+    readonly: true,
+    note: `${field} の検索用。本文を保存すると自動で更新されます`,
+  });
+}
+
 export async function createField(
   collection: string,
   body: Record<string, unknown>,
@@ -585,11 +664,13 @@ export async function createField(
       if (await columnExists(trx, collection, field)) {
         throw new ApiError(409, "FIELD_EXISTS", "フィールドはもう作られています");
       }
+      await assertPlainColumnFree(trx, collection, field, meta);
 
       await addColumn(trx, collection, field, body.type as string, schema);
       await trx("directus_fields").insert(
         fieldMetaInsert(collection, field, meta, schema),
       );
+      await addPlainColumn(trx, collection, field, meta);
     });
   } catch (error) {
     rethrowAsConflict(error);
