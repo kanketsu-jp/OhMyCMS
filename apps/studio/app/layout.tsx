@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale, getT } from "@/i18n/server";
 import { messagesFor } from "@/i18n/messages";
+import { projectName } from "@/lib/settings/project-name";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,7 +19,7 @@ const geistMono = Geist_Mono({
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT("common");
   return {
-    title: t("app_name"),
+    title: await projectName(t("app_name")),
     description: t("app_description"),
   };
 }

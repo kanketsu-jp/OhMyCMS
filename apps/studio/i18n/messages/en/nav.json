@@ -6,8 +6,12 @@
   "files": "Files",
   "folders": "Folders",
   "logout": "Log out",
+  "notifications": "Notifications",
+  "reports": "Bug reports",
   "settings_agents": "Settings / Agents",
+  "settings_general": "Settings / General",
   "settings_policies": "Settings / Policies",
   "settings_roles": "Settings / Roles",
-  "settings_users": "Settings / Users"
+  "settings_users": "Settings / Users",
+  "settings_version": "Settings / Version"
 }

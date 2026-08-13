@@ -6,16 +6,21 @@ import { apiFetch, currentUser } from "@/lib/admin/api";
 import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
+import { projectName } from "@/lib/settings/project-name";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin/collections", labelKey: "collections" },
   { href: "/admin/files", labelKey: "files" },
   { href: "/admin/folders", labelKey: "folders" },
+  { href: "/admin/notifications", labelKey: "notifications" },
+  { href: "/admin/reports", labelKey: "reports" },
+  { href: "/admin/settings/general", labelKey: "settings_general" },
   { href: "/admin/settings/roles", labelKey: "settings_roles" },
   { href: "/admin/settings/policies", labelKey: "settings_policies" },
   { href: "/admin/settings/users", labelKey: "settings_users" },
   { href: "/admin/settings/agents", labelKey: "settings_agents" },
+  { href: "/admin/settings/version", labelKey: "settings_version" },
 ];
 
 export default async function AdminLayout({
@@ -25,6 +30,7 @@ export default async function AdminLayout({
 }) {
   const t = await getT("nav");
   const tCommon = await getT("common");
+  const brand = await projectName(tCommon("app_name"));
   const me = await currentUser();
   if (!me.ok && me.status === 401) {
     redirect("/login");
@@ -39,7 +45,7 @@ export default async function AdminLayout({
       <aside className="hidden w-64 shrink-0 border-r bg-muted/30 md:flex md:flex-col">
         <div className="border-b px-4 py-4">
           <Link href="/admin" className="text-base font-semibold">
-            {tCommon("app_name")}
+            {brand}
           </Link>
         </div>
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
@@ -82,7 +88,7 @@ export default async function AdminLayout({
         <header className="flex min-h-14 items-center justify-between border-b px-4 md:px-6">
           <div className="flex items-center gap-3 md:hidden">
             <Link href="/admin" className="font-semibold">
-              {tCommon("app_name")}
+              {brand}
             </Link>
           </div>
           <div className="hidden text-sm text-muted-foreground md:block">

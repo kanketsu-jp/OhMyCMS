@@ -5,17 +5,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getT } from "@/i18n/server";
+import { projectName } from "@/lib/settings/project-name";
 
 export default async function LoginPage() {
   const t = await getT("auth");
   const tCommon = await getT("common");
+  const brand = await projectName(tCommon("app_name"));
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-10">
       <LocaleSwitcher className="fixed right-4 top-4" />
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>{tCommon("app_name")}</CardTitle>
+          <CardTitle>{brand}</CardTitle>
           <CardDescription>{t("subtitle")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">

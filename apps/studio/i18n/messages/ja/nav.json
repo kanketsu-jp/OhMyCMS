@@ -6,8 +6,12 @@
   "files": "ファイル",
   "folders": "フォルダ",
   "logout": "ログアウト",
+  "notifications": "通知",
+  "reports": "不具合報告",
   "settings_agents": "設定 / エージェント",
+  "settings_general": "設定 / 一般",
   "settings_policies": "設定 / ポリシー",
   "settings_roles": "設定 / ロール",
-  "settings_users": "設定 / ユーザー"
+  "settings_users": "設定 / ユーザー",
+  "settings_version": "設定 / バージョン"
 }
