@@ -1,6 +1,7 @@
 {
   "actions_header": "Actions",
-  "back_to_list": "Back to Collections",
+  "back_to_list": "Back to collections",
+  "cancel_button": "Cancel",
   "create_button": "Create",
   "create_title": "Create New",
   "delete_button": "Delete Collection",
@@ -9,6 +10,7 @@
   "items_link": "Items",
   "list_title": "List",
   "name_label": "Collection Name",
+  "new_button": "New",
   "note_label": "Note",
   "subtitle": "Create a table and proceed to define its fields.",
   "title": "Collections"

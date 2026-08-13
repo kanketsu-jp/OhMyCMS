@@ -1,6 +1,7 @@
 {
   "actions_header": "操作",
-  "back_to_list": "コレクション一覧へ",
+  "back_to_list": "コレクション一覧へ戻る",
+  "cancel_button": "やめる",
   "create_button": "作成",
   "create_title": "新規作成",
   "delete_button": "コレクション削除",
@@ -9,6 +10,7 @@
   "items_link": "アイテム",
   "list_title": "一覧",
   "name_label": "コレクション名",
+  "new_button": "新規作成",
   "note_label": "メモ",
   "subtitle": "テーブルを作成し、フィールド定義へ進みます。",
   "title": "コレクション"

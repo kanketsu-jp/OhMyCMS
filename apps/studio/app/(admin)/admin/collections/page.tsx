@@ -2,10 +2,10 @@ import Link from "next/link";
 import type { CollectionResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { PageAction } from "@/components/admin/page-action";
+import { Plus } from "lucide-react";
 import { getT } from "@/i18n/server";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
   Table,
@@ -28,30 +28,25 @@ export default async function CollectionsPage({ searchParams }: Props) {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("subtitle")}
-        </p>
+      {/* 🚨 一覧のページは**まず一覧を見せる**（design ⑰）。作成フォームは
+          /admin/collections/new へ移した。入口はこの主要アクション。 */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("subtitle")}
+          </p>
+        </div>
+        <PageAction
+          href="/admin/collections/new"
+          label={t("new_button")}
+          icon={<Plus />}
+        />
       </div>
       <ErrorBanner message={params.error ?? (!result.ok ? result.message : null)} />
       {params.notice ? (
         <div className="text-sm text-muted-foreground">{params.notice}</div>
       ) : null}
-      <Surface>
-        <SurfaceTitle>{t("create_title")}</SurfaceTitle>
-        <form action="/admin/actions/collections" method="post" className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-          <div className="space-y-1.5">
-            <Label htmlFor="collection">{t("name_label")}</Label>
-            <Input id="collection" name="collection" required pattern="[A-Za-z_][A-Za-z0-9_]*" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="note">{t("note_label")}</Label>
-            <Input id="note" name="note" />
-          </div>
-          <Button type="submit">{t("create_button")}</Button>
-        </form>
-      </Surface>
       <Surface>
         <SurfaceTitle>{t("list_title")}</SurfaceTitle>
         {result.ok ? (
