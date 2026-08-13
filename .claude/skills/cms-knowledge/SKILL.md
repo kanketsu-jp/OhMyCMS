@@ -1,6 +1,6 @@
 ---
 name: cms-knowledge
-description: cms 固有の事情（architecture, nextjs, permissions など）を調べるときに使う。このリポジトリのナレッジを検索し、関連を辿って該当ファイルを読む。
+description: cms 固有の事情（permissions, architecture, nextjs など）を調べるときに使う。このリポジトリのナレッジを検索し、関連を辿って該当ファイルを読む。
 ---
 
 <!-- rag-okf:start -->
@@ -9,7 +9,7 @@ description: cms 固有の事情（architecture, nextjs, permissions など）�
 このリポジトリ固有の事情は、あなたの事前知識にはありません。**推測で答えず、まずナレッジを引いてください。**
 
 - ナレッジの場所: `knowledge/`
-- この案内が作られた時点のコミット: `1cd8ceb`
+- この案内が作られた時点のコミット: `7088287`
 
 ## 調べる順番
 
