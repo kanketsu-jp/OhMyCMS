@@ -1,5 +1,5 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { apiFetch } from "@/lib/admin/api";
 import { getT } from "@/i18n/server";
 import type { VersionInfo } from "@/lib/version/service";
@@ -25,8 +25,7 @@ export default async function VersionPage() {
         <ErrorBanner message={result.message} />
       ) : (
         <>
-          <Card>
-            <CardContent className="grid gap-2 pt-0 text-sm">
+          <Surface className="text-sm">
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">{t("current_label")}</span>
                 <span className="font-medium">{result.data.data.current}</span>
@@ -37,17 +36,12 @@ export default async function VersionPage() {
                   {result.data.data.commit ?? t("commit_unknown")}
                 </span>
               </div>
-            </CardContent>
-          </Card>
+          </Surface>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("update_heading")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <UpdateStatus update={result.data.data.update} t={t} />
-            </CardContent>
-          </Card>
+          <Surface className="text-sm">
+            <SurfaceTitle>{t("update_heading")}</SurfaceTitle>
+            <UpdateStatus update={result.data.data.update} t={t} />
+          </Surface>
         </>
       )}
     </div>

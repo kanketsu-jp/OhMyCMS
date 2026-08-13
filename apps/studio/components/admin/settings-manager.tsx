@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect, Textarea } from "@/components/ui/textarea";
 import { useFormat, useT } from "@/i18n/client";
 
 /** lib/settings/service.ts の Settings と同じ形。 */
@@ -108,7 +109,7 @@ export function SettingsManager({ settings }: { settings: Settings }) {
         </p>
       ) : null}
       {saved ? (
-        <p className="rounded-lg border px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
           {t("saved")}
         </p>
       ) : null}
@@ -119,15 +120,14 @@ export function SettingsManager({ settings }: { settings: Settings }) {
 
       <div className="grid gap-2">
         <Label htmlFor="settings-default_locale">{t("default_locale_label")}</Label>
-        <select
+        <NativeSelect
           id="settings-default_locale"
           name="default_locale"
           defaultValue={settings.default_locale}
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
         >
           <option value="ja">ja</option>
           <option value="en">en</option>
-        </select>
+        </NativeSelect>
         <p className="text-xs text-muted-foreground">
           {t("default_locale_help")}
           <span className="ml-2">（{sourceLabel("default_locale")}）</span>
@@ -136,12 +136,11 @@ export function SettingsManager({ settings }: { settings: Settings }) {
 
       <div className="grid gap-2">
         <Label htmlFor="settings-public_note">{t("public_note_label")}</Label>
-        <textarea
+        <Textarea
           id="settings-public_note"
           name="public_note"
           defaultValue={settings.public_note}
           rows={3}
-          className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm"
         />
         <p className="text-xs text-muted-foreground">
           {t("public_note_help")}

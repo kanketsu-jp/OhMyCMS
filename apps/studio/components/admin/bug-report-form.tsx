@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Surface } from "@/components/ui/surface";
+import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/i18n/client";
 
 type MailStatus = "skipped" | "sent" | "failed";
@@ -60,7 +62,7 @@ export function BugReportForm() {
 
   if (result) {
     return (
-      <div className="space-y-2 rounded-lg border px-3 py-3 text-sm">
+      <Surface className="text-sm">
         <p>{t("submitted")}</p>
         <p className="text-xs text-muted-foreground">
           {result === "sent"
@@ -69,7 +71,7 @@ export function BugReportForm() {
               ? t("mail_failed")
               : t("mail_skipped")}
         </p>
-      </div>
+      </Surface>
     );
   }
 
@@ -93,17 +95,16 @@ export function BugReportForm() {
 
       <div className="grid gap-2">
         <Label htmlFor="report-body">{t("report_body_label")}</Label>
-        <textarea
+        <Textarea
           id="report-body"
           name="body"
           rows={8}
           maxLength={20000}
           placeholder={t("report_body_placeholder")}
-          className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm"
         />
       </div>
 
-      <p className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+      <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
         {t("privacy_note")}
       </p>
 

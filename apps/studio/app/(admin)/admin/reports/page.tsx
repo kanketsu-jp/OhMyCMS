@@ -1,5 +1,5 @@
 import { BugReportForm } from "@/components/admin/bug-report-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 import {
@@ -33,12 +33,9 @@ export default async function ReportsPage() {
       <BugReportForm />
 
       {list.ok ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("list_heading")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {list.data.data.length === 0 ? (
+        <Surface>
+          <SurfaceTitle>{t("list_heading")}</SurfaceTitle>
+          {list.data.data.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("list_empty")}</p>
             ) : (
               <Table>
@@ -59,9 +56,8 @@ export default async function ReportsPage() {
                   ))}
                 </TableBody>
               </Table>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </Surface>
       ) : null}
     </div>
   );
