@@ -34,6 +34,9 @@ x_rag_okf:
 - `decisions/use-proxy-not-middleware.md` — middleware.ts でなく proxy.ts を使う
 - `decisions/agents-md-as-canonical.md` — 指示書は AGENTS.md を正本にする
 - `areas/apps-studio.md` — apps/studio（管理画面 + REST API）の責務・境界・エンドポイント一覧
+- `areas/permissions.md` — 権限と認可。ロール→ポリシー→permissionの階層、二階建て認証、見つかった穴5件と塞ぎ方
+- `areas/acceptance.md` — 受入ハーネス（`pnpm acceptance`）。v0.9 MVP 受入基準9項目の機械判定
+- `areas/design-system.md` — デザインの規約。面のルール・X由来20ルール・日本語の寸法エビデンスの動線
 - `ops/hrdr-panes.md` — hrdr による多ペイン運用（司令塔 + トラックA/B/Cの排他）
 
 ## 根拠アーカイブについて（このリポジトリには入っていない）
@@ -42,6 +45,8 @@ x_rag_okf:
 - `decisions/folders-are-not-owned.md` — フォルダは組織全体の整理棚として扱い、所有者で分離しない（Directus と同じ設計）
 - `decisions/i18n-own-implementation.md` — i18n はライブラリを使わず自前実装にする（next.config.ts の編集権が要らない形）
 - `decisions/v09-open-questions-answered.md` — v0.9 時点で堀池が決めた 6 件（ライセンス・配布・RLS・ホワイトラベル・rag-okf・旧PJ）
+- `decisions/relation-permission-boundary.md` — リレーションを辿るときも相手側コレクションの権限を必ず通す（5件目の穴・いちばん深刻だった）
+- `decisions/ui-placement-by-frequency.md` — UI の置き場所は「操作の頻度」で決める（常設に置くのは毎日使うものだけ）
 `.temp/2026-08-13/knowledge-historys/`（ai-native-cms / directus-mscl / izukurasan）を
 参照していることがある。**このアーカイブは意図的にコミットしていない。**
 
