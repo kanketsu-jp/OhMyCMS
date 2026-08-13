@@ -64,6 +64,12 @@ const DUMP = process.argv.includes("--dump");
 //    監査は一度もファイルを選ばないので、**選んだあとの面の深さを一度も見ていなかった**。
 //    「違反なし」が「選ぶ前について」しか言っていない状態だった。
 const FILE = arg("file", "");
+// 🚨 --keys 'ArrowDown,ArrowDown,Escape' … 開いたあとに実際にキーを押し、
+//    **焦点がどこへ移ったか**を出す。今夜、ユーザーメニューの ↑↓ が動かない不具合が
+//    「押してみた人」にしか見つけられなかった（監査は寸法と面しか見ていなかった）。
+//    焦点が1度も動かなければ違反に数える。
+const KEYS = arg("keys", "");
+const KEYCODE = { ArrowDown: 40, ArrowUp: 38, Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35 };
 
 const DEFAULT_PATHS = [
   // 🚨 /admin は /admin/collections へ転送される（2026-08-14・⑰ でホームを廃止）。
@@ -456,8 +462,22 @@ const PROBE = String.raw`(() => {
     const r = el.getBoundingClientRect();
     if (r.height > 0) textBoxes.push([r.top, r.bottom]);
   }
+  // 🚨 **同じ線を2回数えない。**
+  //    <hr class="border-0 border-t"> は「上辺に罫線を持つ要素」としても、
+  //    「hr そのもの」としても拾われ、**同じ y に2本ある**ことになる（gap 0）。
+  //    → 正しく作られたオンボーディング画面が「区切りが重複」と出た（2026-08-14・10件目の誤検出）。
+  //    位置がほぼ同じ線は1本に畳む。
+  const uniq = [];
+  for (const r2 of rules.sort((a, b) => a.y - b.y)) {
+    const last = uniq[uniq.length - 1];
+    if (last && Math.abs(last.y - r2.y) < 1.5
+        && Math.abs(last.x1 - r2.x1) < 2 && Math.abs(last.x2 - r2.x2) < 2) continue;
+    uniq.push(r2);
+  }
+  rules.length = 0;
+  rules.push(...uniq);
+
   const doubled = [];
-  rules.sort((a, b) => a.y - b.y);
   for (let i = 1; i < rules.length; i++) {
     const a2 = rules[i - 1], b2 = rules[i];
     const gap = b2.y - a2.y;
@@ -517,6 +537,28 @@ const PROBE = String.raw`(() => {
   const fontFamily = bodyStyle.fontFamily;
   const de = document.documentElement;
 
+  // 🚨 読み上げ名の候補: **見えている文字を持たない操作部品**（アイコンだけのボタン等）。
+  //    文字があるものは名前を持てているので、危ないのはここだけ。
+  //    sel() は一意ではないので、**印を付けてから** CDP 側で引く。
+  const nameless = [];
+  {
+    let n = 0;
+    for (const el of document.querySelectorAll("button, a[href], summary, [role=button]")) {
+      if (!shown(el) || srOnly(el)) continue;
+      if ((el.textContent || "").trim().length > 0) continue;
+      const mark = "ax" + (n++);
+      el.setAttribute("data-ax-probe", mark);
+      // 🚨 印だけ返すと「ax0 に名前が無い」としか報告できず、**人が直せない**。
+      //    どこの何かが分かる説明を必ず添える（2026-08-14 実測で踏んだ）。
+      nameless.push({
+        q: "[data-ax-probe='" + mark + "']",
+        sel: sel(el),
+        html: el.outerHTML.replace(/\s+/g, " ").slice(0, 110),
+      });
+      if (n >= 40) break;
+    }
+  }
+
   return {
     misaligned: misaligned.slice(0, 5),
     misalignedCount: misaligned.length,
@@ -533,6 +575,7 @@ const PROBE = String.raw`(() => {
     buttonHeights: [...new Set(buttons.map((b) => b.h))].sort((a, b) => a - b),
     inlineButtonHeights: [...new Set(inlineButtons)].sort((a, b) => a - b),
     formPairs: formPairs.slice(0, 4),
+    nameless,
     inputHeights: [...new Set(inputs.map((b) => b.h))].sort((a, b) => a - b),
     // 🚨 iOS が勝手に拡大するのは **文字を打ち込む欄** の font-size が 16px 未満のとき（憲章 §7）。
     // チェックボックス・ラジオ・ファイル選択は拡大しないので除く（除かないと誤検出になる）。
@@ -652,6 +695,7 @@ const cdp = connect(page.webSocketDebuggerUrl);
 await cdp.ready;
 await cdp.send("Page.enable");
 await cdp.send("Runtime.enable");
+await cdp.send("Accessibility.enable");
 await cdp.send("Network.enable");
 
 if (SESSION) {
@@ -759,6 +803,31 @@ for (const vp of VIEWPORTS) {
       log(`     ファイル: ${FILE.split("/").pop()} を載せました`);
       await sleep(700);
     }
+    // 🚨 キーを押して焦点の動きを測る。
+    if (KEYS) {
+      const seen = [];
+      const active = async () => {
+        const r2 = await cdp.send("Runtime.evaluate", {
+          expression: `(() => { const a = document.activeElement;
+            return a ? a.tagName + ":" + (a.getAttribute("data-slot") || a.className || "").toString().slice(0, 24)
+                       + ":" + (a.textContent || "").trim().slice(0, 16) : "(なし)"; })()`,
+          returnByValue: true,
+        });
+        return r2.result.value;
+      };
+      seen.push(await active());
+      for (const k of KEYS.split(",").map((x) => x.trim()).filter(Boolean)) {
+        await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: k, code: k, windowsVirtualKeyCode: KEYCODE[k] ?? 0 });
+        await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: k, code: k, windowsVirtualKeyCode: KEYCODE[k] ?? 0 });
+        await sleep(180);
+        seen.push(await active());
+      }
+      log(`     焦点の移動: ${seen.join("  →  ")}`);
+      if (new Set(seen).size === 1) {
+        violations.push({ key, rule: "§7 キーボードで移動できない", detail: `${KEYS} を押しても焦点が動きません（${seen[0]}）` });
+      }
+    }
+
     if (DUMP) {
       const d = await cdp.send("Runtime.evaluate", {
         expression: `({ url: location.pathname, title: document.title,
@@ -783,6 +852,41 @@ for (const vp of VIEWPORTS) {
       continue;
     }
     report[key] = r;
+
+    // 🚨 読み上げ名を測る。**寸法と面しか見ていなかった穴**を塞ぐ（2026-08-14）。
+    //    由来: base2 が CDP の Accessibility ドメインで実測してみせた。依存は0本。
+    //    🚨 `getAttribute("aria-labelledby")` を読むだけでは**参照先が実在するか分からない**
+    //       （settings の htmlFor が存在しない id を指していた事故と同じ形）。
+    //       ここでは**ブラウザが計算した結果**（AXNode.name）を採るので、宙に浮いた参照は空になる。
+    if (r.nameless && r.nameless.length) {
+      const bad = [];
+      for (const cand of r.nameless.slice(0, 40)) {
+        const doc = await cdp.send("DOM.getDocument", { depth: -1 });
+        const found = await cdp.send("DOM.querySelector", { nodeId: doc.root.nodeId, selector: cand.q });
+        if (!found.nodeId) continue;
+        // 🚨 `fetchRelatives` を落とさないこと。既定だと**祖先や子のノードまで返る**ので、
+        //    `.find()` が別の要素を掴み、**aria-label を持つ正しい実装を「名前が無い」と報告する**
+        //    （2026-08-14 実測。報告の直前に気づいた8件目の誤検出）。
+        const ax = await cdp.send("Accessibility.getPartialAXTree", {
+          nodeId: found.nodeId, fetchRelatives: false,
+        });
+        const node = (ax.nodes || [])[0];
+        // 🚨 **読み上げから外されている要素は対象外**。名前が無いのは当たり前で、欠陥ではない。
+        //    実測: ドロワー（Sheet）を開くと背後の全体が inert / aria-hidden になり、
+        //    aria-label を持つボタンまで ignored になる。**モーダルとして正しい挙動**。
+        //    ここを見落とすと、正しい実装を「名前が無い」と報告する（今夜8件目の誤検出）。
+        if (node?.ignored) continue;
+        const name = node?.name?.value?.trim() ?? "";
+        if (!name) bad.push({ sel: cand.sel, html: cand.html });
+      }
+      if (bad.length) {
+        violations.push({
+          key, rule: "§7 読み上げ名が無い",
+          detail: `${bad.length} 個の操作部品に読み上げ名がありません（画面に文字が無く、aria も付いていない）`,
+          worst: bad.slice(0, 4),
+        });
+      }
+    }
 
     if (r.maxDepth > MAX_DEPTH) {
       violations.push({ key, rule: "§1 面の入れ子", detail: `深さ ${r.maxDepth}（上限 ${MAX_DEPTH}）`, worst: r.nested.slice(0, 3) });
