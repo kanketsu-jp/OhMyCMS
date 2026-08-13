@@ -28,7 +28,23 @@ import { cn } from "@/lib/utils";
  * 🚨 選んだものの表示は **`Attachment` に任せる**（サムネ・題名・削除・state を持っている）。
  * `AttachmentGroup` は横に並べると端がフェードする（§6 も同時に満たす）。
  */
-export function FileDropzone({ name = "file" }: { name?: string }) {
+type Props = {
+  name?: string;
+  /**
+   * 選んだものが変わるたびに呼ばれる（**省略可**）。
+   *
+   * 🚨 **これが無いと、フォーム送信以外の経路では使えない。**
+   * この部品はもともと「隠した input に載せて、**フォームと一緒に multipart で送る**」前提で、
+   * 外へ渡す口が無かった。ところがロゴの欄は、選んだ瞬間に
+   * `/api/onboarding/logo` へ**単独で POST** し、返った ID をフォームの値に使う。
+   * 送り方が multipart かどうかは関係なく、**送る主体がフォームか部品の外か**が違う。
+   *
+   * 消したときも呼ぶ（**消した結果の配列**を渡す。空なら空配列）。
+   */
+  onSelect?: (files: File[]) => void;
+};
+
+export function FileDropzone({ name = "file", onSelect }: Props) {
   const t = useT("files");
   const format = useFormat();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,10 +52,14 @@ export function FileDropzone({ name = "file" }: { name?: string }) {
   const [over, setOver] = useState(false);
 
   const accept = (list: FileList | null) => {
+    // 🚨 選び直しの途中でやめた（ダイアログを閉じた）ときは**何もしない**。
+    // ここで空配列を通すと、外側が「消された」と受け取って既に選ばれているものを捨てる。
     if (!list || list.length === 0) return;
-    setFiles(Array.from(list));
-    // 選んだものを実際の input にも載せる（送信されるのはこちら）
+    const next = Array.from(list);
+    setFiles(next);
+    // 選んだものを実際の input にも載せる（フォームと一緒に送られるのはこちら）
     if (inputRef.current) inputRef.current.files = list;
+    onSelect?.(next);
   };
 
   const remove = (index: number) => {
@@ -48,6 +68,7 @@ export function FileDropzone({ name = "file" }: { name?: string }) {
     const dt = new DataTransfer();
     for (const file of next) dt.items.add(file);
     if (inputRef.current) inputRef.current.files = dt.files;
+    onSelect?.(next);
   };
 
   return (
