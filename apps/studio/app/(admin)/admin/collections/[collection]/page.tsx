@@ -120,7 +120,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
         }
       />
       {query.notice ? (
-        <div className="rounded-md border bg-muted px-3 py-2 text-sm">{query.notice}</div>
+        <div className="text-sm text-muted-foreground">{query.notice}</div>
       ) : null}
       <Surface>
         <SurfaceTitle>{tFields("add_title")}</SurfaceTitle>

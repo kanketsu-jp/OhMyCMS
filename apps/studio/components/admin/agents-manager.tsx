@@ -102,7 +102,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             {t("token_heading")}
           </div>
           <p className="text-sm text-destructive">{t("token_warning")}</p>
-          <code className="block overflow-x-auto rounded-md bg-background p-3 text-sm">{token}</code>
+          <code className="block overflow-x-auto py-2 font-mono text-sm break-all">{token}</code>
           <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(token)}>
             <Copy />
             {t("copy_button")}

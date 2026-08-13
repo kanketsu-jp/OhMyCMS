@@ -71,12 +71,12 @@ export default async function FilesPage({ searchParams }: Props) {
               <option key={folder.id} value={folder.id}>{folder.name}</option>
             ))}
           </select>
-          <button type="submit" className="rounded-lg border px-3 text-sm hover:bg-muted">{t("filter_button")}</button>
+          <button type="submit" className="rounded-lg px-3 text-sm hover:bg-muted">{t("filter_button")}</button>
         </form>
         {filesResult.ok ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {filesResult.data.data.map((file) => (
-              <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md border bg-background p-3 hover:bg-muted">
+              <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md p-3 hover:bg-muted">
                 <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
                   {file.type?.startsWith("image/") ? (
                     <Image

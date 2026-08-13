@@ -17,9 +17,11 @@ export function LocaleSwitcher({ className }: { className?: string }) {
   return (
     <form
       action={setLocaleAction}
-      // 面の中に置かれるので罫線を持たない（docs/design/surface-rules.md §2-2）。
-      // セグメント切替なので背景で区別する。
-      className={cn("flex items-center rounded-full bg-muted/60 p-0.5", className)}
+      // 🚨 器は面を持たない。**選択中のボタンの背景だけ**で現在地を示す。
+      // 器にも背景を持たせると「器 + ボタン」で面が2段になり、ヘッダ(罫線)と合わせて深さ3になる。
+      // これは全画面に出る（ヘッダは共通なので）ため、発生源として潰している。
+      // docs/design/surface-rules.md §2-2
+      className={cn("flex items-center gap-0.5", className)}
     >
       {LOCALES.map((locale) => {
         const isActive = locale === current;

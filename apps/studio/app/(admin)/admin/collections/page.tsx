@@ -36,7 +36,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
       </div>
       <ErrorBanner message={params.error ?? (!result.ok ? result.message : null)} />
       {params.notice ? (
-        <div className="rounded-md border bg-muted px-3 py-2 text-sm">{params.notice}</div>
+        <div className="text-sm text-muted-foreground">{params.notice}</div>
       ) : null}
       <Surface>
         <SurfaceTitle>{t("create_title")}</SurfaceTitle>

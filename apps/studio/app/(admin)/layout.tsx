@@ -42,8 +42,10 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 border-r bg-muted/30 md:flex md:flex-col">
-        <div className="border-b px-4 py-4">
+      {/* 面は「罫線・背景・影」のうち1つだけ（docs/design/surface-rules.md §2-1）。
+          サイドバーは罫線1本で区切る。背景も付けると面が濃くなり、中の区切りが2段目になる。 */}
+      <aside className="hidden w-64 shrink-0 border-r md:flex md:flex-col">
+        <div className="px-4 py-4">
           <Link href="/admin" className="text-base font-semibold">
             {brand}
           </Link>

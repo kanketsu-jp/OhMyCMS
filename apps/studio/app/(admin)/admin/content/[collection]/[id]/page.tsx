@@ -39,7 +39,7 @@ export default async function EditItemPage({ params, searchParams }: Props) {
         }
       />
       {query.notice ? (
-        <div className="rounded-md border bg-muted px-3 py-2 text-sm">{query.notice}</div>
+        <div className="text-sm text-muted-foreground">{query.notice}</div>
       ) : null}
       {itemResult.ok ? (
         <Surface>

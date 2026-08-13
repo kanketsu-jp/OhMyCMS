@@ -132,7 +132,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
                   type="button"
                   key={file.id}
                   onClick={() => choose(file)}
-                  className="min-w-0 rounded-md border bg-background p-2 text-left hover:bg-muted"
+                  className="min-w-0 rounded-md p-2 text-left hover:bg-muted"
                 >
                   <div className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-muted">
                     {file.type?.startsWith("image/") ? (
@@ -166,7 +166,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
         ) : null}
       </div>
       {value ? (
-        <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-2">
+        <div className="flex items-center gap-3 py-2">
           <div className="flex size-16 items-center justify-center overflow-hidden rounded-md bg-muted">
             {isImage(selectedFromList) ? (
               <Image
