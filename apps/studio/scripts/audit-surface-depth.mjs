@@ -56,7 +56,9 @@ const PORT = Number(arg("cdp-port", "0"));  // 0 = 空きポートを OS に選�
 const CLICK = arg("click", "");
 
 const DEFAULT_PATHS = [
-  "/admin",
+  // 🚨 /admin は /admin/collections へ転送される（2026-08-14・⑰ でホームを廃止）。
+  //    転送されると「測定不能」になるので、着地先を直接指定する。
+  "/admin/collections",
   "/admin/collections",
   "/admin/files",
   "/admin/folders",
@@ -246,6 +248,23 @@ const PROBE = String.raw`(() => {
     const els = [...document.querySelectorAll(q)].filter((e) => e.getBoundingClientRect().height > 0);
     return list.map((item, i) => ({ ...item, h: els[i] ? Math.round(targetHeight(els[i]) * 10) / 10 : item.h }));
   };
+  // 🚨 「ボタンは入力より低い」は**同じフォームの中**の話。
+  //    ページ全体の最大同士を比べると、別の場所にある lg のボタンと別の入力が比較され、
+  //    **正しい実装を違反と報告する**（2026-08-14 実測。トークンは正しく分離されていた）。
+  //    → **同じ form の中だけで比べる。** これも「代理を測らない」の一例。
+  const formPairs = [];
+  for (const form of document.querySelectorAll("form")) {
+    const bs = [...form.querySelectorAll("button, [data-slot=button]")]
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.height > 0 && r.width < e.parentElement?.getBoundingClientRect().width * 0.9; })
+      .map((e) => Math.round(e.getBoundingClientRect().height));
+    const is = [...form.querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea")]
+      .filter((e) => e.getBoundingClientRect().height > 0)
+      .map((e) => Math.round(e.getBoundingClientRect().height));
+    if (!bs.length || !is.length) continue;
+    const b = Math.max(...bs), i = Math.max(...is);
+    if (b >= i) formPairs.push({ button: b, input: i, sel: sel(form) });
+  }
+
   const buttonsT = withTarget(buttons, "button, [data-slot=button]");
   const inputsT = withTarget(inputs, "input:not([type=hidden]), select, textarea");
 
@@ -454,6 +473,7 @@ const PROBE = String.raw`(() => {
     maxDepth, nested: nested.sort((a, b) => b.depth - a.depth).slice(0, 30),
     buttonHeights: [...new Set(buttons.map((b) => b.h))].sort((a, b) => a - b),
     inlineButtonHeights: [...new Set(inlineButtons)].sort((a, b) => a - b),
+    formPairs: formPairs.slice(0, 4),
     inputHeights: [...new Set(inputs.map((b) => b.h))].sort((a, b) => a - b),
     // 🚨 iOS が勝手に拡大するのは **文字を打ち込む欄** の font-size が 16px 未満のとき（憲章 §7）。
     // チェックボックス・ラジオ・ファイル選択は拡大しないので除く（除かないと誤検出になる）。
@@ -684,10 +704,13 @@ for (const vp of VIEWPORTS) {
         });
       }
     } else {
-      // 全幅の主要アクションは除いた「ページ内フォームのボタン」だけで比べる（憲章 §3 の表）。
-      const b = r.inlineButtonHeights.at(-1), i = r.inputHeights.at(-1);
-      if (b != null && i != null && b >= i) {
-        violations.push({ key, rule: "§3 ボタンの高さ", detail: `フォーム内のボタン ${b}px >= 入力 ${i}px（ボタンは入力より低いこと。全幅の主要アクションは対象外）` });
+      // 🚨 同じ form の中だけで比べる（ページ全体の最大同士だと誤検出する）。
+      if (r.formPairs.length > 0) {
+        violations.push({
+          key, rule: "§3 ボタンの高さ",
+          detail: `${r.formPairs.length} 件のフォームで、ボタンが入力以上の高さです（ボタンは入力より低いこと。全幅の主要アクションは対象外）`,
+          worst: r.formPairs.slice(0, 2),
+        });
       }
     }
 
