@@ -105,19 +105,61 @@ function assertFieldAllowed(
 }
 
 function assertSelectionAllowed(
+  collection: string,
   selection: FieldSelection,
+  deep: DeepOptions,
   allowedFields: PermissionResolution["allowedFields"],
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+  permissionMap: Map<string, PermissionResolution>,
 ): void {
-  if (allowedFields === "*") return;
-  if (selection.includeAllScalars) {
-    throw new ApiError(403, "FIELD_FORBIDDEN", "許可されていないフィールドが含まれています");
+  if (allowedFields !== "*") {
+    if (selection.includeAllScalars) {
+      throw new ApiError(403, "FIELD_FORBIDDEN", "許可されていないフィールドが含まれています");
+    }
+
+    for (const field of selection.scalarFields) {
+      assertFieldAllowed(allowedFields, field);
+    }
   }
 
-  for (const field of selection.scalarFields) {
-    assertFieldAllowed(allowedFields, field);
-  }
-  for (const field of selection.relations.keys()) {
-    assertFieldAllowed(allowedFields, field);
+  for (const [field, childSelection] of selection.relations.entries()) {
+    if (allowedFields !== "*") {
+      assertFieldAllowed(allowedFields, field);
+    }
+
+    const relation = resolveRelation(schemaOverview, relations, collection, field);
+    if (!relation) continue;
+
+    const childDeep = relationDeepOptions(deep, field);
+    const childDeepFilter = parseDeepFilter(childDeep);
+    const targetPermission = permissionMap.get(relation.targetCollection);
+    if (!targetPermission || !targetPermission.allowed) {
+      if (childDeepFilter) {
+        throw new ApiError(403, "PERMISSION_DENIED", "権限がありません");
+      }
+      continue;
+    }
+
+    assertSelectionAllowed(
+      relation.targetCollection,
+      childSelection,
+      childDeep,
+      targetPermission.allowedFields,
+      schemaOverview,
+      relations,
+      permissionMap,
+    );
+    if (childDeepFilter) {
+      assertFilterAllowed(
+        relation.targetCollection,
+        childDeepFilter,
+        targetPermission.allowedFields,
+        schemaOverview,
+        relations,
+        permissionMap,
+      );
+    }
   }
 }
 
@@ -126,24 +168,54 @@ function hasOperatorKeys(value: Record<string, unknown>): boolean {
 }
 
 function assertFilterAllowed(
+  collection: string,
   filter: unknown,
   allowedFields: PermissionResolution["allowedFields"],
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+  permissionMap: Map<string, PermissionResolution>,
 ): void {
-  if (allowedFields === "*" || filter === undefined || filter === null) return;
+  if (filter === undefined || filter === null) return;
   if (!isRecord(filter)) return;
 
   for (const [key, value] of Object.entries(filter)) {
     if (key === "_and" || key === "_or") {
       if (Array.isArray(value)) {
-        for (const child of value) assertFilterAllowed(child, allowedFields);
+        for (const child of value) {
+          assertFilterAllowed(
+            collection,
+            child,
+            allowedFields,
+            schemaOverview,
+            relations,
+            permissionMap,
+          );
+        }
       }
       continue;
     }
     if (key.startsWith("_")) continue;
 
-    assertFieldAllowed(allowedFields, key);
+    if (allowedFields !== "*") {
+      assertFieldAllowed(allowedFields, key);
+    }
     if (isRecord(value) && !hasOperatorKeys(value)) {
-      assertFilterAllowed(value, allowedFields);
+      const relation = resolveRelation(schemaOverview, relations, collection, key);
+      if (!relation) continue;
+
+      const targetPermission = permissionMap.get(relation.targetCollection);
+      if (!targetPermission || !targetPermission.allowed) {
+        throw new ApiError(403, "PERMISSION_DENIED", "権限がありません");
+      }
+
+      assertFilterAllowed(
+        relation.targetCollection,
+        value,
+        targetPermission.allowedFields,
+        schemaOverview,
+        relations,
+        permissionMap,
+      );
     }
   }
 }
@@ -226,6 +298,124 @@ async function loadRelationsIfNeeded(
     return relationRows();
   }
   return [];
+}
+
+function collectRelationTargetsFromFilter(
+  collection: string,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+  filter: unknown,
+  targets: Set<string>,
+): void {
+  if (!isRecord(filter)) return;
+
+  for (const [key, value] of Object.entries(filter)) {
+    if (key === "_and" || key === "_or") {
+      if (Array.isArray(value)) {
+        for (const child of value) {
+          collectRelationTargetsFromFilter(
+            collection,
+            schemaOverview,
+            relations,
+            child,
+            targets,
+          );
+        }
+      }
+      continue;
+    }
+    if (key.startsWith("_")) continue;
+    if (!isRecord(value) || hasOperatorKeys(value)) continue;
+
+    const relation = resolveRelation(schemaOverview, relations, collection, key);
+    if (!relation) continue;
+
+    targets.add(relation.targetCollection);
+    collectRelationTargetsFromFilter(
+      relation.targetCollection,
+      schemaOverview,
+      relations,
+      value,
+      targets,
+    );
+  }
+}
+
+function collectRelationTargetsFromSelection(
+  collection: string,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+  selection: FieldSelection,
+  deep: DeepOptions,
+  targets: Set<string>,
+): void {
+  for (const [field, childSelection] of selection.relations.entries()) {
+    const relation = resolveRelation(schemaOverview, relations, collection, field);
+    if (!relation) continue;
+
+    targets.add(relation.targetCollection);
+    const childDeep = relationDeepOptions(deep, field);
+    collectRelationTargetsFromFilter(
+      relation.targetCollection,
+      schemaOverview,
+      relations,
+      parseDeepFilter(childDeep),
+      targets,
+    );
+    collectRelationTargetsFromSelection(
+      relation.targetCollection,
+      schemaOverview,
+      relations,
+      childSelection,
+      childDeep,
+      targets,
+    );
+  }
+}
+
+function collectRelationTargets(
+  collection: string,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+  selection: FieldSelection,
+  filter: FilterObject | undefined,
+  deep: DeepOptions,
+): Set<string> {
+  const targets = new Set<string>();
+  collectRelationTargetsFromSelection(
+    collection,
+    schemaOverview,
+    relations,
+    selection,
+    deep,
+    targets,
+  );
+  collectRelationTargetsFromFilter(collection, schemaOverview, relations, filter, targets);
+  return targets;
+}
+
+async function resolvePermissionMap(
+  actor: Actor,
+  targets: Set<string>,
+): Promise<Map<string, PermissionResolution>> {
+  const entries = await Promise.all(
+    Array.from(targets).map(async (target) => [
+      target,
+      await resolvePermission(actor, target, "read"),
+    ] as const),
+  );
+  return new Map(entries);
+}
+
+function rowFilterPermissionMap(
+  permissionMap: Map<string, PermissionResolution>,
+): Map<string, FilterObject | null> {
+  return new Map(
+    Array.from(permissionMap, ([collection, permission]) => [
+      collection,
+      permission.allowed ? permission.rowFilter : null,
+    ]),
+  );
 }
 
 function relationDeepOptions(deep: DeepOptions, field: string): DeepOptions {
@@ -329,8 +519,11 @@ async function resolveRelationsForItems(
   deep: DeepOptions,
   schemaOverview: SchemaOverview,
   relations: RelationMeta[],
+  permissionMap: Map<string, PermissionResolution>,
 ): Promise<void> {
   if (items.length === 0 || selection.relations.size === 0) return;
+
+  const filterPermissionMap = rowFilterPermissionMap(permissionMap);
 
   for (const [field, childSelection] of selection.relations.entries()) {
     const relation = resolveRelation(schemaOverview, relations, collection, field);
@@ -341,6 +534,11 @@ async function resolveRelationsForItems(
     const childDeep = relationDeepOptions(deep, field);
     const childFilter = parseDeepFilter(childDeep);
     const childSort = parseDeepSort(childDeep);
+    const targetPermission = permissionMap.get(relation.targetCollection);
+    if (!targetPermission || !targetPermission.allowed) {
+      for (const item of items) item[field] = relation.kind === "m2o" ? null : [];
+      continue;
+    }
 
     if (relation.kind === "m2o") {
       const keys = uniqueValues(items, relation.sourceColumn);
@@ -359,11 +557,20 @@ async function resolveRelationsForItems(
       const query = db(relation.targetCollection)
         .select(selectedColumns)
       whereInValues(query, relation.targetColumn, keys);
+      if (targetPermission.rowFilter) {
+        applyFilter(query, targetPermission.rowFilter, {
+          collection: relation.targetCollection,
+          schemaOverview,
+          relations,
+          permissionMap: filterPermissionMap,
+        });
+      }
       if (childFilter) {
         applyFilter(query, childFilter, {
           collection: relation.targetCollection,
           schemaOverview,
           relations,
+          permissionMap: filterPermissionMap,
         });
       }
       if (childSort) {
@@ -383,6 +590,7 @@ async function resolveRelationsForItems(
         childDeep,
         schemaOverview,
         relations,
+        permissionMap,
       );
 
       const childByKey = new Map(
@@ -415,11 +623,20 @@ async function resolveRelationsForItems(
     const query = db(relation.targetCollection)
       .select(selectedColumns)
     whereInValues(query, relation.targetColumn, keys);
+    if (targetPermission.rowFilter) {
+      applyFilter(query, targetPermission.rowFilter, {
+        collection: relation.targetCollection,
+        schemaOverview,
+        relations,
+        permissionMap: filterPermissionMap,
+      });
+    }
     if (childFilter) {
       applyFilter(query, childFilter, {
         collection: relation.targetCollection,
         schemaOverview,
         relations,
+        permissionMap: filterPermissionMap,
       });
     }
     if (childSort) {
@@ -439,6 +656,7 @@ async function resolveRelationsForItems(
       childDeep,
       schemaOverview,
       relations,
+      permissionMap,
     );
 
     const grouped = new Map<string, Item[]>();
@@ -464,6 +682,7 @@ async function itemsWithRelations(
   options: ParsedQueryOptions,
   schemaOverview: SchemaOverview,
   relations: RelationMeta[],
+  permissionMap: Map<string, PermissionResolution>,
 ): Promise<Item[]> {
   await resolveRelationsForItems(
     rows,
@@ -472,6 +691,7 @@ async function itemsWithRelations(
     options.deep,
     schemaOverview,
     relations,
+    permissionMap,
   );
   return rows.map((row) => projectItem(row, collection, schemaOverview, options.selection));
 }
@@ -488,15 +708,41 @@ export async function listItems(
   const options = parseQueryOptions(
     queryWithDefaultAllowedFields(query, permission, primaryKey),
   );
-  assertSelectionAllowed(options.selection, permission.allowedFields);
-  assertFilterAllowed(options.filter, permission.allowedFields);
-  assertSortAllowed(options.sort, permission.allowedFields);
   const relations = await loadRelationsIfNeeded(
     collection,
     schemaOverview,
     options,
     permission.rowFilter,
   );
+  const relationTargets = collectRelationTargets(
+    collection,
+    schemaOverview,
+    relations,
+    options.selection,
+    options.filter,
+    options.deep,
+  );
+  const permissionMap = await resolvePermissionMap(actor, relationTargets);
+  const filterPermissionMap = rowFilterPermissionMap(permissionMap);
+
+  assertSelectionAllowed(
+    collection,
+    options.selection,
+    options.deep,
+    permission.allowedFields,
+    schemaOverview,
+    relations,
+    permissionMap,
+  );
+  assertFilterAllowed(
+    collection,
+    options.filter,
+    permission.allowedFields,
+    schemaOverview,
+    relations,
+    permissionMap,
+  );
+  assertSortAllowed(options.sort, permission.allowedFields);
 
   const rows = (await buildQuery({
     client: db,
@@ -505,10 +751,18 @@ export async function listItems(
     relations,
     options,
     extraFilter: permission.rowFilter ?? undefined,
+    permissionMap: filterPermissionMap,
   })) as Item[];
 
   const result: ItemsListResult = {
-    data: await itemsWithRelations(collection, rows, options, schemaOverview, relations),
+    data: await itemsWithRelations(
+      collection,
+      rows,
+      options,
+      schemaOverview,
+      relations,
+      permissionMap,
+    ),
   };
 
   if (options.meta.size > 0) {
@@ -521,6 +775,7 @@ export async function listItems(
         relations,
         options,
         extraFilter: permission.rowFilter ?? undefined,
+        permissionMap: filterPermissionMap,
         filtered: false,
       });
     }
@@ -532,6 +787,7 @@ export async function listItems(
         relations,
         options,
         extraFilter: permission.rowFilter ?? undefined,
+        permissionMap: filterPermissionMap,
         filtered: true,
       });
     }
@@ -555,15 +811,40 @@ export async function getItem(
     limit: "1",
     offset: "0",
   });
-  assertSelectionAllowed(options.selection, permission.allowedFields);
-  assertFilterAllowed(options.filter, permission.allowedFields);
-  assertSortAllowed(options.sort, permission.allowedFields);
   const relations = await loadRelationsIfNeeded(
     collection,
     schemaOverview,
     options,
     permission.rowFilter,
   );
+  const relationTargets = collectRelationTargets(
+    collection,
+    schemaOverview,
+    relations,
+    options.selection,
+    options.filter,
+    options.deep,
+  );
+  const permissionMap = await resolvePermissionMap(actor, relationTargets);
+
+  assertSelectionAllowed(
+    collection,
+    options.selection,
+    options.deep,
+    permission.allowedFields,
+    schemaOverview,
+    relations,
+    permissionMap,
+  );
+  assertFilterAllowed(
+    collection,
+    options.filter,
+    permission.allowedFields,
+    schemaOverview,
+    relations,
+    permissionMap,
+  );
+  assertSortAllowed(options.sort, permission.allowedFields);
 
   const selectedColumns = selectedBaseColumns(
     collection,
@@ -582,7 +863,14 @@ export async function getItem(
     throw new ApiError(404, "ITEM_NOT_FOUND", "アイテムが見つかりません");
   }
 
-  const [item] = await itemsWithRelations(collection, [row], options, schemaOverview, relations);
+  const [item] = await itemsWithRelations(
+    collection,
+    [row],
+    options,
+    schemaOverview,
+    relations,
+    permissionMap,
+  );
   return item;
 }
 

@@ -52,6 +52,7 @@ export type BuildQueryArgs = {
   relations: RelationMeta[];
   options: ParsedQueryOptions;
   extraFilter?: FilterObject;
+  permissionMap?: Map<string, FilterObject | null>;
 };
 
 const DEFAULT_LIMIT = 100;
@@ -292,6 +293,7 @@ export function buildQuery({
   relations,
   options,
   extraFilter,
+  permissionMap,
 }: BuildQueryArgs): Knex.QueryBuilder {
   const selectedColumns = selectedBaseColumns(
     collection,
@@ -302,10 +304,20 @@ export function buildQuery({
   const query = client(collection).select(selectedColumns);
 
   if (options.filter) {
-    applyFilter(query, options.filter, { collection, schemaOverview, relations });
+    applyFilter(query, options.filter, {
+      collection,
+      schemaOverview,
+      relations,
+      permissionMap,
+    });
   }
   if (extraFilter) {
-    applyFilter(query, extraFilter, { collection, schemaOverview, relations });
+    applyFilter(query, extraFilter, {
+      collection,
+      schemaOverview,
+      relations,
+      permissionMap,
+    });
   }
 
   applyValidatedSort(query, collection, schemaOverview, options.sort);
@@ -320,15 +332,26 @@ export async function countItems({
   relations,
   options,
   extraFilter,
+  permissionMap,
   filtered,
 }: BuildQueryArgs & { filtered: boolean }): Promise<number> {
   const query = client(collection).count<{ count: string }[]>({ count: "*" });
 
   if (filtered && options.filter) {
-    applyFilter(query, options.filter, { collection, schemaOverview, relations });
+    applyFilter(query, options.filter, {
+      collection,
+      schemaOverview,
+      relations,
+      permissionMap,
+    });
   }
   if (extraFilter) {
-    applyFilter(query, extraFilter, { collection, schemaOverview, relations });
+    applyFilter(query, extraFilter, {
+      collection,
+      schemaOverview,
+      relations,
+      permissionMap,
+    });
   }
 
   const row = await query.first();

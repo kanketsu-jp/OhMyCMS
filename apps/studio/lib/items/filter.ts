@@ -13,6 +13,7 @@ export type FilterContext = {
   collection: string;
   schemaOverview: SchemaOverview;
   relations: RelationMeta[];
+  permissionMap?: Map<string, FilterObject | null>;
 };
 
 type ItemQueryBuilder = Knex.QueryBuilder<Record<string, unknown>, unknown[]>;
@@ -262,6 +263,13 @@ function applyRelationFilter(
     addGroupedWhere(builder, booleanOperator, (group) => {
       group.whereIn(relation.sourceColumn, function relatedFilter(this: ItemQueryBuilder) {
         this.select(relation.targetColumn).from(relation.targetCollection);
+        const targetRowFilter = ctx.permissionMap?.get(relation.targetCollection);
+        if (targetRowFilter) {
+          applyFilter(this, targetRowFilter, {
+            ...ctx,
+            collection: relation.targetCollection,
+          });
+        }
         applyFilter(this, value, {
           ...ctx,
           collection: relation.targetCollection,
@@ -274,6 +282,13 @@ function applyRelationFilter(
   addGroupedWhere(builder, booleanOperator, (group) => {
     group.whereIn(relation.sourceColumn, function relatedFilter(this: ItemQueryBuilder) {
       this.select(relation.targetColumn).from(relation.targetCollection);
+      const targetRowFilter = ctx.permissionMap?.get(relation.targetCollection);
+      if (targetRowFilter) {
+        applyFilter(this, targetRowFilter, {
+          ...ctx,
+          collection: relation.targetCollection,
+        });
+      }
       applyFilter(this, value, {
         ...ctx,
         collection: relation.targetCollection,
