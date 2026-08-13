@@ -41,6 +41,16 @@ const ALLOW = [
   { file: /dialog\.tsx$/, why: "モーダル。面が重なってよい唯一の例外" },
   // 素材（shadcn の部品そのもの）
   { file: /components\/ui\/(?!surface)/, why: "UI 部品そのものの見た目" },
+  // 🚨 画面に固定されたバー。position:fixed は out of flow なので、
+  // DOM 上どこに書かれていても**面の中には入らない**（親の面の上に重なるのではなく、画面に貼られる）。
+  // かつ不透明でないと下の内容が透けるため、背景は必須。ページ本体と同じ bg-background を使う。
+  // 由来: 2026-08-13。SP の下部ナビ（components/admin/mobile-nav.tsx）を入れたら、
+  // 「components/admin/** は必ず Surface の中」という前提に当たって**正解を違反と報告した**。
+  // 憲章 §1「正解を違反と言う検査は使われなくなり、検査そのものが死ぬ」。
+  {
+    pattern: /\bfixed\b[^"']*\binset-x-0\b|\binset-x-0\b[^"']*\bfixed\b/,
+    why: "画面に固定されたバー（out of flow なので面の中に入らない）",
+  },
 ];
 
 function allowedFor(file, line) {

@@ -9,8 +9,10 @@ generated:
   at: 2026-08-13
 verified: []
 sources:
-  - resource: "repo://apps/studio/components/ui/card.tsx"
+  - resource: "repo://apps/studio/components/ui/surface.tsx"
   - resource: "repo://apps/studio/components/ui/input.tsx"
+  - resource: "repo://apps/studio/scripts/check-surface-nesting.mjs"
+  - resource: "repo://apps/studio/scripts/audit-surface-depth.mjs"
   - resource: "repo://docs/design/x-ui-rules.md"
 stale_after: 2027-02-13
 x_rag_okf:
@@ -115,6 +117,28 @@ SP ではこれが横幅を食い、**中身が入る領域が実質半分**に�
 ```
 
 **空の状態のために面を1つ増やすのは、いちばん割に合わない。**
+
+### 2-6. 画面に固定されたバーは、面に数えない
+
+`position: fixed` の要素は **out of flow** で、親の面の中に積まれるのではなく**画面に貼られる**。
+DOM 上どこに書かれていても、視覚的な入れ子は作らない。
+
+かつ**不透明でないと下の内容が透ける**ので、背景は必須。使うのは
+**ページ本体と同じ `bg-background`**（別の色を当てると、そこで初めて面になる）。
+
+- 対象: SP の下部ナビ（`components/admin/mobile-nav.tsx`）のような固定バー
+- 区切りは上辺の罫線1本だけ（`border-t`）。4辺で囲まない（囲むと面になる）
+
+🚨 **静的検査はこれを自力で判別できない。** `check-surface-nesting.mjs` は
+「`components/admin/**` は必ず `<Surface>` の中」という前提で走るため、
+**固定バーを違反として報告した**（2026-08-13 実際に起きた）。
+`fixed` と `inset-x-0` の組み合わせを許容リストへ入れて解消してある。
+
+> 憲章 §1:「正解を違反と言う検査は使われなくなり、検査そのものが死ぬ。**偽の赤は偽の緑と同じくらい高くつく。**」
+
+🚨 **例外を足したら、検査が鈍っていないことを必ず確かめる。**
+このときは、わざと `rounded-lg border bg-card shadow-md` を書いた要素を
+`components/admin/folders-manager.tsx` に足して、**まだ赤が出ること**を見てから戻した。
 
 ---
 

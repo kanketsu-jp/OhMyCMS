@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 import { apiFetch, currentUser } from "@/lib/admin/api";
 import { GlobalSearch } from "@/components/admin/global-search";
 import { LocaleSwitcher } from "@/components/admin/locale-switcher";
+import { MobileNav } from "@/components/admin/mobile-nav";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
 import { projectName } from "@/lib/settings/project-name";
@@ -125,8 +126,25 @@ export default async function AdminLayout({
             <LocaleSwitcher />
           </div>
         </header>
-        <main className="flex-1 px-4 py-6 md:px-8">{children}</main>
+        {/* 🚨 SP は下部の固定ナビに隠れるぶんの余白を本体側で持つ。
+            ナビ側で持つと、safe-area の余白と二重になる。 */}
+        <main className="flex-1 px-4 pt-6 pb-24 md:px-8 md:pb-6">{children}</main>
       </div>
+      {/* 🚨 390px ではサイドバー（md:flex）が消えるので、これが唯一の移動手段になる。
+          外すと SP から /admin/files などへ辿り着けなくなる（実測で確認済み）。
+          ラベルはここで辞書を引いて渡す（部品側で引き直さない）。 */}
+      <MobileNav
+        items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+        collections={
+          collections?.ok
+            ? collections.data.map((row) => ({
+                href: `/admin/content/${row.collection}`,
+                label: row.collection,
+              }))
+            : []
+        }
+        contentHeading={t("content_heading")}
+      />
     </div>
   );
 }
