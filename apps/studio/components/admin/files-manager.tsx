@@ -61,7 +61,9 @@ export function FileUploadForm({
       <form action={upload.run} className="grid gap-4">
         {/* 🚨 「ファイルを選択 / ファイル未選択」を画面に出さない（オーナー指摘）。
             素の input は FileDropzone の中に隠してある。 */}
-        <FileDropzone name="file" />
+        {/* 🚨 `flat` … このフォームは /admin/files/new で `<Surface>` の中に置かれる。
+            選んだ後に出る Attachment が器を持つと面が2段目になり、実測で**深さ3**まで行っていた。 */}
+        <FileDropzone name="file" flat />
         <select name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={initialFolder === "root" ? "" : initialFolder ?? ""}>
           <option value="">{t("no_folder_option")}</option>
           {folders.map((folder) => (

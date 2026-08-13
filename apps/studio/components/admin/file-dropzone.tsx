@@ -42,9 +42,21 @@ type Props = {
    * 消したときも呼ぶ（**消した結果の配列**を渡す。空なら空配列）。
    */
   onSelect?: (files: File[]) => void;
+  /**
+   * `Surface` の中に置くときに真にする（**省略可**）。
+   *
+   * 🚨 選んだ後に出る `Attachment` は `rounded-xl border bg-card` を持つ＝**面**。
+   * `Surface` の中だと 2段目になり、`/admin/files/new` では**深さ3**まで行っていた（実測）。
+   * 面の中に面を作らない（憲章 §1）ため、そこでは**器を持たない**形にする。
+   *
+   * 🚨 **既定では剥がさない。** `Surface` の外（設定画面など）では
+   * Attachment は深さ1で問題が無く、器を剥がすと「選んだファイル」の輪郭が消えて
+   * かえって分かりにくくなる。
+   */
+  flat?: boolean;
 };
 
-export function FileDropzone({ name = "file", onSelect }: Props) {
+export function FileDropzone({ name = "file", onSelect, flat = false }: Props) {
   const t = useT("files");
   const format = useFormat();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -104,12 +116,19 @@ export function FileDropzone({ name = "file", onSelect }: Props) {
         <span className="text-xs">{t("drop_hint")}</span>
       </button>
 
-      {/* 🚨 これが本体。見た目に出さない（「ファイル未選択」を出さないため） */}
+      {/* 🚨 これが本体。見た目に出さない（「ファイル未選択」を出さないため）。
+          🚨 **読み上げからも外す。** `name` はフォームの項目名であって読み上げ名ではないので、
+          このままだと「名前の無い入力」として読み上げられる。操作は上のボタンが受けており、
+          そのボタンは中の文字（「ここにファイルをドロップ」）で名乗れている。
+          `aria-hidden` だけだと**焦点は当たるのに読み上げられない**という最悪の形になるので、
+          `tabIndex={-1}` を必ず一緒に付けること。 */}
       <input
         ref={inputRef}
         type="file"
         name={name}
         multiple
+        aria-hidden
+        tabIndex={-1}
         className="sr-only"
         onChange={(event) => accept(event.target.files)}
       />
@@ -121,8 +140,16 @@ export function FileDropzone({ name = "file", onSelect }: Props) {
           </p>
           <AttachmentGroup>
             {files.map((file, index) => (
-              <Attachment key={`${file.name}-${index}`} state="idle">
-                <AttachmentMedia>
+              <Attachment
+                key={`${file.name}-${index}`}
+                state="idle"
+                // Surface の中では器を持たない（面を2段にしないため。→ flat の説明）
+                className={cn(flat && "border-0 bg-transparent")}
+              >
+                {/* 🚨 画像のレターボックス。背景が要るので面に見えるが、面ではない。
+                    例外を検査スクリプト側に隠さず、コードに書いて見えるようにしている
+                    （app/(admin)/admin/files/page.tsx:178 と同じ作法） */}
+                <AttachmentMedia data-surface-exempt>
                   {file.type.startsWith("image/") ? (
                     // 選んだ直後はまだサーバに無いので、ローカルの URL で見せる
                     // eslint-disable-next-line @next/next/no-img-element
