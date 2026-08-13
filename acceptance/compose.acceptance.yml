@@ -27,7 +27,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-      target: source
+      target: devserver
     image: ohmycms-studio-acc
     container_name: ohmycms-studio-acc
     user: root
@@ -40,7 +40,14 @@ services:
     #    curl に x-forwarded-host を付ければ回避できるが、ブラウザには付けられない。
     # 🚨 `npx` はベースイメージ（oven/bun）に**存在しない**。bun 移行で npm/npx が消えた
     #    （実測: npx も npm も無し / bun と node shim だけがある）。`bun x` で next を起動する。
-    command: ["bun", "x", "next", "dev", "--hostname", "0.0.0.0", "--port", "3103"]
+    # 🚨 **`next dev` は Node で動かす。bun では動かない**（実測）。
+    #    Turbopack の dev サーバは serverExternalPackages(knex/pg/sharp) を
+    #    ハッシュ付きの内部名で externalRequire するが、bun のリゾルバが解決できない:
+    #      Failed to load external module knex-6f520bbc368ae347: Cannot find package ...
+    #    → /api/health も管理画面も 500 になる。
+    #    本番ビルド(runner)は next build のファイルトレースが実体を運ぶので無事。
+    #    そのため target を devserver（Node 入り・出荷物ではない）にしている。
+    command: ["node", "node_modules/next/dist/bin/next", "dev", "--hostname", "0.0.0.0", "--port", "3103"]
     ports:
       # ポート規約 knowledge/decisions/port-allocation.md:
       #   本番(Docker) 3101 / dev 3102 / **受入ハーネス 3103** / Storybook 3104 / DB 5436

@@ -15,6 +15,8 @@
 #   runner    本番実行イメージ。standalone の成果物だけを持ち、bun で起動する
 
 ARG BUN_VERSION=1-slim
+# devserver ステージ専用。出荷物には入らない（理由は devserver ステージのコメント参照）。
+ARG NODE_FOR_DEV=24-slim
 
 # ---------------------------------------------------------------- base
 FROM oven/bun:${BUN_VERSION} AS base
@@ -64,6 +66,25 @@ ENV DATABASE_URL=postgres://build:build@127.0.0.1:5432/build
 COPY --from=sharpdeps /sharp/node_modules/sharp ./apps/studio/node_modules/sharp
 COPY --from=sharpdeps /sharp/node_modules/@img ./apps/studio/node_modules/@img
 RUN cd apps/studio && bun run build
+
+# ---------------------------------------------------------------- devserver
+# 受入ハーネス(studio-acc)が使う `next dev` 専用ステージ。**出荷物ではない。**
+#
+# 🚨 なぜ Node が要るのか（実測）:
+#   `next dev`（Turbopack）は serverExternalPackages(knex/pg/sharp) を
+#   **ハッシュ付きの内部名**で externalRequire する:
+#     Failed to load external module knex-6f520bbc368ae347:
+#       Cannot find package 'knex-6f520bbc368ae347'
+#   Node ならこの名前を実体へ解決できるが、**bun のリゾルバは解決できない**。
+#   本番ビルド(runner)は next build のファイルトレースが実体を運ぶので影響を受けない。
+#   → **壊れるのは `next dev` を bun で動かしたときだけ。**
+#
+# したがってここだけ Node を載せる。**最終イメージ(runner)は oven/bun のままで、Node は入らない**
+# （受入基準6b は最終イメージに対する基準）。bun へ寄せる意図は保っている。
+FROM node:${NODE_FOR_DEV} AS devserver
+ENV NEXT_TELEMETRY_DISABLED=1
+WORKDIR /app
+COPY --from=source /app ./
 
 # ---------------------------------------------------------------- migrate
 # マイグレーションは tsx (devDependency) と lib/db/migrations/*.ts が要るので、
