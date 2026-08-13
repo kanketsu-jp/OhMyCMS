@@ -66,7 +66,10 @@ export async function runningOhmycmsContainers() {
   return probe.stdout
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => line.startsWith("ohmycms-"))
+    // 🚨 ohmycms-studio-acc は **ハーネス自身が立てた** 検証用コンテナ（受入基準8・9 用）で、
+    //    compose.yml のスタックには属さない。基準1 の「down -v で全部消えたか」に
+    //    これを数えると、ハーネスが自分の足を踏んで必ず FAIL する（2026-08-13 実測）。
+    .filter((line) => line.startsWith("ohmycms-") && !line.startsWith("ohmycms-studio-acc"))
     .map((line) => {
       const [name, ports, status] = line.split("\t");
       return { name, ports: ports ?? "", status: status ?? "" };

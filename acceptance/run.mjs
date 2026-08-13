@@ -41,7 +41,12 @@ import { check as check08 } from "./checks/08-row-permission.mjs";
 import { check as check09 } from "./checks/09-svg-attachment.mjs";
 
 /** 仕様 §5-6: 3000 は トラックC の専有。docker 側は 3999 を使う。 */
-const DOCKER_PORT = 3999;
+// 🚨 基準1・2 が立てる **本番構成のスタック**が使うポート。
+// studio-acc（開発ビルド・3999）と**必ず別**にする。同じにすると
+// 「ハーネス自身が立てた studio-acc が 3999 を掴んだまま、
+//  基準1 の up が同じ 3999 へ bind しようとして落ちる」。
+// 実際にそれで基準1 が FAIL した（2026-08-13）。
+const DOCKER_PORT = 3998;
 /** dev モードの studio（受入基準8・9 用）。compose.acceptance.yml と揃えること。 */
 const DEV_PORT = 3999;
 
