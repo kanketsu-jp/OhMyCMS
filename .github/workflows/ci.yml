@@ -67,6 +67,20 @@ jobs:
         working-directory: apps/studio
         run: bun x tsc --noEmit
 
+      - name: packages の型チェック
+        # 🚨 apps/studio の tsc は packages/ を見ない。
+        #    実測: packages/sdk に型エラーを1行入れても
+        #      cd apps/studio && bun x tsc --noEmit → exit 0（気づけない）
+        #      bun --filter './packages/*' typecheck → exit 2（気づける）
+        #    SDK/CLI/MCP が壊れても CI が緑になる状態だった（sdk が発見・infra が再実測）。
+        run: bun --filter './packages/*' typecheck
+
+      - name: packages のビルド
+        # dist は .gitignore なので clone 直後は必ず存在しない。
+        # 「ビルドが通ること」自体を検査する（受入ハーネスも判定前に必ずビルドする）。
+        # sdk → cli/mcp の依存順は bun が守る。
+        run: bun --filter './packages/*' build
+
       - name: build
         # lib/db/knex.ts が module 直下で DATABASE_URL を読むため、
         # ビルドを通すためだけのダミーを渡す（接続はしない。docker/Dockerfile と同じ扱い）。
