@@ -21,7 +21,7 @@ export default async function ReportsPage() {
   const format = await getFormat();
   // 管理者でなければ 403 が返る。**エラーとして見せず、一覧の節ごと出さない**
   // （権限が無いこと自体を画面のノイズにしない）。
-  const list = await apiFetch<BugReport[]>("/api/reports");
+  const list = await apiFetch<{ data: BugReport[] }>("/api/reports");
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -38,7 +38,7 @@ export default async function ReportsPage() {
             <CardTitle>{t("list_heading")}</CardTitle>
           </CardHeader>
           <CardContent>
-            {list.data.length === 0 ? (
+            {list.data.data.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("list_empty")}</p>
             ) : (
               <Table>
@@ -50,7 +50,7 @@ export default async function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {list.data.map((report) => (
+                  {list.data.data.map((report) => (
                     <TableRow key={report.id}>
                       <TableCell className="font-medium">{report.title}</TableCell>
                       <TableCell>{format.dateTime(report.created_at)}</TableCell>

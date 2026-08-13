@@ -10,7 +10,7 @@ import type { Settings } from "@/lib/settings/service";
  */
 export default async function GeneralSettingsPage() {
   const t = await getT("settings");
-  const result = await apiFetch<Settings>("/api/settings");
+  const result = await apiFetch<{ data: Settings }>("/api/settings");
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -20,7 +20,7 @@ export default async function GeneralSettingsPage() {
       </div>
 
       {result.ok ? (
-        <SettingsManager settings={result.data} />
+        <SettingsManager settings={result.data.data} />
       ) : (
         <ErrorBanner message={result.message} />
       )}

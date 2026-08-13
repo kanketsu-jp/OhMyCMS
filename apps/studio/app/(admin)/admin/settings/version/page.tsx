@@ -12,7 +12,7 @@ import type { VersionInfo } from "@/lib/version/service";
  */
 export default async function VersionPage() {
   const t = await getT("version");
-  const result = await apiFetch<VersionInfo>("/api/version");
+  const result = await apiFetch<{ data: VersionInfo }>("/api/version");
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -29,12 +29,12 @@ export default async function VersionPage() {
             <CardContent className="grid gap-2 pt-0 text-sm">
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">{t("current_label")}</span>
-                <span className="font-medium">{result.data.current}</span>
+                <span className="font-medium">{result.data.data.current}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">{t("commit_label")}</span>
                 <span className="font-mono text-xs">
-                  {result.data.commit ?? t("commit_unknown")}
+                  {result.data.data.commit ?? t("commit_unknown")}
                 </span>
               </div>
             </CardContent>
@@ -45,7 +45,7 @@ export default async function VersionPage() {
               <CardTitle>{t("update_heading")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <UpdateStatus update={result.data.update} t={t} />
+              <UpdateStatus update={result.data.data.update} t={t} />
             </CardContent>
           </Card>
         </>
