@@ -1,1 +1,15 @@
-{}
+{
+  "title": "バージョン",
+  "description": "いま動いているバージョンと、更新の有無です。",
+  "current_label": "現在のバージョン",
+  "commit_label": "コミット",
+  "commit_unknown": "不明",
+  "update_heading": "更新の確認",
+  "not_configured": "更新の確認先が設定されていないため、確認していません。外部への通信は行っていません。",
+  "not_configured_hint": "確認先を設定するには、環境変数 OHMYCMS_UPDATE_FEED_URL を指定してください。",
+  "up_to_date": "最新です。",
+  "outdated": "新しいバージョン {latest} があります。",
+  "release_link": "リリースを見る",
+  "unreachable": "確認先へ接続できませんでした。",
+  "invalid_response": "確認先の応答を読み取れませんでした。"
+}

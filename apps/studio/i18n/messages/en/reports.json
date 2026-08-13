@@ -1,1 +1,23 @@
-{}
+{
+  "title": "Report a problem",
+  "description": "Tell us what is not working or what you noticed.",
+  "report_title_label": "Subject",
+  "report_title_placeholder": "What happened?",
+  "report_body_label": "Details",
+  "report_body_placeholder": "Describe the screen you were on, what you did, and what happened.",
+  "privacy_note": "Only the path of this screen and your browser type are attached automatically. Sign-in details and configuration values are never sent. Please do not put secrets in the text.",
+  "submit_button": "Send",
+  "submitting": "Sending…",
+  "submitted": "Received. Thank you.",
+  "mail_sent": "We also notified the maintainer by email.",
+  "mail_skipped": "No email destination is configured, so we only stored the report.",
+  "mail_failed": "The report was stored, but the email could not be sent.",
+  "list_heading": "Reports received",
+  "list_empty": "No reports yet.",
+  "column_title": "Subject",
+  "column_created": "Date",
+  "column_mail": "Email",
+  "error_submit_failed": "Could not send.",
+  "error_title_required": "Enter a subject.",
+  "error_body_required": "Enter the details."
+}

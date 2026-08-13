@@ -1,1 +1,15 @@
-{}
+{
+  "title": "Version",
+  "description": "The version you are running and whether an update exists.",
+  "current_label": "Current version",
+  "commit_label": "Commit",
+  "commit_unknown": "Unknown",
+  "update_heading": "Update check",
+  "not_configured": "No update feed is configured, so nothing was checked. No outbound request was made.",
+  "not_configured_hint": "To enable the check, set the OHMYCMS_UPDATE_FEED_URL environment variable.",
+  "up_to_date": "You are up to date.",
+  "outdated": "Version {latest} is available.",
+  "release_link": "View the release",
+  "unreachable": "Could not reach the update feed.",
+  "invalid_response": "Could not read the response from the update feed."
+}

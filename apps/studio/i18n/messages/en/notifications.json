@@ -1,1 +1,16 @@
-{}
+{
+  "title": "Notifications",
+  "description": "Notifications addressed to you.",
+  "empty": "No notifications.",
+  "unread_badge": "{count} unread",
+  "mark_read": "Mark as read",
+  "mark_unread": "Mark as unread",
+  "show_unread_only": "Unread only",
+  "show_all": "Show all",
+  "open_link": "Open",
+  "error_load_failed": "Could not load notifications.",
+  "error_update_failed": "Could not update the notification.",
+  "message_policy_granted": "You were granted the policy \"{policy}\"",
+  "message_policy_revoked": "The policy \"{policy}\" was removed from you",
+  "message_bug_report_received": "Your bug report was received"
+}

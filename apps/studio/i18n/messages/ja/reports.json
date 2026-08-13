@@ -1,1 +1,23 @@
-{}
+{
+  "title": "不具合の報告",
+  "description": "動かないところや気づいたことを送ってください。",
+  "report_title_label": "件名",
+  "report_title_placeholder": "何が起きましたか",
+  "report_body_label": "詳しい内容",
+  "report_body_placeholder": "どの画面で、何をしたら、どうなったかを書いてください。",
+  "privacy_note": "この画面のパスと、お使いのブラウザの種類だけを自動で添えます。ログイン情報や設定値は送りません。秘密を本文に書かないでください。",
+  "submit_button": "送信",
+  "submitting": "送信しています…",
+  "submitted": "受け付けました。ありがとうございます。",
+  "mail_sent": "担当者へメールでも通知しました。",
+  "mail_skipped": "送信先が設定されていないため、記録だけ残しました。",
+  "mail_failed": "記録は残りましたが、メールの送信に失敗しました。",
+  "list_heading": "受け付けた報告",
+  "list_empty": "まだ報告はありません。",
+  "column_title": "件名",
+  "column_created": "日時",
+  "column_mail": "メール",
+  "error_submit_failed": "送信できませんでした。",
+  "error_title_required": "件名を入力してください。",
+  "error_body_required": "詳しい内容を入力してください。"
+}

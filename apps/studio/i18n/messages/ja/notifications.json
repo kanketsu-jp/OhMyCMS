@@ -1,1 +1,16 @@
-{}
+{
+  "title": "通知",
+  "description": "自分宛の通知です。",
+  "empty": "通知はありません。",
+  "unread_badge": "未読 {count} 件",
+  "mark_read": "既読にする",
+  "mark_unread": "未読に戻す",
+  "show_unread_only": "未読だけ表示",
+  "show_all": "すべて表示",
+  "open_link": "開く",
+  "error_load_failed": "通知を取得できませんでした。",
+  "error_update_failed": "通知を更新できませんでした。",
+  "message_policy_granted": "ポリシー「{policy}」が付与されました",
+  "message_policy_revoked": "ポリシー「{policy}」が外されました",
+  "message_bug_report_received": "不具合の報告を受け付けました"
+}
