@@ -22,7 +22,12 @@ const root = resolve(here, "..");
 
 /** 面を作るクラスの組み合わせ（囲む罫線 / 面としての背景 / 影）。 */
 const SURFACE_PATTERNS = [
-  { name: "囲む罫線", re: /\brounded-(?:md|lg|xl|2xl)\b[^"']*\bborder\b|\bborder\b[^"']*\brounded-(?:md|lg|xl|2xl)\b/ },
+  // 🚨 `\bborder\b` は **`border-0` にも当たる**（`-` が単語境界なので）。
+  // つまり「罫線を明示的に消した」ものを罫線として数えてしまう。**偽の赤**。
+  // 由来: 2026-08-14。カラーピッカーに `rounded-lg border-0` と書いたら違反として出た。
+  // 憲章 §1「正解を違反と言う検査は使われなくなり、検査そのものが死ぬ」。
+  // → 罫線として数えるのは「幅を持つ border」だけ。`-0` / `-none` / `-transparent` は数えない。
+  { name: "囲む罫線", re: /\brounded-(?:md|lg|xl|2xl)\b[^"']*\bborder(?!-(?:0|none|transparent)\b)\b|\bborder(?!-(?:0|none|transparent)\b)\b[^"']*\brounded-(?:md|lg|xl|2xl)\b/ },
   { name: "面の背景", re: /\bbg-(?:card|background|accent)\b/ },
   { name: "影", re: /\bshadow-(?:sm|md|lg|xl)\b/ },
 ];

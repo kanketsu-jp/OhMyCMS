@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ColorField } from "@/components/admin/color-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,7 +118,18 @@ export function SettingsManager({ settings }: { settings: Settings }) {
       ) : null}
 
       {field("project_name", "project_name_label", "project_name_help", settings.project_name)}
-      {field("project_color", "project_color_label", "project_color_help", settings.project_color)}
+      <div className="grid gap-2">
+        <Label htmlFor="settings-project_color">{t("project_color_label")}</Label>
+        <ColorField
+          id="settings-project_color"
+          name="project_color"
+          defaultValue={settings.project_color}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("project_color_help")}
+          <span className="ml-2">（{sourceLabel("project_color")}）</span>
+        </p>
+      </div>
       {field("project_logo", "project_logo_label", "project_logo_help", settings.project_logo ?? "")}
 
       <div className="grid gap-2">

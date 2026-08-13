@@ -9,6 +9,7 @@ import { MobileNav } from "@/components/admin/mobile-nav";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
+import { projectColor } from "@/lib/settings/project-color";
 import { projectName } from "@/lib/settings/project-name";
 import { SETUP_COOKIE, parseCookies } from "@/lib/auth/cookies";
 import { isValidSetupSession } from "@/lib/auth/setup-session";
@@ -37,6 +38,7 @@ export default async function AdminLayout({
   const t = await getT("nav");
   const tCommon = await getT("common");
   const brand = await projectName(tCommon("app_name"));
+  const accent = await projectColor();
   const me = await currentUser();
   if (!me.ok && me.status === 401) {
     // 🚨 セットアップの印を持っている人を /login へ返すと輪ができる（2026-08-13 実事故）。
@@ -64,7 +66,15 @@ export default async function AdminLayout({
     : null;
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div
+      className="flex min-h-screen bg-background"
+      // 🚨 `project_color` は**保存できるのに誰も読んでいなかった**（参照0件）。
+      // ここで --primary に流し込んで、初めて「保存したら見た目が変わる」になる。
+      // 設定画面は値も出所も正しく出すので、**画面を見ているかぎり気づけない**類の穴だった
+      // （knowledge/decisions/verify-the-verifier.md 8番）。
+      // 未設定・不正な値なら null が返り、既定の配色のままになる。
+      style={accent ? ({ "--primary": accent } as React.CSSProperties) : undefined}
+    >
       {/* 面は「罫線・背景・影」のうち1つだけ（docs/design/surface-rules.md §2-1）。
           サイドバーは罫線1本で区切る。背景も付けると面が濃くなり、中の区切りが2段目になる。 */}
       <aside className="hidden w-64 shrink-0 border-r md:flex md:flex-col">
