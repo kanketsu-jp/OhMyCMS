@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BellIcon,
   DatabaseIcon,
   HomeIcon,
   ImageIcon,
@@ -73,12 +72,15 @@ export function MobileNav({ items, settings, settingsLabel, collections, content
   const listRef = useRef<HTMLDivElement>(null);
   useScrollFade(listRef, "vertical");
 
-  // 中央は4つだけ。フォルダはファイルから辿れるので落とす（design ⑨-②）
+  // 🚨 中央は**3つ**。フォルダと通知はメニューから辿れるので落とす（design ⑫。⑨ の「4つ」の訂正）。
+  // 右端に split button（「編集 │ ▾」）が入ると **96px 前後**になり、アイコン1つ（44px）より 52px 広い。
+  //   右が 44px なら 320px で 4個→51px（入る）
+  //   右が 96px なら 320px で **4個→38px** で 44px を割る / 3個なら 51px
+  // ⑨ の「4つ」は**右がアイコン1つ前提の計算**だった。
   const quick = [
     { href: "/admin", label: t("home"), icon: HomeIcon },
     { href: "/admin/collections", label: t("collections"), icon: DatabaseIcon },
     { href: "/admin/files", label: t("files"), icon: ImageIcon },
-    { href: "/admin/notifications", label: t("notifications"), icon: BellIcon },
   ];
 
   const isCurrent = (href: string) =>
