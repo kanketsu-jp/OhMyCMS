@@ -1,9 +1,11 @@
 import type { FieldResult } from "@/lib/schema/models";
 import { FilePicker } from "@/components/admin/file-picker";
+import { RichTextField } from "@/components/admin/rich-text-field";
 import { getT } from "@/i18n/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resolveFieldInterface } from "@/lib/schema/interfaces";
 
 type Props = {
   collection: string;
@@ -31,10 +33,6 @@ function isGeneratedPrimaryUuid(field: FieldResult): boolean {
   return field.type === "uuid" && field.schema?.is_primary_key === true;
 }
 
-function isFileField(field: FieldResult): boolean {
-  if (field.schema?.foreign_key_table === "directus_files") return true;
-  return field.type === "uuid" && ["file", "image", "thumbnail", "photo"].includes(field.field);
-}
 
 export async function ItemForm({ collection, fields, itemId, item }: Props) {
   const t = await getT("fields");
@@ -61,6 +59,9 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
         const readonly = isEdit && field.schema?.is_primary_key === true;
         const value = item?.[field.field];
         const fieldName = `field:${field.field}`;
+        // 🚨 何で編集させるかは **meta.interface** が決める（型は DB の列の型でしかない）。
+        // meta.interface が無い／型に合わない場合だけ、型から既定へ落ちる。
+        const ui = resolveFieldInterface(field);
 
         return (
           <div key={field.field} className="space-y-1.5">
@@ -75,13 +76,20 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
               {field.field}
               {required ? <span className="text-destructive">*</span> : null}
             </Label>
-            {isFileField(field) && !readonly ? (
+            {ui === "file" && !readonly ? (
               <FilePicker
                 inputId={fieldName}
                 name={fieldName}
                 defaultValue={valueForInput(value)}
               />
-            ) : field.type === "boolean" ? (
+            ) : ui === "richtext" && !readonly ? (
+              <RichTextField
+                inputId={fieldName}
+                name={fieldName}
+                defaultValue={value}
+                required={required}
+              />
+            ) : ui === "boolean" ? (
               <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc)">
                 <input
                   id={fieldName}
@@ -94,7 +102,7 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
                 />
                 {t("yes")}
               </label>
-            ) : field.type === "json" ? (
+            ) : ui === "json" ? (
               <textarea
                 id={fieldName}
                 name={fieldName}

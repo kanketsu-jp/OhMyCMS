@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { isInterfaceAllowedForType } from "@/lib/schema/interfaces";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,13 @@ export async function POST(request: Request, ctx: Context) {
     schema.max_length = Number(maxLength);
   }
 
+  // 「編集のしかた」。空欄（自動）と、型に合わない指定は保存しない
+  // （保存してしまうと、あとで型を見て解決するときに矛盾が残る）。
+  const chosen = formString(formData, "interface");
+  const meta = chosen && isInterfaceAllowedForType(chosen, type)
+    ? { interface: chosen }
+    : undefined;
+
   const response = await fetch(
     new URL(`/api/fields/${encodeURIComponent(collection)}`, request.url),
     {
@@ -28,7 +36,7 @@ export async function POST(request: Request, ctx: Context) {
         "content-type": "application/json",
         cookie: request.headers.get("cookie") ?? "",
       },
-      body: JSON.stringify({ field, type, schema }),
+      body: JSON.stringify({ field, type, schema, ...(meta ? { meta } : {}) }),
       cache: "no-store",
     },
   );

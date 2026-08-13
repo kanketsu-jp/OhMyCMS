@@ -7,11 +7,12 @@ import {
   type PermissionAction,
   type PermissionResolution,
 } from "@/lib/permissions/resolve";
-import { ApiError } from "@/lib/schema/errors";
+import { ApiError, rethrowAsConflict } from "@/lib/schema/errors";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { ColumnInfo, RelationMeta } from "@/lib/schema/models";
 import { assertSafeIdentifier, isSystemTableName } from "@/lib/schema/validate";
 import { applyFilter, type FilterObject } from "./filter";
+import { sanitizeRichTextFields } from "./richtext";
 import {
   applyValidatedSort,
   buildQuery,
@@ -892,6 +893,46 @@ function assertPayloadColumns(
   }
 }
 
+/**
+ * json / jsonb の列に入れる値を、**そのまま渡さず文字列にする**。
+ *
+ * 🚨 なぜ要るか: **pg は JS の配列を PostgreSQL の配列リテラルとして扱う**（`text[]` 等のため）。
+ * その結果 `[1,2,3]` を jsonb 列へ入れると型が合わず、**汎用の 500** になっていた。
+ * オブジェクトは pg が JSON として送るので通り、**配列だけが落ちる**という分かりにくい形だった（実測）。
+ *
+ * 🚨 「配列は保存できない」ではない。**PostgreSQL の jsonb は配列を格納できる**。
+ * 渡し方の問題なので、渡し方を直す。
+ */
+/**
+ * DB が投げたエラーを、意味のある 4xx へ翻訳してから投げ直す。
+ * 表に無いものはそのまま（原因不明の 500 は 500 のまま出す）。
+ */
+async function runTranslatingDbErrors<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    rethrowAsConflict(error);
+    throw error;
+  }
+}
+
+function withJsonColumnsSerialized(payload: Item, columns: ColumnInfo[]): Item {
+  const jsonColumns = columns.filter(
+    (column) => column.data_type === "json" || column.data_type === "jsonb",
+  );
+  if (jsonColumns.length === 0) return payload;
+
+  const result = { ...payload };
+  for (const column of jsonColumns) {
+    const value = result[column.name];
+    // 文字列は「利用者が自分で JSON を書いた」場合なので触らない。null / undefined もそのまま
+    if (value !== null && value !== undefined && typeof value === "object") {
+      result[column.name] = JSON.stringify(value);
+    }
+  }
+  return result;
+}
+
 function withGeneratedPrimaryKey(
   payload: Item,
   primaryKey: ColumnInfo | undefined,
@@ -937,13 +978,24 @@ export async function createItems(
   const primaryKeyColumn = columns.find((column) => column.is_primary_key);
   const primaryKey = getPrimaryKey(schemaOverview, collection);
   const relations = permission.rowFilter ? await relationRows() : [];
-  const rows = normalizeCreatePayload(body).map((payload) => {
-    assertPayloadColumns(payload, collection, schemaOverview);
-    assertPayloadAllowed(payload, permission.allowedFields);
-    return withGeneratedPrimaryKey(payload, primaryKeyColumn);
-  });
+  const rows = await Promise.all(
+    normalizeCreatePayload(body).map(async (payload) => {
+      assertPayloadColumns(payload, collection, schemaOverview);
+      assertPayloadAllowed(payload, permission.allowedFields);
+      // 🚨 本文は保存前にサーバ側でも落とす（クライアントの検証を当てにしない）
+      const safe = await sanitizeRichTextFields(collection, payload);
+      return withJsonColumnsSerialized(
+        withGeneratedPrimaryKey(safe, primaryKeyColumn),
+        columns,
+      );
+    }),
+  );
 
-  const inserted = await db.transaction(async (trx) => {
+  // 🚨 DB が弾いた理由を、そのまま汎用の 500 にしない（④ の DDL と同じ手）。
+  // 主キーが自動採番でないコレクションに id を省いて作る、型に合わない値を入れる——
+  // どれも**利用者の入力の問題**なので 4xx で返す。
+  const inserted = (await runTranslatingDbErrors(() =>
+    db.transaction(async (trx) => {
     if (rows.length === 0) return [];
     const writtenRows = await trx(collection).insert(rows).returning("*");
     await assertRowsVisibleAfterWrite(
@@ -955,8 +1007,9 @@ export async function createItems(
       schemaOverview,
       relations,
     );
-    return writtenRows;
-  }) as Item[];
+      return writtenRows;
+    }),
+  )) as Item[];
 
   const filtered = filterResultFields(inserted, permission.allowedFields) as Item[];
   return Array.isArray(body) ? filtered : filtered[0];
@@ -982,13 +1035,15 @@ export async function updateItem(
   assertPayloadAllowed(body, permission.allowedFields);
   const primaryKey = getPrimaryKey(schemaOverview, collection);
   const relations = permission.rowFilter ? await relationRows() : [];
+  // 🚨 本文は保存前にサーバ側でも落とす（クライアントの検証を当てにしない）
+  const safeBody = await sanitizeRichTextFields(collection, body);
 
   const updated = await db.transaction(async (trx) => {
     const updateQuery = trx(collection).where(primaryKey, id);
     if (permission.rowFilter) {
       applyFilter(updateQuery, permission.rowFilter, { collection, schemaOverview, relations });
     }
-    const rows = await updateQuery.update(body).returning("*");
+    const rows = await updateQuery.update(safeBody).returning("*");
     if (rows.length === 0) {
       throw new ApiError(404, "ITEM_NOT_FOUND", "アイテムが見つかりません");
     }

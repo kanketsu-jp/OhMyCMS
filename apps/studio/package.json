@@ -13,6 +13,7 @@
     "storybook:build": "storybook build --disable-telemetry",
     "storybook:check": "node .storybook/check-stories.mjs",
     "verify:s3": "bun run scripts/verify-s3-storage.ts",
+    "check:richtext": "bun run scripts/check-richtext-guards.ts",
     "verify:compress": "bun run scripts/verify-compression.ts",
     "migrate:storage": "bun run scripts/migrate-storage.ts",
     "migrate:status": "bun node_modules/knex/bin/cli.js migrate:status --knexfile lib/db/knexfile.ts"
