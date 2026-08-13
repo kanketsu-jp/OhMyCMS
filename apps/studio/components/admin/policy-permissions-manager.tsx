@@ -166,7 +166,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
                 setSelectedFields([]);
                 setAllFields(true);
               }}
-              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm"
+              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
             >
               {collections.map((item) => (
                 <option key={item.collection} value={item.collection}>{item.collection}</option>
@@ -179,7 +179,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
               id="action"
               value={action}
               onChange={(event) => setAction(event.target.value as (typeof actions)[number])}
-              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm"
+              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
             >
               {actions.map((item) => (
                 <option key={item} value={item}>{item}</option>

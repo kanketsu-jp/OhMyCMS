@@ -97,7 +97,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="folder">{t("folder_label")}</Label>
-          <select id="folder" name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm" defaultValue={file.folder ?? ""}>
+          <select id="folder" name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={file.folder ?? ""}>
             <option value="">{t("no_folder_option")}</option>
             {folders.map((folder) => (
               <option key={folder.id} value={folder.id}>{folder.name}</option>

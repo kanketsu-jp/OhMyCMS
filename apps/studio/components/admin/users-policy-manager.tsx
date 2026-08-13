@@ -97,7 +97,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
       <form action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <div className="space-y-1.5">
           <label htmlFor="user" className="text-sm font-medium">{t("user_label")}</label>
-          <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm">
+          <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
             {users.map((user) => (
               <option key={user.id} value={user.id}>{user.email}</option>
             ))}
@@ -105,7 +105,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         </div>
         <div className="space-y-1.5">
           <label htmlFor="policy" className="text-sm font-medium">{t("policy_label")}</label>
-          <select id="policy" name="policy" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm">
+          <select id="policy" name="policy" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
             {policies.map((policy) => (
               <option key={policy.id} value={policy.id}>{policy.name}</option>
             ))}

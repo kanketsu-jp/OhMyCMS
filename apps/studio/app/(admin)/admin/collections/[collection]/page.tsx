@@ -140,7 +140,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             <select
               id="type"
               name="type"
-              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm"
+              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
               defaultValue="string"
             >
               {fieldTypes.map((type) => (
@@ -158,7 +158,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             <select
               id="interface"
               name="interface"
-              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm"
+              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
               defaultValue=""
             >
               <option value="">{tFields("interface_auto")}</option>
@@ -171,7 +171,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             <Label htmlFor="max_length">{tFields("max_length_label")}</Label>
             <Input id="max_length" name="max_length" type="number" min="1" />
           </div>
-          <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc)">
+          <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc-field)">
             <input type="checkbox" name="required" value="true" className="size-4" />
             {tFields("required_label")}
           </label>

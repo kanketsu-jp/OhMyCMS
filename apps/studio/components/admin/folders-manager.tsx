@@ -75,7 +75,7 @@ export function FoldersManager({ folders }: { folders: FolderRow[] }) {
       ) : null}
       <form action={create.run} className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
         <Input name="name" required placeholder={t("name_placeholder")} />
-        <select name="parent" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc) md:text-sm" defaultValue="">
+        <select name="parent" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue="">
           <option value="">{t("no_parent_option")}</option>
           {folders.map((folder) => (
             <option key={folder.id} value={folder.id}>{folder.name}</option>

@@ -93,7 +93,7 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
                 required={required}
               />
             ) : ui === "boolean" ? (
-              <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc)">
+              <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc-field)">
                 <input
                   id={fieldName}
                   type="checkbox"
