@@ -1,8 +1,7 @@
 "use client";
 
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import { Check, ChevronsUpDown, LogOut } from "lucide-react";
 
-import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +11,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
+import { setLocaleAction } from "@/i18n/actions";
+import { LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -37,6 +38,8 @@ type Props = {
  */
 export function UserMenu({ userLabel }: Props) {
   const t = useT("nav");
+  const tCommon = useT("common");
+  const locale = useLocale();
   const label = userLabel ?? t("menu_title");
   const fallback = label.slice(0, 1).toUpperCase();
 
@@ -71,7 +74,35 @@ export function UserMenu({ userLabel }: Props) {
           このリポジトリのサイドバーは畳めないので、再掲は重複でしかない。
         */}
         <DropdownMenuContent side="top" align="end">
-          <LocaleSwitcher variant="group" className="px-1 py-1" />
+          {/*
+            🚨 **言語も `DropdownMenuItem` にすること。素の button を置かない。**
+            Base UI の Menu は **`Menu.Item` の子孫だけ**を ↑↓ の移動対象にする。
+            ここに `LocaleSwitcher`（素の form + 素の button）を置いていたときは、
+            **↓ を4回押しても「日本語」から動かなかった**（実測。Tab では移れた）。
+            見た目は同じでも、**キーボードで辿れない項目**になっていた。
+
+            🚨 現在地は**塗りではなく `✓`** で示す（憲章 §3b）。
+            メニューの中で塗ると、選択中の項目が「親と違う背景」＝面として数えられる。
+          */}
+          <form action={setLocaleAction}>
+            {LOCALES.map((item) => (
+              <DropdownMenuItem
+                key={item}
+                nativeButton
+                render={
+                  <button
+                    type="submit"
+                    name="locale"
+                    value={item}
+                    className={cn("w-full")}
+                  />
+                }
+              >
+                {tCommon(`locale_${item}`)}
+                {item === locale ? <Check className="ml-auto" /> : null}
+              </DropdownMenuItem>
+            ))}
+          </form>
           <DropdownMenuSeparator />
           <form action="/admin/actions/logout" method="post">
             {/*
