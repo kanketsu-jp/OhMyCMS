@@ -69,6 +69,21 @@ export type SamlConfig = {
   /** IdP の署名検証用証明書（base64 の本体。PEM のヘッダは剥がして保持する）。 */
   idpCertificates: string[];
   /** 既定はリクエストから組み立てる。ここが埋まっているときだけ上書きする。 */
+  /**
+   * SP の Entity ID の**上書き**。
+   *
+   * 🚨 **原則、空のままにすること。** 空なら要求ごとに導出されるので、
+   *    `:3101` / `:3102` / `:3103` のどれから来ても正しい値になる。
+   *
+   * 🚨 **この設定行は 1 行しかなく、すべての環境で共有している**（`ohmycms_settings` と同じ形）。
+   *    ここに `http://localhost:3103/...` のような**環境固有の値**を入れると、
+   *    **他の環境から来た要求で Issuer と ACS URL が食い違い、IdP に
+   *    `Invalid redirect uri` で弾かれる**（2026-08-14 に実際に起きた）。
+   *    症状は「急にログインできなくなった」で、**直前にコードを触った人が自分を疑う**形になる。
+   *
+   *    入れてよいのは、**IdP 側に登録した Entity ID がこのアプリの URL と違う**ときだけ
+   *    （そして**その値がすべての環境で同じ**であるときだけ）。
+   */
   spEntityId: string | null;
   attributes: SamlAttributeMap;
   updatedAt: string | null;
