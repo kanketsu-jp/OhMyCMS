@@ -1,0 +1,238 @@
+/**
+ * 受入基準3（MVP ⑤）: **GUI で全ての機能にアクセス・管理できる**
+ *
+ * 🚨 この基準は**半分しか機械化できない**。正直に分ける:
+ *
+ *   機械で言えること   … 「**到達できる**」。ナビから全機能へのリンクが生きていて、
+ *                        ログインすれば 200 が返り、未ログインなら弾かれる
+ *   人でしか言えないこと … 「**操作できる**」。実際に描画されるか、ボタンを押すと動くか、
+ *                        画像がプレビューされるか
+ *
+ * **「HTML に <button> がある」は「押すと動く」ではない。** onClick が繋がっているかは
+ * HTML からは分からないので、そこは manual-3.md で人が見る。
+ * このチェックが PASS でも、**操作の確認は別途要る**（判定の details にも出す）。
+ *
+ * なぜ到達だけでも機械化する価値があるか:
+ *   F6 のようにデザインを刷新すると、**画面は綺麗になったのに設定への導線が消える**事故が起きうる。
+ *   リンクが消えればこのチェックが落ちるので、書き換えに耐える。
+ *
+ * 前提: 管理画面は SSR で HTML に中身まで来ている（実測）。だからリンク抽出が成立する。
+ * 🚨 ただし**コレクション配下（フィールド・コンテンツ）は HTML にリンクが出ない**
+ *   （一覧が client 側で組まれるため）。そこは**実際にコレクションを作って URL で叩く**。
+ */
+
+import { Session } from "../lib/http.mjs";
+import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
+
+const PREFIX = "acc_reach_";
+
+/**
+ * MVP ⑤ が「全ての機能」と言っている中身の名簿。
+ * 🚨 **ナビから消えたら落とす。** F6 で画面を書き換えても、ここに挙げた機能へ
+ *   辿り着けなくなったら受入は通さない。
+ */
+const REQUIRED_NAV = [
+  ["/admin/collections", "コレクション"],
+  ["/admin/files", "ファイル"],
+  ["/admin/folders", "フォルダ"],
+  ["/admin/settings/roles", "ロール"],
+  ["/admin/settings/policies", "ポリシー（権限）"],
+  ["/admin/settings/users", "ユーザー"],
+  ["/admin/settings/agents", "エージェントトークン"],
+];
+
+/** 人がブラウザで見るしかない残り。details に必ず出して、忘れられないようにする */
+const MANUAL_RESIDUE = [
+  "実際に描画されるか（崩れ・重なり・ダーク/ライト）",
+  "ボタンを押すとフォームが送信されるか（HTML に <button> があっても onClick が繋がっているかは分からない）",
+  "画像がプレビューされるか / SVG がダウンロード扱いになるか（ブラウザ上の挙動）",
+];
+
+function blocked(reason, details, repro, started) {
+  return result({
+    id: 3,
+    title: "GUI から全機能へ到達できる（操作の確認は manual-3.md）",
+    status: STATUS.BLOCKED,
+    reason,
+    details,
+    repro,
+    ms: Date.now() - started,
+  });
+}
+
+export async function check(context) {
+  const started = Date.now();
+  const { baseUrl } = context;
+  const assertions = [];
+  const details = [];
+  const stamp = Date.now();
+  const collection = `${PREFIX}${stamp}`;
+
+  // 🚨 --red 3: 「存在しない機能」を名簿へ足して、**名簿の検査が本当に効くか**を見る。
+  //   名簿が素通りしていたら、F6 で導線が消えても気づけない。
+  const sabotage = context.red?.includes(3) ?? false;
+  const roster = sabotage
+    ? [...REQUIRED_NAV, ["/admin/settings/nonexistent", "存在しない機能（--red 用）"]]
+    : REQUIRED_NAV;
+
+  const admin = new Session(baseUrl, "admin");
+  const login = await admin.postJson("/api/auth/dev-login?admin=true", {
+    email: `acc-reach-${stamp}@example.com`,
+  });
+  if (login.status !== 200) {
+    return blocked(
+      `dev-login が使えません (HTTP ${login.status})`,
+      [
+        "GUI へログインした状態で到達できるかを見るので、セッションが要ります。",
+        "本番ビルドでは dev-login が消えているため、ここでは判定できません。",
+        "→ 開発ビルド（bun run dev / studio-acc）へ向けてください。",
+      ],
+      ["bun run acceptance --only 3 --base-url http://localhost:3102"],
+      started,
+    );
+  }
+
+  // ── 肯定形1: ナビに必須機能が揃っていて、全部 200 で開ける ──
+  const shell = await admin.get("/admin");
+  const hrefs = [
+    ...new Set(
+      [...shell.text.matchAll(/href="(\/[^"#?]*)"/g)]
+        .map((m) => m[1])
+        .filter((h) => !h.startsWith("/_next")),
+    ),
+  ];
+  assertions.push(
+    assertion("positive", "管理画面の入口が開ける", shell.status === 200, `HTTP ${shell.status}`, "200"),
+  );
+
+  const missing = roster.filter(([path]) => !hrefs.includes(path)).map(([, name]) => name);
+  assertions.push(
+    assertion(
+      "positive",
+      "必須機能への導線がナビに揃っている",
+      missing.length === 0,
+      missing.length === 0 ? `${roster.length}/${roster.length} あり` : `欠け: ${missing.join(" / ")}`,
+      "全部ある",
+    ),
+  );
+
+  const broken = [];
+  for (const href of hrefs) {
+    const page = await admin.get(href);
+    if (page.status !== 200) broken.push(`${href}=${page.status}`);
+  }
+  assertions.push(
+    assertion(
+      "positive",
+      `ナビから辿れる画面が全部開ける（${hrefs.length} 本）`,
+      broken.length === 0,
+      broken.length === 0 ? `${hrefs.length} 本すべて 200` : `開けない: ${broken.join(" ")}`,
+      "全部 200",
+    ),
+  );
+
+  // ── 肯定形2: コレクションを作ると、その配下の画面へ到達できる ──
+  //    🚨 ここは HTML にリンクが出ないので URL で叩く（一覧が client 側で組まれるため）
+  let created = false;
+  const asAdmin = (path, body, method = "POST") =>
+    admin.request(path, {
+      method,
+      headers: { "content-type": "application/json" },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  const collectionCreated = await asAdmin("/api/collections", {
+    collection,
+    fields: [
+      { field: "id", type: "uuid", schema: { is_primary_key: true } },
+      { field: "title", type: "string" },
+    ],
+  });
+  created = collectionCreated.status === 200;
+
+  try {
+    let itemId = null;
+    if (created) {
+      const seeded = await asAdmin(`/api/items/${collection}`, { title: "到達確認" });
+      itemId = seeded.json?.data?.id ?? null;
+    }
+
+    const perCollection = [
+      [`/admin/collections/${collection}`, "フィールドの画面"],
+      [`/admin/content/${collection}`, "アイテム一覧"],
+      [`/admin/content/${collection}/new`, "アイテムの新規作成"],
+      ...(itemId ? [[`/admin/content/${collection}/${itemId}`, "アイテムの編集"]] : []),
+    ];
+    const unreachable = [];
+    for (const [path, label] of perCollection) {
+      const page = await admin.get(path);
+      if (page.status !== 200) unreachable.push(`${label}=${page.status}`);
+    }
+    assertions.push(
+      assertion(
+        "positive",
+        "作ったコレクションの配下（フィールド・アイテム）へ到達できる",
+        created && unreachable.length === 0,
+        created
+          ? unreachable.length === 0
+            ? `${perCollection.length} 画面すべて 200`
+            : `開けない: ${unreachable.join(" ")}`
+          : `コレクションを作れず未確認 (HTTP ${collectionCreated.status})`,
+        "全部 200",
+      ),
+    );
+
+    // ── 否定形: 未ログインでは弾かれる ──
+    //    🚨 肯定形（ログインすれば開ける）とセットで見る。
+    //      「全部弾かれる」だけなら、単に画面が壊れていても通ってしまう。
+    const anon = new Session(baseUrl, "anon");
+    const anonShell = await anon.get("/admin/collections");
+    assertions.push(
+      assertion(
+        "negative",
+        "未ログインでは管理画面へ入れない（/login へ飛ぶ）",
+        anonShell.status === 307 || anonShell.status === 302,
+        `HTTP ${anonShell.status} → ${anonShell.headers.get("location") ?? "-"}`,
+        "307 か 302",
+      ),
+    );
+    const anonContent = created ? await anon.get(`/admin/content/${collection}`) : null;
+    assertions.push(
+      assertion(
+        "negative",
+        "未ログインではコレクション配下にも入れない",
+        anonContent ? anonContent.status === 307 || anonContent.status === 302 : false,
+        anonContent ? `HTTP ${anonContent.status}` : "未確認",
+        "307 か 302",
+      ),
+    );
+
+    if (sabotage) {
+      details.push(
+        "⚠ --red 3 が指定されているため、存在しない機能を名簿へ足しています（FAIL になるのが正しい結果です）。",
+      );
+    }
+    details.push(
+      `ナビから ${hrefs.length} 本のリンクを抽出し、全部叩いた（必須 ${roster.length} 機能を含む）`,
+      "🚨 **このチェックが見ているのは「到達できる」までです。** 次の3点は人がブラウザで見てください:",
+      ...MANUAL_RESIDUE.map((line, i) => `   ${i + 1}. ${line}`),
+      "   手順書: acceptance/manual-3.md",
+    );
+  } finally {
+    if (created) {
+      await admin.request(`/api/collections/${collection}`, { method: "DELETE" }).catch(() => {});
+    }
+  }
+
+  const verdict = statusFromAssertions(assertions);
+  return result({
+    id: 3,
+    title: "GUI から全機能へ到達できる（操作の確認は manual-3.md）",
+    status: verdict.status,
+    positive: `ナビ ${hrefs.length} 本 + コレクション配下が 200`,
+    negative: "未ログインは /login へ",
+    details: [...details, ...verdict.details],
+    repro: [`bun run acceptance --only 3 --base-url ${baseUrl}`],
+    assertions,
+    ms: Date.now() - started,
+  });
+}

@@ -33,7 +33,7 @@ import { STATUS, result } from "./lib/result.mjs";
 
 import { check as check01 } from "./checks/01-docker-up.mjs";
 import { check as check02 } from "./checks/02-env-only.mjs";
-import { check3 } from "./checks/03-06-pending.mjs";
+import { check as check03 } from "./checks/03-gui-reach.mjs";
 import { check as check04 } from "./checks/04-cli.mjs";
 import { check5, check6 } from "./checks/05-06-mcp.mjs";
 import { check as check07 } from "./checks/07-i18n.mjs";
@@ -257,7 +257,7 @@ async function main() {
 
   await runCheck(1, check01, "docker compose up だけで起動する");
   await runCheck(2, check02, "環境変数だけで設定が完結する");
-  if (wanted(3)) results.push(check3());
+  await runCheck(3, check03, "GUI から全機能へ到達できる（操作の確認は manual-3.md）");
   await runCheck(4, check04, "CLI で同じことができる");
   await runCheck(5, check5, "MCP 経由で触れ、権限が同じように効く");
   await runCheck(6, check6, "管理者トークンなら MCP から設定も編集できる");
