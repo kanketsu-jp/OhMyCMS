@@ -23,6 +23,7 @@ const navItems = [
   { href: "/admin/notifications", labelKey: "notifications" },
   { href: "/admin/reports", labelKey: "reports" },
   { href: "/admin/settings/general", labelKey: "settings_general" },
+  { href: "/admin/settings/sso", labelKey: "settings_sso" },
   { href: "/admin/settings/roles", labelKey: "settings_roles" },
   { href: "/admin/settings/policies", labelKey: "settings_policies" },
   { href: "/admin/settings/users", labelKey: "settings_users" },
@@ -166,6 +167,7 @@ export default async function AdminLayout({
             : []
         }
         contentHeading={t("content_heading")}
+        userLabel={me.ok && me.data.type === "human" ? me.data.email : null}
       />
     </div>
   );

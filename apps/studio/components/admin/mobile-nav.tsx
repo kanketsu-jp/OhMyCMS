@@ -2,10 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FolderIcon, HomeIcon, ImageIcon, MenuIcon } from "lucide-react";
+import {
+  BellIcon,
+  DatabaseIcon,
+  HomeIcon,
+  ImageIcon,
+  LogOut,
+  MenuIcon,
+} from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { useScrollFade } from "@/components/ui/scroll-fade";
 import {
   Sheet,
@@ -26,6 +34,8 @@ type Props = {
   collections: NavLink[];
   /** ドロワーの中の「コンテンツ」見出し */
   contentHeading: string;
+  /** メニュー最下部に出す、いま入っている人。取れなければ null */
+  userLabel: string | null;
 };
 
 /**
@@ -34,32 +44,36 @@ type Props = {
  * 🚨 これが無いと何が起きるか（実測。2026-08-13 base2）:
  *   /admin を 390px で開くと **見えている管理リンクは 2本 / nav・aside の中は 0本**。
  *   同じページを 1280px で開くと **13本 / 12本**。
- *   つまり SP では**ファイル・フォルダ・設定へ行く手段が画面に無かった**。
  *   🚨 受入ハーネスの基準3 は PC 幅で測るので、**PASS のまま見逃される**類の穴。
  *
- * 形は堀池さんの指示で決まっている（憲章 §7・原文）:
- *   「ナビなどはヘッダーとして上部ではなく、**指が届きやすい下部**にするべきだが、
- *     高さがありすぎると画面を占有するので、ちょうどいいようにする。
- *     その画面ですぐにしたいアクション（編集、保存など）は**右下**に配置して、
- *     それだとナビが少なくなるので、**左端にはサイドメニューを表示するためのアイコン**を設けておく。」
+ * 形は堀池さんの指示（憲章 §7）:
+ *   左端＝メニュー / 中央＝よく行く行き先 / 右端＝そのページの主要アクション。
  *
- * → 左端＝メニュー / 中央＝よく行く3つ / 右端＝そのページの主要アクション。
- *   高さは `--control-h`(44px)。固定バーなので `env(safe-area-inset-bottom)` を足す。
+ * 🚨 **中央は4つ。5つにしない**（design が計算・2026-08-14）。
+ *   固定分（メニュー44 + Divider 9 + 主要アクション44 + 左右 padding16）を引くと、
+ *   320px の端末で残り 207px。**5つだと 41px で 44px を割る**。4つなら 51px。
+ *
+ * 🚨 **ラベルを見せる。** 以前は `sr-only` でアイコンだけだった。
+ *   堀池さんが繰り返す「**使うのは非技術者**」に対して、アイコンだけでは通じない。
  *
  * 🚨 面は作らない（§1）。上辺の罫線1本だけで、背景は本体と同じ。
  */
-export function MobileNav({ items, collections, contentHeading }: Props) {
+export function MobileNav({ items, collections, contentHeading, userLabel }: Props) {
   const t = useT("nav");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const drawerRef = useRef<HTMLDivElement>(null);
-  useScrollFade(drawerRef, "vertical");
+  // 🚨 fade を当てるのは**実際にスクロールする要素**。SheetContent 自身ではない
+  //    （ユーザー行を下へ固定したので、スクロールするのは中の子に変わった）。
+  //    ここを移し忘れると、正しく作っても監査が赤のままになる。
+  const listRef = useRef<HTMLDivElement>(null);
+  useScrollFade(listRef, "vertical");
 
-  // 中央に出すのは「毎日行く3つ」だけ。全部並べると指が届く大きさを保てない
+  // 中央は4つだけ。フォルダはファイルから辿れるので落とす（design ⑨-②）
   const quick = [
     { href: "/admin", label: t("home"), icon: HomeIcon },
+    { href: "/admin/collections", label: t("collections"), icon: DatabaseIcon },
     { href: "/admin/files", label: t("files"), icon: ImageIcon },
-    { href: "/admin/folders", label: t("folders"), icon: FolderIcon },
+    { href: "/admin/notifications", label: t("notifications"), icon: BellIcon },
   ];
 
   const isCurrent = (href: string) =>
@@ -72,7 +86,7 @@ export function MobileNav({ items, collections, contentHeading }: Props) {
       // 本体側の下 padding は layout が持つ（ここで持つと重なりが二重になる）。
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      <div className="flex items-center gap-1 px-2 py-1">
+      <div className="flex items-stretch gap-1 px-2 py-1">
         {/* 左端: サイドメニューを開く */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger
@@ -80,79 +94,108 @@ export function MobileNav({ items, collections, contentHeading }: Props) {
           >
             <MenuIcon />
           </SheetTrigger>
-          <SheetContent
-            side="left"
-            // 🚨 スクロールするのはこの Popup 自身。行き先が増えると縦にあふれる（憲章 §6）
-            ref={drawerRef}
-            data-scroll-fade="vertical"
-            className="w-72 overflow-y-auto"
-          >
+          {/* 🚨 縦の flex にして、**中身だけ**をスクロールさせる。
+              SheetContent 自身をスクロールさせると、下のユーザー行も一緒に流れて消える。 */}
+          <SheetContent side="left" className="flex w-72 flex-col overflow-hidden">
             <SheetHeader>
               <SheetTitle>{t("menu_title")}</SheetTitle>
             </SheetHeader>
-            {/* 面を作らない。行のリストにする（憲章 §1「SP はカードをやめて Divider」） */}
-            <div className="flex flex-col px-2 pb-4">
-              {items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  aria-current={isCurrent(item.href) ? "page" : undefined}
+            <div
+              ref={listRef}
+              data-scroll-fade="vertical"
+              className="min-h-0 flex-1 overflow-y-auto"
+            >
+              {/* 面を作らない。行のリストにする（憲章 §1「SP はカードをやめて Divider」） */}
+              <div className="flex flex-col px-2 pb-4">
+                {items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={isCurrent(item.href) ? "page" : undefined}
+                    className={cn(
+                      "flex h-(--control-h) items-center rounded-md px-3 text-sm",
+                      isCurrent(item.href)
+                        ? "bg-muted font-medium text-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                {collections.length > 0 ? (
+                  <>
+                    <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">
+                      {contentHeading}
+                    </p>
+                    {collections.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className="flex h-(--control-h) items-center truncate rounded-md px-3 text-sm text-muted-foreground"
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </>
+                ) : null}
+              </div>
+            </div>
+            {/* 最下部: いま入っている人とログアウト。**スクロール領域の外**に置く。
+                🚨 入れ子の overlay を作らない（Sheet の中に Dropdown / Dialog を重ねると
+                閉じても DOM に残る。ui が実測で報告済み）。ここは素の行のまま。 */}
+            <div className="shrink-0 border-t px-2 py-2">
+              {userLabel ? (
+                <p className="truncate px-3 pb-1 text-xs text-muted-foreground">{userLabel}</p>
+              ) : null}
+              <form action="/admin/actions/logout" method="post">
+                <button
+                  type="submit"
                   className={cn(
-                    "flex h-(--control-h) items-center rounded-md px-3 text-sm",
-                    isCurrent(item.href)
-                      ? "bg-muted font-medium text-foreground"
-                      : "text-muted-foreground",
+                    buttonVariants({ variant: "ghost" }),
+                    "w-full justify-start px-3",
                   )}
                 >
-                  {item.label}
-                </Link>
-              ))}
-              {collections.length > 0 ? (
-                <>
-                  <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">
-                    {contentHeading}
-                  </p>
-                  {collections.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      className="flex h-(--control-h) items-center truncate rounded-md px-3 text-sm text-muted-foreground"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </>
-              ) : null}
+                  <LogOut />
+                  {t("logout")}
+                </button>
+              </form>
             </div>
           </SheetContent>
         </Sheet>
 
-        {/* 中央: よく行く行き先 */}
-        <div className="flex min-w-0 flex-1 items-center justify-around">
+        {/* 🚨 1本の線は面ではない（囲む罫線＝4辺のときだけ面）。深さは増えない */}
+        <Separator orientation="vertical" className="my-1" />
+
+        {/* 中央: よく行く行き先。**アイコンの下に文字**を出す（アイコンだけでは通じない） */}
+        <div className="flex min-w-0 flex-1 items-stretch gap-0.5">
           {quick.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               aria-current={isCurrent(href) ? "page" : undefined}
               className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "flex-col gap-0.5",
+                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1",
+                // 🚨 当たり判定は**縦も横も** 44px を保つ。
+                // `flex-1` で等分しないと、文字の長さで幅が決まってしまう
+                // （実測で "Files" が 29px しかなかった。design の計算は等分で 51px の前提）。
+                "min-h-(--control-h)",
                 isCurrent(href) ? "text-foreground" : "text-muted-foreground",
               )}
             >
-              <Icon />
-              <span className="sr-only">{label}</span>
+              <Icon className="size-5 shrink-0" />
+              <span className="max-w-full truncate text-[0.625rem] leading-none">{label}</span>
             </Link>
           ))}
         </div>
 
         {/*
           右端: そのページの主要アクション。
-          🚨 中身は**ページごとに違う**ので、ここでは器だけ置いて portal の行き先にする。
-          埋めるのは各ページの仕事（まだ 1 枚も埋めていない。次の工程）。
-          空でも幅を確保しておかないと、埋めた瞬間に中央のナビがずれる。
+          🚨 中身は**ページごとに違う**ので、器だけ置いて portal の行き先にする。
+          埋めるのは各ページの仕事（**まだ 1 枚も埋めていない**）。
+          🚨 空でも幅を確保し続けること。埋めた瞬間に中央のナビがずれる
+          （design ⑨-⑤ の申し送り。上の 44px の計算にもこの枠が入っている）。
         */}
         <div
           id="mobile-primary-action"
