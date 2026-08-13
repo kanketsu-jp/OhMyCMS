@@ -19,6 +19,10 @@ import { PREFIX, TABLE_PREFIX } from "../lib/fixture.mjs";
 import { Session } from "../lib/http.mjs";
 import { assertion, result, statusFromAssertions } from "../lib/result.mjs";
 import { relationAssertions } from "./08-relation-traversal.mjs";
+import { bootstrapAvailable, bootstrapUser, cleanupBootstrap } from "../lib/bootstrap.mjs";
+
+/** 🚨 本番ビルドで DB へ入れる利用者の目印。後片付けでこれを使って消す */
+const BOOTSTRAP_PREFIX = "accbs-";
 
 // 🚨 コレクション名（＝テーブル名）にハイフンは使えない。
 //    実測: {"code":"INVALID_IDENTIFIER","message":"識別子は小文字英字・数字・アンダースコアのみ"}
@@ -34,47 +38,70 @@ export async function check(context) {
   const started = Date.now();
   const { baseUrl } = context;
   const assertions = [];
+  let usedBootstrap = false;
   const details = [];
   const repro = [`(cd ${"."} && bun run acceptance --only 8)`];
   const leftovers = [];
 
-  const admin = new Session(baseUrl, "admin");
-  const userA = new Session(baseUrl, "A");
-  const userB = new Session(baseUrl, "B");
+  // ── セッションを3つ用意する（管理者・A・B）──
+  //   開発ビルド … dev-login
+  //   🚨 本番ビルド … dev-login も利用者作成 API も無いので、**身元だけ DB で用意する**
+  //     （権限の判定ロジックには触れない。詳しくは lib/bootstrap.mjs の冒頭）
+  const devProbe = await new Session(baseUrl, "probe").postJson("/api/auth/dev-login", {});
+  const isProduction = devProbe.status === 404;
 
-  // ── セッションを3つ取る。dev-login が無い（本番ビルド）ならここで判定不能 ──
-  const adminLogin = await admin.postJson("/api/auth/dev-login?admin=true", {
-    email: `${PREFIX}admin@example.com`,
-  });
-  if (adminLogin.status !== 200) {
-    return blocked(
-      8,
-      "他人の行に直打ち → 403/404",
-      adminLogin.status === 404
-        ? "本番ビルドでは測れません（一般ユーザーを2人作る手段が無い）"
-        : `dev-login が使えません (HTTP ${adminLogin.status})`,
-      [
-        "受入基準8 は**ログイン済みセッションが3つ**（管理者・A・B）要ります。",
-        "A と B は**管理者でない別々の利用者**でなければ、「他人の行が見えない」を確かめられません。",
-        "",
-        "🚨 **本番ビルドでは、その2人を機械で作れません**:",
-        "  ・dev-login が無い（next build が NODE_ENV をインライン展開して分岐ごと消すため）",
-        "  ・ユーザーを作る API が無い（管理画面から人が作るしかない）",
-        "つまり**この項目は本番ビルドでは自動判定できません**。PASS にも FAIL にもしません。",
-        "",
-        "→ 開発ビルド（studio-acc / bun run dev）に対して測ってください。そこでは判定できます。",
-        "→ 本番ビルドで確かめたい場合は、管理画面で利用者を2人作ってから人が手で確認してください。",
-      ],
-      [`bun run acceptance --only 8   # 開発ビルド（studio-acc）に対して`],
-      started,
+  let admin, userA, userB, adminId, aId, bId;
+
+  if (isProduction) {
+    const available = await bootstrapAvailable();
+    if (!available.ok) {
+      return blocked(8, "他人の行に直打ち → 403/404", available.reason, available.detail,
+        ["bun run acceptance --only 8   # 開発ビルド（studio-acc）に対して"], started);
+    }
+    // 🚨 前回の残りがあるとメールの一意制約に当たる。作る前に必ず掃除する
+    await cleanupBootstrap(BOOTSTRAP_PREFIX);
+    usedBootstrap = true;
+    const made = [];
+    for (const [label, isAdmin] of [["admin", true], ["a", false], ["b", false]]) {
+      const user = await bootstrapUser(baseUrl, {
+        email: `${BOOTSTRAP_PREFIX}${label}@example.com`,
+        admin: isAdmin,
+      });
+      if (!user.ok) {
+        await cleanupBootstrap(BOOTSTRAP_PREFIX);
+        return blocked(8, "他人の行に直打ち → 403/404", user.reason, user.detail,
+          ["bun run acceptance --only 8"], started);
+      }
+      made.push(user);
+    }
+    [admin, userA, userB] = made.map((m) => m.session);
+    [adminId, aId, bId] = made.map((m) => m.userId);
+    details.push(
+      "本番ビルドなので、利用者3人の**身元だけ** DB で用意した（権限は下で API 経由で付ける）。",
     );
+  } else {
+    admin = new Session(baseUrl, "admin");
+    userA = new Session(baseUrl, "A");
+    userB = new Session(baseUrl, "B");
+    const adminLogin = await admin.postJson("/api/auth/dev-login?admin=true", {
+      email: `${PREFIX}admin@example.com`,
+    });
+    if (adminLogin.status !== 200) {
+      return blocked(8, "他人の行に直打ち → 403/404",
+        `dev-login が使えません (HTTP ${adminLogin.status})`,
+        ["開発ビルドのはずが dev-login が応答しません。対象の状態を確認してください。"],
+        ["bun run acceptance --only 8"], started);
+    }
+    adminId = adminLogin.json?.data?.userId;
+    const aLogin = await userA.postJson("/api/auth/dev-login", {
+      email: `${PREFIX}a@example.com`,
+    });
+    const bLogin = await userB.postJson("/api/auth/dev-login", {
+      email: `${PREFIX}b@example.com`,
+    });
+    aId = aLogin.json?.data?.userId;
+    bId = bLogin.json?.data?.userId;
   }
-
-  const adminId = adminLogin.json?.data?.userId;
-  const aLogin = await userA.postJson("/api/auth/dev-login", { email: `${PREFIX}a@example.com` });
-  const bLogin = await userB.postJson("/api/auth/dev-login", { email: `${PREFIX}b@example.com` });
-  const aId = aLogin.json?.data?.userId;
-  const bId = bLogin.json?.data?.userId;
 
   if (!adminId || !aId || !bId) {
     return blocked(
@@ -332,6 +359,8 @@ export async function check(context) {
   } finally {
     // ── 後片付け（acc- が付いたものを消す） ──
     await cleanup(admin, policyId, leftovers, relationCollections);
+    // 🚨 利用者行は API から消せないので、DB で作った分は DB で消す
+    if (usedBootstrap) await cleanupBootstrap(BOOTSTRAP_PREFIX);
   }
 }
 
