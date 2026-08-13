@@ -328,8 +328,95 @@ function statusCases(): void {
   );
 }
 
+/**
+ * 🚨 **どちらのアドレスの付け方で通るか**を、実際に置いて確かめる。
+ *
+ * S3 互換には2つの流儀があり、**相手によって通る方が違う**:
+ *   仮想ホスト形式  https://<バケット>.<ホスト>/<キー>   … AWS S3 の既定
+ *   パス形式        https://<ホスト>/<バケット>/<キー>   … MinIO はこちら（S3_FORCE_PATH_STYLE=true）
+ *
+ * R2 / GCS でどちらが要るかは**鍵をもらうまで分からない**。推測で .env を書くと、
+ * 仮想ホスト形式で存在しないホスト名を引いて **DNS で落ちる**（原因が分かりにくい）。
+ * このモードは両方で1件ずつ置いてみて、**通った方を名指しで報告する**。
+ *
+ *   bun --filter @ohmycms/studio verify:s3 --probe-path-style
+ */
+async function probePathStyle(): Promise<void> {
+  console.log("\n■ アドレスの付け方（S3_FORCE_PATH_STYLE）の判定");
+  for (const forcePathStyle of [true, false]) {
+    setS3Env();
+    process.env.S3_FORCE_PATH_STYLE = String(forcePathStyle);
+    const storage = getStorage();
+    const key = `verify-path-style/${forcePathStyle ? "path" : "virtual"}.txt`;
+    const payload = Buffer.from("probe", "utf8");
+    try {
+      await storage.put(key, payload, "text/plain");
+      const head = await storage.head(key);
+      const ok = head !== null && head.size === payload.byteLength;
+      console.log(
+        `   ${ok ? "通る  " : "通らない"} S3_FORCE_PATH_STYLE=${String(forcePathStyle).padEnd(5)} ` +
+          `（${forcePathStyle ? "パス形式" : "仮想ホスト形式"}）`,
+      );
+      await storage.delete(key);
+    } catch (error) {
+      // 🚨 例外の中身まで出す。DNS で落ちたのか、署名が合わないのかで対処が変わる。
+      const message = error instanceof Error ? error.message : "不明";
+      console.log(
+        `   通らない S3_FORCE_PATH_STYLE=${String(forcePathStyle).padEnd(5)} ` +
+          `（${forcePathStyle ? "パス形式" : "仮想ホスト形式"}）: ${message}`,
+      );
+    }
+  }
+  console.log("   → 通った方を .env の S3_FORCE_PATH_STYLE に書くこと。");
+}
+
+/**
+ * 大きいファイルの往復。**上限（50MB）の近くで切れないか**を見る。
+ * 相手によっては分割アップロードの扱いが違うので、鍵が来たら実物で1度は通す。
+ *
+ *   bun --filter @ohmycms/studio verify:s3 --large 30
+ */
+async function largeFileCase(megabytes: number): Promise<void> {
+  console.log(`\n■ 大きいファイルの往復（${megabytes}MB）`);
+  setS3Env();
+  const storage = getStorage();
+  const key = "verify-large/blob.bin";
+  // 圧縮で誤魔化されないよう、繰り返しの少ないバイト列にする。
+  const payload = Buffer.alloc(megabytes * 1024 * 1024);
+  for (let i = 0; i < payload.length; i += 1) payload[i] = (i * 31 + (i >> 8)) & 0xff;
+
+  const startedPut = performance.now();
+  await storage.put(key, payload, "application/octet-stream");
+  const putMs = performance.now() - startedPut;
+
+  const head = await storage.head(key);
+  check("大きいファイル: head のサイズが一致", head?.size === payload.byteLength, `${head?.size ?? "null"}B`);
+
+  const startedGet = performance.now();
+  const got = await toBuffer(await storage.get(key));
+  const getMs = performance.now() - startedGet;
+  check(
+    "大きいファイル: 内容が一致（先頭・末尾・長さ）",
+    got.byteLength === payload.byteLength && got.equals(payload),
+    `${got.byteLength}B  put ${putMs.toFixed(0)}ms / get ${getMs.toFixed(0)}ms`,
+  );
+  await storage.deletePrefix?.("verify-large/");
+}
+
 async function main(): Promise<void> {
   console.log(`endpoint=${ENDPOINT} bucket=${BUCKET}`);
+
+  // 🚨 R2 / GCS の鍵が来たときに使うモード。既定の往復とは別に呼ぶ。
+  if (process.argv.includes("--probe-path-style")) {
+    await probePathStyle();
+    return;
+  }
+  const largeIndex = process.argv.indexOf("--large");
+  if (largeIndex !== -1) {
+    await largeFileCase(Number(process.argv[largeIndex + 1] ?? 10) || 10);
+    console.log(failures === 0 ? "\nすべて通りました" : `\n落ちた項目: ${failures}`);
+    process.exit(failures === 0 ? 0 : 1);
+  }
   await roundTrip({});
   await roundTrip({ keyPrefix: "env-a" });
   await roundTrip({ useLegacyR2Names: true });
