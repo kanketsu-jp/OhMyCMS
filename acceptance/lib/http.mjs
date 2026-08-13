@@ -126,3 +126,26 @@ export async function probeStatus(baseUrl, path = "/api/health") {
   const response = await probe.get(path);
   return response.status;
 }
+
+/**
+ * 対象が**開発ビルドか本番ビルドか**を実測で見分ける。
+ *
+ * 🚨 「どのフラグで起動したか」で判断しない。`--base-url` を付けたかどうかは
+ *   対象の性質と何の関係も無く、そこで判断すると**開発ビルドの結果を本番の結果として
+ *   記録してしまう**（2026-08-13 に実際にこの穴があった）。
+ *
+ * 見分け方: `POST /api/auth/dev-login` を**空ボディで**叩く。
+ *   400 INVALID_EMAIL → dev-login が存在する = **開発ビルド**
+ *   404（本文なし）   → 分岐ごと消えている = **本番ビルド**
+ *   （next build は NODE_ENV をインライン展開するので、本番成果物に dev-login は物理的に無い）
+ * 空ボディなので**ユーザーを作らずに**判定できる。
+ *
+ * @returns {Promise<"dev"|"production"|"unreachable">}
+ */
+export async function probeBuildKind(baseUrl) {
+  const probe = new Session(baseUrl, "buildkind");
+  const response = await probe.postJson("/api/auth/dev-login", {});
+  if (response.status === 0) return "unreachable";
+  if (response.status === 404) return "production";
+  return "dev";
+}

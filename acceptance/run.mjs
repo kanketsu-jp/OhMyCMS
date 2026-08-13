@@ -20,7 +20,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { probeStatus, waitForHealth } from "./lib/http.mjs";
+import { probeBuildKind, probeStatus, waitForHealth } from "./lib/http.mjs";
 import { renderJson, renderTable } from "./lib/report.mjs";
 import {
   compose,
@@ -177,9 +177,16 @@ async function main() {
         await waitForHealth(context.baseUrl, { timeoutMs: 240_000 });
       }
     }
-    devBuildTarget = (await probeStatus(context.baseUrl)) === 200;
   }
+
+  // 🚨 **フラグではなく実測で**開発／本番を判定する。
+  //   以前は `--base-url` を付けたときだけ devBuildTarget が false のままになり、
+  //   「開発ビルドでの結果です」の但し書きが**消えていた**。
+  //   どの環境に対する結果かが混ざると、後で判断を誤る（司令塔の指摘・2026-08-13）。
+  const buildKind = await probeBuildKind(context.baseUrl);
+  devBuildTarget = buildKind === "dev";
   context.devBuildTarget = devBuildTarget;
+  context.buildKind = buildKind;
 
   // --docker のとき、他ペインのスタックを壊さないよう先に警告する。
   if (args.docker) {
@@ -248,6 +255,7 @@ async function main() {
     finishedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
     head,
     baseUrl: context.baseUrl,
+    buildKind: context.buildKind,
   };
 
   if (args.json) process.stdout.write(`${renderJson(results, meta)}\n`);
