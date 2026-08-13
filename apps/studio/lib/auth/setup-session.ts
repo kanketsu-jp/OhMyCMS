@@ -58,11 +58,7 @@ export function isValidSetupSession(token: string | null): boolean {
   return timingSafeEqual(actual, expected);
 }
 
-/**
- * 署名方式なので個別の失効はできない。呼び出し側の意図（完了したら印を捨てる）を
- * 残すために関数は置いておくが、実際の防御は「完了したら入口が全部閉じる」側にある。
- * Cookie の削除は呼び出し側が `deleteCookieHeader()` で行う。
- */
-export function revokeSetupSession(_token: string): void {
-  // 何もしない（上のコメントを参照）
-}
+// 🚨 個別の失効関数は置かない。署名方式では**サーバ側で1枚だけ無効にはできない**ので、
+//    `revokeSetupSession()` のような関数を置くと「捨てた」と誤解させる。
+//    実際の防御は「初期設定が済んだら入口が全部閉じる」側にある。
+//    呼び出し側は `deleteCookieHeader()` でブラウザの Cookie を消すだけでよい。

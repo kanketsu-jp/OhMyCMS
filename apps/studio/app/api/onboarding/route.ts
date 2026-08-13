@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/admin/permissions-api";
 import { deleteCookieHeader, parseCookies, sessionCookieHeader, SETUP_COOKIE } from "@/lib/auth/cookies";
 import { requireActor } from "@/lib/auth/context";
 import { issueSession } from "@/lib/auth/sessions";
-import { isValidSetupSession, revokeSetupSession } from "@/lib/auth/setup-session";
+import { isValidSetupSession } from "@/lib/auth/setup-session";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 import { completeOnboardingWithAdmin, isOnboardingCompleted } from "@/lib/settings/service";
@@ -44,7 +44,6 @@ export async function POST(request: Request) {
     });
 
     if (setupAuthorized && setupToken) {
-      revokeSetupSession(setupToken);
       response.headers.append("Set-Cookie", deleteCookieHeader(SETUP_COOKIE));
     }
     response.headers.append(
