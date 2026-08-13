@@ -33,7 +33,9 @@ import { STATUS, result } from "./lib/result.mjs";
 
 import { check as check01 } from "./checks/01-docker-up.mjs";
 import { check as check02 } from "./checks/02-env-only.mjs";
-import { check3, check4, check5, check6 } from "./checks/03-06-pending.mjs";
+import { check3 } from "./checks/03-06-pending.mjs";
+import { check as check04 } from "./checks/04-cli.mjs";
+import { check5, check6 } from "./checks/05-06-mcp.mjs";
 import { check as check07 } from "./checks/07-i18n.mjs";
 import { check as check08 } from "./checks/08-row-permission.mjs";
 import { check as check09 } from "./checks/09-svg-attachment.mjs";
@@ -154,7 +156,7 @@ async function main() {
   // ── 受入基準8・9 のために dev モードの studio を立てる ──
   // 既に応答しているなら何もしない。--base-url が指定されていれば触らない。
   let devBuildTarget = false;
-  if (!args.baseUrl && !args.noUp && (wantsAny(args, [8, 9]))) {
+  if (!args.baseUrl && !args.noUp && wantsAny(args, [4, 8, 9])) {
     const already = await probeStatus(context.baseUrl);
     if (already !== 200) {
       const docker = await dockerAvailable();
@@ -212,9 +214,9 @@ async function main() {
   await runCheck(1, check01, "docker compose up だけで起動する");
   await runCheck(2, check02, "環境変数だけで設定が完結する");
   if (wanted(3)) results.push(check3());
-  if (wanted(4)) results.push(check4());
-  if (wanted(5)) results.push(check5());
-  if (wanted(6)) results.push(check6());
+  await runCheck(4, check04, "CLI で同じことができる");
+  await runCheck(5, check5, "MCP 経由で触れ、権限が同じように効く");
+  await runCheck(6, check6, "管理者トークンなら MCP から設定も編集できる");
   await runCheck(7, check07, "UI が日本語・英語に切り替わる / ハードコード無し");
   await runCheck(8, check08, "他人の行に直打ち → 403/404");
   await runCheck(9, check09, "SVG/HTML が attachment で配信される");

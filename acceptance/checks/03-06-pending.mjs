@@ -1,9 +1,8 @@
 /**
- * 受入基準3（ブラウザ操作）と 4・5・6（CLI / MCP）。
+ * 受入基準3（ブラウザ操作）と 4（CLI）。
  *
- * 🚨 4・5・6 は **PASS にしない**（F9h §2-2）。
- *   packages/cli と packages/mcp が出来ていない以上、通ったことにはできない。
- *   SKIP が1つでもあれば全体は未達。
+ * 🚨 4 は **実装を確かめずに PASS にしない**（F9h §2-2）。
+ * 受入基準5・6（MCP）は 05-06-mcp.mjs に本実装がある。
  *
  * 3 はブラウザ自動操作を入れない方針（F9h §4）なので MANUAL。
  *   手順書は acceptance/manual-3.md。
@@ -15,20 +14,35 @@ import { join } from "node:path";
 import { REPO_ROOT } from "../lib/proc.mjs";
 import { result } from "../lib/result.mjs";
 
-/** 実装の有無を「ファイルがあるか」で判定する。憶測で PASS にしないための唯一の根拠。 */
-function packageState(dir, binHint) {
+/**
+ * 実装の有無を判定する。憶測で PASS にしないための唯一の根拠。
+ *
+ * 🚨 **`dist/` の有無で「実装されているか」を判定しない。**
+ *    dist はビルド成果物で `.gitignore` に入っており、clone 直後や CI では必ず無い。
+ *    dist を根拠にすると「実装済みなのに永久に SKIP」という嘘をつく。
+ *    実装の有無は **committed な package.json** で見て、
+ *    ビルドが要るかどうかは別の情報として持つ（04-cli.mjs は必要ならビルドする）。
+ */
+function packageState(dir) {
   const root = join(REPO_ROOT, dir);
-  if (!existsSync(root)) return { exists: false, note: `${dir} がありません` };
+  if (!existsSync(root)) return { exists: false, built: false, note: `${dir} がありません` };
   if (!existsSync(join(root, "package.json"))) {
-    return { exists: false, note: `${dir}/package.json がありません` };
+    return { exists: false, built: false, note: `${dir}/package.json がありません` };
   }
   const built = existsSync(join(root, "dist"));
   return {
     exists: true,
     built,
-    note: built ? `${dir} はビルド済み` : `${dir} はあるが dist がありません（未ビルド）`,
-    binHint,
+    note: built
+      ? `${dir} は実装済み（ビルド成果物あり）`
+      : `${dir} は実装済み（dist は未ビルド。dist は .gitignore なので通常は無い）`,
   };
+}
+
+/** SKIP の理由文。**exists と built を取り違えない**（以前ここが逆で、dist があっても「未ビルド」と出ていた）。 */
+function skipReason(dir, state) {
+  if (!state.exists) return `${dir} 未実装`;
+  return state.built ? `${dir} は実装済みだがチェック未実装` : `${dir} は実装済み（dist 未ビルド）`;
 }
 
 export function check3() {
@@ -48,49 +62,6 @@ export function check3() {
   });
 }
 
-export function check4() {
-  const state = packageState("packages/cli", "ohmycms");
-  return result({
-    id: 4,
-    title: "CLI で同じことができる",
-    status: "SKIP",
-    reason: state.exists ? "packages/cli は未ビルド" : "packages/cli 未実装",
-    details: [
-      state.note,
-      "トラック B が F4 で作成中です。出来たら、この SKIP を",
-      "「実際に CLI を叩いてコレクション作成・アイテム登録・ユーザー作成・トークン発行を行う」",
-      "チェックに差し替えてください。**未実装のまま PASS にしないこと。**",
-    ],
-  });
-}
+// 受入基準4（CLI）は本物のチェックへ差し替え済み。checks/04-cli.mjs を参照。
 
-export function check5() {
-  const state = packageState("packages/mcp", "ohmycms-mcp");
-  return result({
-    id: 5,
-    title: "MCP 経由で触れ、権限が同じように効く",
-    status: "SKIP",
-    reason: state.exists ? "packages/mcp は未ビルド" : "packages/mcp 未実装",
-    details: [
-      state.note,
-      "トラック B が F5 で作成中です。差し替えるときは、受入基準8 と同じ作法で",
-      "「権限のあるデータは MCP から見える（肯定形）」を先に確認してから",
-      "「権限の無いデータは拒否される（否定形）」を見てください。",
-    ],
-  });
-}
-
-export function check6() {
-  const state = packageState("packages/mcp", "ohmycms-mcp");
-  return result({
-    id: 6,
-    title: "管理者トークンなら MCP から設定も編集できる",
-    status: "SKIP",
-    reason: state.exists ? "packages/mcp は未ビルド" : "packages/mcp 未実装",
-    details: [
-      state.note,
-      "肯定形（管理者トークンでは設定を編集できる）と",
-      "否定形（一般トークンでは編集できない）の対で書くこと。",
-    ],
-  });
-}
+// 受入基準5・6 は acceptance/checks/05-06-mcp.mjs へ移した（雛形を残すと SoT が2つになるため）
