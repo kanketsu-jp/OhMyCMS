@@ -128,33 +128,56 @@ export async function verifyLoginCode(
   const normalized = normalizeEmail(email);
   const now = new Date();
 
-  const row = await db<LoginCodeRow>("ohmycms_login_codes")
-    .where({ email: normalized })
-    .whereNull("consumed_at")
-    .andWhere("expires_at", ">", now)
-    .orderBy("created_at", "desc")
-    .first();
+  // 🚨 **照合の前に「試す権利」を原子的に取る。**
+  //    scrypt の照合は約 106ms かかる。「読む → 照合 → 更新」だと、**その間に別の要求が同じ行を読めます**。
+  //    並行で投げると「**同じコードが2回通る**」「**上限を超えて試せる**」が起きる
+  //    （security の攻撃演習で確定・2026-08-13）。
+  //    ハッシュは scrypt なので **SQL では比較できません**。だから
+  //      ① 先に attempts を1つ進めて行を確保する（上限の判定も同じ1文の中で）
+  //      ② 照合する
+  //      ③ 成功したときだけ consumed_at を立てる（この UPDATE も `consumed_at is null` で守る）
+  //    ①と③がどちらも単一の UPDATE なので、並行しても **成功は最大1本**・**attempts は単調**になる。
+  //    🚨 `skip locked` は使わない。素通りした要求が attempts を増やさないので、
+  //       **並行で投げると「5回で止める」が働かなくなる**（実測: 10本投げて attempts=1）。
+  //       待たせる（`for update`）ことで、1本ずつ確実に数える。
+  const claimed = await db.raw(
+    `update ohmycms_login_codes
+        set attempts = attempts + 1
+      where id = (
+        select id from ohmycms_login_codes
+         where email = ? and consumed_at is null and expires_at > ?
+         order by created_at desc
+         limit 1
+         for update
+      )
+        and attempts < ?
+      returning id, code_hash`,
+    [normalized, now, MAX_ATTEMPTS],
+  );
+  const row = (claimed as { rows: { id: string; code_hash: string }[] }).rows[0];
 
   if (!row) {
-    // 🚨 無いときもダミーの scrypt 照合を1回走らせる（時間を揃える）。
+    // 該当なし / 期限切れ / 上限に達している / 他の要求が握っている。
+    // 🚨 どれも同じ扱い（理由を外へ出さない）。時間を揃えるためダミーの照合を1回走らせる。
     await verifyPassword(code, await getDummyHash());
-    return null;
-  }
-
-  if (row.attempts >= MAX_ATTEMPTS) {
-    await db("ohmycms_login_codes").where({ id: row.id }).update({ consumed_at: now });
     return null;
   }
 
   const matches = await verifyPassword(code, row.code_hash);
   if (!matches) {
-    await db("ohmycms_login_codes")
-      .where({ id: row.id })
-      .update({ attempts: row.attempts + 1 });
+    // attempts は既に進めてある（上の①）。ここでは何も書かない。
     return null;
   }
 
-  await db("ohmycms_login_codes").where({ id: row.id }).update({ consumed_at: now });
+  // 🚨 正解でも「消費できた1本」だけが勝つ。同時に正解を投げても、2本目はここで 0 行になる。
+  const consumed = await db.raw(
+    `update ohmycms_login_codes
+        set consumed_at = ?
+      where id = ? and consumed_at is null
+      returning id`,
+    [now, row.id],
+  );
+  if ((consumed as { rows: { id: string }[] }).rows.length !== 1) return null;
 
   const user = await db("directus_users")
     .select("id")
