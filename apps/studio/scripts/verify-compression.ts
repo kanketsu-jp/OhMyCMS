@@ -166,6 +166,66 @@ async function measureNoGrowth(): Promise<void> {
   );
 }
 
+/**
+ * 正しい PNG の **IDAT（画素データ）だけを壊す**。IHDR は無傷なので寸法は読める。
+ *
+ * 🚨 なぜこの形の素材が要るか（2026-08-14 の実例）:
+ *   受入ハーネスの対照 PNG がまさにこの状態だった（IDAT の CRC 不一致・zlib で展開できない）。
+ *   `metadata()` は IHDR しか見ないので **32x32 と答える**。そのため
+ *   「寸法が入っているのにブラーが null」＝実装の不具合、と誤って切り分けた。
+ *   sharp / ffmpeg / 素の zlib の3つが揃って「壊れている」と言う素材だった。
+ */
+function corruptPixelData(png: Buffer): Buffer {
+  const out = Buffer.from(png);
+  let pos = 8; // PNG シグネチャの後ろから
+  while (pos + 8 <= out.length) {
+    const length = out.readUInt32BE(pos);
+    const type = out.toString("ascii", pos + 4, pos + 8);
+    if (type === "IDAT" && length > 4) {
+      // zlib ヘッダの後ろを潰す（展開できない状態にする）。IHDR には触らない。
+      out.fill(0xff, pos + 10, pos + 8 + length);
+      return out;
+    }
+    pos += 12 + length;
+  }
+  return out;
+}
+
+/**
+ * 🚨 **ヘッダは読めるのに画素が壊れている画像**。ここが今日の取り違えの本体。
+ * 「寸法が読めた ＝ 画像として妥当」ではないことを、検査として固定しておく。
+ */
+async function measureHeaderOnlyImage(): Promise<void> {
+  const valid = await sharp({
+    create: { width: 32, height: 32, channels: 3, background: "#3366cc" },
+  })
+    .png()
+    .toBuffer();
+  const broken = corruptPixelData(valid);
+
+  const meta = await sharp(broken).metadata().catch(() => null);
+  check(
+    "壊れた画素でも寸法だけは読める（＝寸法で妥当性を判断できない）",
+    meta?.width === 32 && meta?.height === 32,
+    `${meta?.width}x${meta?.height} format=${meta?.format}`,
+  );
+
+  let threw = false;
+  let blur: string | null = null;
+  let compressed: unknown = null;
+  try {
+    compressed = await compressImage(broken, meta?.format ?? null);
+    blur = await createBlurDataUrl(broken, meta?.format ?? null);
+  } catch {
+    threw = true;
+  }
+  check(
+    "画素が壊れていたら圧縮もブラーも作らない（例外は投げない）",
+    !threw && compressed === null && blur === null,
+    threw ? "例外を投げた" : "どちらも null",
+  );
+}
+
 /** 🚨 壊れたファイルでも例外を投げない（アップロード自体を落とさない）。 */
 async function measureBrokenInput(): Promise<void> {
   const broken = Buffer.from("これは画像ではありません", "utf8");
@@ -257,6 +317,7 @@ async function main(): Promise<void> {
   await measureSvgSkipped();
   await measureNoGrowth();
   await measureBrokenInput();
+  await measureHeaderOnlyImage();
   await measureBlur();
   console.log(failures === 0 ? "\nすべて通りました" : `\n落ちた項目: ${failures}`);
   process.exit(failures === 0 ? 0 : 1);
