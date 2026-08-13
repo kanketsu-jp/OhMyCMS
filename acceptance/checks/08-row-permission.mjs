@@ -18,6 +18,7 @@
 import { PREFIX, TABLE_PREFIX } from "../lib/fixture.mjs";
 import { Session } from "../lib/http.mjs";
 import { assertion, result, statusFromAssertions } from "../lib/result.mjs";
+import { relationAssertions } from "./08-relation-traversal.mjs";
 
 // 🚨 コレクション名（＝テーブル名）にハイフンは使えない。
 //    実測: {"code":"INVALID_IDENTIFIER","message":"識別子は小文字英字・数字・アンダースコアのみ"}
@@ -85,6 +86,7 @@ export async function check(context) {
   );
 
   let policyId = null;
+  const relationCollections = [];
   try {
     // ── 検証用コレクション ──
     await admin.postJson("/api/collections", {
@@ -285,6 +287,22 @@ export async function check(context) {
         isDenied(aAdminApi.status) || aAdminApi.status === 401, aAdminApi.status, "401/403/404"),
     );
 
+    // ── リレーションを跨いでも権限が効くか（08-relation-traversal.mjs） ──
+    //   ここまでは「他人の**行**」を見てきたが、**リレーション経由の経路**を1つも見ていなかった。
+    //   F2-1 で塞いだ穴が戻っていないかを毎回確かめる。対照実験つき。
+    if (policyId && aId) {
+      const relation = await relationAssertions({
+        admin,
+        user: userA,
+        userId: aId,
+        policyId,
+        prefix: TABLE_PREFIX,
+      });
+      assertions.push(...relation.assertions);
+      details.push(...relation.details);
+      relationCollections.push(...relation.collections);
+    }
+
     const verdict = statusFromAssertions(assertions);
     return result({
       id: 8,
@@ -305,13 +323,17 @@ export async function check(context) {
     });
   } finally {
     // ── 後片付け（acc- が付いたものを消す） ──
-    await cleanup(admin, policyId, leftovers);
+    await cleanup(admin, policyId, leftovers, relationCollections);
   }
 }
 
-async function cleanup(admin, policyId, leftovers) {
+async function cleanup(admin, policyId, leftovers, relationCollections = []) {
   // コレクションを落とせばアイテムも消える。
   await admin.delete(`/api/collections/${COLLECTION}`).catch(() => {});
+  // 🚨 リレーションを張った側から消す（親を先に消すと外部キーで残る）
+  for (const collection of [...relationCollections].reverse()) {
+    await admin.delete(`/api/collections/${collection}`).catch(() => {});
+  }
   if (policyId) await admin.delete(`/api/policies/${policyId}`).catch(() => {});
 }
 
