@@ -55,7 +55,12 @@ export function LocaleSwitcher({ className, variant = "compact" }: Props) {
               group
                 // 指で押すので 44px。面は作らない（選択中の塗りだけで現在地を示す）
                 ? "flex h-(--control-h) flex-1 items-center justify-center rounded-md text-sm"
-                : "rounded px-2 py-1 text-xs",
+                // 🚨 **文字は小さいまま、押せる範囲だけ広げる。**
+                // 文字の分しか高さが無く 24px しかなかった（実測。WCAG 2.5.8 の 24px ぎりぎり）。
+                // ここはログイン画面＝**オンボーディングより前**で、日本語以外の人が
+                // 最初に触る唯一の切替なので、指で外すと先へ進めない。
+                // `text-xs` は変えない（ログイン画面で言語が主役になってしまうため）。
+                : "flex min-h-(--control-h) items-center rounded px-2 py-1 text-xs md:min-h-(--control-h-pc)",
               isActive
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground",
