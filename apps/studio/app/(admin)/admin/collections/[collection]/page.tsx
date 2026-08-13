@@ -1,7 +1,8 @@
 import Link from "next/link";
-import type { CollectionResult, FieldResult } from "@/lib/schema/models";
+import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { RelationForm } from "@/components/admin/relation-form";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,17 +37,66 @@ type Props = {
   searchParams: Promise<{ error?: string; notice?: string }>;
 };
 
+type CollectionRelationRow = {
+  key: string;
+  kind: "m2o" | "o2m";
+  relation: RelationResult;
+  currentField: string;
+  relatedCollection: string;
+  relatedField: string;
+};
+
+function relationRows(relations: RelationResult[], collection: string): CollectionRelationRow[] {
+  return relations.flatMap((relation) => {
+    const rows: CollectionRelationRow[] = [];
+    const meta = relation.meta;
+
+    if (meta?.many_collection === collection) {
+      rows.push({
+        key: `${relation.many_collection}.${relation.many_field}.m2o`,
+        kind: "m2o",
+        relation,
+        currentField: relation.many_field,
+        relatedCollection: meta.one_collection ?? "",
+        relatedField: "-",
+      });
+    }
+
+    if (meta?.one_collection === collection && meta.one_field) {
+      rows.push({
+        key: `${relation.many_collection}.${relation.many_field}.o2m`,
+        kind: "o2m",
+        relation,
+        currentField: meta.one_field,
+        relatedCollection: relation.many_collection,
+        relatedField: relation.many_field,
+      });
+    }
+
+    return rows;
+  });
+}
+
 export default async function CollectionDetailPage({ params, searchParams }: Props) {
   const tCollections = await getT("collections");
   const tFields = await getT("fields");
   const tItems = await getT("items");
+  const tRelations = await getT("relations");
   const { collection } = await params;
   const query = await searchParams;
   const encoded = encodeURIComponent(collection);
-  const [collectionResult, fieldsResult] = await Promise.all([
+  const [collectionResult, fieldsResult, relationsResult, collectionsResult] = await Promise.all([
     apiFetch<CollectionResult>(`/api/collections/${encoded}`),
     apiFetch<FieldResult[]>(`/api/fields/${encoded}`),
+    apiFetch<RelationResult[]>("/api/relations"),
+    apiFetch<CollectionResult[]>("/api/collections"),
   ]);
+  const collectionRelations = relationsResult.ok
+    ? relationRows(relationsResult.data, collection)
+    : [];
+  const collectionNames = collectionsResult.ok
+    ? collectionsResult.data.map((item) => item.collection)
+    : [];
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -65,7 +115,8 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
         message={
           query.error ??
           (!collectionResult.ok ? collectionResult.message : null) ??
-          (!fieldsResult.ok ? fieldsResult.message : null)
+          (!fieldsResult.ok ? fieldsResult.message : null) ??
+          (!relationsResult.ok ? relationsResult.message : null)
         }
       />
       {query.notice ? (
@@ -147,6 +198,60 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               {tItems("manage_link")}
             </Link>
           </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>{tRelations("list_title")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {relationsResult.ok ? (
+            collectionRelations.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{tRelations("kind_header")}</TableHead>
+                    <TableHead>{tRelations("current_field_header")}</TableHead>
+                    <TableHead>{tRelations("related_collection_header")}</TableHead>
+                    <TableHead>{tRelations("related_field_header")}</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {collectionRelations.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell>{tRelations(row.kind === "m2o" ? "kind_m2o" : "kind_o2m")}</TableCell>
+                      <TableCell className="font-medium">{row.currentField}</TableCell>
+                      <TableCell>{row.relatedCollection}</TableCell>
+                      <TableCell>{row.relatedField}</TableCell>
+                      <TableCell className="text-right">
+                        <form
+                          action={`/admin/actions/collections/${encoded}/relations/delete`}
+                          method="post"
+                        >
+                          <input type="hidden" name="many_collection" value={row.relation.many_collection} />
+                          <input type="hidden" name="many_field" value={row.relation.many_field} />
+                          <Button type="submit" variant="destructive" size="sm">
+                            {tRelations("delete_button")}
+                          </Button>
+                        </form>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-sm text-muted-foreground">{tRelations("empty_relations")}</p>
+            )
+          ) : null}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>{tRelations("add_title")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RelationForm collection={collection} collectionNames={collectionNames} />
         </CardContent>
       </Card>
     </div>

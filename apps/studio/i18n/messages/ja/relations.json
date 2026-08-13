@@ -1,1 +1,18 @@
-{}
+{
+  "add_button": "追加",
+  "add_title": "リレーション追加",
+  "current_field_header": "このコレクションのフィールド",
+  "delete_button": "削除",
+  "empty_relations": "表示できるリレーションがありません。",
+  "field_label": "フィールド名",
+  "kind_header": "種類",
+  "kind_label": "種類",
+  "kind_m2o": "多対一",
+  "kind_o2m": "一対多",
+  "list_title": "リレーション一覧",
+  "one_field_label": "このコレクションでの表示名",
+  "related_collection_header": "相手コレクション",
+  "related_collection_label": "相手コレクション",
+  "related_field_header": "相手のフィールド",
+  "related_field_label": "相手のフィールド名"
+}
