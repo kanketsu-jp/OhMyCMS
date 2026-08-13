@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiMessage, redirectWithMessage } from "@/lib/admin/forms";
+import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translator";
 
 export const runtime = "nodejs";
 
@@ -7,7 +9,7 @@ type Context = {
   params: Promise<{ collection: string; id: string }>;
 };
 
-function parseItemPayload(formData: FormData): { data?: Record<string, unknown>; error?: string } {
+function parseItemPayload(formData: FormData, t: Translator): { data?: Record<string, unknown>; error?: string } {
   const payload: Record<string, unknown> = {};
   const fields = formData.getAll("__field").filter((value): value is string => typeof value === "string");
 
@@ -46,7 +48,7 @@ function parseItemPayload(formData: FormData): { data?: Record<string, unknown>;
       try {
         payload[field] = JSON.parse(raw);
       } catch {
-        return { error: `${field} は正しいJSONで入力してください` };
+        return { error: t("error_invalid_json_for_field", { field }) };
       }
       continue;
     }
@@ -59,6 +61,7 @@ function parseItemPayload(formData: FormData): { data?: Record<string, unknown>;
 
 export async function POST(request: Request, ctx: Context) {
   const { collection, id } = await ctx.params;
+  const t = await getT("items");
   const encoded = encodeURIComponent(collection);
   const encodedId = encodeURIComponent(id);
   const formData = await request.formData();
@@ -76,13 +79,13 @@ export async function POST(request: Request, ctx: Context) {
     }
 
     const url = new URL(`/admin/content/${encoded}`, request.url);
-    url.searchParams.set("notice", "アイテムを削除しました");
+    url.searchParams.set("notice", "item_deleted");
     return NextResponse.redirect(url, { status: 303 });
   }
 
-  const parsed = parseItemPayload(formData);
+  const parsed = parseItemPayload(formData, t);
   if (parsed.error || !parsed.data) {
-    return redirectWithMessage(request, backPath, "error", parsed.error ?? "入力が不正です");
+    return redirectWithMessage(request, backPath, "error", parsed.error ?? t("error_invalid_input"));
   }
 
   const response = await fetch(new URL(`/api/items/${encoded}/${encodedId}`, request.url), {
@@ -100,6 +103,6 @@ export async function POST(request: Request, ctx: Context) {
   }
 
   const url = new URL(backPath, request.url);
-  url.searchParams.set("notice", "保存しました");
+  url.searchParams.set("notice", "item_saved");
   return NextResponse.redirect(url, { status: 303 });
 }

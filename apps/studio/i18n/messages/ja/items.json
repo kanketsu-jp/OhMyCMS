@@ -5,6 +5,8 @@
   "delete_button": "削除",
   "edit_button": "編集",
   "edit_item_title": "アイテム編集",
+  "error_invalid_input": "入力が不正です",
+  "error_invalid_json_for_field": "{field} は正しいJSONで入力してください",
   "list_title": "一覧",
   "manage_link": "アイテム管理へ",
   "new_item": "新規アイテム",

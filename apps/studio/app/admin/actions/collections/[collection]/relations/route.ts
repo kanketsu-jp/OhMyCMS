@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { getT } from "@/i18n/server";
 
 export const runtime = "nodejs";
 
@@ -16,22 +17,23 @@ export async function POST(request: Request, ctx: Context) {
   const relatedField = formString(formData, "related_field");
   const oneField = formString(formData, "one_field");
   const path = `/admin/collections/${encodeURIComponent(collection)}`;
+  const t = await getT("relations");
 
   if (kind !== "m2o" && kind !== "o2m") {
-    return redirectWithMessage(request, path, "error", "リレーションの種類が不正です");
+    return redirectWithMessage(request, path, "error", t("error_invalid_kind"));
   }
   if (!relatedCollection) {
-    return redirectWithMessage(request, path, "error", "相手コレクションを入力してください");
+    return redirectWithMessage(request, path, "error", t("error_related_collection_required"));
   }
   if (kind === "m2o" && !field) {
-    return redirectWithMessage(request, path, "error", "フィールド名を入力してください");
+    return redirectWithMessage(request, path, "error", t("error_field_required"));
   }
   if (kind === "o2m" && (!relatedField || !oneField)) {
     return redirectWithMessage(
       request,
       path,
       "error",
-      "相手のフィールド名とこのコレクションでの表示名を入力してください",
+      t("error_o2m_fields_required"),
     );
   }
 
@@ -89,12 +91,12 @@ export async function POST(request: Request, ctx: Context) {
       path,
       "error",
       fieldCreated
-        ? `列は作成されましたがリレーションの作成に失敗しました: ${message}`
+        ? t("error_create_failed_after_field", { message })
         : message,
     );
   }
 
   const url = new URL(path, request.url);
-  url.searchParams.set("notice", "リレーションを追加しました");
+  url.searchParams.set("notice", "relation_created");
   return NextResponse.redirect(url, { status: 303 });
 }

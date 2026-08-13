@@ -47,6 +47,6 @@ export async function POST(request: Request, ctx: Context) {
   }
 
   const url = new URL(path, request.url);
-  url.searchParams.set("notice", "フィールドを追加しました");
+  url.searchParams.set("notice", "field_created");
   return NextResponse.redirect(url, { status: 303 });
 }

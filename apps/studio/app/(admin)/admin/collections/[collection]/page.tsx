@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { FIELD_INTERFACE_IDS } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { RelationForm } from "@/components/admin/relation-form";
+import { noticeKeyFromQuery } from "@/i18n/notice";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,9 +84,11 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
   const tCollections = await getT("collections");
   const tFields = await getT("fields");
   const tItems = await getT("items");
+  const tNotice = await getT("notifications");
   const tRelations = await getT("relations");
   const { collection } = await params;
   const query = await searchParams;
+  const noticeKey = noticeKeyFromQuery(query.notice);
   const encoded = encodeURIComponent(collection);
   const [collectionResult, fieldsResult, relationsResult, collectionsResult] = await Promise.all([
     apiFetch<CollectionResult>(`/api/collections/${encoded}`),
@@ -121,8 +124,8 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           (!relationsResult.ok ? relationsResult.message : null)
         }
       />
-      {query.notice ? (
-        <div className="text-sm text-muted-foreground">{query.notice}</div>
+      {noticeKey ? (
+        <div className="text-sm text-muted-foreground">{tNotice(noticeKey)}</div>
       ) : null}
       <Surface>
         <SurfaceTitle>{tFields("add_title")}</SurfaceTitle>

@@ -28,6 +28,6 @@ export async function POST(request: Request, ctx: Context) {
   }
 
   const url = new URL("/admin/collections", request.url);
-  url.searchParams.set("notice", "コレクションを削除しました");
+  url.searchParams.set("notice", "collection_deleted");
   return NextResponse.redirect(url, { status: 303 });
 }

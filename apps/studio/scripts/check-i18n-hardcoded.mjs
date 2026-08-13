@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * app/** と components/** の .tsx に、辞書を通していない表示文言が残っていないか検出する。
+ * app/** と components/** の .ts/.tsx に、辞書を通していない表示文言が残っていないか検出する。
  * 受入基準6 用。
  *
  * 素の grep より厳しくしている点:
@@ -13,7 +13,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { globSync } from "node:fs";
 
@@ -133,7 +133,15 @@ function looksLikeUiEnglish(text) {
   return true;
 }
 
-const files = globSync("{app,components}/**/*.tsx", { cwd: root }).sort();
+const files = globSync("{app,components}/**/*.{ts,tsx}", { cwd: root })
+  // 🚨 app/api/** は**意図して外している。しかし「画面に出ない」からではない。**
+  // API のエラー文言は実際に画面へ出る（例: folders-manager.tsx の messageFrom が
+  // payload.error.message をそのまま表示する）。**ここは既知の穴**であり、
+  // サーバ側の文言をどう多言語化するか（locale をどこから取るか）が未決なため、
+  // この検査の対象からいったん外している。**決まったら外し、この filter を消すこと。**
+  // ❌ 「JSON だから画面に出ない」と書かないこと（事実ではない）。
+  .filter((file) => !file.startsWith("app/api/"))
+  .sort();
 
 const japaneseHits = [];
 const englishHits = [];
@@ -167,7 +175,7 @@ for (const file of files) {
   }
 }
 
-console.log(`対象ファイル: ${files.length} 本 (app/**, components/** の .tsx)`);
+console.log(`対象ファイル: ${files.length} 本 (app/**, components/** の .ts/.tsx; app/api/** を除く)`);
 console.log(`日本語のハードコード: ${japaneseHits.length} 件`);
 console.log(`英語のハードコード候補: ${englishHits.length} 件`);
 

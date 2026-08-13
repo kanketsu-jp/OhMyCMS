@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
 import { Plus } from "lucide-react";
+import { noticeKeyFromQuery } from "@/i18n/notice";
 import { getT } from "@/i18n/server";
 import { buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
@@ -23,7 +24,9 @@ type Props = {
 
 export default async function CollectionsPage({ searchParams }: Props) {
   const t = await getT("collections");
+  const tNotice = await getT("notifications");
   const params = await searchParams;
+  const noticeKey = noticeKeyFromQuery(params.notice);
   const result = await apiFetch<CollectionResult[]>("/api/collections");
 
   return (
@@ -44,8 +47,8 @@ export default async function CollectionsPage({ searchParams }: Props) {
         />
       </div>
       <ErrorBanner message={params.error ?? (!result.ok ? result.message : null)} />
-      {params.notice ? (
-        <div className="text-sm text-muted-foreground">{params.notice}</div>
+      {noticeKey ? (
+        <div className="text-sm text-muted-foreground">{tNotice(noticeKey)}</div>
       ) : null}
       <Surface>
         <SurfaceTitle>{t("list_title")}</SurfaceTitle>

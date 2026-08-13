@@ -5,6 +5,8 @@
   "delete_button": "Delete",
   "edit_button": "Edit",
   "edit_item_title": "Edit Item",
+  "error_invalid_input": "Invalid input.",
+  "error_invalid_json_for_field": "Enter valid JSON for {field}.",
   "list_title": "List",
   "manage_link": "Manage Items",
   "new_item": "New Item",

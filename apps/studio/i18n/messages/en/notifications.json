@@ -12,5 +12,12 @@
   "error_update_failed": "Could not update the notification.",
   "message_policy_granted": "You were granted the policy \"{policy}\"",
   "message_policy_revoked": "The policy \"{policy}\" was removed from you",
-  "message_bug_report_received": "Your bug report was received"
+  "message_bug_report_received": "Your bug report was received",
+  "item_created": "Item created.",
+  "item_deleted": "Item deleted.",
+  "item_saved": "Saved.",
+  "field_created": "Field added.",
+  "relation_created": "Relation added.",
+  "relation_deleted": "Relation deleted.",
+  "collection_deleted": "Collection deleted."
 }

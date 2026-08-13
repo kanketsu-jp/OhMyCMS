@@ -12,5 +12,12 @@
   "error_update_failed": "通知を更新できませんでした。",
   "message_policy_granted": "ポリシー「{policy}」が付与されました",
   "message_policy_revoked": "ポリシー「{policy}」が外されました",
-  "message_bug_report_received": "不具合の報告を受け付けました"
+  "message_bug_report_received": "不具合の報告を受け付けました",
+  "item_created": "アイテムを作成しました",
+  "item_deleted": "アイテムを削除しました",
+  "item_saved": "保存しました",
+  "field_created": "フィールドを追加しました",
+  "relation_created": "リレーションを追加しました",
+  "relation_deleted": "リレーションを削除しました",
+  "collection_deleted": "コレクションを削除しました"
 }
