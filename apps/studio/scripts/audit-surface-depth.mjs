@@ -58,6 +58,12 @@ const CLICK = arg("click", "");
 //    「深さ=0 / ナビ=0 / 書体=Times」のように**壊れているのに数字だけ出る**とき、
 //    何が起きたのかが分からず止まる（2026-08-14 実測）。数字の裏に画面を貼れるようにする。
 const DUMP = process.argv.includes("--dump");
+// 🚨 --file <パス> … 隠れている <input type="file"> に実際のファイルを載せてから測る。
+//    由来: 2026-08-14。FileDropzone は**選んだあとだけ** `Attachment` を描き、
+//    その Attachment は `rounded-xl border bg-card` = **面**。
+//    監査は一度もファイルを選ばないので、**選んだあとの面の深さを一度も見ていなかった**。
+//    「違反なし」が「選ぶ前について」しか言っていない状態だった。
+const FILE = arg("file", "");
 
 const DEFAULT_PATHS = [
   // 🚨 /admin は /admin/collections へ転送される（2026-08-14・⑰ でホームを廃止）。
@@ -713,6 +719,22 @@ for (const vp of VIEWPORTS) {
       await sleep(800); // 開くアニメーションの待ち
     }
     if (clickFailed) continue;
+
+    // 🚨 --file があれば、隠れている file input に実際のファイルを載せて change を起こす。
+    if (FILE) {
+      const doc = await cdp.send("DOM.getDocument", { depth: -1 });
+      const found = await cdp.send("DOM.querySelector", {
+        nodeId: doc.root.nodeId, selector: 'input[type=file]',
+      });
+      if (!found.nodeId) {
+        log(`     ファイル: input[type=file] が見つかりません`);
+        violations.push({ key, rule: "測定不能", detail: "--file の対象 input[type=file] がありません" });
+        continue;
+      }
+      await cdp.send("DOM.setFileInputFiles", { nodeId: found.nodeId, files: [FILE] });
+      log(`     ファイル: ${FILE.split("/").pop()} を載せました`);
+      await sleep(700);
+    }
     if (DUMP) {
       const d = await cdp.send("Runtime.evaluate", {
         expression: `({ url: location.pathname, title: document.title,
