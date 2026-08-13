@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { LocaleSwitcher } from "@/components/admin/locale-switcher";
+import { OtpLoginForm } from "@/components/admin/otp-login-form";
 import { SetupForm } from "@/components/admin/setup-form";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
 import { cn } from "@/lib/utils";
 import { isDefaultSetupPassword } from "@/lib/auth/setup";
+import { mailConfig } from "@/lib/reports/service";
 import { getSettings } from "@/lib/settings/service";
 import { projectName } from "@/lib/settings/project-name";
 
@@ -16,6 +18,7 @@ export default async function LoginPage() {
   const tOnboarding = await getT("onboarding");
   const settings = await getSettings();
   const brand = await projectName(tCommon("app_name"));
+  const otpEnabled = mailConfig() !== null;
   const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
   const showDefaultPasswordWarning = await isDefaultSetupPassword();
 
@@ -33,6 +36,12 @@ export default async function LoginPage() {
           </p>
         ) : null}
         <SetupForm />
+        {otpEnabled ? (
+          <>
+            <hr className="border-0 border-t border-border" />
+            <OtpLoginForm />
+          </>
+        ) : null}
         {googleEnabled ? (
           <>
             <hr className="border-0 border-t border-border" />
