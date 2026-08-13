@@ -14,7 +14,7 @@
 
 import { useRef, useState } from "react";
 import NextImage from "next/image";
-import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
@@ -174,6 +174,35 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
     },
   });
 
+  /**
+   * ツールバーの押されている状態。
+   *
+   * 🚨 **`editor.isActive()` を描画の中で直接呼んではいけない。**
+   * Tiptap v3 の `useEditor` は既定で transaction ごとに再描画しないので、
+   * 呼んだ値が**最初のまま固まる**（太字にしてもボタンが押された見た目にならない実害が出た）。
+   * `useEditorState` はセレクタの結果が変わったときだけ再描画するので、
+   * 打鍵のたびの再描画（憲章 §5-5）を避けたまま状態を追える。
+   */
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: current }) => ({
+      bold: current?.isActive("bold") ?? false,
+      italic: current?.isActive("italic") ?? false,
+      strike: current?.isActive("strike") ?? false,
+      link: current?.isActive("link") ?? false,
+      h2: current?.isActive("heading", { level: 2 }) ?? false,
+      h3: current?.isActive("heading", { level: 3 }) ?? false,
+      h4: current?.isActive("heading", { level: 4 }) ?? false,
+      bulletList: current?.isActive("bulletList") ?? false,
+      orderedList: current?.isActive("orderedList") ?? false,
+      blockquote: current?.isActive("blockquote") ?? false,
+      code: current?.isActive("code") ?? false,
+      codeBlock: current?.isActive("codeBlock") ?? false,
+      canUndo: current?.can().undo() ?? false,
+      canRedo: current?.can().redo() ?? false,
+    }),
+  });
+
   async function loadFiles() {
     setImageError(null);
     const response = await fetch("/api/files?limit=100", { cache: "no-store" });
@@ -229,20 +258,20 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
         className="sticky top-0 z-10 rounded-t-lg border-b border-border bg-muted/60"
       >
         <div className="flex w-max items-center gap-0.5 px-1">
-          <ToolbarButton label={t("bold")} active={editor?.isActive("bold")} disabled={!editor} onClick={() => editor?.chain().focus().toggleBold().run()}>
+          <ToolbarButton label={t("bold")} active={active?.bold} disabled={!editor} onClick={() => editor?.chain().focus().toggleBold().run()}>
             <Bold />
           </ToolbarButton>
-          <ToolbarButton label={t("italic")} active={editor?.isActive("italic")} disabled={!editor} onClick={() => editor?.chain().focus().toggleItalic().run()}>
+          <ToolbarButton label={t("italic")} active={active?.italic} disabled={!editor} onClick={() => editor?.chain().focus().toggleItalic().run()}>
             <Italic />
           </ToolbarButton>
-          <ToolbarButton label={t("strike")} active={editor?.isActive("strike")} disabled={!editor} onClick={() => editor?.chain().focus().toggleStrike().run()}>
+          <ToolbarButton label={t("strike")} active={active?.strike} disabled={!editor} onClick={() => editor?.chain().focus().toggleStrike().run()}>
             <Strikethrough />
           </ToolbarButton>
-          <ToolbarButton label={t("link")} active={editor?.isActive("link")} disabled={!editor} onClick={() => editor && openLinkDialog(editor)}>
+          <ToolbarButton label={t("link")} active={active?.link} disabled={!editor} onClick={() => editor && openLinkDialog(editor)}>
             <Link2 />
           </ToolbarButton>
-          {editor?.isActive("link") ? (
-            <ToolbarButton label={t("link_remove")} onClick={() => editor.chain().focus().unsetLink().run()}>
+          {active?.link ? (
+            <ToolbarButton label={t("link_remove")} onClick={() => editor?.chain().focus().unsetLink().run()}>
               <Link2Off />
             </ToolbarButton>
           ) : null}
@@ -253,7 +282,7 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
             <ToolbarButton
               key={level}
               label={t(`heading_${level}`)}
-              active={editor?.isActive("heading", { level })}
+              active={active?.[`h${level}` as "h2" | "h3" | "h4"]}
               disabled={!editor}
               onClick={() => editor?.chain().focus().toggleHeading({ level }).run()}
             >
@@ -263,22 +292,22 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
 
           <Separator orientation="vertical" className="mx-1 h-5" />
 
-          <ToolbarButton label={t("unordered_list")} active={editor?.isActive("bulletList")} disabled={!editor} onClick={() => editor?.chain().focus().toggleBulletList().run()}>
+          <ToolbarButton label={t("unordered_list")} active={active?.bulletList} disabled={!editor} onClick={() => editor?.chain().focus().toggleBulletList().run()}>
             <List />
           </ToolbarButton>
-          <ToolbarButton label={t("ordered_list")} active={editor?.isActive("orderedList")} disabled={!editor} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
+          <ToolbarButton label={t("ordered_list")} active={active?.orderedList} disabled={!editor} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
             <ListOrdered />
           </ToolbarButton>
 
           <Separator orientation="vertical" className="mx-1 h-5" />
 
-          <ToolbarButton label={t("quote")} active={editor?.isActive("blockquote")} disabled={!editor} onClick={() => editor?.chain().focus().toggleBlockquote().run()}>
+          <ToolbarButton label={t("quote")} active={active?.blockquote} disabled={!editor} onClick={() => editor?.chain().focus().toggleBlockquote().run()}>
             <Quote />
           </ToolbarButton>
-          <ToolbarButton label={t("code")} active={editor?.isActive("code")} disabled={!editor} onClick={() => editor?.chain().focus().toggleCode().run()}>
+          <ToolbarButton label={t("code")} active={active?.code} disabled={!editor} onClick={() => editor?.chain().focus().toggleCode().run()}>
             <Code />
           </ToolbarButton>
-          <ToolbarButton label={t("code_block")} active={editor?.isActive("codeBlock")} disabled={!editor} onClick={() => editor?.chain().focus().toggleCodeBlock().run()}>
+          <ToolbarButton label={t("code_block")} active={active?.codeBlock} disabled={!editor} onClick={() => editor?.chain().focus().toggleCodeBlock().run()}>
             <SquareCode />
           </ToolbarButton>
           <ToolbarButton label={t("horizontal_rule")} disabled={!editor} onClick={() => editor?.chain().focus().setHorizontalRule().run()}>
@@ -307,10 +336,10 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
 
           <Separator orientation="vertical" className="mx-1 h-5" />
 
-          <ToolbarButton label={t("undo")} disabled={!editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}>
+          <ToolbarButton label={t("undo")} disabled={!active?.canUndo} onClick={() => editor?.chain().focus().undo().run()}>
             <Undo2 />
           </ToolbarButton>
-          <ToolbarButton label={t("redo")} disabled={!editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}>
+          <ToolbarButton label={t("redo")} disabled={!active?.canRedo} onClick={() => editor?.chain().focus().redo().run()}>
             <Redo2 />
           </ToolbarButton>
         </div>
