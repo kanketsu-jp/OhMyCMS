@@ -7,10 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* 🚨 自己参照していた（--font-sans: var(--font-sans)）。
+  /* 🚨 かつて自己参照していた（--font-sans: var(--font-sans)）。
      CSS 変数は自分を参照すると無効になり、値が空になる。結果、**アプリ全体が Times（明朝体）**で
-     描かれていた。next/font が実際に置く変数は --font-geist-sans（layout.tsx の variable 指定）。 */
-  --font-sans: var(--font-geist-sans);
+     描かれていた。変数名は next/font 側の variable 指定と必ず一致させること。 */
+  --font-sans: var(--font-sans-latin), var(--font-sans-jp), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -126,6 +126,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* 🚨 日本語は 1.7 前後が読みやすい（docs/research/ja-en-ui-evidence.md E1）。
+       英文の 1.5 のままだと行が詰まって見える。 */
+    line-height: 1.7;
   }
   html {
     @apply font-sans;
