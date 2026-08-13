@@ -441,6 +441,8 @@ export async function createCollection(
   const meta = pickAllowed(body.meta, COLLECTION_META_COLUMNS, "UNSUPPORTED_COLLECTION_META");
   const fields = parseFields(body.fields);
 
+  assertPlainColumnsFreeInSpecs(fields);
+
   await db.transaction(async (trx) => {
     assertSafeIdentifier(collection);
     if (await tableExists(trx, collection)) {
@@ -455,6 +457,10 @@ export async function createCollection(
         await trx("directus_fields").insert(
           fieldMetaInsert(collection, spec.field, spec.meta, spec.schema),
         );
+        // 🚨 あとからフィールドを足す経路（createField）と**同じ手当てをここでもやる**。
+        // 片方だけだと「まとめて作ると保存はできるのに検索に出ない」コレクションができる
+        // （sdk が実測で見つけた。GUI は通らないが SDK / CLI / MCP は通る経路）。
+        await addPlainColumn(trx, collection, spec.field, spec.meta);
       }
     }
   });
@@ -562,6 +568,29 @@ export async function getField(
 
 function isRichTextMeta(meta: Record<string, unknown> | undefined): boolean {
   return meta?.interface === "richtext";
+}
+
+/**
+ * まとめて作る経路（createCollection の fields）の衝突を、**テーブルを作る前に**見る。
+ *
+ * 表がまだ無いので `columnExists` では判定できない。指定された一覧の中だけで突き合わせる。
+ * 本文 `body` と `body_plain` を同時に指定されると、相方を足すときに重複列で落ちるため。
+ */
+function assertPlainColumnsFreeInSpecs(fields: FieldSpec[] | undefined): void {
+  if (!fields) return;
+  const names = new Set(fields.map((spec) => spec.field));
+
+  for (const spec of fields) {
+    if (!isRichTextMeta(spec.meta)) continue;
+    const plain = plainColumnName(spec.field);
+    if (names.has(plain)) {
+      throw new ApiError(
+        409,
+        "PLAIN_COLUMN_EXISTS",
+        `本文の検索用に ${plain} を使います。同じ名前のフィールドも指定されているので、どちらかの名前を変えてください`,
+      );
+    }
+  }
 }
 
 /**
