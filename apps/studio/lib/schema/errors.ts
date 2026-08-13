@@ -41,6 +41,12 @@ const PG_STATE_TO_API: Record<string, { status: number; code: string; message: s
   "42703": { status: 404, code: "FIELD_NOT_FOUND", message: "フィールドはもう削除されています" },
   // 23505 unique_violation — メタ行（directus_fields 等）の主キー衝突。列の追加と同時に起きる
   "23505": { status: 409, code: "ALREADY_EXISTS", message: "もう作られています" },
+  // 23502 not_null_violation — 必須の列に値が無い。
+  // 🚨 これは利用者の入力の問題なので **400**。500 にすると「アプリが壊れた」に見える。
+  // 実例: 主キーが integer で自動採番でないコレクションに、id を省いて作ろうとしたとき。
+  "23502": { status: 400, code: "REQUIRED_FIELD", message: "必須の項目が空です" },
+  // 22P02 invalid_text_representation — 型に合わない値（uuid の列に "abc" 等）
+  "22P02": { status: 400, code: "INVALID_VALUE", message: "値の形式が正しくありません" },
 };
 
 /**

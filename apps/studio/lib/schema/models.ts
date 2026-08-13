@@ -95,6 +95,12 @@ export type RelationResult = {
 export type FieldSchemaSpec = {
   is_nullable?: boolean;
   is_primary_key?: boolean;
+  /**
+   * 整数の主キーを自動採番にする。
+   * 🚨 以前はこの項目自体が存在せず、API から渡しても**黙って捨てられて**いた。
+   * 結果、id に既定値の無い列ができ、id を省いた作成が 500 になっていた。
+   */
+  has_auto_increment?: boolean;
   default?: unknown;
   column_default?: unknown;
   max_length?: number;
