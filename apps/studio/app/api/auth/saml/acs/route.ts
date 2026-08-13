@@ -12,19 +12,13 @@
 
 import { isSecureRequest, sessionCookieHeader } from "@/lib/auth/cookies";
 import { getSamlConfig } from "@/lib/auth/saml/config";
-import { acsUrl, metadataUrl } from "@/lib/auth/saml/urls";
+import { acsUrl, metadataUrl, safeRelativePath } from "@/lib/auth/saml/urls";
 import { upsertSamlUser, verifySamlResponse } from "@/lib/auth/saml/verify";
 import { issueSession } from "@/lib/auth/sessions";
 import { errorResponse } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 
 export const runtime = "nodejs";
-
-/** ログイン後に戻る先。🚨 IdP 経由で来る値なので、**パスだけ**を許す（オープンリダイレクト防止）。 */
-function safeRelayState(raw: FormDataEntryValue | null): string {
-  const value = typeof raw === "string" ? raw : "";
-  return /^\/(?!\/)[^\s]*$/.test(value) ? value : "/admin";
-}
 
 /**
  * 🚨 `request.formData()` は**本文が無い / Content-Type が違う**だけで例外を投げる。
@@ -64,7 +58,8 @@ export async function POST(request: Request) {
     const response = new Response(null, {
       status: 302,
       headers: {
-        location: safeRelayState(form.get("RelayState")),
+        // 🚨 IdP 経由で戻ってくる値なので、このサイトの中に限る（`safeRelativePath` に理由）。
+        location: safeRelativePath(form.get("RelayState")),
         "cache-control": "no-store",
       },
     });

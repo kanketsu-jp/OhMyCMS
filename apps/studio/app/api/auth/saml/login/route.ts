@@ -8,7 +8,7 @@
 
 import { getSamlConfig, isSamlUsable } from "@/lib/auth/saml/config";
 import { createSamlClient } from "@/lib/auth/saml/client";
-import { acsUrl, metadataUrl } from "@/lib/auth/saml/urls";
+import { acsUrl, metadataUrl, safeRelativePath } from "@/lib/auth/saml/urls";
 import { errorResponse } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 
@@ -26,10 +26,9 @@ export async function GET(request: Request) {
       acsUrl: acsUrl(request),
     });
 
-    // RelayState = ログイン後に戻る先。
-    // 🚨 **外部サイトへ飛ばせないように、パスだけを受け取る**（オープンリダイレクト防止）。
-    const requested = new URL(request.url).searchParams.get("redirect") ?? "";
-    const relayState = /^\/(?!\/)[^\s]*$/.test(requested) ? requested : "/admin";
+    // RelayState = ログイン後に戻る先。IdP を往復して ACS へ戻ってくる。
+    // 🚨 **外部サイトへ飛ばせないように、このサイトの中に限る**（`safeRelativePath` に理由）。
+    const relayState = safeRelativePath(new URL(request.url).searchParams.get("redirect"));
 
     const location = await client.getAuthorizeUrlAsync(relayState, undefined, {});
 
