@@ -90,11 +90,11 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
             <input type="checkbox" name="app_access" value="true" defaultChecked className="size-4" />
             {t("app_access_label")}
           </label>
-          <label className="flex items-start gap-2 text-sm">
+          <label className="flex min-h-(--control-h) items-start gap-2 text-sm md:min-h-(--control-h-pc)">
             <input type="checkbox" name="admin_access" value="true" className="mt-0.5 size-4" />
             <span>
               {t("admin_access_label")}
