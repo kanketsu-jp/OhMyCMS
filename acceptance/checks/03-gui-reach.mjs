@@ -120,7 +120,21 @@ export async function check(context) {
   }
 
   // ── 肯定形1: ナビに必須機能が揃っていて、全部 200 で開ける ──
-  const shell = preflight.status === 200 ? preflight : await admin.get("/admin");
+  // 🚨 **`/admin` が 200 とは限らない。**
+  //   実測（2026-08-14）: ログイン済みだと `/admin` → **307 `/admin/collections`**。
+  //   トップに置く画面が決まったための設計変更で、**退行ではない**。
+  //   だが「200 でなければ FAIL」と書いていたので、**製品でなく検査が落ちた**。
+  //   → **管理画面の中へ飛ぶ 307 は追う。** `/login` や `/onboarding` へ飛ぶのは別の話
+  //     （前者は未ログイン、後者は初期設定前。どちらも上で別に判定している）。
+  const followAdminRedirect = async (response) => {
+    if (response.status !== 307 && response.status !== 308) return response;
+    const location = response.headers.get("location") ?? "";
+    if (!location.startsWith("/admin")) return response;
+    return admin.get(location);
+  };
+  const shell = await followAdminRedirect(
+    preflight.status === 200 ? preflight : await admin.get("/admin"),
+  );
   // 🚨 **素の `href="..."` だけを見ない。**
   //   設定系（ロール / ポリシー / ユーザー / エージェントトークン）は**クライアント描画**に
   //   変わり、サーバ HTML には RSC のペイロード内に
@@ -155,7 +169,8 @@ export async function check(context) {
   const broken = [];
   const empty = [];
   for (const href of hrefs) {
-    const page = await admin.get(href);
+    // 管理画面の中へ飛ぶ 307 は「到達できる」として扱う（上と同じ理由）
+    const page = await followAdminRedirect(await admin.get(href));
     if (page.status !== 200) {
       broken.push(`${href}=${page.status}`);
       continue;
