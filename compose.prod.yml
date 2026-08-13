@@ -1,0 +1,28 @@
+# 本番（VPS / Dokploy）へ出すときに重ねる上書き。
+#
+#   docker compose -f compose.yml -f compose.prod.yml up -d
+#
+# 🚨 目的は1つだけ: **既定値のまま本番へ出せないようにする**。
+#
+# 由来（2026-08-13 の実事故）:
+#   compose.yml は開発の受入基準を満たすため OHMYCMS_SETUP_PASSWORD に既定値 pass132 を持たせている
+#   （「.env.example をコピーして何も足さずに入れる」が MVP ④ の受入基準のため）。
+#   その状態のイメージを公開中の URL へ焼き込んだ結果、**外から pass132 だけで管理者になれた**。
+#   pass132 はリポジトリと .env.example に平文で書かれている公開値なので、秘密ではない。
+#
+# ここでは `:?` を使い、**未設定なら compose が起動を拒否する**。警告では防げない
+#   （「警告は気づけるだけで防げない」— auth(w4A:p9)）ので、起動そのものを止める。
+#
+# 🚨 これだけでは足りない。**この上書きを使わない人には効かない**ので、
+#   アプリ側でも「既定値のままなら setup 入口を拒否する」を入れてもらっている（auth の担当）。
+#   仕組みは二重にする。
+name: ohmycms
+
+services:
+  studio:
+    environment:
+      # 未設定なら起動しない。エラーメッセージに値は出ない（変数名だけ）。
+      OHMYCMS_SETUP_PASSWORD: ${OHMYCMS_SETUP_PASSWORD:?本番では OHMYCMS_SETUP_PASSWORD を必ず設定してください（既定値 pass132 のまま公開しない）}
+      # 開発用バックドアが本番で有効にならないことを、compose の側からも固定する。
+      # （本番ビルドでは dev-login がコードごと消えるが、二重にしておく）
+      ALLOW_DEV_LOGIN: ""
