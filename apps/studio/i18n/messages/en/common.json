@@ -1,6 +1,6 @@
 {
-  "app_description": "AI-native CMS",
-  "app_name": "AI-native CMS",
+  "app_description": "A self-hosted CMS where collections are added from the admin UI",
+  "app_name": "OhMyCMS",
   "close": "Close",
   "locale_en": "English",
   "locale_ja": "日本語"

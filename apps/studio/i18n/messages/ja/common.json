@@ -1,6 +1,6 @@
 {
-  "app_description": "AI-native CMS",
-  "app_name": "AI-native CMS",
+  "app_description": "コレクションを管理画面から増やせる自作の CMS",
+  "app_name": "OhMyCMS",
   "close": "閉じる",
   "locale_en": "English",
   "locale_ja": "日本語"
