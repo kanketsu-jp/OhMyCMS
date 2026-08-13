@@ -238,7 +238,14 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
   }
 
   return (
-    <div className="rounded-lg bg-muted/60 focus-within:ring-3 focus-within:ring-ring/50">
+    // 🚨 これは面ではなく、**入力欄の見た目**（憲章 §1「面の中の入力は罫線を外して塗る」）。
+    // 塗りは、この場所にあった JSON の <textarea> と同じ `bg-muted/60` に揃えてある。
+    // <div> なので監査の FORM 判定（input/select/textarea）に当たらず面2段目として出るため、
+    // 例外を**コードに書いて見えるようにする**（検査側に例外リストを隠さない）。
+    <div
+      data-surface-exempt
+      className="rounded-lg bg-muted/60 focus-within:ring-3 focus-within:ring-ring/50"
+    >
       <input
         ref={hiddenRef}
         id={inputId}
@@ -249,11 +256,17 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
       />
 
       {/*
-        🚨 ツールバーは面にしない（区切りは border-b 1本だけ）。
+        🚨 ツールバーは面にしない（区切りは border-b 1本だけ。囲まない）。
         SP では「…」に畳まず横スクロールさせる（押す前に中身が分かるように）。
-        sticky にしてあるのは、モバイルでキーボードが出ても隠れないようにするため。
+        sticky にしてあるのは、長い本文を書いている間もツールバーが見えているようにするため。
+
+        🚨 塗りは**入力欄と同じ色**で、面ではなく「入力部品の一部」。
+        sticky で本文が下を通るので、透明にすると文字が透けて読めなくなる。
+        監査は「面と判定された祖先」の背景としか比べないので、外側の箱を例外にすると
+        ここが Surface の色と比較されて面2段目に見える。**入れ物ではない**ので例外を明示する。
       */}
       <ScrollFade
+        data-surface-exempt
         direction="horizontal"
         className="sticky top-0 z-10 rounded-t-lg border-b border-border bg-muted/60"
       >
