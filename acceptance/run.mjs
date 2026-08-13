@@ -40,6 +40,13 @@ import { check as check07 } from "./checks/07-i18n.mjs";
 import { check as check08 } from "./checks/08-row-permission.mjs";
 import { check as check09 } from "./checks/09-svg-attachment.mjs";
 
+// ── V1 の受入基準（実装より先に書いてある）──
+// 🚨 v0.9 の記録と**混ぜない**。`--v1` を付けたときだけ走り、そのときは V1 だけを走らせる。
+//    （開発ビルドと本番ビルドを別記録にしたのと同じ考え方・司令塔の指示）
+import { check as checkV1A } from "./checks/v1-a-saml.mjs";
+import { check as checkV1B } from "./checks/v1-b-storage.mjs";
+import { checkTiptap as checkV1C, checkOtp as checkV1D } from "./checks/v1-cd-editor-otp.mjs";
+
 /**
  * ポート割り当ては knowledge/decisions/port-allocation.md。
  * 🚨 DEV_PORT(studio-acc) と**必ず別**にする。規約表の「受入ハーネス 3103」は studio-acc を指すので、
@@ -83,11 +90,13 @@ function parseArgs(argv) {
     noUp: false,
     down: false,
     red: null,
+    v1: false,
     help: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--docker") args.docker = true;
+    else if (arg === "--v1") args.v1 = true;
     else if (arg === "--json") args.json = true;
     else if (arg === "--no-up") args.noUp = true;
     else if (arg === "--down") args.down = true;
@@ -106,6 +115,7 @@ const HELP = `OhMyCMS v0.9 受入ハーネス
   bun run acceptance --json  機械可読な出力（CI 用）
                                    CI からは node acceptance/run.mjs --json でもよい
   bun run acceptance --only 7,8       指定した項目だけ
+  bun run acceptance --v1             V1 の受入基準だけ（v0.9 の記録と混ぜない）
   bun run acceptance --base-url URL   既に起動しているサーバーへ向ける
   bun run acceptance --no-up          studio-acc を自動起動しない
   bun run acceptance --down           studio-acc を止めて終了する
@@ -258,6 +268,13 @@ async function main() {
     }
   };
 
+  if (args.v1) {
+    // V1 の基準だけを走らせる（v0.9 の記録と混ぜない）
+    await runCheck(10, checkV1B, "V1-B ストレージ（S3 互換）");
+    await runCheck(11, checkV1C, "V1-C Tiptap の WYSIWYG");
+    await runCheck(12, checkV1D, "V1-D メール OTP");
+    await runCheck(13, checkV1A, "V1-A SAML（SSO）");
+  } else {
   await runCheck(1, check01, "docker compose up だけで起動する");
   await runCheck(2, check02, "環境変数だけで設定が完結する");
   await runCheck(3, check03, "GUI から全機能へ到達できる（操作の確認は manual-3.md）");
@@ -267,6 +284,7 @@ async function main() {
   await runCheck(7, check07, "UI が日本語・英語に切り替わる / ハードコード無し");
   await runCheck(8, check08, "他人の行に直打ち → 403/404");
   await runCheck(9, check09, "SVG/HTML が attachment で配信される");
+  }
 
   results.sort((a, b) => a.id - b.id);
 
