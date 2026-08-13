@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
 import { GlobalSearch } from "@/components/admin/global-search";
 import { MobileNav } from "@/components/admin/mobile-nav";
+import { UserMenu } from "@/components/admin/user-menu";
 import { NavLinks } from "@/components/admin/nav-links";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { getT } from "@/i18n/server";
@@ -124,6 +125,9 @@ export default async function AdminLayout({
           </div>
           </ScrollFade>
         </nav>
+        {/* 🚨 PC にも置く。ここが無いと**PC からログアウトも言語切替もできない**
+            （ヘッダから降ろしたとき SP のドロワーにしか置かず、実測で 0 個になっていた）。 */}
+        <UserMenu userLabel={me.ok && me.data.type === "human" ? me.data.email : null} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-14 items-center justify-between border-b px-4 md:px-6">
