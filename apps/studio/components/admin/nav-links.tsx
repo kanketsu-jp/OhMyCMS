@@ -73,7 +73,12 @@ export function NavLinks({ items, settings, settingsLabel, onNavigate }: Props) 
         <AccordionItem value="settings" className="border-0">
           <AccordionTrigger
             className={cn(
-              "h-(--control-h) rounded-md px-3 py-0 text-sm hover:no-underline md:h-(--control-h-pc)",
+              // 🚨 `items-center` が要る。AccordionTrigger の既定は `items-start` なので、
+              // 高さを 44px に揃えても**文字だけ上に張り付いて**、他の行と違って見える
+              // （オーナー指摘「設定の高さが違う」の正体。高さは揃っていて、縦の位置がずれていた）。
+              // 🚨 accordion.tsx 側は直さない。**本文用のアコーディオンでは items-start が正しい**
+              // （複数行の見出しが来たとき、アイコンが上に揃う方が読みやすい）。
+              "flex h-(--control-h) items-center rounded-md px-3 py-0 text-sm hover:no-underline md:h-(--control-h-pc)",
               inSettings ? "font-medium text-foreground" : "text-muted-foreground",
             )}
           >
