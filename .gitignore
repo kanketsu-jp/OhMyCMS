@@ -45,3 +45,17 @@ yarn-error.log*
 
 # ビルド成果物（packages）
 packages/*/dist/
+.claude/settings.local.json
+
+# 攻撃演習用の OpenCode 閉じ込め設定（堀池PC専用・グローバル config とマージ前提）
+opencode.json
+
+# Tailwind v4 のドキュメント snapshot（skill が同期して作る）
+# 🚨 tailwindcss.com のドキュメントは source-available で、オープンソースではない。
+#    ローカルで読むのは可だが、**このリポジトリで再配布しない**。だからコミットしない。
+#    作り直し: python3 .claude/skills/tailwind-4-docs/scripts/sync_tailwind_docs.py --accept-docs-license
+.claude/skills/tailwind-4-docs/references/docs/
+.claude/skills/tailwind-4-docs/references/docs-index.tsx
+
+# 内部セキュリティ資料（脅威モデル・堀池PC専用）
+apps/studio/.threat-model.html

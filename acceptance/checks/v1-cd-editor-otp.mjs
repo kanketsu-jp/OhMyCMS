@@ -227,7 +227,56 @@ export async function checkTiptap(context) {
       );
     }
 
+    // ── 🚨 もう一方の経路（まとめて作る）でも相方の列ができるか ──
+    //   実測で「保存はできるのに検索に出ない」コレクションが作れることを見つけ、
+    //   tiptap が d26ba14 で塞いだ。**GUI 経路だけを測ると、この退行を今後も見逃す。**
+    //   このプロジェクトは CLI/MCP を REST より前に置いている（cli-mcp-over-rest）ので、
+    //   **API を直接叩く経路こそ本命**。両方測る。
+    const bulk = `${collection}_bulk`;
+    const bulkWord = `accv1cb${Date.now().toString(36)}`;
+    const bulkCreated = await admin.postJson("/api/collections", {
+      collection: bulk,
+      fields: [
+        { field: "id", type: "uuid", meta: { hidden: true }, schema: { is_primary_key: true } },
+        { field: "body", type: "json", meta: { interface: "richtext" } },
+      ],
+    });
+    try {
+      await admin.postJson(`/api/items/${bulk}`, {
+        body: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: bulkWord }] }] },
+      });
+      const bulkHit = countItems(await admin.get(`/api/search?q=${bulkWord}`));
+      assertions.push(
+        assertion("positive", "まとめて作った本文も検索でヒットする（経路が2つあっても同じ）",
+          bulkHit >= 1, `${bulkHit} 件`, "1 件以上"),
+      );
+
+      // 🔴 本文と相方を同時に指定したら断る（作りかけの表を残さない）
+      const clash = `${collection}_clash`;
+      const clashed = await admin.postJson("/api/collections", {
+        collection: clash,
+        fields: [
+          { field: "id", type: "uuid", meta: { hidden: true }, schema: { is_primary_key: true } },
+          { field: "body", type: "json", meta: { interface: "richtext" } },
+          { field: "body_plain", type: "text" },
+        ],
+      });
+      const leftover = await admin.get(`/api/collections/${clash}`);
+      assertions.push(
+        assertion("negative", "本文と相方の列を同時に指定したら断る（表も残さない）",
+          clashed.status === 409 && leftover.status === 404,
+          `作成 HTTP ${clashed.status} / あとで見ると HTTP ${leftover.status}`,
+          "409 かつ 404"),
+      );
+      await admin.request(`/api/collections/${clash}`, { method: "DELETE" }).catch(() => {});
+    } finally {
+      if (bulkCreated.status < 400) {
+        await admin.request(`/api/collections/${bulk}`, { method: "DELETE" }).catch(() => {});
+      }
+    }
+
     details.push(
+      "本文のフィールドは**両方の経路**で測っている（あとから足す / まとめて作る）。",
       "🚨 **描画時のサニタイズはここでは測れていません**（unverified）。",
       "  保存した JSON を HTML にする経路がまだ無いためです。",
       "  司令塔の整理では**サーバがサニタイズの責任を持つ**方が安全（SDK を使わない経路もあるため）。",
