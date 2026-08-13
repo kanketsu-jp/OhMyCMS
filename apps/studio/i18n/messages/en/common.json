@@ -3,5 +3,10 @@
   "app_name": "OhMyCMS",
   "close": "Close",
   "locale_en": "English",
-  "locale_ja": "日本語"
+  "locale_ja": "日本語",
+  "pagination_label": "Pagination",
+  "pagination_more": "More pages",
+  "pagination_next": "Next",
+  "pagination_page": "Page {page}",
+  "pagination_previous": "Previous"
 }

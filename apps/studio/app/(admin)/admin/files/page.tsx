@@ -3,12 +3,19 @@ import Image from "next/image";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileUploadForm } from "@/components/admin/files-manager";
+import { ListPagination } from "@/components/admin/list-pagination";
+import {
+  GRID_PAGE_SIZE,
+  currentPage,
+  pageHref,
+  splitPage,
+} from "@/components/admin/pagination-href";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type Props = {
-  searchParams: Promise<{ folder?: string }>;
+  searchParams: Promise<{ folder?: string; page?: string }>;
 };
 
 type FileRow = {
@@ -34,12 +41,26 @@ function extension(file: FileRow, fallback: string): string {
 export default async function FilesPage({ searchParams }: Props) {
   const t = await getT("files");
   const query = await searchParams;
-  const folderQuery = query.folder ? `?folder=${encodeURIComponent(query.folder)}` : "";
+  const page = currentPage(query.page);
+
+  // 🚨 全件は取らない（憲章 §4）。1件だけ多く取って「次があるか」を判定し、描くときに切り落とす。
+  // COUNT(*) は撃たない。総件数はこの画面では使わない。
+  const params = new URLSearchParams({
+    limit: String(GRID_PAGE_SIZE + 1),
+    offset: String((page - 1) * GRID_PAGE_SIZE),
+  });
+  if (query.folder) {
+    params.set("folder", query.folder);
+  }
   const [filesResult, foldersResult] = await Promise.all([
-    apiFetch<{ data: FileRow[] }>(`/api/files${folderQuery}`),
+    apiFetch<{ data: FileRow[] }>(`/api/files?${params.toString()}`),
     apiFetch<{ data: FolderRow[] }>("/api/folders"),
   ]);
   const folders = foldersResult.ok ? foldersResult.data.data : [];
+  const { rows: files, hasNext } = splitPage(
+    filesResult.ok ? filesResult.data.data : [],
+    GRID_PAGE_SIZE,
+  );
 
   return (
     <div className="max-w-7xl space-y-6">
@@ -75,7 +96,7 @@ export default async function FilesPage({ searchParams }: Props) {
         </form>
         {filesResult.ok ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {filesResult.data.data.map((file) => (
+            {files.map((file) => (
               <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md p-3 hover:bg-muted">
                 <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
                   {file.type?.startsWith("image/") ? (
@@ -98,10 +119,18 @@ export default async function FilesPage({ searchParams }: Props) {
                 <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
               </Link>
             ))}
-            {filesResult.data.data.length === 0 ? (
+            {files.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("empty_files")}</p>
             ) : null}
           </div>
+        ) : null}
+        {filesResult.ok ? (
+          <ListPagination
+            page={page}
+            hasNext={hasNext}
+            prevHref={page > 1 ? pageHref("/admin/files", query, page - 1) : null}
+            nextHref={hasNext ? pageHref("/admin/files", query, page + 1) : null}
+          />
         ) : null}
       </Surface>
     </div>
