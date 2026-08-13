@@ -63,9 +63,11 @@ const DEFAULT_PATHS = [
   // 🚨 /admin は /admin/collections へ転送される（2026-08-14・⑰ でホームを廃止）。
   //    転送されると「測定不能」になるので、着地先を直接指定する。
   "/admin/collections",
-  "/admin/collections",
   "/admin/files",
-  "/admin/folders",
+  // 🚨 /admin/folders は 2026-08-14 に /admin/files へ統合され、恒久転送になった
+  //    （堀池さん「この二つはどう違うのかわからない」）。**測る対象ではない**ので外す。
+  //    転送が生きているかは受入側で curl の実測を貼ること。
+  "/admin/files/new",
   "/admin/notifications",
   "/admin/settings/general",
   "/admin/settings/policies",
@@ -189,7 +191,16 @@ const PROBE = String.raw`(() => {
     // ② 操作部品 … 部品なので罫線も塗りも持ってよい。
     //    ただし**中身を抱えていたら「押せるカード」＝入れ物**なので面として扱う
     //    （files/page.tsx の <Link> で画像とテキストを抱えている形がこれ）。
-    if (el.matches(ACTION) && el.children.length <= 2) return null;
+    //
+    // 🚨 **塗りだけなら、子の数によらず面ではない。**
+    //    憲章 §1 が「選択中の薄い塗り・hover の塗りは面ではない」と決めているため。
+    //    2026-08-14 実測: ユーザー行の引き金（アバター + 文字 + 矢印 = 子3つ）が
+    //    開いている間の塗りで面レベル2として出た。**手本どおりの正しい実装**であり、
+    //    塗りだけの箱が「入れ物」に見えることはない。罫線・影のときだけ子の数で見る。
+    if (el.matches(ACTION)) {
+      if (kinds.length === 1 && kinds[0] === "bg") return null;
+      if (el.children.length <= 2) return null;
+    }
 
     // ③ 標識 … 文字を飾るだけの小さな箱。要素を1つも抱えず、行の高さに収まるものに限る。
     //    大きさで縛るので「badge のふりをした入れ物」は通らない。
@@ -301,6 +312,14 @@ const PROBE = String.raw`(() => {
   //    **親の dialog-header が sr-only（clip-path: inset(50%)）**だった。
   //    → 祖先まで遡る。本当に潰れた箱は clip を持たないので、これで区別できる。
   const srOnly = (el) => {
+    // 🚨 **1辺 4px 以下の箱は「隠してある」であって「小さすぎる操作部品」ではない。**
+    //    指では絶対に押せないので、押す対象として作られていない。
+    //    2026-08-14 実測: FileDropzone の隠し <input type="file" class="sr-only"> が
+    //    「1px しかない」と報告された。**隠すのが正解の実装**（見えている箱で受ける）。
+    //    clip / clip-path を見るだけでは、隠し方の流儀が変わるたびに漏れる（技法に依存しない形にする）。
+    //    🚨 潰れた部品を見逃す心配は要らない。**潰れは別の検査（幅が0・文字が縦積み）が見ている**。
+    const r0 = el.getBoundingClientRect();
+    if (r0.width <= 4 && r0.height <= 4) return true;
     for (let n = el; n && n !== document.body; n = n.parentElement) {
       const cs = getComputedStyle(n);
       if (cs.clipPath !== "none" || cs.clip !== "auto") return true;

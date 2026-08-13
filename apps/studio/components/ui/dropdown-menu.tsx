@@ -89,6 +89,12 @@ function DropdownMenuItem({
       data-variant={variant}
       className={cn(
         "cn-dropdown-menu-item group/dropdown-menu-item relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        // 🚨 **指で押せる高さをここで与える。**写したままだと 27.2px しかなく、
+        // SP で憲章 §7 の 44px を割る（実測。同じメニューの中で言語だけ 44px、
+        // ログアウトだけ 27.2px という不揃いになっていた）。
+        // 使う側で1つずつ足すと、次にメニューを作る人が必ず忘れる（§6 共通部品側で持つ）。
+        // 🚨 `h-` ではなく `min-h-`。項目の文字が2行になったときにはみ出すため。
+        "min-h-(--control-h) md:min-h-(--control-h-pc)",
         className
       )}
       {...props}
