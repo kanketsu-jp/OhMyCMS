@@ -98,7 +98,9 @@ export default async function FilesPage({ searchParams }: Props) {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {files.map((file) => (
               <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md p-3 hover:bg-muted">
-                <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
+                {/* 🚨 画像のレターボックス。背景が要るので面に見えるが、面ではない。
+                  例外を検査スクリプト側に隠さず、コードに書いて見えるようにしている */}
+                <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
                   {file.type?.startsWith("image/") ? (
                     <Image
                       src={`/api/assets/${file.id}?width=200&fit=cover`}

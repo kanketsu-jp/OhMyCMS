@@ -129,11 +129,11 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="capabilities">{t("capabilities_label")}</Label>
-            <textarea id="capabilities" name="capabilities" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-sm" />
+            <textarea id="capabilities" name="capabilities" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-base md:text-sm" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tenant_scope">{t("tenant_scope_label")}</Label>
-            <textarea id="tenant_scope" name="tenant_scope" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-sm" />
+            <textarea id="tenant_scope" name="tenant_scope" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-base md:text-sm" />
           </div>
         </div>
         <Button type="submit" disabled={create.pending}>{t("issue_button")}</Button>

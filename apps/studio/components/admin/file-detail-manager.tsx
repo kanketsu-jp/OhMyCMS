@@ -89,7 +89,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="description">{t("description_label")}</Label>
-          <textarea id="description" name="description" defaultValue={file.description ?? ""} className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 text-sm" />
+          <textarea id="description" name="description" defaultValue={file.description ?? ""} className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 text-base md:text-sm" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="tags">{t("tags_label")}</Label>
