@@ -9,7 +9,7 @@ generated:
   at: 2026-08-13
 verified: []
 sources:
-  - resource: "repo://docs/design/surface-rules.md"
+  - resource: "repo://knowledge/decisions/no-nested-surfaces.md"
   - resource: "repo://docs/design/x-ui-rules.md"
   - resource: "repo://docs/research/ja-en-ui-evidence.md"
   - resource: "repo://knowledge/decisions/ui-placement-by-frequency.md"
@@ -41,7 +41,7 @@ x_rag_okf:
 
 | ファイル | 読むタイミング | 内容 |
 |---|---|---|
-| **`docs/design/surface-rules.md`** | 🚨 **画面を1つでも作る前に必ず読む。最優先** | 面（罫線・背景・影のどれかを持つもの）の入れ子を構造的に禁止する。**実際に事故った**規約 |
+| **`knowledge/decisions/no-nested-surfaces.md`** | 🚨 **画面を1つでも作る前に必ず読む。最優先** | 面（罫線・背景・影のどれかを持つもの）の入れ子を構造的に禁止する。**実際に事故った**規約 |
 | `docs/design/x-ui-rules.md` | レイアウト・コンポーネントの見た目を決めるとき | X由来の20ルール。**静止画の目視のみで px は未実測**と自ら断っている |
 | `docs/research/ja-en-ui-evidence.md` | 日本語の文字サイズ・行間・折り返しを決めるとき | 日本語での寸法エビデンス。**X は英語UIなので、ぶつかったらこちらが優先** |
 | [[ui-placement-by-frequency]]（decision） | 「これはヘッダに置くべきか」で迷ったとき | 操作の頻度で置き場所を決める。常設領域は毎日使うものだけ |
@@ -50,7 +50,7 @@ x_rag_okf:
 
 由来: 堀池が実装（`/admin/folders`）を見て指摘した実例。「ボーダーの中にボーダーがあり、そのなかにも
 ボーダーがある。背景色も全て同じ。しかもすべて padding を持つ」状態が実際に発生した
-（`docs/design/surface-rules.md` §1）。
+（`knowledge/decisions/no-nested-surfaces.md` §1）。
 
 要点:
 
@@ -138,7 +138,7 @@ F6 は F2（機能の穴埋め）の後続で、F1（i18n）→F2→**F6**→F7�
 
 ## 根拠
 
-- `docs/design/surface-rules.md`（全文）
+- `knowledge/decisions/no-nested-surfaces.md`（全文）
 - `docs/design/x-ui-rules.md`（§1 TL;DR・§4 Directus/X切り分け表を中心に確認）
 - `docs/research/ja-en-ui-evidence.md`（§1 TL;DR・§2 ルール表を中心に確認）
 - `knowledge/decisions/ui-placement-by-frequency.md`

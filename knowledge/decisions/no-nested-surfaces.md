@@ -1,9 +1,29 @@
-# 面（Surface）のルール — 入れ子を構造的に禁止する
+---
+type: decision
+title: 面（Surface）は1段まで。入れ子を構造的に禁止する
+description: 罫線・背景・影のどれかを持つ「面」が2段以上重なることを禁じ、レビューではなく実装の構造で守る。実際に3重の入れ子を作ってしまった事故から起こしたルール。
+tags: [design, ui, components]
+status: active
+generated:
+  by: rag-okf
+  at: 2026-08-13
+verified: []
+sources:
+  - resource: "repo://apps/studio/components/ui/card.tsx"
+  - resource: "repo://apps/studio/components/ui/input.tsx"
+  - resource: "repo://docs/design/x-ui-rules.md"
+stale_after: 2027-02-13
+x_rag_okf:
+  id: decisions/no-nested-surfaces
+  authorship: agent
+---
 
-> 2026-08-13 制定。**実際に作ってしまった悪い例**から起こしたルール。
-> 由来: 堀池「**ボーダーの中にボーダーがあり、そのなかにボーダーがあります。背景色も全て同じ。
-> しかもすべて Padding を持ちます。これを徹底的にやめてください。**」
-> 「**これはデザイナーとして知識が浅く、コンポーネント単位でしか考えていない典型的な悪い例です。**」
+# 面（Surface）は1段まで。入れ子を構造的に禁止する
+
+> 由来: 2026-08-13 堀池「**ボーダーの中にボーダーがあり、そのなかにボーダーがあります。
+> 背景色も全て同じ。しかもすべて Padding を持ちます。これを徹底的にやめてください。**」
+> 「**これはデザイナーとして知識が浅く、コンポーネント単位でしか考えていない典型的な悪い例です。
+> 必ずルールを見直して。洗礼させて。**」
 
 ## TL;DR
 

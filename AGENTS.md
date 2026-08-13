@@ -137,7 +137,34 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 
 ---
 
-## 8. 参考
+## 8. `docs/` と `knowledge/` の使い分け
+
+**似ているので迷うが、役割が違う。** rag-okf の設計に従う
+（README: 「init は既存の README・`docs/**`・git 履歴を読んで、`knowledge/` に中身のある器を作ります」）。
+
+| | 何を置くか | 形式 | 判断のしかた |
+|---|---|---|---|
+| **`docs/`** | **素材・根拠・調査結果** | 自由記述 | 「**なぜそう言えるか**」の材料。出典URL・実測値・観察 |
+| **`knowledge/`** | **結論・判断・領域の総覧** | **型ごとに節構成が固定**（project / area / decision / ops / glossary）。鮮度検査の対象 | 「**で、どうするのか**」 |
+
+### 迷ったときの一言
+
+> **「調べた結果」なら `docs/`。「だからこうする」なら `knowledge/`。**
+
+例:
+- `docs/research/ja-en-ui-evidence.md` — 日本語UIの寸法を調べた結果（出典URL付き）→ **素材**
+- `docs/design/x-ui-rules.md` — X を観察した記録 → **素材**
+- `knowledge/decisions/no-nested-surfaces.md` — 「面は1段まで」という**決定** → **結論**
+- `knowledge/areas/permissions.md` — 権限の**総覧**（どこに何があり、何に気をつけるか）→ **結論**
+
+🚨 **決定を `docs/` に置かない。** `knowledge/` は鮮度検査（`rokf doctor`）と索引の対象なので、
+**`docs/` に置くと「古くなったこと」が検出されない**。実際に一度やって直した
+（「面は1段まで」を `docs/design/` に置いていた）。
+
+🚨 **`knowledge/` に新しいファイルを足したら `knowledge/index.md` にも1行足す。**
+`rokf doctor` が `index-entries` として検出するが、**足すのは書いた人の仕事**。
+
+## 9. 参考
 
 | 目的 | 場所 |
 |---|---|
@@ -149,13 +176,13 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 > Claude Code 固有の事柄は `CLAUDE.md` 側に書き、ここには**全エージェント共通のルールだけ**を置く。
 
 <!-- rag-okf:start -->
-[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: eb17944|docs: 23
+[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: 886e29a|docs: 24
 |STOP. このリポジトリ固有の事情はあなたの事前知識にない。下記に該当したら必ず該当ファイルを読む。
 |acceptance,testing,permissions,ci→areas/acceptance.md
 |apps-studio,nextjs,rest-api,architecture→areas/apps-studio.md
 |design,ux,i18n,x-ui-rules→areas/design-system.md
 |permissions,security,auth,items,files→areas/permissions.md
-|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/no-directus-fork.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/relation-permission-boundary.md,decisions/single-nextjs-app-then-hono.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md}|glossary:{}|ops:{ops/hrdr-panes.md}
+|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/relation-permission-boundary.md,decisions/single-nextjs-app-then-hono.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md}|glossary:{}|ops:{ops/hrdr-panes.md}
 |検索(CLI): rag-okf search "<query>" --json
 |更新: rag-okf refresh]
 <!-- rag-okf:end -->
