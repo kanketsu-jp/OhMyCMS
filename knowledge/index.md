@@ -12,7 +12,7 @@ sources: []
 stale_after: 2027-02-08
 x_rag_okf:
   id: index
-  source_commit: bf14b78
+  source_commit: 4b1404c
   source_digest: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   authorship: deterministic
 ---
@@ -47,6 +47,7 @@ x_rag_okf:
 - [middleware.ts でなく proxy.ts を使う](./decisions/use-proxy-not-middleware.md) — `decisions/use-proxy-not-middleware`
 - [v0.9 時点で堀池が決めた 6 件](./decisions/v09-open-questions-answered.md) — `decisions/v09-open-questions-answered`
 - [否定形の検証は「検出できること」を先に確かめる](./decisions/verify-the-verifier.md) — `decisions/verify-the-verifier`
+- [通信路が HTTPS かどうかを NODE_ENV で決めない](./decisions/https-is-not-node-env.md) — `decisions/https-is-not-node-env`
 - [hrdr による多ペイン運用（司令塔 + トラックA/B/C）](./ops/hrdr-panes.md) — `ops/hrdr-panes`
 - [cms](./project.md) — `project`
 

@@ -115,8 +115,8 @@ DB接続文字列、APIキー、署名鍵(`jose`を使ったJWT関連の鍵含�
 |db down: bun run db:down
 |migrate: bun run migrate        (apps/studio, Knex, lib/db/knexfile.ts)
 |migrate rollback: bun --filter @ohmycms/studio migrate:rollback
-|seed admin: bun --filter @ohmycms/studio seed:admin
-|first login: OHMYCMS_ADMIN_EMAIL / OHMYCMS_ADMIN_PASSWORD
+|first login: /login でパスワードだけ入れる (OHMYCMS_SETUP_PASSWORD。未設定なら既定 pass132)
+|             入ると初期設定が始まり、そこで本来のパスワードを決める
 |dev:     bun run dev             → http://localhost:3102 (開発サーバ)
 |build:   bun run build
 |lint:    bun run lint            (eslint, apps/studio)
@@ -183,14 +183,14 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 > Claude Code 固有の事柄は `CLAUDE.md` 側に書き、ここには**全エージェント共通のルールだけ**を置く。
 
 <!-- rag-okf:start -->
-[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: 91507e0|docs: 28
+[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: 4b1404c|docs: 30
 |STOP. このリポジトリ固有の事情はあなたの事前知識にない。下記に該当したら必ず該当ファイルを読む。
 |knowledge/ が最新かつ正。docs/wiki/ は完成したものの読み物（写し）。
 |acceptance,testing,permissions,ci→areas/acceptance.md
 |apps-studio,nextjs,rest-api,architecture→areas/apps-studio.md
 |design,ux,i18n,x-ui-rules→areas/design-system.md
 |permissions,security,auth,items,files→areas/permissions.md
-|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/never-expose-dev-server.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/port-allocation.md,decisions/relation-permission-boundary.md,decisions/shared-resources-are-exclusive.md,decisions/single-nextjs-app-then-hono.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md,decisions/verify-the-verifier.md}|glossary:{}|ops:{ops/hrdr-panes.md}
+|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/auth-methods.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/never-expose-dev-server.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/port-allocation.md,decisions/relation-permission-boundary.md,decisions/shared-resources-are-exclusive.md,decisions/single-nextjs-app-then-hono.md,decisions/stepwise-docs.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md,decisions/verify-the-verifier.md}|glossary:{}|ops:{ops/hrdr-panes.md}
 |検索(CLI): rag-okf search "<query>" --json
 |更新: rag-okf refresh]
 <!-- rag-okf:end -->
