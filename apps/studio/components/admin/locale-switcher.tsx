@@ -10,9 +10,24 @@ import { cn } from "@/lib/utils";
  * Language names are endonyms by convention, so common.locale_* holds the
  * same value in both ja.json and en.json.
  */
-export function LocaleSwitcher({ className }: { className?: string }) {
+type Props = {
+  className?: string;
+  /**
+   * 見せ方。
+   * - `compact` … ログイン画面のヘッダ用（小さい文字の2択）
+   * - `group`   … メニューの中のユーザー行用（**ButtonGroup・44px**。堀池さんの指示）
+   *
+   * 🚨 管理画面のヘッダからは降ろした（憲章 §6b「常に見えている＝それだけの重要度がある」）。
+   * ログイン画面だけは残す。**オンボーディングより前に来る**ので、
+   * そこで選べないと日本語以外の人が辿り着けない。
+   */
+  variant?: "compact" | "group";
+};
+
+export function LocaleSwitcher({ className, variant = "compact" }: Props) {
   const current = useLocale();
   const t = useT("common");
+  const group = variant === "group";
 
   return (
     <form
@@ -21,7 +36,10 @@ export function LocaleSwitcher({ className }: { className?: string }) {
       // 器にも背景を持たせると「器 + ボタン」で面が2段になり、ヘッダ(罫線)と合わせて深さ3になる。
       // これは全画面に出る（ヘッダは共通なので）ため、発生源として潰している。
       // docs/design/surface-rules.md §2-2
-      className={cn("flex items-center gap-0.5", className)}
+      className={cn(
+        group ? "flex w-full items-center gap-1" : "flex items-center gap-0.5",
+        className,
+      )}
     >
       {LOCALES.map((locale) => {
         const isActive = locale === current;
@@ -33,7 +51,11 @@ export function LocaleSwitcher({ className }: { className?: string }) {
             value={locale}
             aria-current={isActive ? "true" : undefined}
             className={cn(
-              "rounded px-2 py-1 text-xs font-medium transition-colors",
+              "font-medium transition-colors",
+              group
+                // 指で押すので 44px。面は作らない（選択中の塗りだけで現在地を示す）
+                ? "flex h-(--control-h) flex-1 items-center justify-center rounded-md text-sm"
+                : "rounded px-2 py-1 text-xs",
               isActive
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground",

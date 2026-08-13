@@ -1,21 +1,17 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { apiFetch, currentUser } from "@/lib/admin/api";
 import { GlobalSearch } from "@/components/admin/global-search";
-import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { NavLinks } from "@/components/admin/nav-links";
 import { ScrollFade } from "@/components/ui/scroll-fade";
-import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
 import { projectColor } from "@/lib/settings/project-color";
 import { projectName } from "@/lib/settings/project-name";
 import { SETUP_COOKIE, parseCookies } from "@/lib/auth/cookies";
 import { isValidSetupSession } from "@/lib/auth/setup-session";
 import { isOnboardingCompleted } from "@/lib/settings/service";
-import { cn } from "@/lib/utils";
 
 // 🚨 上位と「設定」を分ける（design ⑥）。平らに 12 行並べると、同じ接頭辞の settings_* が
 // 7回続いて**上位5項目が埋もれる**。開閉に畳んで 12行 → 6行にする。
@@ -140,18 +136,12 @@ export default async function AdminLayout({
             {me.ok && me.data.type === "human" ? me.data.email : t("auth_error")}
           </div>
           <div className="flex items-center gap-2">
-            {/* 横断検索（F2-J §2-3）。探すのは毎日あるのでヘッダに常設する。 */}
+            {/* 🚨 ヘッダに常設するのは**横断検索だけ**（憲章 §6b）。
+                堀池さん（原文）:「常に表示するものはそれなりの重要度をもつ。
+                ただ、この『ログアウト』『言語切り替え』はそうじゃない。個人設定という適した場所がある。」
+                → どちらもメニュー最下部のユーザーの行へ移した（mobile-nav.tsx）。
+                検索は毎日使うので残す。 */}
             <GlobalSearch />
-            <form action="/admin/actions/logout" method="post">
-              <button
-                type="submit"
-                className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-              >
-                <LogOut />
-                {t("logout")}
-              </button>
-            </form>
-            <LocaleSwitcher />
           </div>
         </header>
         {/* 🚨 SP は下部の固定ナビに隠れるぶんの余白を本体側で持つ。

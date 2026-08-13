@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 
 import { NavLinks } from "@/components/admin/nav-links";
+import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -137,10 +138,15 @@ export function MobileNav({ items, settings, settingsLabel, collections, content
             {/* 最下部: いま入っている人とログアウト。**スクロール領域の外**に置く。
                 🚨 入れ子の overlay を作らない（Sheet の中に Dropdown / Dialog を重ねると
                 閉じても DOM に残る。ui が実測で報告済み）。ここは素の行のまま。 */}
+            {/* 最下部の「ユーザーの行」。ヘッダから降ろしたものはここに集める。
+                🚨 並びは design ⑨-④ のとおり: 言語 → （テーマ・個人設定は未実装）→ ログアウト。
+                🚨 入れ子の overlay を作らない（Sheet の中に Dropdown / Dialog を重ねない。
+                閉じても DOM に残る問題を ui が実測で報告済み）。素の行のまま。 */}
             <div className="shrink-0 border-t px-2 py-2">
               {userLabel ? (
                 <p className="truncate px-3 pb-1 text-xs text-muted-foreground">{userLabel}</p>
               ) : null}
+              <LocaleSwitcher variant="group" className="mb-1 px-1" />
               <form action="/admin/actions/logout" method="post">
                 <button
                   type="submit"
