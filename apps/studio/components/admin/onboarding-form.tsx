@@ -14,6 +14,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { FileDropzone } from "@/components/admin/file-dropzone";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useLocale, useT } from "@/i18n/client";
 import { setLocaleAction } from "@/i18n/actions";
@@ -34,7 +35,6 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
   const [projectName, setProjectName] = useState(defaultProjectName);
   const [tenantName, setTenantName] = useState("");
   const [logoId, setLogoId] = useState<string | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -48,8 +48,8 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
   //    再レンダーが走る前に2回目が通る（憲章 §5b）。
   //    🚨 finally を外さないこと。早期 return があると inFlight が残り、
   //    **二度とアップロードできなくなる**（前任が実測で踏んでいる）。
-  const uploadLogo = useSubmitOnce(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const uploadLogo = useSubmitOnce(async (files: File[]) => {
+    const file = files[0];
     if (!file) return;
 
     setLogoError(null);
@@ -71,7 +71,6 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
 
       const payload = (await response.json()) as { data: { id: string } };
       setLogoId(payload.data.id);
-      setLogoPreview(URL.createObjectURL(file));
     } finally {
       setLogoUploading(false);
     }
@@ -228,20 +227,10 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
         <div className="flex flex-col gap-4">
           <p className="text-sm font-medium text-muted-foreground">{t("optional_heading")}</p>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="logo">{t("logo_label")}</Label>
-            {/* 🚨 素の input type="file" でよい（design確認済み）。D&D/サムネの部品（要件A）が
-                入ったら、ここだけ差し替えられる形にしてある。 */}
-            <input
-              id="logo"
-              type="file"
-              accept="image/*"
-              onChange={uploadLogo.run}
-              className="text-sm"
-            />
-            {logoPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element -- アップロード直後のローカルプレビューのため
-              <img src={logoPreview} alt="" className="h-12 w-12 rounded object-cover" />
-            ) : null}
+            <p className="text-sm font-medium">{t("logo_label")}</p>
+            {/* 選んだものの見せ方（サムネ・題名）は FileDropzone に任せる。
+                ここで img を出すと Attachment と二重になる。 */}
+            <FileDropzone name="logo" onSelect={uploadLogo.run} />
             {logoUploading ? (
               <p className="text-xs text-muted-foreground">{t("logo_uploading")}</p>
             ) : null}
