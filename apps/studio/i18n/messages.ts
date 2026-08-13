@@ -32,6 +32,7 @@ import enPolicies from "./messages/en/policies.json";
 import enRelations from "./messages/en/relations.json";
 import enReports from "./messages/en/reports.json";
 import enRoles from "./messages/en/roles.json";
+import enSearch from "./messages/en/search.json";
 import enSettings from "./messages/en/settings.json";
 import enUsers from "./messages/en/users.json";
 import enVersion from "./messages/en/version.json";
@@ -52,6 +53,7 @@ import jaPolicies from "./messages/ja/policies.json";
 import jaRelations from "./messages/ja/relations.json";
 import jaReports from "./messages/ja/reports.json";
 import jaRoles from "./messages/ja/roles.json";
+import jaSearch from "./messages/ja/search.json";
 import jaSettings from "./messages/ja/settings.json";
 import jaUsers from "./messages/ja/users.json";
 import jaVersion from "./messages/ja/version.json";
@@ -74,6 +76,7 @@ export const NAMESPACES = [
   "relations",
   "reports",
   "roles",
+  "search",
   "settings",
   "users",
   "version",
@@ -97,6 +100,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     relations: jaRelations,
     reports: jaReports,
     roles: jaRoles,
+    search: jaSearch,
     settings: jaSettings,
     users: jaUsers,
     version: jaVersion,
@@ -118,6 +122,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     relations: enRelations,
     reports: enReports,
     roles: enRoles,
+    search: enSearch,
     settings: enSettings,
     users: enUsers,
     version: enVersion,

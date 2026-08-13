@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
 import { apiFetch, currentUser } from "@/lib/admin/api";
+import { GlobalSearch } from "@/components/admin/global-search";
 import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
@@ -97,6 +98,8 @@ export default async function AdminLayout({
             {me.ok && me.data.type === "human" ? me.data.email : t("auth_error")}
           </div>
           <div className="flex items-center gap-2">
+            {/* 横断検索（F2-J §2-3）。探すのは毎日あるのでヘッダに常設する。 */}
+            <GlobalSearch />
             <form action="/admin/actions/logout" method="post">
               <button
                 type="submit"
