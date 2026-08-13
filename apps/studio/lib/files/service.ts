@@ -101,6 +101,11 @@ export type AssetResult = {
   contentType: string;
   contentLength: number;
   contentDisposition?: string;
+  /**
+   * 🚨 必須にしている。省略可にすると経路が増えたとき付け忘れる。
+   * 常に "nosniff"（AGENTS.md §3.4 / 受入基準 #9）。
+   */
+  contentTypeOptions: string;
 };
 
 export type TransformInput = {
@@ -413,6 +418,7 @@ function normalizedTransformString(input: {
 function safeDeliveryHeaders(type: string | null, filename: string): {
   contentType: string;
   contentDisposition?: string;
+  contentTypeOptions: string;
 } {
   const contentType = type && !DANGEROUS_INLINE_MIME.has(type)
     ? type
@@ -420,7 +426,14 @@ function safeDeliveryHeaders(type: string | null, filename: string): {
   const contentDisposition = type && DANGEROUS_INLINE_MIME.has(type)
     ? `attachment; filename="${sanitizeFilename(filename)}"`
     : undefined;
-  return { contentType, contentDisposition };
+  // 🚨 全レスポンスに nosniff を付ける（多層防御）。
+  // Content-Disposition: attachment は「危険な MIME」に限って付けているが、
+  // 保存される MIME はクライアントの申告と拡張子から決まるため、
+  // SVG の中身を image/png として保存させて attachment を回避できる。
+  // nosniff はブラウザの MIME 推測そのものを止めるので、その抜け道を塞ぐ。
+  // 危険な MIME だけに付けると、まさにその「誤った MIME で保存された file」に付かない。
+  // AGENTS.md §3.4 / 受入基準 #9
+  return { contentType, contentDisposition, contentTypeOptions: "nosniff" };
 }
 
 async function bufferFromStorage(key: string): Promise<Buffer> {
@@ -454,6 +467,7 @@ export async function getAsset(actor: Actor, id: string, input: TransformInput):
       contentType: originalHeaders.contentType,
       contentLength: body.byteLength,
       contentDisposition: originalHeaders.contentDisposition,
+      contentTypeOptions: originalHeaders.contentTypeOptions,
     };
   }
 
@@ -478,6 +492,7 @@ export async function getAsset(actor: Actor, id: string, input: TransformInput):
       body,
       contentType: output.mime,
       contentLength: cached.size || body.byteLength,
+      contentTypeOptions: originalHeaders.contentTypeOptions,
     };
   }
 
@@ -492,6 +507,7 @@ export async function getAsset(actor: Actor, id: string, input: TransformInput):
     body: transformed,
     contentType: output.mime,
     contentLength: transformed.byteLength,
+    contentTypeOptions: originalHeaders.contentTypeOptions,
   };
 }
 
