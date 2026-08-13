@@ -123,7 +123,15 @@ export async function check(context) {
             idp_entity_id: entityId,
             idp_sso_url: "http://localhost:3108/realms/ohmycms/protocol/saml",
             idp_certificates: [certificate],
-            sp_entity_id: `${baseUrl}/api/auth/saml/metadata`,
+            // 🚨 **`sp_entity_id` は書かない（空のままにする）。**
+            //   `ohmycms_saml_config` は :3101 / :3102 / :3103 で**共有の単一行**。
+            //   ここに `http://localhost:3103/...` を入れた結果、**:3102 からのログインが
+            //   Keycloak に "Invalid redirect uri" で弾かれた**（私が壊した・2026-08-14）:
+            //     AuthnRequest の Issuer = 3103（保存された値）
+            //     ACS URL                = 3102（要求から導出）→ 食い違う
+            //   空なら**要求ごとに導出**されるので、どの対象から来ても正しい値になる。
+            //   🚨 証明書・SSO URL・IdP 側の Entity ID は**環境に依らない**ので入れてよい。
+            //     環境に依る値だけを共有の行へ書かない、が線引き。
           }),
         });
         details.push(`IdP の証明書を入れ直しました（HTTP ${patched.status}）。`);
