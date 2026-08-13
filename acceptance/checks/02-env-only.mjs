@@ -75,7 +75,7 @@ export async function check(context) {
         "**F9（総合受入）のときに `--docker` を付けて判定します。** それまでは BLOCKED が正しい状態です。",
         "理由は #1 と同じ（down -v が他トラックの検証データを消すため）。",
       ],
-      repro: ["pnpm acceptance --docker   # 🚨 全ペインを止めてから。DB のデータは消えます"],
+      repro: ["bun run acceptance --docker   # 🚨 全ペインを止めてから。DB のデータは消えます"],
       assertions,
       ms: Date.now() - started,
     });

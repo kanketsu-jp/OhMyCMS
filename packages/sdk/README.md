@@ -7,8 +7,8 @@ OhMyCMS の REST API を型付きで叩くクライアント。**CLI (`@ohmycms/
 - ビルドは `tsup`（ESM + CJS + `.d.ts` を 1 コマンドで出せて、設定が 10 行で済むため）
 
 ```bash
-pnpm --filter @ohmycms/sdk build       # dist を出す
-pnpm --filter @ohmycms/sdk typecheck   # tsc --noEmit
+bun --filter @ohmycms/sdk build       # dist を出す
+bun --filter @ohmycms/sdk typecheck   # tsc --noEmit
 OHMYCMS_URL=http://localhost:3000 node packages/sdk/scripts/smoke.mjs   # 起動中の API に実際に叩く
 ```
 

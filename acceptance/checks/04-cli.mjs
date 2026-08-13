@@ -83,7 +83,7 @@ export async function check(context) {
   const entry = join(CLI_DIR, pkg.bin.replace(/^\.\//, ""));
   if (!existsSync(entry)) {
     details.push(`${pkg.bin} が無いのでビルドします（dist はコミットされないため）`);
-    const build = await run("pnpm", ["--filter", "@ohmycms/cli", "build"], { timeoutMs: 300_000 });
+    const build = await run("bun", ["--filter", "@ohmycms/cli", "build"], { timeoutMs: 300_000 });
     if (build.code !== 0 || !existsSync(entry)) {
       // 実装はあるがビルドできない = 壊れている。SKIP で隠さず FAIL にする。
       return result({
@@ -96,7 +96,7 @@ export async function check(context) {
           "（実装が無いのではなく壊れているので SKIP にはしません）",
           ...(build.stderr || build.stdout).trim().split("\n").slice(-12).map((l) => `    ${l}`),
         ],
-        repro: ["pnpm --filter @ohmycms/cli build"],
+        repro: ["bun --filter @ohmycms/cli build"],
         ms: Date.now() - started,
       });
     }
@@ -124,7 +124,7 @@ export async function check(context) {
         "本番ビルドでは dev-login が消えています。",
         "→ acceptance/compose.acceptance.yml の dev モード studio を起動してください。",
       ],
-      repro: ["pnpm acceptance --only 4"],
+      repro: ["bun run acceptance --only 4"],
       ms: Date.now() - started,
     });
   }
@@ -413,7 +413,7 @@ export async function check(context) {
         verdict.status === "PASS"
           ? []
           : [
-              "pnpm --filter @ohmycms/cli build",
+              "bun --filter @ohmycms/cli build",
               `OHMYCMS_URL=${baseUrl} node packages/cli/dist/index.js health`,
             ],
       assertions,

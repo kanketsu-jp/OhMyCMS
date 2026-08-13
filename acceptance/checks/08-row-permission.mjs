@@ -34,7 +34,7 @@ export async function check(context) {
   const { baseUrl } = context;
   const assertions = [];
   const details = [];
-  const repro = [`(cd ${"."} && pnpm acceptance --only 8)`];
+  const repro = [`(cd ${"."} && bun run acceptance --only 8)`];
   const leftovers = [];
 
   const admin = new Session(baseUrl, "admin");
@@ -56,7 +56,7 @@ export async function check(context) {
         "next build は NODE_ENV をインライン展開するため本番ビルドでは分岐ごと消えています。",
         "→ acceptance/compose.acceptance.yml の dev モード studio を起動してください。",
       ],
-      ["pnpm acceptance:up   # dev モードの studio を 3999 で起動する"],
+      ["bun run acceptance:up   # dev モードの studio を 3999 で起動する"],
       started,
     );
   }

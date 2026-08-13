@@ -72,7 +72,7 @@ export async function check(context) {
         "本番ビルドでは dev-login が消えています（NODE_ENV がインライン展開されるため）。",
         "→ acceptance/compose.acceptance.yml の dev モード studio を起動してください。",
       ],
-      repro: ["pnpm acceptance:up"],
+      repro: ["bun run acceptance:up"],
       ms: Date.now() - started,
     });
   }

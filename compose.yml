@@ -17,7 +17,7 @@ x-postgres-password: &postgres-password ${POSTGRES_PASSWORD:-cms}
 x-postgres-db: &postgres-db ${POSTGRES_DB:-cms}
 
 # アプリ → DB は compose ネットワーク内のホスト名 db:5432 で繋ぐ。
-# ホスト側の .env にある DATABASE_URL (localhost:5436) は pnpm dev / pnpm migrate 用で、
+# ホスト側の .env にある DATABASE_URL (localhost:5436) は bun run dev / bun run migrate 用で、
 # コンテナ内では localhost が自分自身を指してしまうため使えない。
 x-app-env: &app-env
   DATABASE_URL: postgres://${POSTGRES_USER:-cms}:${POSTGRES_PASSWORD:-cms}@db:5432/${POSTGRES_DB:-cms}
@@ -79,7 +79,10 @@ services:
     image: ohmycms-studio
     container_name: ohmycms-studio
     ports:
-      - "${STUDIO_PORT:-3000}:3000"
+      # 🚨 左（ホスト側）だけ変える。右のコンテナ内ポート 3000 は絶対に変えない。
+      #    requestOrigin() が host ヘッダから自分の URL を組み立てるため、
+      #    公開ポート != コンテナ内ポート だと管理画面が全ページ 500 になる。
+      - "${STUDIO_PORT:-3101}:3000"
     environment: *app-env
     volumes:
       # S3 未設定時のローカルフォールバック先。コンテナを作り直しても消えないようにする。

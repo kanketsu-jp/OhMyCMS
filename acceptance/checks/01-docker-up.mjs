@@ -40,7 +40,7 @@ export async function check(context) {
         "",
         "→ F9 の直前に司令塔が全トラックへ「DB を消す」と予告し、全ペインを止めてから実行します。",
       ],
-      repro: ["pnpm acceptance --docker   # 🚨 全ペインを止めてから。DB のデータは消えます"],
+      repro: ["bun run acceptance --docker   # 🚨 全ペインを止めてから。DB のデータは消えます"],
       ms: Date.now() - started,
     });
   }

@@ -1,7 +1,7 @@
 /**
  * MCP サーバを**本物の MCP クライアント（stdio）で**叩いて確かめる（F5 の受入基準 1〜4・6）。
  *
- *   pnpm --filter @ohmycms/sdk build && pnpm --filter @ohmycms/mcp build
+ *   bun --filter @ohmycms/sdk build && bun --filter @ohmycms/mcp build
  *   OHMYCMS_URL=http://localhost:3999 node scripts/verify.mjs
  *
  * 肯定形（できること）と否定形（できないこと）を必ずセットで出す。

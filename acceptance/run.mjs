@@ -2,11 +2,11 @@
 /**
  * OhMyCMS v0.9 受入ハーネス。
  *
- *   pnpm acceptance                  … docker を触らずに判定できるものだけ実行
- *   pnpm acceptance --docker         … docker compose down -v → up も含めて実行（🚨 §注意）
- *   pnpm acceptance --json           … 機械可読な出力（CI 用）
- *   pnpm acceptance --only 7,8       … 指定した項目だけ
- *   pnpm acceptance --base-url URL   … 既に起動しているサーバーへ向ける
+ *   bun run acceptance                  … docker を触らずに判定できるものだけ実行
+ *   bun run acceptance --docker         … docker compose down -v → up も含めて実行（🚨 §注意）
+ *   bun run acceptance --json           … 機械可読な出力（CI 用）
+ *   bun run acceptance --only 7,8       … 指定した項目だけ
+ *   bun run acceptance --base-url URL   … 既に起動しているサーバーへ向ける
  *
  * 🚨 --docker の注意:
  *   compose.yml は container_name を固定しているので、-p でプロジェクトを分けても
@@ -40,13 +40,13 @@ import { check as check07 } from "./checks/07-i18n.mjs";
 import { check as check08 } from "./checks/08-row-permission.mjs";
 import { check as check09 } from "./checks/09-svg-attachment.mjs";
 
-/** 仕様 §5-6: 3000 は トラックC の専有。docker 側は 3999 を使う。 */
+/** ポート割り当ては knowledge/decisions/port-allocation.md。docker 側は 3103。 */
 // 🚨 基準1・2 が立てる **本番構成のスタック**が使うポート。
 // studio-acc（開発ビルド・3999）と**必ず別**にする。同じにすると
 // 「ハーネス自身が立てた studio-acc が 3999 を掴んだまま、
 //  基準1 の up が同じ 3999 へ bind しようとして落ちる」。
 // 実際にそれで基準1 が FAIL した（2026-08-13）。
-const DOCKER_PORT = 3998;
+const DOCKER_PORT = 3103;
 /** dev モードの studio（受入基準8・9 用）。compose.acceptance.yml と揃えること。 */
 const DEV_PORT = 3999;
 
@@ -77,15 +77,15 @@ function parseArgs(argv) {
 
 const HELP = `OhMyCMS v0.9 受入ハーネス
 
-  pnpm acceptance                  docker を触らずに判定できるものだけ
-  pnpm acceptance --docker         docker compose down -v → up も実行（全ペインを止めてから）
-  pnpm --silent acceptance --json  機械可読な出力（pnpm のバナーを混ぜないため --silent）
+  bun run acceptance                  docker を触らずに判定できるものだけ
+  bun run acceptance --docker         docker compose down -v → up も実行（全ペインを止めてから）
+  bun run acceptance --json  機械可読な出力（CI 用）
                                    CI からは node acceptance/run.mjs --json でもよい
-  pnpm acceptance --only 7,8       指定した項目だけ
-  pnpm acceptance --base-url URL   既に起動しているサーバーへ向ける
-  pnpm acceptance --no-up          studio-acc を自動起動しない
-  pnpm acceptance --down           studio-acc を止めて終了する
-  pnpm acceptance --red 8          RED 確認: その項目をわざと壊して FAIL になることを見る
+  bun run acceptance --only 7,8       指定した項目だけ
+  bun run acceptance --base-url URL   既に起動しているサーバーへ向ける
+  bun run acceptance --no-up          studio-acc を自動起動しない
+  bun run acceptance --down           studio-acc を止めて終了する
+  bun run acceptance --red 8          RED 確認: その項目をわざと壊して FAIL になることを見る
 
 判定は PASS / FAIL / SKIP / BLOCKED / MANUAL の5種類。
 **PASS 以外が1つでもあれば未達（exit 1）**。未実装のものを PASS にはしない。

@@ -5,14 +5,14 @@ OhMyCMS をコマンドラインから操作する CLI。コマンド名は `ohm
 **`@ohmycms/sdk` 経由で REST API を HTTP で叩くだけ。DB へは直結しない。**
 
 ```bash
-pnpm --filter @ohmycms/cli build
+bun --filter @ohmycms/cli build
 node packages/cli/dist/index.js --help
 ```
 
 ## 使えるようにする
 
-グローバルに入れるには pnpm のグローバル bin ディレクトリが要る（`pnpm setup` が未実行だと
-`ERR_PNPM_NO_GLOBAL_BIN_DIR` になる。`pnpm setup` は**シェルの設定ファイルを書き換える**ので、
+グローバルに入れるには `bun link` を使う（`bun link` は Bun のグローバル bin ディレクトリへ
+シンボリックリンクを張る。PATH に `~/.bun/bin` が入っていない場合は通らないので、
 入れるかどうかは利用者が決めること）。
 
 リポジトリの中だけで試すならシンボリックリンクで足りる:

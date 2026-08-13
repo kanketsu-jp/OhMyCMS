@@ -1,19 +1,22 @@
 {
   "name": "ohmycms",
   "private": true,
-  "packageManager": "pnpm@10.33.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "pnpm --filter @ohmycms/studio dev",
-    "build": "pnpm --filter @ohmycms/studio build",
-    "lint": "pnpm --filter @ohmycms/studio lint",
+    "dev": "bun --filter @ohmycms/studio dev",
+    "build": "bun --filter @ohmycms/studio build",
+    "lint": "bun --filter @ohmycms/studio lint",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v",
     "docker:logs": "docker compose logs -f studio",
-    "migrate": "pnpm --filter @ohmycms/studio migrate",
-    "acceptance": "node acceptance/run.mjs"
+    "migrate": "bun --filter @ohmycms/studio migrate",
+    "acceptance": "bun acceptance/run.mjs"
   },
   "devDependencies": {
     "lefthook": "^2.1.10"

@@ -51,27 +51,24 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 24
-          cache: pnpm
+          bun-version: latest
 
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
 
       - name: lint
-        run: pnpm lint
+        run: bun run lint
 
       - name: 型チェック
-        run: pnpm --filter @ohmycms/studio exec tsc --noEmit
+        run: bun --filter @ohmycms/studio exec tsc --noEmit
 
       - name: build
         # lib/db/knex.ts が module 直下で DATABASE_URL を読むため、
         # ビルドを通すためだけのダミーを渡す（接続はしない。docker/Dockerfile と同じ扱い）。
         env:
           DATABASE_URL: postgres://build:build@127.0.0.1:5432/build
-        run: pnpm build
+        run: bun run build
 
   docker:
     name: Docker で起動して /api/health が 200
@@ -113,7 +110,7 @@ jobs:
         # それがリンクする libvips-cpp.so を運ばず、ファイルのアップロードと画像変換が 500 になった。
         # /api/health は DB しか見ないのでこれを検知できない。ここで require まで通す。
         run: |
-          docker compose exec -T studio node -e '
+          docker compose exec -T studio bun -e '
             const s = require("sharp");
             console.log("sharp OK / libvips", s.versions.vips);
           '
@@ -158,6 +155,8 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             -f docker/Dockerfile \
+            --build-arg GIT_SHA=${{ github.sha }} \
+            --build-arg GIT_DIRTY=0 \
             -t ohmycms-studio:${{ github.sha }} \
             --load .
 
@@ -166,7 +165,7 @@ jobs:
           arch=$(docker run --rm --entrypoint uname "ohmycms-studio:${{ github.sha }}" -m)
           echo "image arch: $arch"
           [ "$arch" = "x86_64" ] || { echo "::error::amd64 になっていません: $arch"; exit 1; }
-          docker run --rm --entrypoint node "ohmycms-studio:${{ github.sha }}" -e '
+          docker run --rm --entrypoint bun "ohmycms-studio:${{ github.sha }}" -e '
             const s = require("sharp");
             console.log("sharp OK / libvips", s.versions.vips);
           '

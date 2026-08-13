@@ -1,6 +1,6 @@
 # 受入基準3 — ブラウザだけで一通り完結することの手順書
 
-> `pnpm acceptance` はこの項目を **MANUAL** として出す。機械では判定しない。
+> `bun run acceptance` はこの項目を **MANUAL** として出す。機械では判定しない。
 > 理由: ブラウザ自動操作（Playwright 等）を足すと依存とメンテが増え、
 > MVP の判定より先にハーネス自体の面倒を見ることになるため（F9h §4）。
 
@@ -14,7 +14,7 @@
 | 項目 | 値 |
 |---|---|
 | 対象 | `http://localhost:3999`（受入ハーネスが立てる開発ビルドの studio） |
-| 起動 | `pnpm acceptance --only 8` を一度走らせると studio-acc が立つ。または `docker compose -f compose.yml -f acceptance/compose.acceptance.yml up -d studio-acc` |
+| 起動 | `bun run acceptance --only 8` を一度走らせると studio-acc が立つ。または `docker compose -f compose.yml -f acceptance/compose.acceptance.yml up -d studio-acc` |
 | 停止 | `node acceptance/run.mjs --down` |
 | ログイン | 開発用ログイン（`ALLOW_DEV_LOGIN=true`）を使う |
 
@@ -105,7 +105,7 @@
 
 **🚨 ここで SVG も試す**: `.svg` ファイルをアップロードして詳細を開く。
 **画像として描画されず、ダウンロード扱いになる**こと（受入基準9 の目視確認）。
-機械での判定は `pnpm acceptance --only 9` が行う。
+機械での判定は `bun run acceptance --only 9` が行う。
 
 ---
 

@@ -5,7 +5,7 @@ OhMyCMS の MCP サーバ（stdio）。LLM から CMS を操作するための�
 **`@ohmycms/sdk` 経由で REST API を HTTP で叩くだけ。DB へは直結しない。**
 
 ```bash
-pnpm --filter @ohmycms/sdk build && pnpm --filter @ohmycms/mcp build
+bun --filter @ohmycms/sdk build && bun --filter @ohmycms/mcp build
 OHMYCMS_URL=http://localhost:3999 node packages/mcp/scripts/verify.mjs   # 実際の MCP クライアントで検証
 ```
 

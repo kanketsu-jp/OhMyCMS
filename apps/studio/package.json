@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3102",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --port 3102",
     "lint": "eslint",
-    "migrate": "tsx node_modules/knex/bin/cli.js migrate:latest --knexfile lib/db/knexfile.ts",
-    "migrate:rollback": "tsx node_modules/knex/bin/cli.js migrate:rollback --knexfile lib/db/knexfile.ts",
+    "migrate": "bun node_modules/knex/bin/cli.js migrate:latest --knexfile lib/db/knexfile.ts",
+    "migrate:rollback": "bun node_modules/knex/bin/cli.js migrate:rollback --knexfile lib/db/knexfile.ts",
     "storybook": "storybook dev -p 6006 --exact-port --no-open --no-version-updates --disable-telemetry",
     "storybook:build": "storybook build --disable-telemetry",
     "storybook:check": "node .storybook/check-stories.mjs"

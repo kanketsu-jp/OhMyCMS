@@ -30,7 +30,7 @@ OhMyCMS は **Directus を参考にした自作CMS**。最大の特徴は「GUI�
 | UIコンポーネント | shadcn/ui | — |
 | パッケージ管理 | Bun | ワークスペース(package.json の workspaces) |
 
-起動手順(README.md参照): `bun install` → `bun run db:up`(Postgres, host port 5436) → `.env.local` 設定 → `bun run migrate` → `bun run dev`(http://localhost:3000)。
+起動手順(README.md参照): `bun install` → `bun run db:up`(Postgres, host port 5436) → `.env.local` 設定 → `bun run migrate` → `bun run dev`(http://localhost:3102)。
 
 ## 3. やってはいけないこと(絶対厳守)
 
@@ -102,7 +102,7 @@ DB接続文字列、APIキー、署名鍵(`jose`を使ったJWT関連の鍵含�
 作業結果を「動いた」「表示された」と報告する前に、必ず以下を守ること。
 
 - **「curlでソースが取れた」を「表示確認」と書かない。** curlはHTMLを取得できるだけで、JSでレンダリングされる内容・実際のブラウザ描画・クライアントエラーの有無は分からない。表示確認が必要な場面では、実際にブラウザで開くかスクリーンショットを取る。
-- **HTTPステータスの実測を貼る。** 「動いている」ではなく `curl -sS -o /dev/null -w "%{http_code}" http://localhost:3000/api/health` のような実測コマンドと実際の出力(例: `200`)を報告に含める。README.mdにも同様の確認コマンドが既にある。
+- **HTTPステータスの実測を貼る。** 「動いている」ではなく `curl -sS -o /dev/null -w "%{http_code}" http://localhost:3101/api/health` のような実測コマンドと実際の出力(例: `200`)を報告に含める。README.mdにも同様の確認コマンドが既にある。
 - **「起動したまま」と書く前に、実際に200を確認する。** プロセスが立ち上がっている(ポートを掴んでいる)ことと、アプリが正常応答することは別。両方を確認してから「起動している」と言う。
 - **分からないことは `unverified`(未検証)と明記する。** 推測で「おそらく動く」「たぶん大丈夫」と書かない。確認できていない事項は、確認できていないとそのまま書く。
 
@@ -115,10 +115,13 @@ DB接続文字列、APIキー、署名鍵(`jose`を使ったJWT関連の鍵含�
 |db down: bun run db:down
 |migrate: bun run migrate        (apps/studio, Knex, lib/db/knexfile.ts)
 |migrate rollback: bun --filter @ohmycms/studio migrate:rollback
-|dev:     bun run dev             → http://localhost:3000
+|dev:     bun run dev             → http://localhost:3102 (開発サーバ)
 |build:   bun run build
 |lint:    bun run lint            (eslint, apps/studio)
-|health check: curl -sS -o /dev/null -w "%{http_code}" http://localhost:3000/api/health
+|docker:  bun run docker:up       → http://localhost:3101 (本番相当)
+|health check: curl -sS -o /dev/null -w "%{http_code}" http://localhost:3101/api/health
+|ports: 3101 Docker / 3102 dev / 3103 受入 / 3104 Storybook / 5436 Postgres
+|       (knowledge/decisions/port-allocation.md。3000/5432/8080 等は避ける)
 ```
 
 ## 6. Next.js 16 固有の注意点(要点。詳細は `docs/research/nextjs16-and-agents-md.md`)
@@ -176,13 +179,13 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 > Claude Code 固有の事柄は `CLAUDE.md` 側に書き、ここには**全エージェント共通のルールだけ**を置く。
 
 <!-- rag-okf:start -->
-[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: 2a0b81f|docs: 25
+[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: f35cd91|docs: 26
 |STOP. このリポジトリ固有の事情はあなたの事前知識にない。下記に該当したら必ず該当ファイルを読む。
 |acceptance,testing,permissions,ci→areas/acceptance.md
 |apps-studio,nextjs,rest-api,architecture→areas/apps-studio.md
 |design,ux,i18n,x-ui-rules→areas/design-system.md
 |permissions,security,auth,items,files→areas/permissions.md
-|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/relation-permission-boundary.md,decisions/shared-resources-are-exclusive.md,decisions/single-nextjs-app-then-hono.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md}|glossary:{}|ops:{ops/hrdr-panes.md}
+|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/port-allocation.md,decisions/relation-permission-boundary.md,decisions/shared-resources-are-exclusive.md,decisions/single-nextjs-app-then-hono.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md}|glossary:{}|ops:{ops/hrdr-panes.md}
 |検索(CLI): rag-okf search "<query>" --json
 |更新: rag-okf refresh]
 <!-- rag-okf:end -->

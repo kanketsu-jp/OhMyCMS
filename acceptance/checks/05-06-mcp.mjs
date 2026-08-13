@@ -49,7 +49,7 @@ function ensureBuilt() {
       if (!existsSync(join(REPO_ROOT, "packages/mcp/package.json"))) {
         return { ok: false, reason: "packages/mcp がありません（未実装）", skip: true };
       }
-      const built = await run("pnpm", BUILD_COMMAND, { timeoutMs: 300_000 });
+      const built = await run("bun", BUILD_COMMAND, { timeoutMs: 300_000 });
       if (built.code !== 0) {
         return {
           ok: false,
@@ -253,7 +253,7 @@ function errorOf(callResult) {
 export async function check5(context) {
   const started = Date.now();
   const { baseUrl } = context;
-  const repro = ["pnpm acceptance --only 5"];
+  const repro = ["bun run acceptance --only 5"];
 
   const build = await ensureBuilt();
   if (!build.ok) {
@@ -261,7 +261,7 @@ export async function check5(context) {
       ? skipped(5, "MCP 経由で触れ、権限が同じように効く", build.reason, [], started)
       : blocked(5, "MCP 経由で触れ、権限が同じように効く", build.reason,
           [build.detail ?? ""].filter(Boolean),
-          ["pnpm --filter ./packages/* build"], started);
+          ["bun --filter './packages/*' build"], started);
   }
 
   const stamp = Date.now();
@@ -277,7 +277,7 @@ export async function check5(context) {
         "トークンの発行には人間のセッションが必要で、セッションは dev-login でしか作れません",
         "（本番ビルドでは dev-login が消えます）。",
       ],
-      ["pnpm acceptance:up   # dev モードの studio を 3999 で起動する"],
+      ["bun run acceptance:up   # dev モードの studio を 3999 で起動する"],
       started,
     );
   }
@@ -499,7 +499,7 @@ export async function check5(context) {
 export async function check6(context) {
   const started = Date.now();
   const { baseUrl } = context;
-  const repro = ["pnpm acceptance --only 6"];
+  const repro = ["bun run acceptance --only 6"];
 
   const build = await ensureBuilt();
   if (!build.ok) {
@@ -507,7 +507,7 @@ export async function check6(context) {
       ? skipped(6, "管理者トークンなら MCP から設定も編集できる", build.reason, [], started)
       : blocked(6, "管理者トークンなら MCP から設定も編集できる", build.reason,
           [build.detail ?? ""].filter(Boolean),
-          ["pnpm --filter ./packages/* build"], started);
+          ["bun --filter './packages/*' build"], started);
   }
 
   const stamp = Date.now() + 1;
@@ -519,7 +519,7 @@ export async function check6(context) {
       "管理者トークンなら MCP から設定も編集できる",
       env.reason,
       ["トークンの発行に dev-login のセッションが要ります（本番ビルドでは作れません）。"],
-      ["pnpm acceptance:up"],
+      ["bun run acceptance:up"],
       started,
     );
   }

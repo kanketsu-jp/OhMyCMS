@@ -1,7 +1,7 @@
 /**
  * 起動中の API に対して SDK を実際に叩く疎通スクリプト（F3 の受入基準 3〜5）。
  *
- *   pnpm --filter @ohmycms/sdk build
+ *   bun --filter @ohmycms/sdk build
  *   OHMYCMS_URL=http://localhost:3000 node scripts/smoke.mjs
  *
  * 肯定形（権限のあるものは取れる）と否定形（401/403/404 が区別できる）を必ず並べて出す。
