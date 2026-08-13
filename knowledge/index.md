@@ -12,7 +12,7 @@ sources: []
 stale_after: 2027-02-08
 x_rag_okf:
   id: index
-  source_commit: 886e29a
+  source_commit: 2a0b81f
   source_digest: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   authorship: deterministic
 ---
@@ -48,12 +48,6 @@ x_rag_okf:
 ## 根拠アーカイブについて（このリポジトリには入っていない）
 
 `knowledge/decisions/*` の `## 根拠` は、前身プロジェクトの知見アーカイブ
-- `decisions/folders-are-not-owned.md` — フォルダは組織全体の整理棚として扱い、所有者で分離しない（Directus と同じ設計）
-- `decisions/i18n-own-implementation.md` — i18n はライブラリを使わず自前実装にする（next.config.ts の編集権が要らない形）
-- `decisions/v09-open-questions-answered.md` — v0.9 時点で堀池が決めた 6 件（ライセンス・配布・RLS・ホワイトラベル・rag-okf・旧PJ）
-- `decisions/relation-permission-boundary.md` — リレーションを辿るときも相手側コレクションの権限を必ず通す（5件目の穴・いちばん深刻だった）
-- `decisions/ui-placement-by-frequency.md` — UI の置き場所は「操作の頻度」で決める（常設に置くのは毎日使うものだけ）
-- `decisions/no-nested-surfaces.md` — 面（罫線・背景・影を持つもの）は1段まで。入れ子はレビューでなく実装の構造で禁じる
 `.temp/2026-08-13/knowledge-historys/`（ai-native-cms / directus-mscl / izukurasan）を
 参照していることがある。**このアーカイブは意図的にコミットしていない。**
 

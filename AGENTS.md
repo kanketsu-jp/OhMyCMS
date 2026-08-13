@@ -15,7 +15,7 @@ OhMyCMS は **Directus を参考にした自作CMS**。最大の特徴は「GUI�
 
 - 管理者がGUI上で「新しいコレクション」「新しいフィールド」を作ると、その場でPostgreSQLのDDL(`CREATE TABLE` / `ALTER TABLE`)が実行され、以後そのコレクションはAPI・管理画面に反映される。
 - したがって「アプリ起動時に固定のスキーマがある」という前提のツール・ライブラリと構造的に相性が悪い(詳細は §3)。
-- リポジトリ構成: pnpmモノレポ。`apps/studio` が Next.js 製の管理画面(Studio)本体。今後 `apps/` 配下にアプリが増える可能性がある。
+- リポジトリ構成: Bun ワークスペース。`apps/studio` が Next.js 製の管理画面(Studio)本体。今後 `apps/` 配下にアプリが増える可能性がある。
 
 ## 2. スタック
 
@@ -28,9 +28,9 @@ OhMyCMS は **Directus を参考にした自作CMS**。最大の特徴は「GUI�
 | DB | PostgreSQL | 17 |
 | スタイリング | Tailwind CSS | v4 |
 | UIコンポーネント | shadcn/ui | — |
-| パッケージ管理 | pnpm | モノレポ(workspace) |
+| パッケージ管理 | Bun | ワークスペース(package.json の workspaces) |
 
-起動手順(README.md参照): `pnpm install` → `pnpm db:up`(Postgres, host port 5436) → `.env.local` 設定 → `pnpm migrate` → `pnpm dev`(http://localhost:3000)。
+起動手順(README.md参照): `bun install` → `bun run db:up`(Postgres, host port 5436) → `.env.local` 設定 → `bun run migrate` → `bun run dev`(http://localhost:3000)。
 
 ## 3. やってはいけないこと(絶対厳守)
 
@@ -110,14 +110,14 @@ DB接続文字列、APIキー、署名鍵(`jose`を使ったJWT関連の鍵含�
 
 ```
 [OhMyCMS Commands]
-|install: pnpm install
-|db up:   pnpm db:up          (Postgres 17, host port 5436, docker/compose.yml)
-|db down: pnpm db:down
-|migrate: pnpm migrate        (apps/studio, Knex, lib/db/knexfile.ts)
-|migrate rollback: pnpm --filter @ohmycms/studio migrate:rollback
-|dev:     pnpm dev             → http://localhost:3000
-|build:   pnpm build
-|lint:    pnpm lint            (eslint, apps/studio)
+|install: bun install
+|db up:   bun run db:up          (Postgres 17, host port 5436, docker/compose.yml)
+|db down: bun run db:down
+|migrate: bun run migrate        (apps/studio, Knex, lib/db/knexfile.ts)
+|migrate rollback: bun --filter @ohmycms/studio migrate:rollback
+|dev:     bun run dev             → http://localhost:3000
+|build:   bun run build
+|lint:    bun run lint            (eslint, apps/studio)
 |health check: curl -sS -o /dev/null -w "%{http_code}" http://localhost:3000/api/health
 ```
 
@@ -176,13 +176,13 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 > Claude Code 固有の事柄は `CLAUDE.md` 側に書き、ここには**全エージェント共通のルールだけ**を置く。
 
 <!-- rag-okf:start -->
-[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: 886e29a|docs: 24
+[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: 2a0b81f|docs: 25
 |STOP. このリポジトリ固有の事情はあなたの事前知識にない。下記に該当したら必ず該当ファイルを読む。
 |acceptance,testing,permissions,ci→areas/acceptance.md
 |apps-studio,nextjs,rest-api,architecture→areas/apps-studio.md
 |design,ux,i18n,x-ui-rules→areas/design-system.md
 |permissions,security,auth,items,files→areas/permissions.md
-|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/relation-permission-boundary.md,decisions/single-nextjs-app-then-hono.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md}|glossary:{}|ops:{ops/hrdr-panes.md}
+|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/relation-permission-boundary.md,decisions/shared-resources-are-exclusive.md,decisions/single-nextjs-app-then-hono.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md}|glossary:{}|ops:{ops/hrdr-panes.md}
 |検索(CLI): rag-okf search "<query>" --json
 |更新: rag-okf refresh]
 <!-- rag-okf:end -->
