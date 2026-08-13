@@ -52,7 +52,12 @@ export function FileDropzone({ name = "file" }: { name?: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 🚨 罫線は破線1本だけ。塗りを足すと面が2段になる（憲章 §1） */}
+      {/* 🚨 **border ではなく outline** で破線を描く。
+          `Surface` の中に置くと、4辺の罫線は**面レベル2**として数えられる
+          （実測で `pc /admin/files/new` が深さ2になった。design も
+           `Attachment` について同じ注意をしている）。
+          `outline` は面の判定（罫線・背景・影）のどれでもなく、場所も取らない。
+          塗り（bg）で代用すると「親と違う背景」で同じく面に数えられるので、それも避ける。 */}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -67,10 +72,10 @@ export function FileDropzone({ name = "file" }: { name?: string }) {
           accept(event.dataTransfer.files);
         }}
         className={cn(
-          "flex min-h-32 w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-sm transition-colors",
+          "flex min-h-32 w-full flex-col items-center justify-center gap-1 rounded-lg px-4 py-6 text-sm outline-1 outline-offset-[-1px] outline-dashed transition-colors",
           over
-            ? "border-ring text-foreground"
-            : "border-input text-muted-foreground hover:text-foreground",
+            ? "text-foreground outline-ring"
+            : "text-muted-foreground outline-input hover:text-foreground",
         )}
       >
         <UploadCloud className="size-6" />
