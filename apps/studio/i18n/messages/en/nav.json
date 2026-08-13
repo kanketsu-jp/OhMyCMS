@@ -17,13 +17,11 @@
   "settings_child_general": "General",
   "settings_child_policies": "Policies",
   "settings_child_roles": "Roles",
-  "settings_child_sso": "SSO",
   "settings_child_users": "Users",
   "settings_child_version": "Version",
   "settings_general": "Settings / General",
   "settings_policies": "Settings / Policies",
   "settings_roles": "Settings / Roles",
-  "settings_sso": "Settings / SSO",
   "settings_users": "Settings / Users",
   "settings_version": "Settings / Version"
 }
