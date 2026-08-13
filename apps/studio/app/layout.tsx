@@ -33,6 +33,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: await projectName(t("app_name")),
     description: t("app_description"),
+    // 🚨 管理画面なので検索結果に出さない。
+    //    これは HTML を解釈したときにしか効かないので、**ヘッダ側（proxy.ts）と二重**にしている
+    //    （API の JSON・アップロードしたファイル・リダイレクトにはメタタグが付かない）。
+    robots: { index: false, follow: false },
   };
 }
 
