@@ -1,0 +1,22 @@
+# SAML のテスト IdP（V1-A の検証用）。**出荷物には含まれない**。
+#
+# 🚨 必ず別プロジェクト名で起動する:
+#     docker compose -p ohmycms-verify -f .temp/2026-08-14/saml/compose.keycloak.yml up -d
+#   `-p` を付けないと、このファイルに書いていないサービス（minio 等）を
+#   「このプロジェクトに属さない」と見なして**消しにいく**（2026-08-13 に実際に minio が消えた）。
+#
+# 🚨 コンテナ内外のポートを一致させている（3108:3108）。
+#   `port-allocation.md` の「≠ が 500 を生む」と同じ理由で、ずらすと
+#   IdP が発行する URL（メタデータ内の SSO URL）が外から到達できなくなる。
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    container_name: ohmycms-keycloak
+    command: ["start-dev", "--http-port=3108"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      # 検証専用の使い捨て。出荷物でも本番でもない（AGENTS.md §3.7 の「秘密」ではない）。
+      KC_BOOTSTRAP_ADMIN_PASSWORD: verify-only-not-a-secret
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "3108:3108"

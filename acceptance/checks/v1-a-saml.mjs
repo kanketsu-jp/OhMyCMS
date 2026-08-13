@@ -1,101 +1,171 @@
 /**
- * V1-A: **SAML（SSO）**  担当 auth(w4A:p9)
+ * V1-A: **SAML（SSO）**  担当 saml(w4A:pG)
  *
- * 🚨 **実装より先に基準を書いている。実装側はこの形で測られる。**
+ * 実測の中身は `acceptance/saml/` のスクリプトが持つ（saml が書いたもの）。
+ * 🚨 元は `.temp/2026-08-14/saml/` にあった。**`.temp/` は掃除で消える**ので
+ *   `acceptance/saml/` へ移した（送信スクリプトを `.temp/` に置いて失った前例と同じ轍）。
+ *   あわせて**対象 URL を `STUDIO` で差し替えられる**ようにした（元は :3102 決め打ち）。
+ *   おかげで**受入の対象（:3103・焼き込んだ版）そのもの**で測れる。
+ *   dev サーバー（:3102）は他のペインが触るので、そこに依存すると測定が止まる（実際に 500 で止まった）。
  *
- * ─────────────────────────────────────────────────────────────
- * 【テスト IdP をどうするか】司令塔から「調べて提案してください」と言われた件。
+ * 測るもの:
+ *   🟢 **ログインの往復が通る**（AuthnRequest → Keycloak で認証 → ACS → セッション）
+ *   🟢 🚨 **そのセッションが実際に効く**（`/api/auth/me` が 200）
+ *      ← Cookie が出たことを合格にしない。**対照**として Cookie 無し / 偽トークンが 401 であることも見る
+ *   🔴 署名の改竄 / 署名の削除 / Audience 不一致 / 期限切れ を弾く
+ *   🔴 🚨 **リプレイ台帳そのものが弾いている**（`code=SAML_REPLAY`）
+ *      ← saml の指摘。「2回目が 401」だけだと**台帳を全部消しても緑のまま**になる。
+ *        1回目の成功で node-saml が InResponseTo の台帳を消すので、2回目は
+ *        「リプレイだから」ではなく「InResponseTo が無いから」落ちる（SAML_INVALID_RESPONSE）。
+ *        **InResponseTo を外した応答**（署名の外の属性なので署名は壊れない）を使うと
+ *        ライブラリの検査が止まり、**残る防御はリプレイ台帳だけ**になる。
+ *        → **「弾いたか」でなく「何が弾いたか（code）」まで見る。**
+ *   🔴 SAML を有効にしても**パスワードの経路が生きている**（締め出しの防止）
  *
- * **結論: 公開テスト IdP を使わない。`quay.io/keycloak/keycloak` をコンテナで立てる。**
- *
- * 実測（2026-08-13）:
- *   `samltest.id`                     → **到達不可（HTTP 000）**
- *   `kristophjunge/test-saml-idp`     → amd64 のみ・最終更新 **2018-02-04**（8年前）
- *   `keycloak/keycloak`               → **arm64 対応**・最終更新 2026-08-13
- *   この Mac の docker ホスト          → **arm64**
- *
- * 理由:
- *   ① **公開 IdP は外部依存で、落ちたら受入が丸ごと止まる。**
- *      今日それを一度踏んでいる（studio-acc が `next/font/google` の 404 で全経路 500 になった。
- *      「外にある物が黙って変わる」と、こちらのコードは何も変えていないのに落ちる）。
- *      受入ハーネスが外部サービスに依存すると、**FAIL が製品の問題か外の問題か区別できなくなる**。
- *   ② 公開 IdP には**こちらの SP メタデータを登録**する必要があり、手作業が挟まる＝自動化できない。
- *   ③ `kristophjunge/test-saml-idp` は arm64 が無く、この Mac ではエミュレーションになる。
- *      8年前のイメージでもある。
- *   ④ Keycloak なら **IdP の設定を API で流し込める**ので、受入の準備までコードにできる。
- *
- * 🚨 ただし**未実測**（unverified）: Keycloak を実際に立てて SAML の応答を返させるところまでは
- *   まだ試していない。イメージの存在とアーキテクチャだけを確かめた段階。
- *   ポートは **:3108 を提案**（`knowledge/decisions/port-allocation.md` へ登録してから使う）。
- *   🚨 当初 :3107 を提案したが、**MinIO のコンソールが :3107 を取っている**（storage の実測で判明）。
- *      ポートは「空いているはず」で決めない。**必ず割り当て表と実測で確かめる。**
- * ─────────────────────────────────────────────────────────────
- *
- * 測るもの（肯定形と否定形をセットで）:
- *   🟢 IdP でログイン → **CMS のセッションが張られ、管理画面に入れる**
- *   🟢 **既存の利用者と結びつく**（同じメールなら別人が増えない）
- *   🔴 🚨 **署名が違う Assertion を拒否する**
- *      ← ここが SAML の急所。**自分で作った署名なしの Assertion を投げて 4xx になること**を見る。
- *        これが通ると、**誰でも管理者になれる**
- *   🔴 **期限切れ（NotOnOrAfter を過ぎた）Assertion を拒否する**
- *   🔴 **別の宛先（Audience が違う）Assertion を拒否する**
- *   🔴 **同じ Assertion を2回使えない**（リプレイ）
- *   🔴 🚨 **SAML を有効にしても、パスワードの経路が黙って無効にならない**
- *      （締め出しの防止。OTP と同じ論点）
- *
- * 🚨 対照実験: 否定形の4つは「**エンドポイントが常に 4xx を返すだけ**」でも全部通る。
- *   だから **🟢 正しい Assertion が通る**ことを先に確かめる。それが無いと何も証明していない。
+ * 🚨 unverified: **実物の IdP（Entra ID / Google Workspace）は未確認**（テナントが要る）。
+ *   ここで通ったのは **Keycloak（モック）まで**。「モックで通る」と「実物で通る」は別。
  */
 
-import { result, STATUS } from "../lib/result.mjs";
+import { readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+
+import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
+import { run, REPO_ROOT } from "../lib/proc.mjs";
+
+const SAML_DIR = join(REPO_ROOT, "acceptance/saml");
+const SESSION_FILE = "/tmp/acc-saml-response.txt";
 
 export async function check(context) {
   const started = Date.now();
   const { baseUrl } = context;
+  const assertions = [];
+  const details = [];
 
-  // 実装されているか（推測せず対象に聞く）
+  // 実装があるか（推測せず対象に聞く）
   const metadata = await fetch(`${baseUrl}/api/auth/saml/metadata`, { redirect: "manual" })
     .catch(() => null);
-
   if (!metadata || metadata.status === 404) {
     return result({
-      id: 13,
-      title: "V1-A SAML（SSO）",
-      status: STATUS.SKIP,
+      id: 13, title: "V1-A SAML（SSO）", status: STATUS.SKIP,
       reason: "SAML の入口がまだありません（/api/auth/saml/metadata が 404）",
-      details: [
-        "実装が来たら本物へ切り替えます。**測る内容を先に置いておきます**:",
-        "  🟢 IdP でログイン → CMS のセッションが張られ、管理画面に入れる",
-        "  🟢 既存の利用者と結びつく（同じメールで別人が増えない）",
-        "  🔴 🚨 **署名が違う / 署名が無い Assertion を拒否する**（ここが急所）",
-        "  🔴 期限切れ（NotOnOrAfter 超過）を拒否する",
-        "  🔴 Audience が違うものを拒否する",
-        "  🔴 同じ Assertion を2回使えない（リプレイ）",
-        "  🔴 🚨 SAML を有効にしてもパスワードの経路が黙って無効にならない（締め出し防止）",
-        "",
-        "🚨 **テスト IdP は公開サービスを使わず、Keycloak のコンテナで立てることを提案します。**",
-        "  実測: samltest.id は現在**到達不可**（HTTP 000）。",
-        "        kristophjunge/test-saml-idp は amd64 のみ・2018年で更新停止。",
-        "        keycloak/keycloak は arm64 対応・今日も更新あり。この Mac は arm64。",
-        "  外部の IdP に依存すると、**FAIL が製品の問題か外の問題か区別できなくなります**",
-        "  （今日 studio-acc が Google Fonts の 404 で全経路 500 になったのと同じ形）。",
-        "  ポートは :3108 を提案（🚨 :3107 は MinIO のコンソールが使っている。storage の実測で判明）。",
-        "  🚨 Keycloak で実際に SAML 応答を返させるところは **未実測**です。",
-      ],
+      details: ["実装が来たら acceptance/saml/ のスクリプトで測ります。"],
       ms: Date.now() - started,
     });
   }
 
+  const env = { ...process.env, STUDIO: baseUrl };
+
+  // ── テスト IdP（Keycloak）を用意する ──
+  // 🚨 **Keycloak は `start-dev`（メモリ内 DB）で動いている**ので、
+  //   **コンテナが再起動すると realm ごと設定が消える**（実測: 再起動 29 秒後に realm が 404。
+  //   その直前まで往復は通っていた・2026-08-14）。
+  //   ここで「IdP が壊れている」と BLOCKED にすると、**実際には測れるのに測らない**ことになる。
+  //   `setup-keycloak.sh` は冪等なので、**無ければ作り直してから測る**。
+  //   → これは製品の検証ではなく**検証環境の用意**。判定ロジックには触れていない。
+  const realmAlive = async () => {
+    const probe = await fetch("http://localhost:3108/realms/ohmycms", { redirect: "manual" })
+      .catch(() => null);
+    return Boolean(probe && probe.status < 400);
+  };
+
+  // 🚨 **realm の有無だけを見ない。毎回 setup を流す。**
+  //   realm はあるのに**この対象（baseUrl）用のクライアントが無い**ことがある。
+  //   実測: Keycloak の再起動後、saml が :3102 用に作り直したので realm は 200 だったが、
+  //   :3103 のクライアントは無く、IdP が AuthnRequest に **400** を返していた（2026-08-14）。
+  //   「realm が生きている」を「測れる」と読んだのが誤り。**測る対象の分が要る。**
+  //   setup は冪等なので毎回流してよい（数秒）。
+  {
+    const setup = await run("bash", [join(SAML_DIR, "setup-keycloak.sh")], {
+      env, cwd: REPO_ROOT, timeoutMs: 180_000,
+    });
+    if (setup.code !== 0 || !(await realmAlive())) {
+      return result({
+        id: 13, title: "V1-A SAML（SSO）", status: STATUS.BLOCKED,
+        reason: "テスト IdP（Keycloak :3108）を用意できません",
+        details: [
+          ...details,
+          "立て直す:",
+          "  docker compose -p ohmycms-verify -f acceptance/saml/compose.keycloak.yml up -d",
+          `  STUDIO=${baseUrl} bash acceptance/saml/setup-keycloak.sh`,
+          "🚨 `-p ohmycms-verify` は **minio も使っています**。`--remove-orphans` を付けないこと。",
+          (setup.stderr || setup.stdout).slice(-200),
+        ],
+        ms: Date.now() - started,
+      });
+    }
+  }
+
+  // ── 🟢 ログインの往復 ──
+  rmSync(SESSION_FILE, { force: true });
+  rmSync(`${SESSION_FILE}.session`, { force: true });
+  const roundtrip = await run("python3", [join(SAML_DIR, "roundtrip.py"), SESSION_FILE], {
+    env, cwd: REPO_ROOT, timeoutMs: 120_000,
+  });
+  const roundtripOk = roundtrip.code === 0 && /往復が通りました/.test(roundtrip.stdout);
+  assertions.push(
+    assertion("positive", "SAML のログインが往復する（実物の Keycloak）", roundtripOk,
+      roundtripOk ? "302 → /admin + session" : (roundtrip.stderr || roundtrip.stdout).slice(-160),
+      "往復が通る"),
+  );
+
+  // ── 🟢 そのセッションが実際に効く（対照つき）──
+  //   🚨 Cookie が出たことを合格にしない。**割れている**ことまで見る。
+  let sessionToken = null;
+  try {
+    sessionToken = readFileSync(`${SESSION_FILE}.session`, "utf8").trim();
+  } catch {
+    /* 往復が失敗していれば無い。下の判定でそのまま落ちる */
+  }
+  const me = async (cookie) =>
+    (await fetch(`${baseUrl}/api/auth/me`, {
+      headers: cookie ? { cookie: `session=${cookie}` } : {},
+      redirect: "manual",
+    }).catch(() => ({ status: 0 }))).status;
+
+  const withSession = sessionToken ? await me(sessionToken) : 0;
+  const withoutCookie = await me(null);
+  const withFake = await me("deadbeef");
+  assertions.push(
+    assertion("positive", "SAML で出たセッションが実際に効く（/api/auth/me が 200）",
+      withSession === 200, `HTTP ${withSession}`, "200"),
+  );
+  assertions.push(
+    assertion("negative", "対照: Cookie 無し・偽トークンでは通らない",
+      withoutCookie === 401 && withFake === 401,
+      `無し ${withoutCookie} / 偽 ${withFake}`, "どちらも 401"),
+  );
+
+  // ── 🔴 否定形（saml のスクリプト。対照つきで 10 件）──
+  const negative = await run("python3", [join(SAML_DIR, "negative-checks.py")], {
+    env, cwd: REPO_ROOT, timeoutMs: 180_000,
+  });
+  const passed = negative.stdout.match(/=====\s*(\d+)\/(\d+)\s*通過\s*=====/);
+  const allPassed = negative.code === 0 && passed && passed[1] === passed[2];
+  assertions.push(
+    assertion("negative", "改竄・署名なし・Audience 不一致・期限切れ・リプレイを弾く",
+      Boolean(allPassed), passed ? `${passed[1]}/${passed[2]} 通過` : "スクリプトが完走せず",
+      "全件通過"),
+  );
+
+  // 🚨 「何が弾いたか」まで見る（これが無いと防御を1つ落としても気づけない）
+  assertions.push(
+    assertion("negative", "リプレイ台帳そのものが弾いている（code=SAML_REPLAY）",
+      /code=SAML_REPLAY/.test(negative.stdout),
+      /code=SAML_REPLAY/.test(negative.stdout) ? "SAML_REPLAY" : "別の理由で落ちている",
+      "SAML_REPLAY"),
+  );
+
+  details.push(
+    "🚨 **実物の IdP（Entra ID / Google Workspace）は未確認**（unverified）。",
+    "  ここで通ったのは **Keycloak（モック）まで**です。テナントが要ります。",
+    "  「モックで通る」と「実物で通る」は別なので、実結合まで PASS を広げないこと。",
+    `再現: STUDIO=${baseUrl} python3 acceptance/saml/negative-checks.py`,
+  );
+
+  const verdict = statusFromAssertions(assertions);
   return result({
-    id: 13,
-    title: "V1-A SAML（SSO）",
-    status: STATUS.BLOCKED,
-    reason: `入口はあります（HTTP ${metadata.status}）が、テスト IdP がまだありません`,
-    details: [
-      "SP のメタデータが出るようになりました。次は IdP 側（Keycloak :3108）を立てます。",
-      "🚨 否定形の4つは「常に 4xx を返す実装」でも全部通るので、",
-      "   **正しい Assertion が通ること**を対照として先に置きます。",
-    ],
-    ms: Date.now() - started,
+    id: 13, title: "V1-A SAML（SSO）", status: verdict.status,
+    positive: "往復＋セッションが効く", negative: "改竄・リプレイを弾く",
+    details: [...details, ...verdict.details], assertions, ms: Date.now() - started,
   });
 }

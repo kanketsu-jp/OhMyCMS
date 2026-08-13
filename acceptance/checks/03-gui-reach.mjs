@@ -121,11 +121,20 @@ export async function check(context) {
 
   // ── 肯定形1: ナビに必須機能が揃っていて、全部 200 で開ける ──
   const shell = preflight.status === 200 ? preflight : await admin.get("/admin");
+  // 🚨 **素の `href="..."` だけを見ない。**
+  //   設定系（ロール / ポリシー / ユーザー / エージェントトークン）は**クライアント描画**に
+  //   変わり、サーバ HTML には RSC のペイロード内に
+  //   `\"href\":\"/admin/settings/roles\"` の形（JSON をエスケープしたもの）でしか出ない。
+  //   素の href だけ見ていたので **13 本 → 7 本に見え、FAIL を出した**（2026-08-14）。
+  //   実際にはページは 200 で開け、ブラウザからは出ている。**製品でなく抽出が脆かった。**
+  //   → 両方の形を拾う。ここで拾えるのは「導線が提供されているか」までで、
+  //     **実際に押せるか**は人が見る（manual-3.md）。
   const hrefs = [
     ...new Set(
-      [...shell.text.matchAll(/href="(\/[^"#?]*)"/g)]
-        .map((m) => m[1])
-        .filter((h) => !h.startsWith("/_next")),
+      [
+        ...[...shell.text.matchAll(/href="(\/[^"#?]*)"/g)].map((m) => m[1]),
+        ...[...shell.text.matchAll(/\\"href\\":\\"(\/[^"\\#?]*)\\"/g)].map((m) => m[1]),
+      ].filter((h) => !h.startsWith("/_next")),
     ),
   ];
   assertions.push(
@@ -228,6 +237,27 @@ export async function check(context) {
         "全部 200",
       ),
     );
+
+    // ── 🚨 肯定形: **作ったコレクションに、実際にアイテムを1件作れる** ──
+    //   「画面が 200 で開ける」だけでは**使えるとは言えない**。実際に
+    //   「GUI でコレクションを作る → そこにアイテムを作る」が通らないと機能していない。
+    //   実際に穴があった: **GUI で作ったコレクションは id に default が無く、
+    //   アイテムを1行も作れず 500 になっていた**（base2 が修正・1e8283f）。
+    //   → 画面の到達だけを見ていると、この形の壊れ方を**丸ごと見逃す**。
+    if (created) {
+      const added = await asAdmin(`/api/items/${collection}`, { title: "アイテム作成の確認" });
+      const listed = await admin.get(`/api/items/${collection}`);
+      const rows = Array.isArray(listed.json?.data) ? listed.json.data.length : -1;
+      assertions.push(
+        assertion(
+          "positive",
+          "作ったコレクションにアイテムを作れる（id が自動で入る）",
+          (added.status === 200 || added.status === 201) && rows >= 1,
+          `作成 HTTP ${added.status} / 一覧 ${rows} 件`,
+          "200/201 かつ 1 件以上",
+        ),
+      );
+    }
 
     // ── 否定形: 未ログインでは弾かれる ──
     //    🚨 肯定形（ログインすれば開ける）とセットで見る。

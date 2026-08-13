@@ -6,10 +6,14 @@
  * 未実装なら **SKIP**（PASS にも FAIL にもしない）。何が要るかを reason に出す。
  */
 
+import { bootstrapAvailable, bootstrapUser, cleanupBootstrap } from "../lib/bootstrap.mjs";
+import { cleanupLoginCodes, plantLoginCode } from "../lib/otp.mjs";
 import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
 
 const PREFIX = "accv1_";
+/** 🚨 後片付けの目印。bootstrap の接頭辞と揃える（英数と ._- のみ） */
+const OTP_PREFIX = "accv1d-";
 
 function skip(id, title, reason, details, started) {
   return result({ id, title, status: STATUS.SKIP, reason, details, ms: Date.now() - started });
@@ -230,10 +234,118 @@ export async function checkOtp(context) {
       ], started);
   }
 
+  const assertions = [];
+  const details = [];
+  const email = `${OTP_PREFIX}user@example.com`;
+  const other = `${OTP_PREFIX}other@example.com`;
+
+  const db = await bootstrapAvailable();
+  if (!db.ok) {
+    return result({
+      id: 12, title: "V1-D メール OTP", status: STATUS.BLOCKED,
+      reason: "既知のコードを植えられません（DB へ psql で入れない）",
+      details: [...(db.detail ?? []), "コードは scrypt のハッシュでしか保存されないため、読み出せません。"],
+      ms: Date.now() - started,
+    });
+  }
+
+  // 検証対象の利用者が要る（コードは active な利用者にしか出ない）
+  const userA = await bootstrapUser(baseUrl, { email });
+  const userB = await bootstrapUser(baseUrl, { email: other });
+  if (!userA.ok || !userB.ok) {
+    await cleanupBootstrap(OTP_PREFIX);
+    return result({
+      id: 12, title: "V1-D メール OTP", status: STATUS.BLOCKED,
+      reason: "検証用の利用者を作れませんでした",
+      details: [userA.reason ?? "", userB.reason ?? ""].filter(Boolean),
+      ms: Date.now() - started,
+    });
+  }
+
+  const verify = async (asEmail, code) => {
+    const response = await fetch(`${baseUrl}/api/auth/otp/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: asEmail, code }),
+      redirect: "manual",
+    }).catch(() => null);
+    return response?.status ?? 0;
+  };
+
+  try {
+    await cleanupLoginCodes(OTP_PREFIX);
+
+    // ── 🚨 対照: **正しいコードなら通る** ──
+    //   これが無いと、以下の否定形は「常に 401 を返す実装」でも全部通ってしまう。
+    //   ここが通ることで、**植え方（scrypt の形式）が製品と一致している**ことも同時に確かめられる。
+    await plantLoginCode({ email, code: "123456" });
+    const good = await verify(email, "123456");
+    assertions.push(
+      assertion("positive", "対照: 正しいコードで入れる", good === 200, `HTTP ${good}`, "200"),
+    );
+
+    // ── 🔴 期限切れ ──
+    await plantLoginCode({ email, code: "222222", expiresInMs: -60 * 1000 });
+    const expired = await verify(email, "222222");
+    assertions.push(
+      assertion("negative", "期限切れのコードでは入れない", expired === 401, `HTTP ${expired}`, "401"),
+    );
+
+    // ── 🔴 使用済み ──
+    await plantLoginCode({ email, code: "333333", consumed: true });
+    const consumed = await verify(email, "333333");
+    assertions.push(
+      assertion("negative", "使用済みのコードでは入れない", consumed === 401, `HTTP ${consumed}`, "401"),
+    );
+
+    // ── 🔴 他人のコード ──
+    await plantLoginCode({ email: other, code: "444444" });
+    const stolen = await verify(email, "444444");
+    assertions.push(
+      assertion("negative", "他人あてのコードでは入れない", stolen === 401, `HTTP ${stolen}`, "401"),
+    );
+
+    // ── 🔴 試行回数の上限（MAX_ATTEMPTS = 5）──
+    //   🚨 **上限に達した後は「正しいコードでも入れない」**ことを見る。
+    //     単に間違いが 401 になるだけなら、総当たりは止まらない。
+    await plantLoginCode({ email, code: "555555", attempts: 5 });
+    const overAttempts = await verify(email, "555555");
+    assertions.push(
+      assertion("negative", "試行回数を使い切ったら、正しいコードでも入れない",
+        overAttempts === 401, `HTTP ${overAttempts}`, "401"),
+    );
+
+    // ── 仕様の確認: request は常に 200（宛先の存在を漏らさない）──
+    const known = await fetch(`${baseUrl}/api/auth/otp/request`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }), redirect: "manual",
+    }).catch(() => null);
+    const unknown = await fetch(`${baseUrl}/api/auth/otp/request`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: `${OTP_PREFIX}nobody@example.com` }), redirect: "manual",
+    }).catch(() => null);
+    assertions.push(
+      assertion("negative", "居る宛先と居ない宛先で応答が変わらない（列挙できない）",
+        known?.status === unknown?.status,
+        `居る ${known?.status ?? "-"} / 居ない ${unknown?.status ?? "-"}`, "同じ"),
+    );
+
+    details.push(
+      "🚨 **メールの送信経路は未検証**（unverified）。コードは scrypt のハッシュでしか",
+      "  保存されないため、**受信箱を見ない限り「届いたコードで入れる」は測れません**。",
+      "  ここで測っているのは**照合ロジック**（期限・使い捨て・持ち主・試行回数）です。",
+      "  🟢「コードを受け取って入れる」を測るには MailHog 等が要ります（auth と合意済み）。",
+      "  **「送信経路は未検証」と残る方が、偽の緑より価値がある**と判断しました。",
+    );
+  } finally {
+    await cleanupLoginCodes(OTP_PREFIX);
+    await cleanupBootstrap(OTP_PREFIX);
+  }
+
+  const verdict = statusFromAssertions(assertions);
   return result({
-    id: 12, title: "V1-D メール OTP", status: STATUS.BLOCKED,
-    reason: `入口はありますが（HTTP ${probe.status}）、検査はまだ書いていません`,
-    details: ["実装が動き始めたので、上の5項目を実装します。"],
-    ms: Date.now() - started,
+    id: 12, title: "V1-D メール OTP", status: verdict.status,
+    positive: "正しいコードで入れる", negative: "期限切れ・使用済み・他人・試行超過",
+    details: [...details, ...verdict.details], assertions, ms: Date.now() - started,
   });
 }
