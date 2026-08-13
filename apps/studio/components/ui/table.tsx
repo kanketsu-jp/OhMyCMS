@@ -3,19 +3,18 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div
-      data-slot="table-container"
-      className="relative w-full overflow-x-auto"
-    >
+    // 🚨 スクロールするのはこの器なので、fade も**この器そのもの**に当たる（外側に巻かない）。
+    <ScrollFade direction="horizontal" data-slot="table-container" className="relative w-full">
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
-    </div>
+    </ScrollFade>
   )
 }
 

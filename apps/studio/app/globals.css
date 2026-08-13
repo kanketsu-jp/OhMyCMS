@@ -153,6 +153,46 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@layer components {
+  /* スクロールできることを端のフェードで見せる（憲章 §6 / components/ui/scroll-fade.tsx）。
+     🚨 マスクは**スクロールする要素そのもの**に当たる。外側に巻くと監査が赤のままになる。
+     🚨 出し分けは CSS だけでやる。JS は dataset を書き換えるだけで、再描画を起こさない。 */
+  [data-slot="scroll-fade"] {
+    /* フェードの幅。**変えるならここ1箇所**（design が確定値を出したら差し替える） */
+    --scroll-fade-size: 1rem;
+    /* 端に着いている間は 0 にして、フェードを消す。
+       「その先にまだ続きがあるときだけ」出さないと、先頭でも末尾でも嘘をつくことになる。 */
+    --scroll-fade-start: 0px;
+    --scroll-fade-end: 0px;
+  }
+  [data-slot="scroll-fade"][data-at-start="false"] {
+    --scroll-fade-start: var(--scroll-fade-size);
+  }
+  [data-slot="scroll-fade"][data-at-end="false"] {
+    --scroll-fade-end: var(--scroll-fade-size);
+  }
+  /* 🚨 白いグラデーションを重ねる方式にしない（ダークテーマで白い帯が出る）。
+     mask-image は下の色に依存しない。影も使わない（影は面なので深さが1段増える）。 */
+  [data-slot="scroll-fade"][data-direction="horizontal"] {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black var(--scroll-fade-start),
+      black calc(100% - var(--scroll-fade-end)),
+      transparent 100%
+    );
+  }
+  [data-slot="scroll-fade"][data-direction="vertical"] {
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black var(--scroll-fade-start),
+      black calc(100% - var(--scroll-fade-end)),
+      transparent 100%
+    );
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

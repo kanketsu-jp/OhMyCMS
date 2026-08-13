@@ -5,6 +5,7 @@ import { apiFetch, currentUser } from "@/lib/admin/api";
 import { GlobalSearch } from "@/components/admin/global-search";
 import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { MobileNav } from "@/components/admin/mobile-nav";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { buttonVariants } from "@/components/ui/button";
 import { getT } from "@/i18n/server";
 import { projectName } from "@/lib/settings/project-name";
@@ -65,7 +66,10 @@ export default async function AdminLayout({
             {brand}
           </Link>
         </div>
-        <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
+        {/* 🚨 スクロールするのは中の ScrollFade。nav 自体には overflow を持たせない
+            （持たせると、fade の付いていない要素がスクロールして監査が赤になる）。 */}
+        <nav className="flex min-h-0 flex-1 flex-col">
+          <ScrollFade direction="vertical" className="flex-1 space-y-6 px-3 py-4">
           <div className="space-y-1">
             {navItems.map((item) => (
               <Link
@@ -99,6 +103,7 @@ export default async function AdminLayout({
               )}
             </div>
           </div>
+          </ScrollFade>
         </nav>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">

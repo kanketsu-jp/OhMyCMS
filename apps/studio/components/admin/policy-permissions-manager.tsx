@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
+import { useScrollFade } from "@/components/ui/scroll-fade";
 
 type PermissionRow = {
   id: number;
@@ -57,6 +58,30 @@ function parseJsonOrNull(text: string): { ok: true; value: unknown } | { ok: fal
 
 function fieldsFor(collections: CollectionResult[], collection: string): string[] {
   return collections.find((item) => item.collection === collection)?.schema?.columns.map((column) => column.name) ?? [];
+}
+
+/**
+ * 権限フィルタの JSON。**行ごとに1つ**あるので、部品に切り出して**行ごとに ref を持たせる**。
+ *
+ * 🚨 map の中で1つの ref を使い回すと、**最後に描かれた1つにしか付かない**。
+ * 残りは data-at-start / data-at-end が付かないまま＝フェードが出ず、監査にも引っかかる。
+ * （実際にこの形で書いてしまい、書いた直後に気づいた）
+ *
+ * 🚨 マスクはスクロールする <pre> そのものに当てる。外側に巻くと監査が赤のままになる。
+ */
+function FilterBlock({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLPreElement>(null);
+  useScrollFade(ref, "horizontal");
+  return (
+    <pre
+      ref={ref}
+      data-slot="scroll-fade"
+      data-direction="horizontal"
+      className="overflow-x-auto rounded-md bg-muted p-3 text-xs"
+    >
+      {children}
+    </pre>
+  );
 }
 
 export function PolicyPermissionsManager({ policyId, collections, permissions }: Props) {
@@ -234,7 +259,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
                 </Button>
               </div>
             </div>
-            <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">{jsonText(row.permissions) || t("no_filter")}</pre>
+            <FilterBlock>{jsonText(row.permissions) || t("no_filter")}</FilterBlock>
           </div>
         ))}
         {permissions.length === 0 ? (

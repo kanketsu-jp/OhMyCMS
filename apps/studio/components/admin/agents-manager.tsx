@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, KeyRound, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
+import { useScrollFade } from "@/components/ui/scroll-fade";
 
 type AgentRow = {
   id: string;
@@ -46,6 +47,10 @@ function parseOptionalJson(text: string, invalidMessage: string): { ok: true; va
 }
 
 export function AgentsManager({ agents }: { agents: AgentRow[] }) {
+  // 🚨 スクロールする要素そのものに fade を当てる（外側に巻くと監査が赤のまま）。
+  // <code> はタグを差し替えられないので、部品ではなくフックで振る舞いだけ付ける。
+  const tokenRef = useRef<HTMLElement>(null);
+  useScrollFade(tokenRef, "horizontal");
   const t = useT("agents");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +108,12 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             {t("token_heading")}
           </div>
           <p className="text-sm text-destructive">{t("token_warning")}</p>
-          <code className="block overflow-x-auto py-2 font-mono text-sm break-all">{token}</code>
+          <code
+            ref={tokenRef}
+            data-slot="scroll-fade"
+            data-direction="horizontal"
+            className="block overflow-x-auto py-2 font-mono text-sm break-all"
+          >{token}</code>
           <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(token)}>
             <Copy />
             {t("copy_button")}
