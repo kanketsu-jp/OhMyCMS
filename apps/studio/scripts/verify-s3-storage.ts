@@ -94,67 +94,88 @@ async function removeRawKeys(keys: string[]): Promise<void> {
   );
 }
 
-async function toBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
-  return Buffer.isBuffer(body) ? body : Buffer.from(await new Response(body).arrayBuffer());
-}
-
-let failures = 0;
-function check(label: string, ok: boolean, detail: string): void {
-  if (!ok) failures += 1;
-  console.log(`${ok ? "PASS" : "FAIL"}  ${label}  ${detail}`);
-}
-
 /**
- * 1回分の往復。keyPrefix を変えて2回まわし、
- * 「接頭辞が実キーにだけ効き、呼び出し側のキーは変わらない」ことを見る。
+ * 🚨 **自分が作ったものは、落ちても必ず消す。**
+ *
+ * 検査の途中で例外が出るとバケットに残骸が残り、**次回の実測を誤らせる**
+ * （「実キーの位置」は件数を見ているので、残骸があるだけで FAIL する）。
+ * ドライバの不具合に引きずられないよう、後片付けは**生の S3 API**で行う。
+ * 共有資源を触る検査の作法として、受入側（sdk）とも揃えている。
  */
-async function roundTrip(options: { keyPrefix?: string; useLegacyR2Names?: boolean }): Promise<void> {
-  const label = options.useLegacyR2Names
+async function cleanupPrefix(prefix: string): Promise<void> {
+  try {
+    await removeRawKeys(await listRawKeys(prefix));
+    } catch {
+    // 後片付けの失敗で検査結果を塗り替えない（残骸は次回の一覧で見える）。
+    }
+  }
+
+  async function toBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
+    return Buffer.isBuffer(body) ? body : Buffer.from(await new Response(body).arrayBuffer());
+  }
+
+  let failures = 0;
+  function check(label: string, ok: boolean, detail: string): void {
+    if (!ok) failures += 1;
+    console.log(`${ok ? "PASS" : "FAIL"}  ${label}  ${detail}`);
+  }
+
+  /**
+   * 1回分の往復。keyPrefix を変えて2回まわし、
+   * 「接頭辞が実キーにだけ効き、呼び出し側のキーは変わらない」ことを見る。
+   */
+  async function roundTrip(options: { keyPrefix?: string; useLegacyR2Names?: boolean }): Promise<void> {
+    const label = options.useLegacyR2Names
     ? "旧 R2_* 名"
     : options.keyPrefix
       ? `接頭辞 "${options.keyPrefix}"`
       : "接頭辞なし";
 
-  setS3Env(options);
-  const storage = getStorage();
-  check(`${label}: ドライバ選択`, storage.name === "s3", `name=${storage.name}`);
-  if (storage.name !== "s3") return;
+    setS3Env(options);
+    const storage = getStorage();
+    check(`${label}: ドライバ選択`, storage.name === "s3", `name=${storage.name}`);
+    if (storage.name !== "s3") return;
 
-  // 実キー設計に合わせる（<uuid>/<ファイル名> と <uuid>/transformed/<hash>.<ext>）。
-  const id = `verify-${options.keyPrefix ?? "none"}-${options.useLegacyR2Names ? "r2" : "s3"}`;
-  const originalKey = `${id}/original.txt`;
-  const derivedKey = `${id}/transformed/thumb.txt`;
-  const payload = Buffer.from(`hello ${label}`, "utf8");
-  const expectedPrefix = options.keyPrefix ? `${options.keyPrefix}/` : "";
+    // 実キー設計に合わせる（<uuid>/<ファイル名> と <uuid>/transformed/<hash>.<ext>）。
+    const id = `verify-${options.keyPrefix ?? "none"}-${options.useLegacyR2Names ? "r2" : "s3"}`;
+    const cleanupTarget = options.keyPrefix ? `${options.keyPrefix}/${id}/` : `${id}/`;
+    try {
+    const originalKey = `${id}/original.txt`;
+    const derivedKey = `${id}/transformed/thumb.txt`;
+    const payload = Buffer.from(`hello ${label}`, "utf8");
+    const expectedPrefix = options.keyPrefix ? `${options.keyPrefix}/` : "";
 
-  await storage.put(originalKey, payload, "text/plain");
-  await storage.put(derivedKey, Buffer.from("derived", "utf8"), "text/plain");
+    await storage.put(originalKey, payload, "text/plain");
+    await storage.put(derivedKey, Buffer.from("derived", "utf8"), "text/plain");
 
-  const head = await storage.head(originalKey);
-  check(
+    const head = await storage.head(originalKey);
+    check(
     `${label}: head`,
     head !== null && head.size === payload.byteLength && head.contentType === "text/plain",
     `size=${head?.size ?? "null"} contentType=${head?.contentType ?? "null"}`,
-  );
+    );
 
-  const got = await toBuffer(await storage.get(originalKey));
-  check(`${label}: get の内容一致`, got.equals(payload), `${got.byteLength} bytes`);
+    const got = await toBuffer(await storage.get(originalKey));
+    check(`${label}: get の内容一致`, got.equals(payload), `${got.byteLength} bytes`);
 
-  // 呼び出し側は接頭辞なしのキーを渡しているのに、バケット上では接頭辞付きで入っているか。
-  const rawKeys = await listRawKeys(`${expectedPrefix}${id}/`);
-  check(
+    // 呼び出し側は接頭辞なしのキーを渡しているのに、バケット上では接頭辞付きで入っているか。
+    const rawKeys = await listRawKeys(`${expectedPrefix}${id}/`);
+    check(
     `${label}: 実キーの位置`,
     rawKeys.length === 2 && rawKeys.every((key) => key.startsWith(expectedPrefix)),
     rawKeys.join(", ") || "(なし)",
-  );
+    );
 
-  await storage.delete(originalKey);
-  check(`${label}: delete 後の head`, (await storage.head(originalKey)) === null, "null");
+    await storage.delete(originalKey);
+    check(`${label}: delete 後の head`, (await storage.head(originalKey)) === null, "null");
 
-  await storage.deletePrefix?.(`${id}/`);
-  const leftovers = await listRawKeys(`${expectedPrefix}${id}/`);
-  check(`${label}: deletePrefix`, leftovers.length === 0, leftovers.join(", ") || "(残りなし)");
-  await removeRawKeys(leftovers);
+    await storage.deletePrefix?.(`${id}/`);
+    const leftovers = await listRawKeys(`${expectedPrefix}${id}/`);
+    check(`${label}: deletePrefix`, leftovers.length === 0, leftovers.join(", ") || "(残りなし)");
+  } finally {
+    // 🚨 判定が落ちても・例外が出ても、自分が置いたものは消す。
+    await cleanupPrefix(cleanupTarget);
+  }
 }
 
 /** env が欠けているときは黙って S3 を使わず、ローカルへ落ちること。 */
@@ -259,10 +280,10 @@ async function switchoverCase(): Promise<void> {
     "null",
   );
 
-  // 後片付け。
+  // 後片付け（ローカル側はドライバで、S3 側は生の API で消す）。
   setS3Env();
   await legacyStorage?.deletePrefix?.("verify-switchover/");
-  await getStorageByName("s3")?.deletePrefix?.("verify-switchover/");
+  await cleanupPrefix("verify-switchover/");
 }
 
 /**
@@ -357,7 +378,7 @@ async function probePathStyle(): Promise<void> {
         `   ${ok ? "通る  " : "通らない"} S3_FORCE_PATH_STYLE=${String(forcePathStyle).padEnd(5)} ` +
           `（${forcePathStyle ? "パス形式" : "仮想ホスト形式"}）`,
       );
-      await storage.delete(key);
+      await cleanupPrefix("verify-path-style/");
     } catch (error) {
       // 🚨 例外の中身まで出す。DNS で落ちたのか、署名が合わないのかで対処が変わる。
       const message = error instanceof Error ? error.message : "不明";
@@ -400,7 +421,8 @@ async function largeFileCase(megabytes: number): Promise<void> {
     got.byteLength === payload.byteLength && got.equals(payload),
     `${got.byteLength}B  put ${putMs.toFixed(0)}ms / get ${getMs.toFixed(0)}ms`,
   );
-  await storage.deletePrefix?.("verify-large/");
+  // 🚨 大きいファイルこそ残すとバケットを圧迫する。生の API で確実に消す。
+  await cleanupPrefix("verify-large/");
 }
 
 async function main(): Promise<void> {
