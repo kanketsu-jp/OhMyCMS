@@ -9,6 +9,7 @@ import { NavLinks } from "@/components/admin/nav-links";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { getT } from "@/i18n/server";
 import { projectColor } from "@/lib/settings/project-color";
+import { projectLogo } from "@/lib/settings/project-logo";
 import { projectName } from "@/lib/settings/project-name";
 import { SETUP_COOKIE, parseCookies } from "@/lib/auth/cookies";
 import { isValidSetupSession } from "@/lib/auth/setup-session";
@@ -46,6 +47,7 @@ export default async function AdminLayout({
   const t = await getT("nav");
   const tCommon = await getT("common");
   const brand = await projectName(tCommon("app_name"));
+  const logo = await projectLogo();
   const accent = await projectColor();
   const me = await currentUser();
   if (!me.ok && me.status === 401) {
@@ -87,8 +89,12 @@ export default async function AdminLayout({
           サイドバーは罫線1本で区切る。背景も付けると面が濃くなり、中の区切りが2段目になる。 */}
       <aside className="hidden w-64 shrink-0 border-r md:flex md:flex-col">
         <div className="px-4 py-4">
-          <Link href="/admin" className="text-base font-semibold">
-            {brand}
+          <Link href="/admin" className="flex items-center gap-2 text-base font-semibold">
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element -- 外部URLもありうるので Image コンポーネントを使わない
+              <img src={logo} alt="" className="h-6 w-auto max-w-32 object-contain" />
+            ) : null}
+            <span className="truncate">{brand}</span>
           </Link>
         </div>
         {/* 🚨 スクロールするのは中の ScrollFade。nav 自体には overflow を持たせない
@@ -131,8 +137,12 @@ export default async function AdminLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-14 items-center justify-between border-b px-4 md:px-6">
           <div className="flex items-center gap-3 md:hidden">
-            <Link href="/admin" className="font-semibold">
-              {brand}
+            <Link href="/admin" className="flex items-center gap-2 text-base font-semibold">
+              {logo ? (
+                // eslint-disable-next-line @next/next/no-img-element -- 外部URLもありうるので Image コンポーネントを使わない
+                <img src={logo} alt="" className="h-6 w-auto max-w-32 object-contain" />
+              ) : null}
+              <span className="truncate">{brand}</span>
             </Link>
           </div>
           <div className="hidden text-sm text-muted-foreground md:block">
