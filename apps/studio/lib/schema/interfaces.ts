@@ -84,3 +84,25 @@ export function resolveFieldInterface(
   }
   return defaultInterfaceForType(field);
 }
+
+/** PCで必要以上に横へ伸ばさないための、フィールド用途別の最大幅。 */
+export function fieldWidthClass(
+  field: Pick<FieldResult, "field" | "type" | "meta" | "schema">,
+): string {
+  const ui = resolveFieldInterface(field);
+  if (ui === "boolean" || ui === "json" || ui === "file" || ui === "richtext") return "";
+
+  if (field.type === "date" || field.type === "time") return "md:max-w-40";
+  if (field.type === "dateTime") return "md:max-w-60";
+  if (["integer", "bigInteger", "float", "decimal"].includes(field.type)) return "md:max-w-40";
+  if (field.type === "uuid") return "md:max-w-md";
+
+  if (field.type === "string") {
+    const maxLength = field.schema?.max_length;
+    if (typeof maxLength === "number" && maxLength <= 20) return "md:max-w-40";
+    if (typeof maxLength === "number" && maxLength <= 60) return "md:max-w-md";
+    return "md:max-w-2xl";
+  }
+
+  return "md:max-w-2xl";
+}

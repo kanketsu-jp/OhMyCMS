@@ -608,6 +608,18 @@ const PROBE = String.raw`(() => {
     formPairs: formPairs.slice(0, 4),
     nameless,
     editableLooking,
+    // 🚨 **横に長すぎる入力を見る。** 堀池（2026-08-15）:
+    //    「全てのセクション・要素は PC の場合横長になりすぎる。理由として
+    //      **そのフィールドの目的や全体のバランスが見れてない**のが原因。
+    //      例えば**電話番号のフィールドは多くても10文字分あれば十分**です。」
+    //    🚨 これまで幅を一度も測っていなかった（高さだけ見ていた）ので、
+    //    「横長になりすぎる」は**監査では永遠に緑**だった。
+    //    本文（richtext / json）と全幅の主要アクションは対象外。
+    tooWideInputs: inputEls
+      .filter((el) => !el.closest("[data-slot=rich-text]") && el.type !== "checkbox" && el.type !== "radio")
+      .map((el) => ({ sel: sel(el), w: Math.round(el.getBoundingClientRect().width),
+                      type: el.type || "text", html: el.outerHTML.replace(/\s+/g, " ").slice(0, 90) }))
+      .filter((x) => x.w > 720),
     inputHeights: [...new Set(inputs.map((b) => b.h))].sort((a, b) => a - b),
     // 🚨 iOS が勝手に拡大するのは **文字を打ち込む欄** の font-size が 16px 未満のとき（憲章 §7）。
     // チェックボックス・ラジオ・ファイル選択は拡大しないので除く（除かないと誤検出になる）。
@@ -931,6 +943,14 @@ for (const vp of VIEWPORTS) {
     //    🚨 `getAttribute("aria-labelledby")` を読むだけでは**参照先が実在するか分からない**
     //       （settings の htmlFor が存在しない id を指していた事故と同じ形）。
     //       ここでは**ブラウザが計算した結果**（AXNode.name）を採るので、宙に浮いた参照は空になる。
+    // 🚨 PC でだけ見る。SP は画面幅いっぱいが正しい（狭めると押しにくい）。
+    if (!vp.mobile && r.tooWideInputs && r.tooWideInputs.length > 0) {
+      violations.push({
+        key, rule: "§3 入力が横に長すぎる",
+        detail: `${r.tooWideInputs.length} 箇所が 720px を超えています（そのフィールドに入る文字数に合わせること）`,
+        worst: r.tooWideInputs.slice(0, 4),
+      });
+    }
     if (r.editableLooking && r.editableLooking.length) {
       violations.push({
         key, rule: "§3 変えられない値が入力欄に見えている",

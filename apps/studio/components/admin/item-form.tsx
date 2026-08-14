@@ -5,7 +5,7 @@ import { getT } from "@/i18n/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { resolveFieldInterface } from "@/lib/schema/interfaces";
+import { fieldWidthClass, resolveFieldInterface } from "@/lib/schema/interfaces";
 
 type Props = {
   collection: string;
@@ -65,6 +65,7 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
         // 🚨 何で編集させるかは **meta.interface** が決める（型は DB の列の型でしかない）。
         // meta.interface が無い／型に合わない場合だけ、型から既定へ落ちる。
         const ui = resolveFieldInterface(field);
+        const widthClass = fieldWidthClass(field);
 
         return (
           <div key={field.field} className="space-y-1.5">
@@ -79,63 +80,65 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
               {field.field}
               {required ? <span className="text-destructive">*</span> : null}
             </Label>
-            {ui === "file" && !readonly ? (
-              <FilePicker
-                inputId={fieldName}
-                name={fieldName}
-                defaultValue={valueForInput(value)}
-              />
-            ) : ui === "richtext" && !readonly ? (
-              <RichTextField
-                inputId={fieldName}
-                name={fieldName}
-                defaultValue={value}
-                required={required}
-              />
-            ) : ui === "boolean" ? (
-              <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc-field)">
-                <input
-                  id={fieldName}
-                  type="checkbox"
+            <div className={widthClass}>
+              {ui === "file" && !readonly ? (
+                <FilePicker
+                  inputId={fieldName}
                   name={fieldName}
-                  value="true"
-                  defaultChecked={value === true}
-                  disabled={readonly}
-                  className="size-4"
+                  defaultValue={valueForInput(value)}
                 />
-                {t("yes")}
-              </label>
-            ) : ui === "json" ? (
-              <textarea
-                id={fieldName}
-                name={fieldName}
-                required={required}
-                readOnly={readonly}
-                defaultValue={valueForInput(value)}
-                className="min-h-36 w-full rounded-lg bg-muted/60 px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              />
-            ) : (
-              <Input
-                id={fieldName}
-                name={fieldName}
-                type={
-                  field.type === "dateTime"
-                    ? "datetime-local"
-                    : field.type === "date"
-                      ? "date"
-                      : field.type === "time"
-                        ? "time"
-                        : ["integer", "bigInteger", "float", "decimal"].includes(field.type)
-                          ? "number"
-                          : "text"
-                }
-                step={["float", "decimal"].includes(field.type) ? "any" : undefined}
-                maxLength={field.type === "string" ? field.schema?.max_length ?? undefined : undefined}
-                required={required}
-                readOnly={readonly}
-                defaultValue={field.type === "dateTime" ? dateTimeValue(value) : valueForInput(value)}
-              />
-            )}
+              ) : ui === "richtext" && !readonly ? (
+                <RichTextField
+                  inputId={fieldName}
+                  name={fieldName}
+                  defaultValue={value}
+                  required={required}
+                />
+              ) : ui === "boolean" ? (
+                <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc-field)">
+                  <input
+                    id={fieldName}
+                    type="checkbox"
+                    name={fieldName}
+                    value="true"
+                    defaultChecked={value === true}
+                    disabled={readonly}
+                    className="size-4"
+                  />
+                  {t("yes")}
+                </label>
+              ) : ui === "json" ? (
+                <textarea
+                  id={fieldName}
+                  name={fieldName}
+                  required={required}
+                  readOnly={readonly}
+                  defaultValue={valueForInput(value)}
+                  className="min-h-36 w-full rounded-lg bg-muted/60 px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+              ) : (
+                <Input
+                  id={fieldName}
+                  name={fieldName}
+                  type={
+                    field.type === "dateTime"
+                      ? "datetime-local"
+                      : field.type === "date"
+                        ? "date"
+                        : field.type === "time"
+                          ? "time"
+                          : ["integer", "bigInteger", "float", "decimal"].includes(field.type)
+                            ? "number"
+                            : "text"
+                  }
+                  step={["float", "decimal"].includes(field.type) ? "any" : undefined}
+                  maxLength={field.type === "string" ? field.schema?.max_length ?? undefined : undefined}
+                  required={required}
+                  readOnly={readonly}
+                  defaultValue={field.type === "dateTime" ? dateTimeValue(value) : valueForInput(value)}
+                />
+              )}
+            </div>
           </div>
         );
       })}
