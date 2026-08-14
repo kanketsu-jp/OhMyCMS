@@ -1,0 +1,11 @@
+{
+  "cli_heading": "claude mcp add example",
+  "copy_button": "Copy",
+  "description": "URL and configuration examples for connecting to the OhMyCMS MCP server.",
+  "issue_token_link": "Issue an agent token",
+  "issue_token_prefix": "The token is shown only once immediately after it is issued.",
+  "json_heading": "MCP client configuration JSON",
+  "title": "MCP Connection",
+  "token_placeholder": "<agent token>",
+  "url_label": "Connection URL"
+}

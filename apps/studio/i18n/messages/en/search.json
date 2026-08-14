@@ -28,5 +28,6 @@
   "page_settings_policies": "Policies",
   "page_settings_users": "Users",
   "page_settings_agents": "Agents",
+  "page_settings_mcp": "MCP Connection",
   "shortcut_hint": "⌘K"
 }
