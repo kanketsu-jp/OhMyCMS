@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,12 +47,20 @@ export function BugReportComposer({ onDone }: Props) {
   // 🚨 入力の不足は**その欄の近く**に出す（消えると直せなくなるのでトーストにしない）。
   const [fieldError, setFieldError] = useState<"title" | "body" | null>(null);
 
-  // 🚨 画面の大きさはサーバでは分からないので、水和のあとに読む。
-  //    描画のたびに `window` を見ると、サーバとクライアントで違う HTML になる。
-  const [viewport, setViewport] = useState<string | null>(null);
-  useEffect(() => {
-    setViewport(`${window.innerWidth}x${window.innerHeight}`);
-  }, []);
+  // 画面の大きさはサーバでは分からないので、水和のあとに読む。
+  //
+  // 🚨 `useEffect` の中で `setState` する形にしない。React Compiler の lint が
+  //    `react-hooks/set-state-in-effect` で **error にする**（実際に落ちた）。
+  //    `page-action.tsx` が同じ理由で `useSyncExternalStore` を使っているので揃える。
+  // 🚨 返すのは文字列（プリミティブ）なので、同じ大きさなら同じ値になり再描画が続かない。
+  const viewport = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("resize", onChange);
+      return () => window.removeEventListener("resize", onChange);
+    },
+    () => `${window.innerWidth}x${window.innerHeight}`,
+    () => null,
+  );
 
   const submit = useSubmitOnce(async () => {
     const trimmedTitle = title.trim();
