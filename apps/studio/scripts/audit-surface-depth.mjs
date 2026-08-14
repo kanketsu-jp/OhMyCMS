@@ -76,6 +76,14 @@ const KEYS = arg("keys", "");
 // 🚨 測る言語。既定は ja（**利用者が見ている画面**）。headless の既定 en のままにしない。
 const LOCALE = arg("locale", "ja");
 const KEYCODE = { ArrowDown: 40, ArrowUp: 38, Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35 };
+// 🚨 描画生存確認の本文しきい値。
+//    これは nav a 等の代理ではなく、利用者が見る本文そのもの（body.innerText）を測る。
+//    2026-08-15 実測（ja / http://localhost:3102 / 通常18ページ）:
+//      最小 70 文字（sp /admin/files/new-folder）、最大 9044 文字。
+//    陽性対照:
+//      空HTML: 0文字・title空、例外ページ: 2文字・Runtime.exceptionThrown。
+//    正常最小 70 と壊れた最大 2 の間が十分に開いているので、境界を 40 に置く。
+const MIN_RENDER_TEXT_CHARS = 40;
 
 const DEFAULT_PATHS = [
   // 🚨 /admin は /admin/collections へ転送される（2026-08-14・⑰ でホームを廃止）。
@@ -705,12 +713,18 @@ const PROBE = String.raw`(() => {
     scrollers,
     scrollersWithoutFade: scrollers.filter((s) => !s.faded).length,
     overflowX: de.scrollWidth - de.clientWidth,
+    // 🚨 navLinks は情報として残すが、描画生存確認には使わない。
+    //    サイドバーのマークアップ（nav の内外など）が変わるたびに嘘をつく代理値だから。
     navLinks: [...document.querySelectorAll("nav a, aside a")].filter((a) => a.getBoundingClientRect().width > 0).length,
     hasBottomNav: [...document.querySelectorAll("*")].some((el) => {
       const s = getComputedStyle(el);
       return (s.position === "fixed" || s.position === "sticky") && px(s.bottom) === 0 &&
              el.getBoundingClientRect().height > 20 && el.querySelectorAll("a,button").length >= 2;
     }),
+    renderTextChars: (() => {
+      const text = document.body ? document.body.innerText.replace(/\s+/g, " ").trim() : "";
+      return text.length;
+    })(),
     loadMs: (() => { const n = performance.getEntriesByType("navigation")[0]; return n ? Math.round(n.duration) : null; })(),
   };
 })()`;
@@ -819,7 +833,14 @@ function connect(url) {
   };
   const send = (method, params = {}) =>
     new Promise((res, rej) => { const i = ++id; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); });
-  return { ready, send, close: () => ws.close(), drainEvents: () => events.splice(0) };
+  return {
+    ready,
+    send,
+    close: () => ws.close(),
+    peekEvents: () => events.slice(),
+    drainEvents: () => events.splice(0),
+    clearEvents: () => { events.length = 0; },
+  };
 }
 
 async function navigateAndSettle(cdp, path) {
@@ -957,6 +978,7 @@ for (const vp of VIEWPORTS) {
     width: vp.width, height: vp.height, deviceScaleFactor: vp.dsf, mobile: vp.mobile,
   });
   for (const path of PATHS) {
+    cdp.clearEvents();
     const { settled, landed } = await navigateAndSettle(cdp, path);
     if (!settled) {
       const why = landed === "/login"
@@ -1053,15 +1075,28 @@ for (const vp of VIEWPORTS) {
       }
     }
 
+    const renderSnapshotResult = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const rawText = document.body ? document.body.innerText : "";
+        const text = rawText.replace(/\\s+/g, " ").trim();
+        return {
+          url: location.pathname,
+          title: document.title,
+          text: rawText.slice(0, 400),
+          textChars: text.length,
+        };
+      })()`,
+      returnByValue: true,
+    });
+    const renderSnapshot = renderSnapshotResult.result.value ?? {};
+    const renderEvents = cdp.peekEvents();
+    const renderExceptions = renderEvents.filter((event) =>
+      event.startsWith("例外:") || event.includes("Inspector.targetCrashed"));
+
     if (DUMP) {
-      const d = await cdp.send("Runtime.evaluate", {
-        expression: `({ url: location.pathname, title: document.title,
-                        text: (document.body ? document.body.innerText : "(body なし)").slice(0, 400) })`,
-        returnByValue: true,
-      });
-      const v = d.result.value ?? {};
+      const v = renderSnapshot;
       log(`     画面: ${v.url} / ${v.title}\n     ${String(v.text ?? "").replace(/\n+/g, " ⏎ ").slice(0, 300)}`);
-      for (const e of cdp.drainEvents().slice(-6)) log(`     画面側: ${e}`);
+      for (const e of renderEvents.slice(-6)) log(`     画面側: ${e}`);
     }
     const probed = await cdp.send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
     const r = probed.result.value;
@@ -1076,7 +1111,28 @@ for (const vp of VIEWPORTS) {
       violations.push({ key, rule: "測定不能", detail: `画面内の測定が失敗しました: ${why.split("\n")[0]}` });
       continue;
     }
+    const renderLivenessReasons = [];
+    if (renderExceptions.length) {
+      renderLivenessReasons.push(`画面側の例外 ${renderExceptions.length} 件: ${renderExceptions.slice(0, 2).join(" / ")}`);
+    }
+    if (String(renderSnapshot.title ?? "").trim().length === 0) {
+      renderLivenessReasons.push("document.title が空");
+    }
+    if ((renderSnapshot.textChars ?? r.renderTextChars ?? 0) < MIN_RENDER_TEXT_CHARS) {
+      renderLivenessReasons.push(`本文の可視テキストが ${renderSnapshot.textChars ?? r.renderTextChars ?? 0} 文字（しきい値 ${MIN_RENDER_TEXT_CHARS} 未満）`);
+    }
+    r.renderTitle = renderSnapshot.title ?? "";
+    r.renderTextChars = renderSnapshot.textChars ?? r.renderTextChars ?? 0;
+    r.renderLivenessReasons = renderLivenessReasons;
     report[key] = r;
+
+    if (renderLivenessReasons.length) {
+      violations.push({
+        key,
+        rule: "🚨 描画されていない",
+        detail: renderLivenessReasons.join(" / "),
+      });
+    }
 
     // 🚨 読み上げ名を測る。**寸法と面しか見ていなかった穴**を塞ぐ（2026-08-14）。
     //    由来: base2 が CDP の Accessibility ドメインで実測してみせた。依存は0本。
