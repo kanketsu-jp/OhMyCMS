@@ -21,7 +21,14 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /** 現在の面の深さ。0 = ページ本体（レベル0）。 */
-const SurfaceDepthContext = React.createContext(0);
+/**
+ * 🚨 **面の深さを配る器。`Surface` 以外からも使う。**
+ * ダイアログやポップオーバーは `bg-popover` を持つので**それ自体が面**だが、
+ * `Surface` ではないので、中の入力が「面の外」と判断して罫線を選んでしまう。
+ * 実測（2026-08-15）: ダイアログを開くと中の Input が罫線を持ち、面の深さが2になった。
+ * → 浮いた面を作る部品は、ここから深さ1を配る。
+ */
+export const SurfaceDepthContext = React.createContext(0);
 
 /** いま面の中にいるか（レベル1以上か）。入力系がこれを見て境界を落とす。 */
 export function useInsideSurface(): boolean {

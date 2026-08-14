@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 
+import { SurfaceDepthContext } from "@/components/ui/surface"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
@@ -72,7 +73,12 @@ function DialogContent({
         )}
         {...props}
       >
+        {/* 🚨 **ダイアログはそれ自体が面**（bg-popover を持つ）。深さ1を配ることで、
+            中の Input が「面の中」と判断して罫線を落とし、塗りだけになる。
+            配らないと、面の中に罫線つきの入力が入って**面が2段**になる（実測で確認）。 */}
+        <SurfaceDepthContext value={1}>
         {children}
+        </SurfaceDepthContext>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
@@ -117,7 +123,10 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        // 🚨 **塗りを持たない。** ダイアログ自体が面なので、footer を塗ると面が2段になる（実測で深さ2）。
+        // 区切りは `border-t` の1本で足りる——堀池「2つ要素が並ぶ場合は、その間に Divider を用意する」。
+        // 塗りは「別の領域」の主張だが、footer は同じダイアログの一部で別領域ではない。
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t p-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}

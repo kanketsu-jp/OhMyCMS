@@ -69,8 +69,47 @@ for (const file of files) {
 /** 動的キーが使われた名前空間。ここ配下は「未使用」と断定できない。 */
 const dynamicNamespaces = new Set(dynamic.map((d) => d.namespace).filter(Boolean));
 
+// 🚨 `lib/admin/page-meta.ts` は**辞書キーを文字列として持つ**ので、
+//    上の静的解析（`t("…")` の形を探す）では**1件も見えない**。
+//    見えないまま放置すると、存在しないキーを書いても誰も気づかない
+//    （実際に `files.description` を書いてしまい、手で確かめて見つけた。2026-08-15）。
+//    ここで実在を確かめる。**パンくず・右サイドバー・Storybook・LLM が読む定数なので、
+//    キーが死んでいると画面にキー文字列がそのまま出る。**
+const metaPath = resolve(root, "lib/admin/page-meta.ts");
+let metaKeys = new Set();
+const metaMissing = [];
+if (existsSync(metaPath)) {
+  const metaSrc = readFileSync(metaPath, "utf8");
+  metaKeys = new Set([
+    ...[...metaSrc.matchAll(/(?:titleKey|descriptionKey):\s*"([^"]+)"/g)].map((m) => m[1]),
+    ...[...metaSrc.matchAll(/sectionKeys:\s*\[([^\]]*)\]/g)]
+      .flatMap((m) => [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1])),
+  ]);
+  for (const full of metaKeys) {
+    const i = full.indexOf(".");
+    const ns = full.slice(0, i);
+    const key = full.slice(i + 1);
+    for (const locale of ["ja", "en"]) {
+      const file = resolve(root, `i18n/messages/${locale}/${ns}.json`);
+      if (!existsSync(file)) { metaMissing.push(`${full} (${locale}: 名前空間が無い)`); continue; }
+      const dict = JSON.parse(readFileSync(file, "utf8"));
+      if (!(key in dict)) metaMissing.push(`${full} (${locale}: キーが無い)`);
+    }
+  }
+  console.log(`page-meta.ts のキー: ${metaKeys.size} 件（ja/en の両方で実在を確認）`);
+  if (metaMissing.length > 0) {
+    console.error("\n■ page-meta.ts が実在しないキーを指している");
+    for (const x of metaMissing) console.error(`  ${x}`);
+  }
+}
+
+
 const unused = [...defined]
   .filter((k) => !used.has(k))
+  // 🚨 `page-meta.ts` が持つキーは**使われている**。静的解析からは見えないだけ。
+  //    ここで除かないと「未使用・掃除候補」に生きたキーが並び、**次の人が消す**
+  //    （2026-08-15。パンくずが読んでいる 37 キーが掃除候補に出ていた）。
+  .filter((k) => !metaKeys.has(k))
   .filter((k) => !dynamicNamespaces.has(k.split(".")[0]))
   .sort();
 
@@ -104,39 +143,6 @@ if (missing.length > 0) {
 if (unused.length > 0) {
   console.warn("\n□ 辞書にあるのに未使用のキー（警告のみ・掃除候補）");
   for (const key of unused) console.warn(`  ${key}`);
-}
-
-// 🚨 `lib/admin/page-meta.ts` は**辞書キーを文字列として持つ**ので、
-//    上の静的解析（`t("…")` の形を探す）では**1件も見えない**。
-//    見えないまま放置すると、存在しないキーを書いても誰も気づかない
-//    （実際に `files.description` を書いてしまい、手で確かめて見つけた。2026-08-15）。
-//    ここで実在を確かめる。**パンくず・右サイドバー・Storybook・LLM が読む定数なので、
-//    キーが死んでいると画面にキー文字列がそのまま出る。**
-const metaPath = resolve(root, "lib/admin/page-meta.ts");
-const metaMissing = [];
-if (existsSync(metaPath)) {
-  const metaSrc = readFileSync(metaPath, "utf8");
-  const metaKeys = new Set([
-    ...[...metaSrc.matchAll(/(?:titleKey|descriptionKey):\s*"([^"]+)"/g)].map((m) => m[1]),
-    ...[...metaSrc.matchAll(/sectionKeys:\s*\[([^\]]*)\]/g)]
-      .flatMap((m) => [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1])),
-  ]);
-  for (const full of metaKeys) {
-    const i = full.indexOf(".");
-    const ns = full.slice(0, i);
-    const key = full.slice(i + 1);
-    for (const locale of ["ja", "en"]) {
-      const file = resolve(root, `i18n/messages/${locale}/${ns}.json`);
-      if (!existsSync(file)) { metaMissing.push(`${full} (${locale}: 名前空間が無い)`); continue; }
-      const dict = JSON.parse(readFileSync(file, "utf8"));
-      if (!(key in dict)) metaMissing.push(`${full} (${locale}: キーが無い)`);
-    }
-  }
-  console.log(`page-meta.ts のキー: ${metaKeys.size} 件（ja/en の両方で実在を確認）`);
-  if (metaMissing.length > 0) {
-    console.error("\n■ page-meta.ts が実在しないキーを指している");
-    for (const x of metaMissing) console.error(`  ${x}`);
-  }
 }
 
 // 未使用は警告どまり。呼び出し側の欠けだけを失敗にする。
