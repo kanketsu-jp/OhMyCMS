@@ -17,7 +17,12 @@ function Avatar({
       data-slot="avatar"
       data-size={size}
       className={cn(
-        "cn-avatar group/avatar relative flex shrink-0 select-none after:absolute after:inset-0 after:border after:border-border after:mix-blend-darken dark:after:mix-blend-lighten",
+        // 🚨 上流（base-nova）は を自前の CSS 層で持つが、この repo はその層を入れていない。
+        //    参照だけ写すと**大きさも丸みも付かず素のまま**出る（2026-08-15 実測）。
+        //    隣の select.tsx と同じく **Tailwind で書く**。CSS の層を新しく作らない。
+        "group/avatar relative flex shrink-0 select-none overflow-hidden rounded-full",
+        "after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken dark:after:mix-blend-lighten",
+        size === "sm" ? "size-6 text-xs" : size === "lg" ? "size-10 text-base" : "size-8 text-sm",
         className
       )}
       {...props}
@@ -30,7 +35,7 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
     <AvatarPrimitive.Image
       data-slot="avatar-image"
       className={cn(
-        "cn-avatar-image aspect-square size-full object-cover",
+        "aspect-square size-full object-cover",
         className
       )}
       {...props}
@@ -46,7 +51,7 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "cn-avatar-fallback flex size-full items-center justify-center text-sm group-data-[size=sm]/avatar:text-xs",
+        "flex size-full items-center justify-center text-sm group-data-[size=sm]/avatar:text-xs",
         className
       )}
       {...props}
@@ -59,7 +64,7 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="avatar-badge"
       className={cn(
-        "cn-avatar-badge absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full bg-blend-color ring-2 select-none",
+        "absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full bg-blend-color ring-2 select-none",
         "group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden",
         "group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2",
         "group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2",
@@ -75,7 +80,7 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="avatar-group"
       className={cn(
-        "cn-avatar-group group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
+        "group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
         className
       )}
       {...props}
@@ -91,7 +96,7 @@ function AvatarGroupCount({
     <div
       data-slot="avatar-group-count"
       className={cn(
-        "cn-avatar-group-count relative flex shrink-0 items-center justify-center ring-2 ring-background",
+        "relative flex shrink-0 items-center justify-center ring-2 ring-background",
         "",
         className
       )}

@@ -42,7 +42,10 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "cn-dropdown-menu-content cn-dropdown-menu-content-logical cn-menu-target cn-menu-translucent z-50 max-h-(--available-height) w-(--anchor-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto outline-none data-closed:overflow-hidden",
+            // 🚨 上流（base-nova）は cn-* を自前の CSS 層で持つが、このリポジトリはその層を入れていない。
+            //    参照だけ写すと**素のまま出る**（2026-08-15 実測。21 種類が未定義だった）。
+            //    隣の select.tsx と同じく **Tailwind で書く**。CSS の層を新しく作らない。
+            "rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 z-50 max-h-(--available-height) w-(--anchor-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto outline-none data-closed:overflow-hidden",
             className
           )}
           {...props}
@@ -67,7 +70,7 @@ function DropdownMenuLabel({
     <MenuPrimitive.GroupLabel
       data-slot="dropdown-menu-label"
       data-inset={inset}
-      className={cn("cn-dropdown-menu-label", className)}
+      className={cn("", className)}
       {...props}
     />
   )
@@ -88,7 +91,7 @@ function DropdownMenuItem({
       data-inset={inset}
       data-variant={variant}
       className={cn(
-        "cn-dropdown-menu-item group/dropdown-menu-item relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "group/dropdown-menu-item relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground [&_svg:not([class*='size-'])]:size-4 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         // 🚨 **指で押せる高さをここで与える。**写したままだと 27.2px しかなく、
         // SP で憲章 §7 の 44px を割る（実測。同じメニューの中で言語だけ 44px、
         // ログアウトだけ 27.2px という不揃いになっていた）。
@@ -119,13 +122,13 @@ function DropdownMenuSubTrigger({
       data-slot="dropdown-menu-sub-trigger"
       data-inset={inset}
       className={cn(
-        "cn-dropdown-menu-sub-trigger flex cursor-default items-center outline-hidden select-none data-popup-open:bg-accent data-popup-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "flex cursor-default items-center outline-hidden select-none data-popup-open:bg-accent data-popup-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0",
         className
       )}
       {...props}
     >
       {children}
-      <ChevronRightIcon className="cn-rtl-flip ml-auto" />
+      <ChevronRightIcon className="ml-auto" />
     </MenuPrimitive.SubmenuTrigger>
   )
 }
@@ -142,7 +145,7 @@ function DropdownMenuSubContent({
     <DropdownMenuContent
       data-slot="dropdown-menu-sub-content"
       className={cn(
-        "cn-dropdown-menu-sub-content cn-menu-target cn-menu-translucent w-auto",
+        "w-auto",
         className
       )}
       align={align}
@@ -168,14 +171,14 @@ function DropdownMenuCheckboxItem({
       data-slot="dropdown-menu-checkbox-item"
       data-inset={inset}
       className={cn(
-        "cn-dropdown-menu-checkbox-item relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         className
       )}
       checked={checked}
       {...props}
     >
       <span
-        className="cn-dropdown-menu-item-indicator pointer-events-none"
+        className="pointer-events-none"
         data-slot="dropdown-menu-checkbox-item-indicator"
       >
         <MenuPrimitive.CheckboxItemIndicator>
@@ -209,13 +212,13 @@ function DropdownMenuRadioItem({
       data-slot="dropdown-menu-radio-item"
       data-inset={inset}
       className={cn(
-        "cn-dropdown-menu-radio-item relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         className
       )}
       {...props}
     >
       <span
-        className="cn-dropdown-menu-item-indicator pointer-events-none"
+        className="pointer-events-none"
         data-slot="dropdown-menu-radio-item-indicator"
       >
         <MenuPrimitive.RadioItemIndicator>
@@ -234,7 +237,7 @@ function DropdownMenuSeparator({
   return (
     <MenuPrimitive.Separator
       data-slot="dropdown-menu-separator"
-      className={cn("cn-dropdown-menu-separator", className)}
+      className={cn("", className)}
       {...props}
     />
   )
@@ -247,7 +250,7 @@ function DropdownMenuShortcut({
   return (
     <span
       data-slot="dropdown-menu-shortcut"
-      className={cn("cn-dropdown-menu-shortcut", className)}
+      className={cn("", className)}
       {...props}
     />
   )
