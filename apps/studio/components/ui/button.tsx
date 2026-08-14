@@ -2,6 +2,7 @@ import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/spinner"
 
 const buttonVariants = cva(
   // 🚨 無効状態を base に置かない。variant ごとに**色そのものを変える**（憲章 §3）。
@@ -72,14 +73,51 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  loading = false,
+  disabled = false,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    /**
+     * 処理中の**見た目**。二重送信を止めるのはこれではない。
+     *
+     * 🚨 門は `hooks/use-submit-once.ts`（`useRef` の同期チェック）が持つ。
+     *    `loading` は state 由来なので次のレンダーまで反映されず、**素早い2連打には間に合わない**。
+     *    ここを門にすると「効いているように見えて漏れる」ものになる。
+     */
+    loading?: boolean
+  }) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      // 押下・キー操作は base-ui 側が止める（internals/use-button の onClick / onKeyDown）。
+      disabled={disabled || loading}
+      // 🚨 処理中は **disabled の色を使わない**（design 指示）。
+      //    「処理中＝働いている」と「無効＝そもそも使えない」は別の状態で、
+      //    同じグレーにすると押せなかったのか処理中なのか区別が付かない。
+      //    `focusableWhenDisabled` にすると base-ui が native の `disabled` 属性ではなく
+      //    `aria-disabled` を付けるので、variant 表の `disabled:` 系（= CSS の `:disabled`）が
+      //    発火しない。**variant 表には一切触らずに色を分けられる**のはこのため。
+      //    ただし呼び出し側が本当に `disabled` を渡したときは、従来どおりグレーにする。
+      focusableWhenDisabled={loading && !disabled}
+      data-loading={loading || undefined}
+      className={cn(
+        buttonVariants({ variant, size, className }),
+        // 🚨 幅を変えない。スピナーを文字の**横に足す**と押した瞬間にボタンが伸び、
+        //    カーソルの下にあるものがずれる（design 指示・実測すること）。
+        //    中身は場所を占めたまま見えなくして、スピナーは絶対配置で中央に重ねる。
+        loading && "relative cursor-progress"
+      )}
       {...props}
-    />
+    >
+      {loading ? <Spinner className="absolute" /> : null}
+      {/* 🚨 `contents` は箱を作らないので、**flex の gap も並びも変わらない**
+          （`<span>` で包むと子が1つになり、アイコンと文字の間の gap が消える）。
+          `visibility` は継承するので、素のテキストノードにも効く。
+          `opacity-0` ではなく `invisible` なのは、読み上げと当たり判定を同時に落とすため。 */}
+      <span className={cn("contents", loading && "invisible")}>{children}</span>
+    </ButtonPrimitive>
   )
 }
 
