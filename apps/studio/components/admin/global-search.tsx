@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { SearchIcon } from "lucide-react";
 import {
@@ -13,6 +22,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Kbd } from "@/components/ui/kbd";
+import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
+import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
 import { useT } from "@/i18n/client";
 
 type SearchHit = { label: string; hint?: string; href: string };
@@ -43,7 +54,13 @@ const GROUPS: { key: keyof SearchResult; labelKey: string }[] = [
 ];
 
 /**
- * 横断検索（F2-J §2-3）。ヘッダに常設し、`Cmd/Ctrl + K` で開く。
+ * 横断検索（F2-J §2-3）。
+ *
+ * 🚨 **「起動ボタン」と「ダイアログ本体」を分けてある。**
+ *    以前は1つの部品が両方を描いていた。検索の起動ボタンは
+ *    **PC は左サイドバーの上部・SP はドロワーの中**の2箇所に要るので、
+ *    そのままだと**ダイアログが2つ・`⌘K` の購読も2つ**になる（同じキーに2つ反応する）。
+ *    → 本体は `GlobalSearchProvider` が**1つだけ**描き、ボタンは何個でも置ける。
  *
  * 🚨 **絞り込みはサーバでやる。** cmdk は入力に対して自前で候補を絞る機能を持つが、
  *    それを使うと「サーバが権限で弾いた結果」の上にクライアントの絞り込みが乗り、
@@ -53,11 +70,69 @@ const GROUPS: { key: keyof SearchResult; labelKey: string }[] = [
  * 🚨 **文言は必ず辞書から。** 実データ（アイテムのタイトル・ファイル名・コレクション名）
  *    だけがそのまま出る。設定項目と画面の名前はサーバが辞書で引いて返してくる。
  */
-export function GlobalSearch() {
+
+const GlobalSearchContext = createContext<{ open: () => void } | null>(null);
+
+function useGlobalSearch(): { open: () => void } {
+  const value = useContext(GlobalSearchContext);
+  if (!value) {
+    // 作る側へのメッセージ（画面には出ない）。日本語で書くと i18n の検査が UI 文言として拾う。
+    throw new Error("GlobalSearchButton was used outside GlobalSearchProvider");
+  }
+  return value;
+}
+
+export function GlobalSearchProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  const toggle = useCallback(() => setOpen((value) => !value), []);
+
+  // 🚨 `⌘K` は検索が占有する（`shortcuts.ts`）。**入力中でも効かせる**のは、
+  //    これが編集操作ではなく**どこからでも呼べる移動手段**だから（従来の挙動も同じ）。
+  //    その代わり `⌘K` を他の用途へ割り当てないこと（WYSIWYG のリンク挿入も別のキーにする）。
+  useShortcut(SHORTCUTS.search, toggle, { whileTyping: true });
+
+  const api = useMemo(() => ({ open: () => setOpen(true) }), []);
+
+  return (
+    <GlobalSearchContext value={api}>
+      {children}
+      <SearchDialog open={open} onOpenChange={setOpen} />
+    </GlobalSearchContext>
+  );
+}
+
+/** 検索を開くボタン。**いくつ置いてもよい**（本体は Provider が1つだけ描く）。 */
+export function GlobalSearchButton({ className }: { className?: string }) {
+  const t = useT("search");
+  const { open } = useGlobalSearch();
+  const isMac = useIsMac();
+
+  return (
+    <button
+      type="button"
+      onClick={open}
+      aria-label={t("open_hint")}
+      className={`flex h-(--control-h) w-full items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
+    >
+      <SearchIcon className="size-4 shrink-0" />
+      <span className="flex-1 text-left">{t("placeholder")}</span>
+      {/* 記号は環境で変わるので辞書に持たせない（mac は ⌘K / それ以外は Ctrl+K）。 */}
+      <Kbd className="hidden sm:inline-flex">{formatShortcut(SHORTCUTS.search, isMac)}</Kbd>
+    </button>
+  );
+}
+
+function SearchDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (value: boolean) => void;
+}) {
   const t = useT("search");
   const router = useRouter();
 
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<SearchResult>(EMPTY);
   const [loading, setLoading] = useState(false);
@@ -65,17 +140,6 @@ export function GlobalSearch() {
 
   // 打つたびに投げないよう遅延させる。最後の入力だけを使う。
   const latest = useRef(0);
-
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        setOpen((value) => !value);
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, []);
 
   /**
    * 入力が変わったときの後始末は**ハンドラ側**でやる。
@@ -126,77 +190,63 @@ export function GlobalSearch() {
 
   const go = useCallback(
     (href: string) => {
-      setOpen(false);
+      onOpenChange(false);
       setQuery("");
       router.push(href);
     },
-    [router],
+    [router, onOpenChange],
   );
 
   const total = GROUPS.reduce((n, group) => n + result[group.key].length, 0);
 
   return (
-    <>
-      {/* ヘッダに常設する入口。押しても Cmd+K でも同じダイアログが開く。 */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={t("open_hint")}
-        className="flex h-(--control-h) items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm md:h-(--control-h-pc) text-muted-foreground transition-colors hover:bg-muted"
-      >
-        <SearchIcon className="size-4 shrink-0" />
-        <span className="hidden sm:inline">{t("placeholder")}</span>
-        <Kbd className="hidden sm:inline-flex">{t("shortcut_hint")}</Kbd>
-      </button>
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("dialog_title")}
+      description={t("dialog_description")}
+    >
+      {/* 🚨 絞り込みはサーバが済ませているので、cmdk 側の絞り込みは切る。 */}
+      <Command shouldFilter={false}>
+        <CommandInput
+          value={query}
+          onValueChange={onQueryChange}
+          placeholder={t("placeholder")}
+        />
+        {/* CommandList はそれ自体がスクロールする箱（`command.tsx` が `scroll-fade-y` を持つ）。 */}
+        <CommandList>
+          {query.trim().length === 0 ? (
+            <CommandEmpty>{t("prompt")}</CommandEmpty>
+          ) : failed ? (
+            <CommandEmpty>{t("error")}</CommandEmpty>
+          ) : loading && total === 0 ? (
+            <CommandEmpty>{t("loading")}</CommandEmpty>
+          ) : total === 0 ? (
+            <CommandEmpty>{t("empty")}</CommandEmpty>
+          ) : null}
 
-      <CommandDialog
-        open={open}
-        onOpenChange={setOpen}
-        title={t("dialog_title")}
-        description={t("dialog_description")}
-      >
-        {/* 🚨 絞り込みはサーバが済ませているので、cmdk 側の絞り込みは切る。 */}
-        <Command shouldFilter={false}>
-          <CommandInput
-            value={query}
-            onValueChange={onQueryChange}
-            placeholder={t("placeholder")}
-          />
-          {/* CommandList はそれ自体がスクロールする箱。 */}
-          <CommandList>
-            {query.trim().length === 0 ? (
-              <CommandEmpty>{t("prompt")}</CommandEmpty>
-            ) : failed ? (
-              <CommandEmpty>{t("error")}</CommandEmpty>
-            ) : loading && total === 0 ? (
-              <CommandEmpty>{t("loading")}</CommandEmpty>
-            ) : total === 0 ? (
-              <CommandEmpty>{t("empty")}</CommandEmpty>
-            ) : null}
-
-            {GROUPS.map(({ key, labelKey }) =>
-              result[key].length > 0 ? (
-                <CommandGroup key={key} heading={t(labelKey)}>
-                  {result[key].map((hit) => (
-                    <CommandItem
-                      key={`${key}:${hit.href}`}
-                      value={`${key}:${hit.href}`}
-                      onSelect={() => go(hit.href)}
-                    >
-                      <span className="truncate">{hit.label}</span>
-                      {hit.hint ? (
-                        <span className="ml-auto truncate text-xs text-muted-foreground">
-                          {hit.hint}
-                        </span>
-                      ) : null}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : null,
-            )}
-          </CommandList>
-        </Command>
-      </CommandDialog>
-    </>
+          {GROUPS.map(({ key, labelKey }) =>
+            result[key].length > 0 ? (
+              <CommandGroup key={key} heading={t(labelKey)}>
+                {result[key].map((hit) => (
+                  <CommandItem
+                    key={`${key}:${hit.href}`}
+                    value={`${key}:${hit.href}`}
+                    onSelect={() => go(hit.href)}
+                  >
+                    <span className="truncate">{hit.label}</span>
+                    {hit.hint ? (
+                      <span className="ml-auto truncate text-xs text-muted-foreground">
+                        {hit.hint}
+                      </span>
+                    ) : null}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null,
+          )}
+        </CommandList>
+      </Command>
+    </CommandDialog>
   );
 }

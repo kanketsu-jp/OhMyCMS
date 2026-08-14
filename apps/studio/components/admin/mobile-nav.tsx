@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { NavLinks } from "@/components/admin/nav-links";
+import { GlobalSearchButton } from "@/components/admin/global-search";
+import { NavLinks, type NavGroup, type NavLink } from "@/components/admin/nav-links";
 import { UserMenu } from "@/components/admin/user-menu";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -24,17 +25,13 @@ import {
 import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
-export type NavLink = { href: string; label: string };
-
 type Props = {
   /** サイドバーと同じ行き先。**ラベルは Server 側で辞書を引いて渡す**（ここで引き直さない） */
   items: NavLink[];
   /** コレクション（動的に増える）。サイドバーの「コンテンツ」と同じもの */
   collections: NavLink[];
-  /** 「設定」の中に畳む行き先 */
-  settings: NavLink[];
-  /** 「設定」の行に出す文字 */
-  settingsLabel: string;
+  /** 畳んで持つ組（ファイル・設定）。**サイドバーと同じものを渡す** */
+  groups: NavGroup[];
   /** ドロワーの中の「コンテンツ」見出し */
   contentHeading: string;
   /** メニュー最下部に出す、いま入っている人。取れなければ null */
@@ -61,7 +58,7 @@ type Props = {
  *
  * 🚨 面は作らない（§1）。上辺の罫線1本だけで、背景は本体と同じ。
  */
-export function MobileNav({ items, settings, settingsLabel, collections, contentHeading, userLabel }: Props) {
+export function MobileNav({ items, groups, collections, contentHeading, userLabel }: Props) {
   const t = useT("nav");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -106,17 +103,19 @@ export function MobileNav({ items, settings, settingsLabel, collections, content
             {/* 🚨 fade を当てるのは**実際にスクロールする要素**。SheetContent 自身ではない
                 （ユーザー行を下へ固定したので、スクロールするのは中の子）。
                 `scroll-fade-y` は shadcn のユーティリティで、JS は要らない。 */}
+            {/* 🚨 **SP にも検索を置く。** 検索はヘッダーから左サイドバーへ移したが、
+                左サイドバーは SP では出ない（`md:flex`）ので、ここに置かないと
+                **SP から検索へ辿り着けなくなる**（⌘K も物理キーボードが無い）。
+                置くのは起動ボタンだけで、ダイアログ本体は Provider が1つだけ描く。 */}
+            <div className="shrink-0 px-4 pb-2">
+              <GlobalSearchButton />
+            </div>
             <div className="min-h-0 flex-1 overflow-y-auto scroll-fade-y">
               {/* 面を作らない。行のリストにする（憲章 §1「SP はカードをやめて Divider」）。
                   🚨 行き先の描き方は **サイドバー（PC）と同じ部品**を使う。
                   2箇所に書くと、片方だけ直したときに PC と SP で行き先が食い違う。 */}
               <div className="flex flex-col px-2 pb-4">
-                <NavLinks
-                  items={items}
-                  settings={settings}
-                  settingsLabel={settingsLabel}
-                  onNavigate={() => setOpen(false)}
-                />
+                <NavLinks items={items} groups={groups} onNavigate={() => setOpen(false)} />
                 {collections.length > 0 ? (
                   <>
                     <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">

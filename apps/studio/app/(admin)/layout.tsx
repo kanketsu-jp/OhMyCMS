@@ -4,13 +4,11 @@ import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
 import { displayUserLabel } from "@/lib/admin/user-label";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
-import { GlobalSearch } from "@/components/admin/global-search";
+import { GlobalSearchProvider } from "@/components/admin/global-search";
 import { HeaderBack } from "@/components/admin/header-back";
 import { MobileNav } from "@/components/admin/mobile-nav";
-import { UserMenu } from "@/components/admin/user-menu";
-import { NavLinks } from "@/components/admin/nav-links";
+import { LeftSidebar, LeftSidebarProvider, LeftSidebarToggle } from "@/components/admin/left-sidebar";
 import { RightPanelProvider, RightPanelToggle } from "@/components/admin/right-panel";
-import { ScrollFade } from "@/components/ui/scroll-fade";
 import { getT } from "@/i18n/server";
 import { projectColor } from "@/lib/settings/project-color";
 import { projectLogo } from "@/lib/settings/project-logo";
@@ -21,11 +19,25 @@ import { isOnboardingCompleted } from "@/lib/settings/service";
 
 // 🚨 上位と「設定」を分ける（design ⑥）。平らに 12 行並べると、同じ接頭辞の settings_* が
 // 7回続いて**上位5項目が埋もれる**。開閉に畳んで 12行 → 6行にする。
+//
+// 🚨 **「不具合報告」はここに無い。** 左サイドバーの**下部**へ移した（堀池・2026-08-15）。
+// 🚨 **「ファイル」もここに無い。** 畳む組になった（下の `fileItems`）。
 const navItems = [
   { href: "/admin/collections", labelKey: "collections" },
-  { href: "/admin/files", labelKey: "files" },
   { href: "/admin/notifications", labelKey: "notifications" },
-  { href: "/admin/reports", labelKey: "reports" },
+];
+
+// 「ファイルはアコーディオンにする。その中に「ストレージ」「ラベル」」（堀池・2026-08-15）
+//
+// 🚨 **「ラベル」はまだ入れていない。** ラベルの API は storage が入れた（e322cb0）が、
+//    **画面がまだ無い**ので、リンクを足すと押した先が 404 になる。
+//    このファイルには同じ失敗の申し送りが既にある（下の sso の行）。
+//    → storage がラベルのページを出したら、ここに1行足す。
+// 🚨 組の行はリンクにならないので、**ファイル一覧そのものへの行き先を子に入れておく**。
+//    入れないと `/admin/files` へ行けなくなる（SP の下部ナビからしか辿れない）。
+const fileItems = [
+  { href: "/admin/files", labelKey: "files_all" },
+  { href: "/admin/settings/storage", labelKey: "settings_child_storage" },
 ];
 
 // 子は「設定 / 一般」ではなく**「一般」**。親が「設定」なので繰り返さない。
@@ -81,6 +93,39 @@ export default async function AdminLayout({
     ? await apiFetch<{ collection: string }[]>("/api/collections?names=true")
     : null;
 
+  // 左サイドバー下部の「不具合報告」。
+  // 🚨 **いまは一覧への行き先だけ。** 堀池の指示は「報告する」「報告一覧 / 報告管理」の
+  //    アコーディオンだが、`/admin/reports/manage` のページと「報告する」を開く部品は
+  //    polish(p14) が別の worktree で作っていて **main にまだ無い**。
+  //    先にリンクだけ足すと**押した先が 404 になる**（このファイルの sso の行に同じ申し送りがある）。
+  //    → polish の commit が main に入ったら、ここをアコーディオンへ差し替える。
+  // 🚨 **組は1度だけ組み立てて、PC と SP の両方へ同じものを渡す。**
+  //    2箇所に書くと、片方だけ直したときに PC と SP で行き先が食い違う
+  //    （`nav-links.tsx` に同じ理由の申し送りがある）。
+  const navGroups = [
+    {
+      key: "files",
+      label: t("files"),
+      match: "/admin/files",
+      children: fileItems.map((item) => ({ href: item.href, label: t(item.labelKey) })),
+    },
+    {
+      key: "settings",
+      label: t("settings"),
+      match: "/admin/settings",
+      children: settingsItems.map((item) => ({ href: item.href, label: t(item.labelKey) })),
+    },
+  ];
+
+  const reportsNav = (
+    <Link
+      href="/admin/reports"
+      className="flex h-(--control-h) items-center truncate rounded-md px-3 text-sm text-muted-foreground md:h-(--control-h-pc)"
+    >
+      {t("reports")}
+    </Link>
+  );
+
   return (
     <div
       className="flex min-h-screen bg-background"
@@ -94,56 +139,32 @@ export default async function AdminLayout({
       {/* 🚨 **左サイドバー｜コンテンツ｜右サイドバー** の3カラム（堀池・2026-08-15）。
           右サイドバーは `RightPanelProvider` が末尾に描く（開いているときだけ）。
           Provider は DOM を作らないので、flex の直下の子は aside / div / 右サイドバー のまま。 */}
+      {/* 🚨 検索の本体（ダイアログと ⌘K）は**ここで1つだけ**描く。
+          起動ボタンは左サイドバーと SP のドロワーの2箇所に置くので、
+          部品ごとに本体を持たせるとダイアログも ⌘K の購読も2つになる。 */}
+      <GlobalSearchProvider>
+      <LeftSidebarProvider>
       <RightPanelProvider brand={brand}>
-      {/* 面は「罫線・背景・影」のうち1つだけ（docs/design/surface-rules.md §2-1）。
-          サイドバーは罫線1本で区切る。背景も付けると面が濃くなり、中の区切りが2段目になる。 */}
-      <aside className="hidden w-64 shrink-0 border-r md:flex md:flex-col">
-        <div className="px-4 py-4">
-          <Link href="/admin" className="flex items-center gap-2 text-base font-semibold">
-            {logo ? (
-              // eslint-disable-next-line @next/next/no-img-element -- 外部URLもありうるので Image コンポーネントを使わない
-              <img src={logo} alt="" className="h-6 w-auto max-w-32 object-contain" />
-            ) : null}
-            <span className="truncate">{brand}</span>
-          </Link>
-        </div>
-        {/* 🚨 スクロールするのは中の ScrollFade。nav 自体には overflow を持たせない
-            （持たせると、fade の付いていない要素がスクロールして監査が赤になる）。 */}
-        <nav className="flex min-h-0 flex-1 flex-col">
-          <ScrollFade direction="vertical" className="flex-1 space-y-6 px-3 py-4">
-          <NavLinks
-            items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
-            settings={settingsItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
-            settingsLabel={t("settings")}
-          />
-          <div>
-            <p className="px-3 pb-2 text-xs font-medium text-muted-foreground">
-              {t("content_heading")}
-            </p>
-            <div className="space-y-1">
-              {collections?.ok ? (
-                collections.data.map((collection) => (
-                  <Link
-                    key={collection.collection}
-                    href={`/admin/content/${collection.collection}`}
-                    className="block truncate rounded-md px-3 py-2 text-sm hover:bg-muted"
-                  >
-                    {collection.collection}
-                  </Link>
-                ))
-              ) : (
-                <p className="px-3 text-xs text-muted-foreground">
-                  {t("collections_error")}
-                </p>
-              )}
-            </div>
-          </div>
-          </ScrollFade>
-        </nav>
-        {/* 🚨 PC にも置く。ここが無いと**PC からログアウトも言語切替もできない**
-            （ヘッダから降ろしたとき SP のドロワーにしか置かず、実測で 0 個になっていた）。 */}
-        <UserMenu userLabel={displayUserLabel(me.ok ? me.data : null)} />
-      </aside>
+      {/* 左サイドバー。**上部＝検索 / 中央＝メニュー / 下部＝不具合報告**（堀池・2026-08-15）。
+          🚨 中身の並べ方は `left-sidebar.tsx` が持つ。ここは**データを渡すだけ**にする
+             （開閉の状態を持つので client component。データ取得はサーバのまま）。 */}
+      <LeftSidebar
+        brand={brand}
+        logo={logo}
+        items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+        groups={navGroups}
+        collections={
+          collections?.ok
+            ? collections.data.map((row) => ({
+                href: `/admin/content/${row.collection}`,
+                label: row.collection,
+              }))
+            : []
+        }
+        collectionsError={collections?.ok ? null : t("collections_error")}
+        reports={reportsNav}
+        userLabel={displayUserLabel(me.ok ? me.data : null)}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ヘッダーは **左｜中央｜右** の3つの塊。堀池さん（原文・2026-08-15）:
             「（一番左）と書いているのは、それらをdivでラップしているイメージ。
@@ -163,6 +184,8 @@ export default async function AdminLayout({
               🚨 メニュー開閉ボタン（一番左・常に固定）は**左サイドバーの開閉状態**を持つので、
                  左サイドバーを3分割する回で入れる（TODO: A群③）。 */}
           <div className="flex min-w-0 flex-1 items-center gap-1">
+            {/* 一番左は**常に固定**のメニュー開閉（堀池・2026-08-15）。 */}
+            <LeftSidebarToggle />
             <HeaderBack />
             <Breadcrumbs brand={brand} />
           </div>
@@ -178,10 +201,8 @@ export default async function AdminLayout({
                 埋めるのは `components/admin/page-action.tsx` の portal（SP の
                 `#mobile-primary-action` と対になる）。**空でも消さないこと。** */}
             <div id="header-primary-action" data-slot="header-primary-action" className="flex items-center" />
-            {/* 🚨 検索はここが最終位置ではない。**左サイドバーの上部へ移す**（A群③）。
-                いま動かすと header の3分割と同時に2箇所が変わって、
-                崩れたときにどちらが原因か分からなくなるので、次の回に分ける。 */}
-            <GlobalSearch />
+            {/* 🚨 検索は**ヘッダーから左サイドバーの上部へ移した**（堀池・2026-08-15）。
+                ここには戻さないこと。 */}
             {/* 一番右。押すと右サイドバー（このページの説明）が開く。 */}
             <RightPanelToggle />
           </div>
@@ -195,8 +216,7 @@ export default async function AdminLayout({
           ラベルはここで辞書を引いて渡す（部品側で引き直さない）。 */}
       <MobileNav
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
-        settings={settingsItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
-        settingsLabel={t("settings")}
+        groups={navGroups}
         collections={
           collections?.ok
             ? collections.data.map((row) => ({
@@ -211,6 +231,8 @@ export default async function AdminLayout({
       {/* 🚨 `MobileNav` も Provider の中に置く。SP のドロワーから右パネルを開くものが入るため
           （不具合報告の「報告する」）。`MobileNav` は fixed なので、flex の並びには影響しない。 */}
       </RightPanelProvider>
+      </LeftSidebarProvider>
+      </GlobalSearchProvider>
     </div>
   );
 }

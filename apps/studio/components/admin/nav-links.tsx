@@ -13,13 +13,23 @@ import { cn } from "@/lib/utils";
 
 export type NavLink = { href: string; label: string };
 
+export type NavGroup = {
+  /** 開閉の識別子（画面には出ない） */
+  key: string;
+  /** 畳んだ行に出す文字 */
+  label: string;
+  /** この接頭辞の下に居るときは、開いた状態で描く */
+  match: string;
+  children: NavLink[];
+  /** children が空のときに出す文。無ければ何も出さない */
+  emptyMessage?: string | null;
+};
+
 type Props = {
-  /** 上位の行き先（設定を除く） */
+  /** 畳まずに並べる行き先 */
   items: NavLink[];
-  /** 「設定」の中に畳む行き先 */
-  settings: NavLink[];
-  /** 「設定」の行に出す文字 */
-  settingsLabel: string;
+  /** 畳んで持つ組（設定・ファイル・コンテンツ など） */
+  groups: NavGroup[];
   /** 行を押したときに呼ぶ（ドロワーを閉じる用）。サイドバーでは渡さない */
   onNavigate?: () => void;
 };
@@ -30,20 +40,21 @@ type Props = {
  * 🚨 2つに分けて書かないこと。以前は layout.tsx が同じ配列を2箇所へ渡していて、
  * 片方だけ直すと**PC と SP で行き先が食い違う**形になっていた。
  *
- * 🚨 **「設定」は 6 項目あって、平らに並べると上位 5 項目が埋もれる**（design ⑥）。
- * 同じ接頭辞が6回続くのも読みにくい。→ 開閉に畳んで **11行 → 6行**にする。
+ * 🚨 **畳む組は「設定」だけではなくなった。** 堀池（2026-08-15）:
+ * 「**ファイルはアコーディオンにする**。その中に「ストレージ」「ラベル」」
+ * 「**コンテンツはディレクトリで表示できるようにする**」
+ * → 組を配列で受け取る形にした。組ごとに専用の分岐を書き足さない。
  *
- * 🚨 **「設定」の行はリンクにしない。** 開閉だけを持たせる
+ * 🚨 **組の行はリンクにしない。** 開閉だけを持たせる
  * （リンクと開閉を兼ねると、押したときにどちらが起きるか分からない）。
- * 🚨 **開閉状態を保存しない。** いま設定の下にいるなら開いた状態で描く。
+ * 🚨 **開閉状態を保存しない。** いまその下にいるなら開いた状態で描く。
  * localStorage に覚えさせるより常に正しく、実装も短い。
  */
-export function NavLinks({ items, settings, settingsLabel, onNavigate }: Props) {
+export function NavLinks({ items, groups, onNavigate }: Props) {
   const pathname = usePathname();
-  const inSettings = pathname.startsWith("/admin/settings");
 
   const row = (item: NavLink, indent = false) => {
-    // /admin は /admin/collections へ転送されるので、特別扱いは要らない（⑰）
+    // /admin は /admin/collections へ転送されるので、特別扱いは要らない
     const current = pathname.startsWith(item.href);
     return (
       <Link
@@ -62,33 +73,54 @@ export function NavLinks({ items, settings, settingsLabel, onNavigate }: Props) 
     );
   };
 
+  const open = groups.filter((group) => pathname.startsWith(group.match)).map((group) => group.key);
+
   return (
     <div className="flex flex-col">
       {items.map((item) => row(item))}
-      <Accordion
+      {groups.length > 0 ? (
         // 🚨 いる場所から決める。開閉を覚えさせない
-        defaultValue={inSettings ? ["settings"] : []}
-        className="border-0"
-      >
-        <AccordionItem value="settings" className="border-0">
-          <AccordionTrigger
-            className={cn(
-              // 🚨 `items-center` が要る。AccordionTrigger の既定は `items-start` なので、
-              // 高さを 44px に揃えても**文字だけ上に張り付いて**、他の行と違って見える
-              // （オーナー指摘「設定の高さが違う」の正体。高さは揃っていて、縦の位置がずれていた）。
-              // 🚨 accordion.tsx 側は直さない。**本文用のアコーディオンでは items-start が正しい**
-              // （複数行の見出しが来たとき、アイコンが上に揃う方が読みやすい）。
-              "flex h-(--control-h) items-center rounded-md px-3 py-0 text-sm hover:no-underline md:h-(--control-h-pc)",
-              inSettings ? "font-medium text-foreground" : "text-muted-foreground",
-            )}
-          >
-            {settingsLabel}
-          </AccordionTrigger>
-          <AccordionContent className="pb-0">
-            <div className="flex flex-col">{settings.map((item) => row(item, true))}</div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+        <Accordion defaultValue={open} className="border-0">
+          {groups.map((group) => {
+            const inside = pathname.startsWith(group.match);
+            return (
+              <AccordionItem key={group.key} value={group.key} className="border-0">
+                <AccordionTrigger
+                  className={cn(
+                    // 🚨 `items-center` が要る。AccordionTrigger の既定は `items-start` なので、
+                    // 高さを 44px に揃えても**文字だけ上に張り付いて**、他の行と違って見える
+                    // （オーナー指摘「設定の高さが違う」の正体。高さは揃っていて、縦の位置がずれていた）。
+                    // 🚨 accordion.tsx 側は直さない。**本文用のアコーディオンでは items-start が正しい**
+                    // （複数行の見出しが来たとき、アイコンが上に揃う方が読みやすい）。
+                    "flex h-(--control-h) items-center rounded-md px-3 py-0 text-sm hover:no-underline md:h-(--control-h-pc)",
+                    inside ? "font-medium text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {group.label}
+                </AccordionTrigger>
+                {/* 🚨 **下線を消す。** `accordion.tsx` の本文は `[&_a]:underline` を持っていて、
+                    そのままだとナビの行き先すべてに下線が入る。堀池（原文）:
+                    「下線は廃止。設定の中の文字にすべて下線があるが**意味がわからない＋
+                      デザインとしてノイズ**なので削除」
+                    🚨 accordion.tsx 側は直さない。**読みもの用の本文では下線が正しい**。 */}
+                <AccordionContent className="pb-0 [&_a]:no-underline">
+                  <div className="flex flex-col">
+                    {group.children.length > 0
+                      ? group.children.map((item) => row(item, true))
+                      : group.emptyMessage
+                        ? (
+                            <p className="px-6 py-2 text-xs text-muted-foreground">
+                              {group.emptyMessage}
+                            </p>
+                          )
+                        : null}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      ) : null}
     </div>
   );
 }
