@@ -8,9 +8,11 @@ import { Surface, SurfaceTitle } from "@/components/ui/surface";
 
 type Props = {
   params: Promise<{ collection: string }>;
+  searchParams: Promise<{ error?: string }>;
 };
 
-export default async function NewItemPage({ params }: Props) {
+export default async function NewItemPage({ params, searchParams }: Props) {
+  const query = await searchParams;
   const t = await getT("items");
   const { collection } = await params;
   const encoded = encodeURIComponent(collection);
@@ -24,7 +26,7 @@ export default async function NewItemPage({ params }: Props) {
           {t("back_to_list")}
         </Link>
       </div>
-      <ErrorBanner message={!fieldsResult.ok ? fieldsResult.message : null} />
+      <ErrorBanner message={query.error ?? (!fieldsResult.ok ? fieldsResult.message : null)} />
       <Surface>
         <SurfaceTitle>{collection}</SurfaceTitle>
         <ItemForm collection={collection} fields={fields} />

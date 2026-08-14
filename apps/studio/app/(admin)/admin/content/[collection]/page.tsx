@@ -107,6 +107,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
       </div>
       <ErrorBanner
         message={
+          query.error ??
           (!fieldsResult.ok ? fieldsResult.message : null) ??
           (!itemsResult.ok ? itemsResult.message : null)
         }

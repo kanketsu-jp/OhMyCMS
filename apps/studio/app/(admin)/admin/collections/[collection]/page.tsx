@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ collection: string }>;
+  searchParams: Promise<{ error?: string }>;
 };
 
 type CollectionRelationRow = {
@@ -62,7 +63,8 @@ function relationRows(relations: RelationResult[], collection: string): Collecti
   });
 }
 
-export default async function CollectionDetailPage({ params }: Props) {
+export default async function CollectionDetailPage({ params, searchParams }: Props) {
+  const query = await searchParams;
   const tCollections = await getT("collections");
   const tFields = await getT("fields");
   const tItems = await getT("items");
@@ -103,6 +105,7 @@ export default async function CollectionDetailPage({ params }: Props) {
       </div>
       <ErrorBanner
         message={
+          query.error ??
           (!collectionResult.ok ? collectionResult.message : null) ??
           (!fieldsResult.ok ? fieldsResult.message : null) ??
           (!relationsResult.ok ? relationsResult.message : null)

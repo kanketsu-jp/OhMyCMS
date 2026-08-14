@@ -8,9 +8,11 @@ import { Surface, SurfaceTitle } from "@/components/ui/surface";
 
 type Props = {
   params: Promise<{ collection: string; id: string }>;
+  searchParams: Promise<{ error?: string }>;
 };
 
-export default async function EditItemPage({ params }: Props) {
+export default async function EditItemPage({ params, searchParams }: Props) {
+  const query = await searchParams;
   const t = await getT("items");
   const { collection, id } = await params;
   const encoded = encodeURIComponent(collection);
@@ -30,6 +32,7 @@ export default async function EditItemPage({ params }: Props) {
       </div>
       <ErrorBanner
         message={
+          query.error ??
           (!fieldsResult.ok ? fieldsResult.message : null) ??
           (!itemResult.ok ? itemResult.message : null)
         }

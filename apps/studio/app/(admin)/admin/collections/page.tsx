@@ -16,7 +16,12 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export default async function CollectionsPage() {
+type Props = {
+  searchParams: Promise<{ error?: string }>;
+};
+
+export default async function CollectionsPage({ searchParams }: Props) {
+  const params = await searchParams;
   const t = await getT("collections");
   const result = await apiFetch<CollectionResult[]>("/api/collections");
 
@@ -39,7 +44,7 @@ export default async function CollectionsPage() {
           icon={<Plus />}
         />
       </div>
-      <ErrorBanner message={!result.ok ? result.message : null} />
+      <ErrorBanner message={params.error ?? (!result.ok ? result.message : null)} />
       {/* 🚨 **枠で囲まない**（堀池・2026-08-15）:
           > 「ボーダー＋Padding はいらない。親要素にすでに Padding があるのと、
           >   カードコンポーネントを多用するのはデザインスキルが低い。
