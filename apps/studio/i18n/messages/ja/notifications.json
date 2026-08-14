@@ -20,5 +20,11 @@
   "relation_created": "リレーションを追加しました",
   "relation_deleted": "リレーションを削除しました",
   "collection_deleted": "コレクションを削除しました",
-  "mark_all_read": "すべて既読にする"
+  "mark_all_read": "すべて既読にする",
+  "message_bug_report_replied": "不具合「{title}」に返信がありました",
+  "message_bug_report_resolved": "不具合「{title}」が解決しました",
+  "message_bug_report_reopened": "不具合「{title}」を未解決に戻しました",
+  "tab_personal": "あなた宛",
+  "tab_system": "システム関係",
+  "empty_system": "システムからのお知らせはありません。"
 }

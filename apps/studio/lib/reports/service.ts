@@ -22,7 +22,10 @@
 
 import { randomUUID } from "node:crypto";
 
+import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
+import { createNotification } from "@/lib/notifications/service";
+import { resolvePermission, type PermissionAction } from "@/lib/permissions/resolve";
 import { ApiError } from "@/lib/schema/errors";
 import { getSecretSetting, getSettings } from "@/lib/settings/service";
 
@@ -35,6 +38,43 @@ export type BugReport = {
   created_at: string;
   mail_status: MailStatus;
   mail_error: string | null;
+  // ── チャット化で足した分（20260815020000）──
+  status: BugReportStatus;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  /** 🚨 まだ返信が無ければ null。並べるときは `?? created_at` で扱うこと */
+  last_message_at: string | null;
+  /** 本来どうなるはずだったか（Why）。人が書く */
+  expected: string | null;
+  // 自動で入れる再現用の情報（秘密ではないものだけ）
+  viewport: string | null;
+  locale: string | null;
+  app_version: string | null;
+};
+
+/** open = 未解決（既定） / resolved = 解決済み。一覧のタブがこの 2 つ。 */
+export type BugReportStatus = "open" | "resolved";
+
+/**
+ * チャットの 1 行。
+ * 🚨 `kind` が `resolved` / `reopened` の行は**状態が変わった記録**で、`body` は空。
+ *    文言は表示側が辞書から引く（DB に日本語を入れない）。
+ */
+export type BugReportMessage = {
+  id: string;
+  report: string;
+  author: string | null;
+  body: string;
+  kind: BugReportMessageKind;
+  created_at: string;
+};
+
+export type BugReportMessageKind = "message" | "resolved" | "reopened";
+
+/** 報告そのもの（1 通目）＋ それ以降のやりとり。 */
+export type BugReportThread = {
+  report: BugReport;
+  messages: BugReportMessage[];
 };
 
 /** skipped = 宛先や SMTP が未設定なので送らなかった（異常ではない）。 */
@@ -42,6 +82,21 @@ export type MailStatus = "skipped" | "sent" | "failed";
 
 const MAX_TITLE = 255;
 const MAX_BODY = 20_000;
+
+/** 報告が保存される表の名前。**権限の宛先としても使う**ので 1 箇所に置く。 */
+export const BUG_REPORTS_COLLECTION = "ohmycms_bug_reports";
+
+/**
+ * 「管理」とみなす操作の集合。
+ *
+ * 堀池さん（2026-08-15 原文）:
+ * > 「不具合のポリシーで『**管理（閲覧、更新、編集、削除が含まれる）**』の場合のみ、
+ * >   左サイドバーでは『不具合報告』のアコーディオンに、
+ * >   『報告する』『**報告管理**』（**報告一覧はない**）があるようにする。」
+ *
+ * → 新しい capability を作らず、**既にある「コレクションごとの操作」の枠**で表す。
+ */
+const MANAGE_ACTIONS: readonly PermissionAction[] = ["read", "create", "update", "delete"];
 
 /** 送信に要る設定。**1つでも欠けたら送らない**（中途半端な設定で失敗を量産しない）。 */
 export type MailConfig = {
@@ -134,7 +189,22 @@ function redactMailError(message: string, config: MailConfig): string {
   return text.slice(0, 512);
 }
 
-function validate(input: Record<string, unknown>): { title: string; body: string; pagePath: string | null } {
+/** 受け取った値を短く刈る。**入っていなければ null**（空文字を貯めない）。 */
+function trimmedOrNull(value: unknown, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  return text ? text.slice(0, max) : null;
+}
+
+function validate(input: Record<string, unknown>): {
+  title: string;
+  body: string;
+  pagePath: string | null;
+  expected: string | null;
+  viewport: string | null;
+  locale: string | null;
+  appVersion: string | null;
+} {
   const title = typeof input.title === "string" ? input.title.trim() : "";
   const body = typeof input.body === "string" ? input.body.trim() : "";
 
@@ -151,7 +221,22 @@ function validate(input: Record<string, unknown>): { title: string; body: string
   const rawPath = typeof input.page_path === "string" ? input.page_path.trim() : "";
   const pagePath = rawPath.startsWith("/") ? rawPath.slice(0, 512) : null;
 
-  return { title, body, pagePath };
+  const expected = trimmedOrNull(input.expected, MAX_BODY);
+
+  // 🚨 再現用の情報は**形が決まっているものだけ**を受け取る。
+  //    画面から来る値をそのまま貯めると、報告の入れ物が
+  //    「何でも入る自由記述の袋」になり、秘密が紛れ込む余地ができる。
+  const rawViewport = trimmedOrNull(input.viewport, 32);
+  // 例: "390x844"。数字 x 数字の形だけ通す。
+  const viewport = rawViewport && /^\d{1,5}x\d{1,5}$/.test(rawViewport) ? rawViewport : null;
+
+  const rawLocale = trimmedOrNull(input.locale, 16);
+  // 例: "ja" / "en-US"。英字とハイフンだけ。
+  const locale = rawLocale && /^[A-Za-z-]{2,16}$/.test(rawLocale) ? rawLocale : null;
+
+  const appVersion = trimmedOrNull(input.app_version, 64);
+
+  return { title, body, pagePath, expected, viewport, locale, appVersion };
 }
 
 /**
@@ -163,7 +248,7 @@ export async function submitBugReport(
   input: Record<string, unknown>,
   context: { reporter: string | null; userAgent: string | null },
 ): Promise<BugReport> {
-  const { title, body, pagePath } = validate(input);
+  const { title, body, pagePath, expected, viewport, locale, appVersion } = validate(input);
 
   const id = randomUUID();
   const createdAt = new Date();
@@ -178,6 +263,14 @@ export async function submitBugReport(
     user_agent: context.userAgent ? context.userAgent.slice(0, 512) : null,
     created_at: createdAt,
     mail_status: "skipped",
+    // 🚨 新しい報告は必ず未解決から始まる（列の既定値と同じだが、明示しておく）。
+    status: "open",
+    expected,
+    viewport,
+    locale,
+    app_version: appVersion,
+    // 🚨 `last_message_at` は入れない。**まだ誰も返信していない**ので null が正しい。
+    //    ここで created_at を入れると「返信があった」と区別が付かなくなる。
   });
 
   // ── ② 送れるなら送る。失敗しても報告は成功のまま。 ──
@@ -223,27 +316,251 @@ export async function submitBugReport(
     created_at: createdAt.toISOString(),
     mail_status: mailStatus,
     mail_error: mailError,
+    status: "open",
+    resolved_at: null,
+    resolved_by: null,
+    last_message_at: null,
+    expected,
+    viewport,
+    locale,
+    app_version: appVersion,
   };
 }
 
-/** 管理者向けの一覧。報告者本人の分だけを見せる用途は MVP では作らない。 */
-export async function listBugReports({ limit = 50 }: { limit?: number } = {}): Promise<BugReport[]> {
-  const rows = await db("ohmycms_bug_reports")
-    .select(
-      "id",
-      "reporter",
-      "title",
-      "body",
-      "page_path",
-      "created_at",
-      "mail_status",
-      "mail_error",
-    )
-    .orderBy("created_at", "desc")
+const REPORT_COLUMNS = [
+  "id",
+  "reporter",
+  "title",
+  "body",
+  "page_path",
+  "created_at",
+  "mail_status",
+  "mail_error",
+  "status",
+  "resolved_at",
+  "resolved_by",
+  "last_message_at",
+  "expected",
+  "viewport",
+  "locale",
+  "app_version",
+] as const;
+
+function toIso(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  return new Date(value).toISOString();
+}
+
+function presentReport(row: Record<string, unknown>): BugReport {
+  return {
+    ...(row as unknown as BugReport),
+    created_at: toIso(row.created_at as Date) as string,
+    resolved_at: toIso(row.resolved_at as Date | null),
+    last_message_at: toIso(row.last_message_at as Date | null),
+  };
+}
+
+function presentMessage(row: Record<string, unknown>): BugReportMessage {
+  return {
+    ...(row as unknown as BugReportMessage),
+    created_at: toIso(row.created_at as Date) as string,
+  };
+}
+
+/**
+ * その人が不具合報告を**管理できるか**。
+ *
+ * 「管理」＝ `ohmycms_bug_reports` に対して**閲覧・追加・更新・削除の 4 つすべて**が
+ * 許されていること。`admin_access` を持つ人は `resolvePermission` が 4 つとも
+ * 許可を返すので、自然に true になる（逃げ道を別に書かない）。
+ *
+ * 🚨 **既定は false。** `directus_permissions` に `ohmycms_bug_reports` の行が
+ *    1 つも無い状態（＝今の初期状態）では、誰も管理者にならない。
+ *    権限を足す作業をしていない既存のポリシーが、黙って管理権限を得ることはない。
+ */
+export async function canManageReports(actor: Actor): Promise<boolean> {
+  for (const action of MANAGE_ACTIONS) {
+    const resolution = await resolvePermission(actor, BUG_REPORTS_COLLECTION, action);
+    if (!resolution.allowed) return false;
+  }
+  return true;
+}
+
+/**
+ * チャットルームの一覧。
+ *
+ * 堀池さん（2026-08-15）:
+ * > 「**報告一覧では未解決のチャットルームが並ぶ**。ページ最初（上部）には
+ * >   『未解決』『解決済み』のタブ。**管理者の『報告管理』ページには全てのチャット**が表示。」
+ *
+ * 🚨 `scope: "mine"` は **SQL の WHERE で絞る**。取ってからアプリで捨てない
+ *    （`AGENTS.md §3.5`・通知の service と同じ考え方。フィルタを 1 行消すと漏れる形にしない）。
+ *
+ * @param viewer `scope: "mine"` のときの本人 ID。**クエリ文字列から取らないこと**
+ */
+export async function listBugReports({
+  scope,
+  viewer = null,
+  status,
+  limit = 50,
+}: {
+  scope: "mine" | "all";
+  viewer?: string | null;
+  status?: BugReportStatus;
+  limit?: number;
+}): Promise<BugReport[]> {
+  const query = db("ohmycms_bug_reports")
+    .select(...REPORT_COLUMNS)
+    // 返信が来た順に上へ。まだ返信が無いものは報告された時刻で並ぶ。
+    .orderByRaw("coalesce(last_message_at, created_at) desc")
     .limit(Math.min(Math.max(limit, 1), 200));
 
-  return rows.map((row) => ({
-    ...row,
-    created_at: new Date(row.created_at).toISOString(),
-  })) as BugReport[];
+  if (scope === "mine") {
+    // 🚨 本人が分からないなら**何も返さない**。ここを素通しにすると全件見えてしまう。
+    if (!viewer) return [];
+    query.where({ reporter: viewer });
+  }
+  if (status) query.where({ status });
+
+  const rows = await query;
+  return rows.map(presentReport);
+}
+
+/**
+ * 1 件の報告と、そのやりとり。
+ *
+ * 🚨 **他人の報告は「無い」と同じ応答にする**（存在を漏らさない）。
+ *    通知の `markRead` が他人の ID に 404 を返すのと同じ扱い。
+ */
+export async function getBugReportThread(
+  id: string,
+  { viewer, isManager }: { viewer: string | null; isManager: boolean },
+): Promise<BugReportThread> {
+  const query = db("ohmycms_bug_reports").select(...REPORT_COLUMNS).where({ id });
+  // 管理者でないなら、**自分が出した報告だけ**。WHERE に入れる（取ってから捨てない）。
+  if (!isManager) {
+    if (!viewer) throw new ApiError(404, "NOT_FOUND", "報告が見つかりません");
+    query.andWhere({ reporter: viewer });
+  }
+
+  const row = await query.first();
+  if (!row) throw new ApiError(404, "NOT_FOUND", "報告が見つかりません");
+
+  const messages = await db("ohmycms_bug_report_messages")
+    .select("id", "report", "author", "body", "kind", "created_at")
+    .where({ report: id })
+    .orderBy("created_at", "asc");
+
+  return { report: presentReport(row), messages: messages.map(presentMessage) };
+}
+
+/**
+ * やりとりを 1 通足す。
+ *
+ * 堀池さん:「それ以降は**返信があったらお知らせに表示される**」
+ * → 報告者が書いたら管理者へ、管理者が書いたら報告者へ通知する。
+ *
+ * 🚨 **自分の発言で自分に通知しない。** 相手が居ないとき（報告者が退会した等）は
+ *    通知を作らないだけで、発言の保存は成功させる（通知は発言のおまけ）。
+ */
+export async function addBugReportMessage(
+  reportId: string,
+  {
+    author,
+    body,
+    isManager,
+  }: { author: string | null; body: unknown; isManager: boolean },
+): Promise<BugReportMessage> {
+  const text = typeof body === "string" ? body.trim() : "";
+  if (!text) throw new ApiError(400, "INVALID_FIELD", "body を入力してください");
+  if (text.length > MAX_BODY) {
+    throw new ApiError(400, "INVALID_FIELD", `body は${MAX_BODY}文字までです`);
+  }
+
+  // 見られない報告へは書けない（読みの判定をそのまま使う）。
+  const { report } = await getBugReportThread(reportId, { viewer: author, isManager });
+
+  const message: BugReportMessage = {
+    id: randomUUID(),
+    report: reportId,
+    author,
+    body: text,
+    kind: "message",
+    created_at: new Date().toISOString(),
+  };
+
+  await db("ohmycms_bug_report_messages").insert({
+    ...message,
+    created_at: new Date(message.created_at),
+  });
+  await db("ohmycms_bug_reports")
+    .where({ id: reportId })
+    .update({ last_message_at: new Date(message.created_at) });
+
+  // 管理者が返信したときだけ、報告者へ知らせる。
+  // （報告者の発言で管理者全員へ配るのは、宛先を決める仕組みが要るので今は作らない。
+  //   管理者は「報告管理」の一覧で未解決を見る。）
+  if (isManager && report.reporter && report.reporter !== author) {
+    await createNotification({
+      recipient: report.reporter,
+      messageKey: "message_bug_report_replied",
+      params: { title: report.title },
+      link: `/admin/reports/${reportId}`,
+    });
+  }
+
+  return message;
+}
+
+/**
+ * 解決済みにする／未解決へ戻す。
+ *
+ * 🚨 **状態の変化もチャットの行として残す**（`kind` が `resolved` / `reopened`）。
+ *    別表にすると、画面で時系列に混ぜて出すときに 2 つを突き合わせることになる。
+ * 🚨 変えられるのは**管理者だけ**。呼ぶ側で確かめること。
+ */
+export async function setBugReportStatus(
+  reportId: string,
+  status: BugReportStatus,
+  { actor }: { actor: string | null },
+): Promise<BugReport> {
+  const { report } = await getBugReportThread(reportId, { viewer: actor, isManager: true });
+  if (report.status === status) return report;
+
+  const now = new Date();
+  const resolved = status === "resolved";
+
+  await db("ohmycms_bug_reports").where({ id: reportId }).update({
+    status,
+    resolved_at: resolved ? now : null,
+    resolved_by: resolved ? actor : null,
+    last_message_at: now,
+  });
+
+  await db("ohmycms_bug_report_messages").insert({
+    id: randomUUID(),
+    report: reportId,
+    author: actor,
+    // 🚨 文言は入れない。表示側が `kind` から辞書を引く（DB に日本語を置かない）。
+    body: "",
+    kind: resolved ? "resolved" : "reopened",
+    created_at: now,
+  });
+
+  if (report.reporter && report.reporter !== actor) {
+    await createNotification({
+      recipient: report.reporter,
+      messageKey: resolved ? "message_bug_report_resolved" : "message_bug_report_reopened",
+      params: { title: report.title },
+      link: `/admin/reports/${reportId}`,
+    });
+  }
+
+  return {
+    ...report,
+    status,
+    resolved_at: resolved ? now.toISOString() : null,
+    resolved_by: resolved ? actor : null,
+    last_message_at: now.toISOString(),
+  };
 }

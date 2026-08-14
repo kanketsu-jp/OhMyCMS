@@ -1,7 +1,12 @@
 import { requireActor } from "@/lib/auth/context";
-import { requireAdmin } from "@/lib/admin/permissions-api";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
-import { listBugReports, submitBugReport } from "@/lib/reports/service";
+import { ApiError } from "@/lib/schema/errors";
+import {
+  canManageReports,
+  listBugReports,
+  submitBugReport,
+  type BugReportStatus,
+} from "@/lib/reports/service";
 
 export const runtime = "nodejs";
 
@@ -30,14 +35,42 @@ export async function POST(request: Request) {
   }
 }
 
-/** 一覧は管理者だけ（報告には他の利用者の状況が書かれうるため）。 */
+/**
+ * チャットルームの一覧。
+ *
+ * - 既定は**自分が出した報告だけ**（誰でも見られる ＝「報告一覧」）
+ * - `?scope=all` は**管理できる人だけ**（＝「報告管理」）。
+ *   🚨 権限が無ければ **403 で断る**。UI 側で隠すだけにしない（`AGENTS.md §3.5`）。
+ *
+ * 🚨 「誰の報告を返すか」をリクエストから受け取らない。認証済みの本人 ID だけを使う。
+ */
 export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
-    await requireAdmin(actor, "settings:read");
+    const viewer = actor.type === "human" ? actor.userId : actor.onBehalfOf;
+
     const url = new URL(request.url);
+    const wantsAll = url.searchParams.get("scope") === "all";
+    const manager = await canManageReports(actor);
+    if (wantsAll && !manager) {
+      throw new ApiError(403, "FORBIDDEN", "報告を管理する権限がありません");
+    }
+
+    // 未解決 / 解決済みのタブ。指定が無ければ両方。
+    const rawStatus = url.searchParams.get("status");
+    const status: BugReportStatus | undefined =
+      rawStatus === "open" || rawStatus === "resolved" ? rawStatus : undefined;
+
     const limit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
-    return ok({ data: await listBugReports({ limit: Number.isFinite(limit) ? limit : 50 }) });
+
+    const data = await listBugReports({
+      scope: wantsAll ? "all" : "mine",
+      viewer,
+      status,
+      limit: Number.isFinite(limit) ? limit : 50,
+    });
+    // 画面の出し分け（報告一覧か報告管理か）に使うので、権限も返す。
+    return ok({ data, can_manage: manager });
   } catch (error) {
     return errorResponse(error);
   }
