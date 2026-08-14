@@ -1,0 +1,113 @@
+# Dokploy（本番・Traefik 前段）へ出すための compose。
+#
+# 🚨 compose.yml との決定的な違い: **host ポートを一切 publish しない**。
+#   由来（2026-08-14 堀池指摘）: 「Dokploy に載せると Postgres が公開される→設計ミス。
+#   そもそも DB は内部で Next.js と繋がっていればいい」。
+#   Dokploy は Swarm 上で動き、compose の `ports:` は routing mesh で 0.0.0.0 に載るため、
+#   共有本番ホストで publish すると **Postgres が世界に晒される**。
+#   正本にした実例（VPS の /etc/dokploy/compose/umami-.../docker-compose.yml）でも、
+#   db も web も host ポートを publish せず、compose 内ネットワークだけで繋いでいた。
+#
+# ■ 外部公開の仕組み
+#   studio は Dokploy の **Domain 機能**が Traefik 経由で ohmycms.kanketsu.app に振る。
+#   Dokploy の UI で Domain を **service=studio / port=3101** に割り当てると、
+#   Traefik ラベル（web/websecure ルータ・letsencrypt・redirect-to-https）が自動注入される。
+#   → このファイルに Traefik ラベルは手書きしない（Dokploy が管理する）。
+#
+# ■ 使い方（Dokploy）
+#   Create Service → Compose → Git（https://github.com/kanketsu-jp/OhMyCMS.git・main）
+#   Compose Path: compose.dokploy.yml
+#   Environment: 下記の必須変数を設定（値は Dokploy の Environment に貼る。ここには秘密を書かない）
+#   Domain: ohmycms.kanketsu.app → studio:3101（HTTPS・letsencrypt）
+#
+# ■ 必須環境変数（未設定なら起動を拒否する = :? ）
+#   OHMYCMS_SETUP_PASSWORD  初回ログイン。pass132 のまま公開しない
+#   OHMYCMS_PUBLIC_URL      https://ohmycms.kanketsu.app（SAML の ACS 組み立て。プロキシ配下で必須）
+#   POSTGRES_PASSWORD       同梱 Postgres のパスワード（cms のまま公開しない）
+#   任意: S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY(+S3_REGION=auto) … R2
+#         GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET … Google OAuth
+name: ohmycms
+
+x-app-env: &app-env
+  # アプリ → DB は compose 内ネットワークの db:5432。ホストには出さない。
+  DATABASE_URL: postgres://${POSTGRES_USER:-cms}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD は必須です（cms のまま公開しない）}@db:5432/${POSTGRES_DB:-cms}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  S3_REGION: ${S3_REGION:-}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-}
+  S3_KEY_PREFIX: ${S3_KEY_PREFIX:-}
+  R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+  R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+  R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+  R2_BUCKET: ${R2_BUCKET:-}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # このデプロイの公開 URL。SAML の ACS 組み立てに使う。プロキシ配下で必須。
+  OHMYCMS_PUBLIC_URL: ${OHMYCMS_PUBLIC_URL:?OHMYCMS_PUBLIC_URL は必須です（例 https://ohmycms.kanketsu.app）}
+  OHMYCMS_DEFAULT_LOCALE: ${OHMYCMS_DEFAULT_LOCALE:-}
+  OHMYCMS_PROJECT_NAME: ${OHMYCMS_PROJECT_NAME:-}
+  OHMYCMS_PROJECT_LOGO_URL: ${OHMYCMS_PROJECT_LOGO_URL:-}
+  # コンテナ内の待ち受けポート。Dockerfile の PORT=3000 を上書きする。
+  # Traefik の loadbalancer.server.port もこの値（3101）に合わせて Dokploy の Domain で指定する。
+  PORT: ${STUDIO_PORT:-3101}
+  # 未設定なら起動しない。エラーに値は出ない（変数名だけ）。
+  OHMYCMS_SETUP_PASSWORD: ${OHMYCMS_SETUP_PASSWORD:?本番では OHMYCMS_SETUP_PASSWORD を必ず設定してください（既定値 pass132 のまま公開しない）}
+  # 開発用バックドアを本番で殺す（本番ビルドではコードごと消えるが二重に固定）。
+  ALLOW_DEV_LOGIN: ""
+
+services:
+  db:
+    image: postgres:17
+    # 🚨 ports: は書かない。DB はこの compose 内でしか繋がない。
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD は必須です（cms のまま公開しない）}
+      POSTGRES_DB: ${POSTGRES_DB:-cms}
+    volumes:
+      - ohmycms-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cms} -d ${POSTGRES_DB:-cms}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # 使い捨てのマイグレーション。studio はこれが成功してから起動する。
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: migrate
+    image: ohmycms-migrate
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  studio:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: runner
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+        GIT_DIRTY: ${GIT_DIRTY:-unknown}
+    image: ohmycms-studio
+    # 🚨 ports: は書かない。外部公開は Dokploy の Domain（Traefik）が studio:3101 へ振る。
+    environment: *app-env
+    volumes:
+      # S3 未設定時のローカルフォールバック先（R2 を設定すれば使われない）。
+      - ohmycms-storage:/app/.storage
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  ohmycms-db-data:
+  ohmycms-storage:
