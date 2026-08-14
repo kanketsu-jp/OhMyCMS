@@ -2,7 +2,9 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
+import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import { GlobalSearch } from "@/components/admin/global-search";
+import { HeaderBack } from "@/components/admin/header-back";
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { UserMenu } from "@/components/admin/user-menu";
 import { NavLinks } from "@/components/admin/nav-links";
@@ -137,26 +139,44 @@ export default async function AdminLayout({
         <UserMenu userLabel={me.ok && me.data.type === "human" ? me.data.email : null} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex min-h-14 items-center justify-between border-b px-4 md:px-6">
-          <div className="flex items-center gap-3 md:hidden">
-            <Link href="/admin" className="flex items-center gap-2 text-base font-semibold">
-              {logo ? (
-                // eslint-disable-next-line @next/next/no-img-element -- 外部URLもありうるので Image コンポーネントを使わない
-                <img src={logo} alt="" className="h-6 w-auto max-w-32 object-contain" />
-              ) : null}
-              <span className="truncate">{brand}</span>
-            </Link>
+        {/* ヘッダーは **左｜中央｜右** の3つの塊。堀池さん（原文・2026-08-15）:
+            「（一番左）と書いているのは、それらをdivでラップしているイメージ。
+              大きく、左｜中央｜右　で、justify-between。」
+
+            🚨 **メアドの常設表示は廃止した**（原文）:
+            「常に表示するものはそれなりの理由・必要性がいる。
+              メアド＝今だれがログインしているか？は必要ない。左サイドバーでOK」
+            → いま入っている人は左サイドバー下の `UserMenu` が出す（SP はドロワーの中）。
+
+            🚨 **SP のブランド表示もここから外した。** ヘッダーが持つのは
+            「メニュー開閉・戻る・パンくず｜アクション・info」だけ、と原典が列挙している。
+            ブランドはパンくずの**根**として残っており（押すと /admin へ戻る）、
+            行き先を失ってはいない。 */}
+        <header className="flex min-h-14 items-center justify-between gap-2 border-b px-4 md:px-6">
+          {/* 左: 戻る → パンくず。
+              🚨 メニュー開閉ボタン（一番左・常に固定）は**左サイドバーの開閉状態**を持つので、
+                 左サイドバーを3分割する回で入れる（TODO: A群③）。 */}
+          <div className="flex min-w-0 flex-1 items-center gap-1">
+            <HeaderBack />
+            <Breadcrumbs brand={brand} />
           </div>
-          <div className="hidden text-sm text-muted-foreground md:block">
-            {me.ok && me.data.type === "human" ? me.data.email : t("auth_error")}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* 🚨 ヘッダに常設するのは**横断検索だけ**（憲章 §6b）。
-                堀池さん（原文）:「常に表示するものはそれなりの重要度をもつ。
-                ただ、この『ログアウト』『言語切り替え』はそうじゃない。個人設定という適した場所がある。」
-                → どちらもメニュー最下部のユーザーの行へ移した（mobile-nav.tsx）。
-                検索は毎日使うので残す。 */}
+
+          {/* 中央: いまは空。ページ固有のものが要るときにここへ入れる（TODO）。
+              器を先に置いておくのは、左右の塊が「中央が無いから寄っている」のか
+              「中央が空だから寄っている」のかを、後から見て区別できるようにするため。 */}
+          <div className="hidden min-w-0 shrink items-center md:flex" />
+
+          {/* 右: そのページの主要アクション → info（右サイドバーの開閉）。 */}
+          <div className="flex shrink-0 items-center gap-2">
+            {/* 🚨 **PC の主要アクションの行き先**。中身はページごとに違うので器だけ置く。
+                埋めるのは `components/admin/page-action.tsx` の portal（SP の
+                `#mobile-primary-action` と対になる）。**空でも消さないこと。** */}
+            <div id="header-primary-action" data-slot="header-primary-action" className="flex items-center" />
+            {/* 🚨 検索はここが最終位置ではない。**左サイドバーの上部へ移す**（A群③）。
+                いま動かすと header の3分割と同時に2箇所が変わって、
+                崩れたときにどちらが原因か分からなくなるので、次の回に分ける。 */}
             <GlobalSearch />
+            {/* TODO(A群②): lucide の `info` アイコン。押すと右サイドバーが開く。 */}
           </div>
         </header>
         {/* 🚨 SP は下部の固定ナビに隠れるぶんの余白を本体側で持つ。
