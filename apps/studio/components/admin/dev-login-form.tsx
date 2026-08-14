@@ -52,7 +52,7 @@ export function DevLoginForm() {
           required
         />
       </div>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
         <input
           type="checkbox"
           className="size-4 rounded border-input"

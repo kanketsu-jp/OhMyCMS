@@ -190,14 +190,14 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
         </div>
         <div className="space-y-2">
           <Label>{t("fields_list_label")}</Label>
-          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-0">
+          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
             <input type="checkbox" checked={allFields} onChange={(event) => setAllFields(event.target.checked)} className="size-4" />
             {t("allow_all_label")}
           </label>
           {!allFields ? (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {columns.map((field) => (
-                <label key={field} className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-0">
+                <label key={field} className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
                   <input
                     type="checkbox"
                     checked={selectedFields.includes(field)}

@@ -175,11 +175,11 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
         {/* 🚨 §3c「2択を選ばせる」。ただしカードにはしない（面を増やさない）。
             🚨 タップ領域: 素の radio は **13px** で、WCAG 2.2 SC 2.5.8 の 24px すら割る
                （`scripts/audit-surface-depth.mjs` が SP で検出）。
-               操作の的は `label` 全体なので **行の高さを 44px（`min-h-11`）** にし、
+               操作の的は `label` 全体なので高さトークンを使い、
                つまみ自体も 24px（`size-6`）に上げる。 */}
         <div className="flex flex-wrap gap-x-6 text-sm">
           {(["metadata", "manual"] as EntryMode[]).map((value) => (
-            <label key={value} className="flex min-h-11 items-center gap-2">
+            <label key={value} className="flex min-h-(--control-h) items-center gap-2 md:min-h-(--control-h-pc)">
               <input
                 type="radio"
                 name="saml-entry-mode"
@@ -263,7 +263,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
       {/* ── 有効化（🚨 締め出さないことを画面で伝える） ── */}
       <section className="space-y-3">
         {/* 🚨 radio と同じ理由でタップ領域を上げている（素の checkbox は 13px）。 */}
-        <label className="flex min-h-11 items-center gap-2 text-sm">
+        <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
           <input
             type="checkbox"
             className="size-6"

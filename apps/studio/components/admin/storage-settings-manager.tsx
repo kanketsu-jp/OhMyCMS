@@ -192,7 +192,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
           <h2 className="text-sm font-semibold">{t("advanced_heading")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t("advanced_description")}</p>
         </div>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
+        <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
           <input
             id="storage-s3_force_path_style"
             type="checkbox"
