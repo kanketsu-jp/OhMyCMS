@@ -89,7 +89,7 @@ export function Surface({
           内側の section は `w-full`（＝親の幅いっぱい）なので、親が 0 なら 0 のまま。
           実際に /login が幅 0 になり、文字が1文字ずつ縦に並んだ（2026-08-13）。
           中央寄せが要る画面は、内側へ `mx-auto` を渡す（className は section に届く）。 */}
-      <div className="@container/surface w-full min-w-0">
+      <div data-slot="surface-container" className="@container/surface w-full min-w-0">
         <section
           data-slot="surface"
           data-surface-depth={depth + 1}
@@ -103,7 +103,14 @@ export function Surface({
             // 区切りは**面と面の境目に1本**あればよいので、上だけにする。
             // 1箇所直せば全ページに効く。
             effectiveTone === "outline" &&
-              "border-t border-border @md/surface:rounded-xl @md/surface:border",
+              // 🚨 SP の `border-t` は「**面と面のあいだ**の区切り」。**先頭には引かない。**
+            //    堀池（2026-08-15 原文）:
+            //    > 「**ただし、2つ要素が並ぶ場合は、その間に Divider を用意する**。
+            //    >   イメージとしては三項演算子で2つ以上の場合は divider-y など。」
+            //    先頭にも引くと、**すぐ上のヘッダの下辺と2本並ぶ**（見出しを外して実測で発覚）。
+            //    実際の出し分けは app/globals.css の `[data-slot=surface-container] + …` が持つ
+            //    （自分の親の中での順番は、自分自身のクラスでは表現できないため）。
+              "@md/surface:rounded-xl @md/surface:border border-border",
             effectiveTone === "muted" && "@md/surface:rounded-xl @md/surface:bg-muted/40",
             className,
           )}

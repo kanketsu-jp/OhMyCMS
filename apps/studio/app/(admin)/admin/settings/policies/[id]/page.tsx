@@ -41,10 +41,6 @@ export default async function PolicyDetailPage({ params }: Props) {
         <Link href="/admin/settings/policies" className="text-sm text-muted-foreground hover:underline">
           {t("back_to_list")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">
-          {policyResult.ok ? policyResult.data.data.name : t("detail_fallback_title")}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("detail_description")}</p>
       </div>
       <ErrorBanner
         message={

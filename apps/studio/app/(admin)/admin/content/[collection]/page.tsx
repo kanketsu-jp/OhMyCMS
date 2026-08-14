@@ -103,7 +103,6 @@ export default async function ContentPage({ params, searchParams }: Props) {
           <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:underline">
             {tFields("manage_link")}
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold">{t("title_for_collection", { collection })}</h1>
         </div>
         <Link href={`/admin/content/${encoded}/new`} className={cn(buttonVariants())}>
           {t("new_item")}

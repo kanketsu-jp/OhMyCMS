@@ -25,7 +25,6 @@ export default async function NewItemPage({ params, searchParams }: Props) {
         <Link href={`/admin/content/${encoded}`} className="text-sm text-muted-foreground hover:underline">
           {t("back_to_list")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">{t("new_item")}</h1>
       </div>
       <ErrorBanner message={query.error ?? (!fieldsResult.ok ? fieldsResult.message : null)} />
       <Surface>

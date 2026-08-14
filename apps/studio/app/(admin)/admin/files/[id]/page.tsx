@@ -48,7 +48,6 @@ export default async function FileDetailPage({ params }: Props) {
         <Link href="/admin/files" className="text-sm text-muted-foreground hover:underline">
           {t("back_to_files")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">{file?.title ?? file?.filename_download ?? t("detail_fallback_title")}</h1>
       </div>
       <ErrorBanner
         message={

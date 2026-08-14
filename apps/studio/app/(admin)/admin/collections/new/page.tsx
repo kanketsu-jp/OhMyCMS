@@ -34,7 +34,6 @@ export default async function NewCollectionPage({ searchParams }: Props) {
         >
           {t("back_to_list")}
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold">{t("create_title")}</h1>
       </div>
       <ErrorBanner message={params.error ?? null} />
       <Surface>

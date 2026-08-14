@@ -94,7 +94,6 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           <Link href="/admin/collections" className="text-sm text-muted-foreground hover:underline">
             {tCollections("back_to_list")}
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold">{collection}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PageAction

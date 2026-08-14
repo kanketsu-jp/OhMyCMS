@@ -32,7 +32,6 @@ export default async function EditItemPage({ params, searchParams }: Props) {
         <Link href={`/admin/content/${encoded}`} className="text-sm text-muted-foreground hover:underline">
           {t("back_to_list")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">{t("edit_item_title")}</h1>
       </div>
       <ErrorBanner
         message={

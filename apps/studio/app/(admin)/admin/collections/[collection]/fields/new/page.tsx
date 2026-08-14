@@ -18,7 +18,6 @@ export default async function NewFieldPage({ params }: Props) {
         <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:underline">
           {tFields("back_to_collection")}
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold">{tFields("add_title")}</h1>
       </div>
       <Surface>
         <FieldCreateForm collection={encoded} />

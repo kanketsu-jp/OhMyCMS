@@ -7,7 +7,6 @@ import { Plus } from "lucide-react";
 import { noticeKeyFromQuery } from "@/i18n/notice";
 import { getT } from "@/i18n/server";
 import { buttonVariants } from "@/components/ui/button";
-import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
   Table,
   TableBody,
@@ -32,14 +31,16 @@ export default async function CollectionsPage({ searchParams }: Props) {
   return (
     <div className="max-w-6xl space-y-6">
       {/* 🚨 一覧のページは**まず一覧を見せる**（design ⑰）。作成フォームは
-          /admin/collections/new へ移した。入口はこの主要アクション。 */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("subtitle")}
-          </p>
-        </div>
+          /admin/collections/new へ移した。入口はこの主要アクション。
+
+          🚨 **見出しと概要をここに置かない**（堀池・2026-08-15）:
+          > 「…は必要ない。理由はタイトルはパンクズで表示するのと、
+          >   その下の概要は『info』アイコンで説明する。」
+          → 文言は消さず `lib/admin/page-meta.ts` の辞書キーとして残してある
+            （右サイドバー・Storybook・LLM がそこから読む）。
+          🚨 パンくずと右サイドバーは **ui ペインが作る**。**それが入るまで、
+             この画面にはページ名がどこにも出ない**（意図した中間状態）。 */}
+      <div className="flex justify-end">
         <PageAction
           href="/admin/collections/new"
           label={t("new_button")}
@@ -50,8 +51,17 @@ export default async function CollectionsPage({ searchParams }: Props) {
       {noticeKey ? (
         <div className="text-sm text-muted-foreground">{tNotice(noticeKey)}</div>
       ) : null}
-      <Surface>
-        <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+      {/* 🚨 **枠で囲まない**（堀池・2026-08-15）:
+          > 「ボーダー＋Padding はいらない。親要素にすでに Padding があるのと、
+          >   カードコンポーネントを多用するのはデザインスキルが低い。
+          >   **枠というのは明確な別の領域を表現する**が、…コレクション一覧しか
+          >   セクションがないので、ボーダーも Padding も必要ない。
+          >   **ただし、2つ要素が並ぶ場合は、その間に Divider を用意する**。」
+          → このページの節は一覧ひとつだけなので、`Surface` で包まない。
+          🚨 見出し（「一覧」）も出さない。「そもそも見てわかるので」。
+             ただし**右サイドバーの項目一覧には出す**ので、辞書キーは
+             `lib/admin/page-meta.ts` の `sectionKeys` に残してある。 */}
+      <div>
         {result.ok ? (
           <Table>
             <TableHeader>
@@ -89,7 +99,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
             </TableBody>
           </Table>
         ) : null}
-      </Surface>
+      </div>
     </div>
   );
 }
