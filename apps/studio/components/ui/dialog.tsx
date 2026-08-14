@@ -55,7 +55,19 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // 🚨 **SP は画面いっぱい。PC は中央の箱のまま。**（堀池・2026-08-15 判断）
+          // > 「Shadcn は海外なので日本語で欲しい高さがボタンではなく、ボタンが窮屈に見えるなど
+          // >   カスタムがひつようです。その中でも必須なのはモーダル。**モーダルは画面いっぱい**」
+          // 🚨 **PC まで全画面にしない。** ファイル選択・コマンドパレット・確認ダイアログまで
+          //    画面を覆ってしまう（8ペインが使う部品なので、影響範囲で決めた）。
+          //
+          // SP: 上下左右いっぱい・角丸なし・拡大の動きなし（全画面に拡大縮小は合わない）
+          // PC: 従来どおり中央・最大 sm・角丸・拡大の動きあり
+          "fixed z-50 grid gap-4 bg-popover text-sm text-popover-foreground duration-100 outline-none",
+          "inset-0 h-dvh w-screen overflow-y-auto p-4",
+          "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:w-full sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:overflow-visible sm:rounded-xl sm:ring-1 sm:ring-foreground/10",
+          "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          "sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95",
           className
         )}
         {...props}
