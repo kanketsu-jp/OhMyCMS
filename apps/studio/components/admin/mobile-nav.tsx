@@ -36,6 +36,8 @@ type Props = {
   contentHeading: string;
   /** メニュー最下部に出す、いま入っている人。取れなければ null */
   userLabel: string | null;
+  /** SSO のプロフィール画像。出せなければ null */
+  userPicture: string | null;
 };
 
 /**
@@ -58,7 +60,7 @@ type Props = {
  *
  * 🚨 面は作らない（§1）。上辺の罫線1本だけで、背景は本体と同じ。
  */
-export function MobileNav({ items, groups, collections, contentHeading, userLabel }: Props) {
+export function MobileNav({ items, groups, collections, contentHeading, userLabel, userPicture }: Props) {
   const t = useT("nav");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -135,7 +137,7 @@ export function MobileNav({ items, groups, collections, contentHeading, userLabe
                 ) : null}
               </div>
             </div>
-            <UserMenu userLabel={userLabel} />
+            <UserMenu userLabel={userLabel} userPicture={userPicture} />
           </SheetContent>
         </Sheet>
 

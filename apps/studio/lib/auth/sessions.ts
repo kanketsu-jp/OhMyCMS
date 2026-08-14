@@ -20,9 +20,27 @@ type DirectusUserRow = {
   status: string;
 };
 
+type ExistingGoogleUserRow = DirectusUserRow & {
+  auth_data: unknown;
+};
+
+function authDataRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      return authDataRecord(JSON.parse(value) as unknown);
+    } catch {
+      return {};
+    }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return { ...(value as Record<string, unknown>) };
+}
+
 export async function upsertGoogleUser(identity: GoogleIdentity): Promise<DirectusUserRow> {
-  const existing = await db<DirectusUserRow>("directus_users")
-    .select("id", "first_name", "last_name", "email", "role", "status")
+  const existing = await db<ExistingGoogleUserRow>("directus_users")
+    .select("id", "first_name", "last_name", "email", "role", "status", "auth_data")
     .where("provider", "google")
     .where("external_identifier", identity.sub)
     .first();
@@ -30,7 +48,14 @@ export async function upsertGoogleUser(identity: GoogleIdentity): Promise<Direct
   if (existing) {
     await db("directus_users")
       .where("id", existing.id)
-      .update({ last_access: db.fn.now() });
+      .update({
+        last_access: db.fn.now(),
+        auth_data: {
+          ...authDataRecord(existing.auth_data),
+          email_verified: identity.emailVerified,
+          picture: identity.picture,
+        },
+      });
 
     return existing;
   }
@@ -48,7 +73,7 @@ export async function upsertGoogleUser(identity: GoogleIdentity): Promise<Direct
     last_access: db.fn.now(),
     provider: "google",
     external_identifier: identity.sub,
-    auth_data: { email_verified: identity.emailVerified },
+    auth_data: { email_verified: identity.emailVerified, picture: identity.picture },
   };
 
   await db("directus_users").insert(user);

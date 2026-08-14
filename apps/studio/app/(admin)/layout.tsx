@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
-import { displayUserLabel } from "@/lib/admin/user-label";
+import { displayUserLabel, displayUserPicture } from "@/lib/admin/user-label";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import { GlobalSearchProvider } from "@/components/admin/global-search";
 import { HeaderBack } from "@/components/admin/header-back";
@@ -164,6 +164,7 @@ export default async function AdminLayout({
         collectionsError={collections?.ok ? null : t("collections_error")}
         reports={reportsNav}
         userLabel={displayUserLabel(me.ok ? me.data : null)}
+        userPicture={displayUserPicture(me.ok ? me.data : null)}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ヘッダーは **左｜中央｜右** の3つの塊。堀池さん（原文・2026-08-15）:
@@ -237,6 +238,7 @@ export default async function AdminLayout({
         }
         contentHeading={t("content_heading")}
         userLabel={displayUserLabel(me.ok ? me.data : null)}
+        userPicture={displayUserPicture(me.ok ? me.data : null)}
       />
       {/* 🚨 `MobileNav` も Provider の中に置く。SP のドロワーから右パネルを開くものが入るため
           （不具合報告の「報告する」）。`MobileNav` は fixed なので、flex の並びには影響しない。 */}

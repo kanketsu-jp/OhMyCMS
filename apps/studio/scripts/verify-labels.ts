@@ -110,6 +110,7 @@ async function main(): Promise<void> {
     userId: user.id,
     email: user.email,
     role: user.role ?? null,
+    picture: null, // この検証は実セッションを通さないので SSO のプロフィール画像が無い
   };
 
   // 1. 一覧にシステムラベルが入っているか。

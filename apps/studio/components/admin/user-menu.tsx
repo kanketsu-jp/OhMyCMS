@@ -2,7 +2,7 @@
 
 import { Check, ChevronsUpDown, LogOut } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +18,8 @@ import { LOCALES } from "@/i18n/config";
 type Props = {
   /** いま入っている人。取れなければ null */
   userLabel: string | null;
+  /** SSO のプロフィール画像。取れなければ null */
+  userPicture: string | null;
 };
 
 /**
@@ -35,7 +37,7 @@ type Props = {
  *
  * 🚨 PC のサイドバー末尾も SP のドロワー末尾も画面の下端なので、メニューは常に上へ開く。
  */
-export function UserMenu({ userLabel }: Props) {
+export function UserMenu({ userLabel, userPicture }: Props) {
   const t = useT("nav");
   const tCommon = useT("common");
   const locale = useLocale();
@@ -55,6 +57,9 @@ export function UserMenu({ userLabel }: Props) {
             className="w-full justify-start px-3"
           >
             <Avatar size="sm">
+              {userPicture ? (
+                <AvatarImage src={userPicture} alt="" referrerPolicy="no-referrer" />
+              ) : null}
               <AvatarFallback>{fallback}</AvatarFallback>
             </Avatar>
             <span className="min-w-0 flex-1 truncate text-left">{label}</span>

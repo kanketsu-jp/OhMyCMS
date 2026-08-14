@@ -16,6 +16,7 @@ export type GoogleIdentity = {
   emailVerified: boolean;
   firstName: string | null;
   lastName: string | null;
+  picture: string | null;
 };
 
 export type GoogleOAuthConfig = {
@@ -125,5 +126,6 @@ export async function verifyGoogleIdToken(
     emailVerified: true,
     firstName: typeof payload.given_name === "string" ? payload.given_name : null,
     lastName: typeof payload.family_name === "string" ? payload.family_name : null,
+    picture: typeof payload.picture === "string" ? payload.picture : null,
   };
 }

@@ -1,6 +1,14 @@
 import type { MeResult } from "@/lib/admin/api";
 import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/service";
 
+function visibleHuman(me: MeResult | null): Extract<MeResult, { type: "human" }> | null {
+  if (!me) return null;
+  // エージェント（機械）は人のアカウント行に出さない。
+  if (me.type !== "human") return null;
+  if (me.email === LOCAL_ADMIN_EMAIL) return null;
+  return me;
+}
+
 /**
  * 画面に出してよい「いま入っている人」の名前。出せないなら null。
  *
@@ -20,9 +28,9 @@ import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/service";
  * 塞ぐのは**起動用の合成 ID だけ**で、メールアドレス一般ではない。
  */
 export function displayUserLabel(me: MeResult | null): string | null {
-  if (!me) return null;
-  // エージェント（機械）は人のアカウント行に出さない。
-  if (me.type !== "human") return null;
-  if (me.email === LOCAL_ADMIN_EMAIL) return null;
-  return me.email;
+  return visibleHuman(me)?.email ?? null;
+}
+
+export function displayUserPicture(me: MeResult | null): string | null {
+  return visibleHuman(me)?.picture ?? null;
 }

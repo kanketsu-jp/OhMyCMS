@@ -8,6 +8,7 @@ export type HumanActor = {
   userId: string;
   email: string;
   role: string | null;
+  picture: string | null;
 };
 
 export type AgentActor = {
@@ -33,7 +34,23 @@ type SessionUserRow = {
   user_id: string;
   email: string;
   role: string | null;
+  auth_data: unknown;
 };
+
+function authDataPicture(value: unknown): string | null {
+  if (typeof value === "string") {
+    try {
+      return authDataPicture(JSON.parse(value) as unknown);
+    } catch {
+      return null;
+    }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const picture = (value as { picture?: unknown }).picture;
+  return typeof picture === "string" ? picture : null;
+}
 
 function bearerToken(request: Request): string | null {
   const authorization = request.headers.get("authorization");
@@ -80,6 +97,7 @@ async function resolveHuman(token: string): Promise<HumanActor> {
       user_id: "directus_users.id",
       email: "directus_users.email",
       role: "directus_users.role",
+      auth_data: "directus_users.auth_data",
     })
     .where("directus_sessions.token", tokenHash)
     .where("directus_sessions.expires", ">", db.fn.now())
@@ -94,6 +112,7 @@ async function resolveHuman(token: string): Promise<HumanActor> {
     userId: row.user_id,
     email: row.email,
     role: row.role,
+    picture: authDataPicture(row.auth_data),
   };
 }
 

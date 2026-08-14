@@ -94,6 +94,8 @@ type Props = {
   reports: ReactNode;
   /** いま入っている人。出せないなら null */
   userLabel: string | null;
+  /** SSO のプロフィール画像。出せないなら null */
+  userPicture: string | null;
 };
 
 export function LeftSidebar({
@@ -105,6 +107,7 @@ export function LeftSidebar({
   collectionsError,
   reports,
   userLabel,
+  userPicture,
 }: Props) {
   const t = useT("nav");
   const { isOpen, close } = useLeftSidebar();
@@ -161,7 +164,7 @@ export function LeftSidebar({
       {/* ── 下部: 不具合報告 ────────────────────────────────── */}
       <div className="shrink-0 border-t px-3 py-2">{reports}</div>
 
-      <UserMenu userLabel={userLabel} />
+      <UserMenu userLabel={userLabel} userPicture={userPicture} />
 
       {/* 🚨 右のボーダーそのものを押して閉じる（堀池の原文）。
           罫線は 1px しかなく指でも矢印でも当てられないので、**当たり判定だけを広げた
