@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
 
 /**
@@ -57,7 +58,6 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
     groups: settings.attributes.groups.join("\n"),
   });
 
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // 🚨 §3c「未入力なら確定を無効にする」。
@@ -65,8 +65,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   const ready =
     mode === "metadata" ? metadataXml.trim().length > 0 : Boolean(entityId && ssoUrl && certificate);
 
-  async function save() {
-    setSaving(true);
+  const save = useSubmitOnce(async () => {
     setError(null);
 
     const body: Record<string, unknown> = {
@@ -91,7 +90,6 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    setSaving(false);
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as
@@ -109,7 +107,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
 
     toast.success(t("saved"));
     router.refresh();
-  }
+  });
 
   const attributeField = (
     key: keyof typeof attributes,
@@ -133,7 +131,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
       className="max-w-2xl space-y-8"
       onSubmit={(event) => {
         event.preventDefault();
-        void save();
+        void save.run();
       }}
     >
       {error ? (
@@ -280,7 +278,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
 
       <div className="flex items-center gap-3">
         {/* 🚨 §3c: 未入力なら確定できない。 */}
-        <Button type="submit" loading={saving} disabled={!ready}>
+        <Button type="submit" loading={save.pending} disabled={!ready}>
           {t("save_button")}
         </Button>
         <span className="text-xs text-muted-foreground">

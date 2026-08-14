@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
 
 type SettingsSource = "database" | "environment" | "default";
@@ -50,7 +51,6 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
     [settings],
   );
   const [draft, setDraft] = useState<Draft>(initial);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const dirty =
@@ -71,8 +71,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
 
   const secretLabel = (set: boolean) => (set ? t("secret_set") : t("secret_unset"));
 
-  async function save() {
-    setSaving(true);
+  const save = useSubmitOnce(async () => {
     setError(null);
 
     const patch: Record<string, unknown> = {
@@ -94,7 +93,6 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
     });
-    setSaving(false);
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as
@@ -111,7 +109,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
     toast.success(t("saved"));
     setDraft({ ...draft, s3_access_key_id: "", s3_secret_access_key: "" });
     router.refresh();
-  }
+  });
 
   const textField = (
     key: keyof Pick<Draft, "s3_endpoint" | "s3_bucket" | "s3_region" | "s3_key_prefix">,
@@ -157,7 +155,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       className="flex max-w-2xl flex-col gap-8"
       onSubmit={(event) => {
         event.preventDefault();
-        void save();
+        void save.run();
       }}
     >
       {error ? (
@@ -214,7 +212,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       </section>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" loading={saving} disabled={!dirty}>
+        <Button type="submit" loading={save.pending} disabled={!dirty}>
           {t("save_button")}
         </Button>
         <span className="text-xs text-muted-foreground">
