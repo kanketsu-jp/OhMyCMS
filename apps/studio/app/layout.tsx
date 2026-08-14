@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Noto_Sans, Noto_Sans_JP } from "next/font/google";
+import localFont from "next/font/local";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale, getT } from "@/i18n/server";
 import { messagesFor } from "@/i18n/messages";
@@ -9,23 +9,59 @@ import "./globals.css";
 // 🚨 英数字と日本語を「同じ設計の兄弟」で混植する。
 // Geist は英字専用で、日本語は OS のフォールバックに落ちる（= 環境ごとに字面が変わる）。
 // 並び順は **英数字を先、日本語を後**。ブラウザは前から字を探すので、英数字が Noto Sans で出る。
-const notoSans = Noto_Sans({
+const notoSans = localFont({
+  src: [
+    {
+      path: "./fonts/noto-sans-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/noto-sans-latin-500-normal.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "./fonts/noto-sans-latin-700-normal.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-sans-latin",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
   display: "swap",
 });
 
-const notoSansJP = Noto_Sans_JP({
+const notoSansJP = localFont({
+  src: [
+    {
+      path: "./fonts/noto-sans-jp-japanese-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/noto-sans-jp-japanese-500-normal.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "./fonts/noto-sans-jp-japanese-700-normal.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-sans-jp",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: [
+    {
+      path: "./fonts/geist-mono-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+  ],
   variable: "--font-geist-mono",
-  subsets: ["latin"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
