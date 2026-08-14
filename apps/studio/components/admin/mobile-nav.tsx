@@ -89,10 +89,10 @@ export function MobileNav({ items, groups, collections, contentHeading, userLabe
       <div className="flex items-stretch gap-1 px-2 py-1">
         {/* 左端: サイドメニューを開く */}
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger
-            render={<Button variant="ghost" size="icon" aria-label={t("menu_open")} />}
-          >
-            <MenuIcon />
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label={t("menu_open")}>
+              <MenuIcon />
+            </Button>
           </SheetTrigger>
           {/* 🚨 縦の flex にして、**中身だけ**をスクロールさせる。
               SheetContent 自身をスクロールさせると、下のユーザー行も一緒に流れて消える。 */}

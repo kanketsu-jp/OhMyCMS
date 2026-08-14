@@ -75,17 +75,15 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
           </Link>
           <div className="absolute right-2 top-2">
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t("actions_label")}
-                  />
-                }
-              >
-                <MoreHorizontal />
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("actions_label")}
+                >
+                  <MoreHorizontal />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-36">
                 <DropdownMenuGroup>

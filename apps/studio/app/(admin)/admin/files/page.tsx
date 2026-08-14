@@ -130,32 +130,26 @@ export default async function FilesPage({ searchParams }: Props) {
           </BreadcrumbList>
         </Breadcrumb>
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button type="button">
-                <Plus />
-                {t("new_button")}
-              </Button>
-            }
-          />
+          <DropdownMenuTrigger asChild>
+            <Button type="button">
+              <Plus />
+              {t("new_button")}
+            </Button>
+          </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuGroup>
-              <DropdownMenuItem
-                render={
-                  <Link href={newFolderHref}>
-                    <FolderPlus />
-                    {t("new_folder_button")}
-                  </Link>
-                }
-              />
-              <DropdownMenuItem
-                render={
-                  <Link href={newFileHref}>
-                    <Upload />
-                    {t("new_file_button")}
-                  </Link>
-                }
-              />
+              <DropdownMenuItem asChild>
+                <Link href={newFolderHref}>
+                  <FolderPlus />
+                  {t("new_folder_button")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={newFileHref}>
+                  <Upload />
+                  {t("new_file_button")}
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

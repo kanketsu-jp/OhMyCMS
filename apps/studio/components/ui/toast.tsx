@@ -1,6 +1,6 @@
 "use client"
 
-import { Toast as ToastPrimitive } from "@base-ui/react/toast"
+import * as React from "react"
 import { CheckIcon, InfoIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -24,20 +24,81 @@ export type ToastOptions = {
   timeout?: number
 }
 
+type ToastItem = {
+  id: string
+  title: string
+  description?: string
+  type: ToastType
+  timeout: number
+}
+
 /** 🚨 モジュール直下に作る。
  *  こうすると `toast.success(...)` が **hook でなく素の関数**になり、イベントハンドラ・
  *  `.then()`・`catch` など React の外からでも呼べる。他ペインへ配った契約もこの形。 */
-const manager = ToastPrimitive.createToastManager()
+const listeners = new Set<() => void>()
+const timers = new Map<string, ReturnType<typeof setTimeout>>()
+let currentToasts: ToastItem[] = []
+let toastSeq = 0
+
+function emit() {
+  for (const listener of listeners) {
+    listener()
+  }
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+function getSnapshot() {
+  return currentToasts
+}
+
+function close(id?: string) {
+  if (!id) {
+    for (const timer of timers.values()) {
+      clearTimeout(timer)
+    }
+    timers.clear()
+    currentToasts = []
+    emit()
+    return
+  }
+
+  const timer = timers.get(id)
+  if (timer) {
+    clearTimeout(timer)
+    timers.delete(id)
+  }
+  currentToasts = currentToasts.filter((item) => item.id !== id)
+  emit()
+}
 
 function add(type: ToastType, message: string, options?: ToastOptions) {
-  return manager.add({
+  const id = `toast-${Date.now()}-${toastSeq}`
+  toastSeq += 1
+  const item: ToastItem = {
+    id,
     title: message,
     description: options?.description,
     type,
     timeout: options?.timeout ?? TOAST_TIMEOUT_MS,
-    // 読み上げ順。失敗だけは割り込ませる。
-    priority: type === "error" ? "high" : "low",
-  })
+  }
+
+  currentToasts = [...currentToasts, item].slice(-TOAST_LIMIT)
+  emit()
+
+  if (item.timeout > 0) {
+    timers.set(
+      id,
+      setTimeout(() => close(id), item.timeout)
+    )
+  }
+
+  return id
 }
 
 /**
@@ -59,7 +120,7 @@ export const toast = {
   info: (message: string, options?: ToastOptions) =>
     add("info", message, options),
   /** id を省くとすべて閉じる。 */
-  dismiss: (id?: string) => manager.close(id),
+  dismiss: (id?: string) => close(id),
 }
 
 const TYPE_ICON = {
@@ -70,24 +131,21 @@ const TYPE_ICON = {
 
 function ToastList() {
   const t = useT("common")
-  const { toasts } = ToastPrimitive.useToastManager()
+  const toasts = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   return toasts.map((item) => {
-    const type = (item.type ?? "info") as ToastType
-    const Icon = TYPE_ICON[type] ?? InfoIcon
+    const Icon = TYPE_ICON[item.type] ?? InfoIcon
 
     return (
-      <ToastPrimitive.Root
+      <div
         key={item.id}
-        toast={item}
         data-slot="toast"
+        data-type={item.type}
+        role={item.type === "error" ? "alert" : "status"}
         // 🚨 SP は上から、PC は下から入る。**出てくる向きは置き場所と揃える**
         //    （下に置いたものが上から降ってくると、どこから来たか分からない）。
         className={cn(
           "group/toast relative isolate w-full overflow-hidden rounded-lg bg-clip-padding text-sm ring-1 shadow-lg transition-all duration-200",
-          "data-starting-style:opacity-0 data-ending-style:opacity-0",
-          "data-starting-style:-translate-y-2 data-ending-style:-translate-y-2",
-          "md:data-starting-style:translate-y-2 md:data-ending-style:translate-y-2",
           // 🚨 色は堀池の指定そのまま（success = emerald-50 → emerald-100）。
           //    error / info は指定が無いので同じ作りで揃えた（design のトークン確定後に差し替える）。
           "data-[type=success]:bg-emerald-50 data-[type=success]:text-emerald-950 data-[type=success]:ring-emerald-600/20",
@@ -107,43 +165,43 @@ function ToastList() {
           className={cn(
             "pointer-events-none absolute inset-0 -z-10 origin-left scale-x-0",
             "motion-safe:animate-[ohmycms-toast-progress_3s_linear_forwards]",
-            // 触っているあいだは base-ui が自動で消すのを止める。塗りも一緒に止めないとズレる。
-            "group-data-[expanded]/toast:[animation-play-state:paused]",
             "group-data-[type=success]/toast:bg-emerald-100 dark:group-data-[type=success]/toast:bg-emerald-900",
             "group-data-[type=error]/toast:bg-red-100 dark:group-data-[type=error]/toast:bg-red-900",
             "group-data-[type=info]/toast:bg-muted"
           )}
         />
 
-        <ToastPrimitive.Content className="flex items-start gap-2.5 p-3 pr-2">
+        <div className="flex items-start gap-2.5 p-3 pr-2">
           <Icon className="mt-px size-4 shrink-0" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <ToastPrimitive.Title
+            <div
               data-slot="toast-title"
               className="font-medium break-words"
-            />
+            >
+              {item.title}
+            </div>
             {item.description ? (
-              <ToastPrimitive.Description
+              <div
                 data-slot="toast-description"
                 className="break-words opacity-80"
-              />
+              >
+                {item.description}
+              </div>
             ) : null}
           </div>
-          <ToastPrimitive.Close
+          <Button
+            type="button"
             data-slot="toast-close"
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="-mt-0.5 shrink-0 hover:bg-black/5 dark:hover:bg-white/10"
-              />
-            }
+            variant="ghost"
+            size="icon-sm"
+            className="-mt-0.5 shrink-0 hover:bg-black/5 dark:hover:bg-white/10"
+            onClick={() => close(item.id)}
           >
             <XIcon />
             <span className="sr-only">{t("close")}</span>
-          </ToastPrimitive.Close>
-        </ToastPrimitive.Content>
-      </ToastPrimitive.Root>
+          </Button>
+        </div>
+      </div>
     )
   })
 }
@@ -160,25 +218,17 @@ function ToastList() {
  */
 export function Toaster() {
   return (
-    <ToastPrimitive.Provider
-      toastManager={manager}
-      timeout={TOAST_TIMEOUT_MS}
-      limit={TOAST_LIMIT}
+    <div
+      data-slot="toast-viewport"
+      className={cn(
+        "fixed z-[100] flex w-full flex-col gap-2 outline-none",
+        // SP: 画面上部。ノッチ／ステータスバーぶんを避ける。
+        "top-0 right-0 left-0 px-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]",
+        // PC: 画面右下。幅は読み切れる範囲で止める。
+        "md:top-auto md:right-4 md:bottom-4 md:left-auto md:max-w-sm md:px-0 md:pt-0"
+      )}
     >
-      <ToastPrimitive.Portal>
-        <ToastPrimitive.Viewport
-          data-slot="toast-viewport"
-          className={cn(
-            "fixed z-[100] flex w-full flex-col gap-2 outline-none",
-            // SP: 画面上部。ノッチ／ステータスバーぶんを避ける。
-            "top-0 right-0 left-0 px-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]",
-            // PC: 画面右下。幅は読み切れる範囲で止める。
-            "md:top-auto md:right-4 md:bottom-4 md:left-auto md:max-w-sm md:px-0 md:pt-0"
-          )}
-        >
-          <ToastList />
-        </ToastPrimitive.Viewport>
-      </ToastPrimitive.Portal>
-    </ToastPrimitive.Provider>
+      <ToastList />
+    </div>
   )
 }

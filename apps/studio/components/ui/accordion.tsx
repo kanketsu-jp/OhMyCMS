@@ -1,29 +1,67 @@
 "use client"
 
 /**
- * 開閉。`@shadcn/accordion`（registry: base-nova）を写したもの。**自作していない**（憲章 §2）。
- * registryDependencies も npm の依存も無い（Base UI の accordion だけ）。
+ * 開閉。`@shadcn/accordion`（registry: radix-vega）を写したもの。**自作していない**（憲章 §2）。
+ * registryDependencies も npm の依存も無い。
  *
  * registry から変えたのは1点だけ:
  *   IconPlaceholder（registry 内部の部品で、このリポジトリには無い）を lucide-react に置換。
  *   🚨 英語リテラルは元から無いので、辞書へ逃がすものは無かった。
  */
-import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
+import * as React from "react"
+import { Accordion as AccordionPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
-function Accordion({ className, ...props }: AccordionPrimitive.Root.Props) {
+type AccordionProps = Omit<
+  React.ComponentProps<typeof AccordionPrimitive.Root>,
+  "type" | "value" | "defaultValue" | "onValueChange"
+> & {
+  type?: "single" | "multiple"
+  value?: string | string[]
+  defaultValue?: string | string[]
+  onValueChange?: (value: string | string[]) => void
+}
+
+function Accordion({
+  className,
+  type = "multiple",
+  ...props
+}: AccordionProps) {
+  const rootClassName = cn("flex w-full flex-col", className)
+
+  if (type === "single") {
+    return (
+      <AccordionPrimitive.Root
+        data-slot="accordion"
+        className={rootClassName}
+        {...(props as Extract<
+          React.ComponentProps<typeof AccordionPrimitive.Root>,
+          { type: "single" }
+        >)}
+        type="single"
+      />
+    )
+  }
+
   return (
     <AccordionPrimitive.Root
       data-slot="accordion"
-      className={cn("flex w-full flex-col", className)}
-      {...props}
+      className={rootClassName}
+      {...(props as Extract<
+        React.ComponentProps<typeof AccordionPrimitive.Root>,
+        { type: "multiple" }
+      >)}
+      type="multiple"
     />
   )
 }
 
-function AccordionItem({ className, ...props }: AccordionPrimitive.Item.Props) {
+function AccordionItem({
+  className,
+  ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Item>) {
   return (
     <AccordionPrimitive.Item
       data-slot="accordion-item"
@@ -37,7 +75,7 @@ function AccordionTrigger({
   className,
   children,
   ...props
-}: AccordionPrimitive.Trigger.Props) {
+}: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
   return (
     <AccordionPrimitive.Header className="flex">
       <AccordionPrimitive.Trigger
@@ -56,11 +94,11 @@ function AccordionTrigger({
         {children}
         <ChevronDownIcon
           data-slot="accordion-trigger-icon"
-          className="pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden"
+          className="pointer-events-none shrink-0 group-data-[state=open]/accordion-trigger:hidden"
         />
         <ChevronUpIcon
           data-slot="accordion-trigger-icon"
-          className="pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline"
+          className="pointer-events-none hidden shrink-0 group-data-[state=open]/accordion-trigger:inline"
         />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
@@ -71,22 +109,22 @@ function AccordionContent({
   className,
   children,
   ...props
-}: AccordionPrimitive.Panel.Props) {
+}: React.ComponentProps<typeof AccordionPrimitive.Content>) {
   return (
-    <AccordionPrimitive.Panel
+    <AccordionPrimitive.Content
       data-slot="accordion-content"
       className="overflow-hidden text-sm data-open:animate-accordion-down data-closed:animate-accordion-up"
       {...props}
     >
       <div
         className={cn(
-          "h-(--accordion-panel-height) pt-0 pb-2.5 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+          "h-(--radix-accordion-content-height) pt-0 pb-2.5 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
           className
         )}
       >
         {children}
       </div>
-    </AccordionPrimitive.Panel>
+    </AccordionPrimitive.Content>
   )
 }
 

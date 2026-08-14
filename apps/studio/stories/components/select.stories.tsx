@@ -33,7 +33,7 @@ const FIELD_TYPES = [
 
 export const Default: Story = {
   render: () => (
-    <Select items={FIELD_TYPES}>
+    <Select>
       <SelectTrigger className="w-56">
         <SelectValue placeholder="Select a field type" />
       </SelectTrigger>
@@ -52,7 +52,7 @@ export const WithLabel: Story = {
   render: () => (
     <div className="grid w-56 gap-2">
       <Label htmlFor="story-select">Field type</Label>
-      <Select items={FIELD_TYPES} defaultValue="string">
+      <Select defaultValue="string">
         <SelectTrigger id="story-select" className="w-full">
           <SelectValue />
         </SelectTrigger>
@@ -95,7 +95,7 @@ export const Grouped: Story = {
 /** size="sm" は h-7 まで詰まる(実装の data-[size=sm] 指定)。 */
 export const Small: Story = {
   render: () => (
-    <Select items={FIELD_TYPES} defaultValue="string">
+    <Select defaultValue="string">
       <SelectTrigger size="sm" className="w-56">
         <SelectValue />
       </SelectTrigger>
@@ -112,7 +112,7 @@ export const Small: Story = {
 
 export const Disabled: Story = {
   render: () => (
-    <Select items={FIELD_TYPES} defaultValue="string" disabled>
+    <Select defaultValue="string" disabled>
       <SelectTrigger className="w-56">
         <SelectValue />
       </SelectTrigger>
