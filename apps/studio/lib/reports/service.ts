@@ -203,7 +203,6 @@ function validate(input: Record<string, unknown>): {
   expected: string | null;
   viewport: string | null;
   locale: string | null;
-  appVersion: string | null;
 } {
   const title = typeof input.title === "string" ? input.title.trim() : "";
   const body = typeof input.body === "string" ? input.body.trim() : "";
@@ -234,9 +233,7 @@ function validate(input: Record<string, unknown>): {
   // 例: "ja" / "en-US"。英字とハイフンだけ。
   const locale = rawLocale && /^[A-Za-z-]{2,16}$/.test(rawLocale) ? rawLocale : null;
 
-  const appVersion = trimmedOrNull(input.app_version, 64);
-
-  return { title, body, pagePath, expected, viewport, locale, appVersion };
+  return { title, body, pagePath, expected, viewport, locale };
 }
 
 /**
@@ -246,9 +243,19 @@ function validate(input: Record<string, unknown>): {
  */
 export async function submitBugReport(
   input: Record<string, unknown>,
-  context: { reporter: string | null; userAgent: string | null },
+  context: {
+    reporter: string | null;
+    userAgent: string | null;
+    /**
+     * 動いている版。
+     * 🚨 **画面から受け取らない。** 「どの版で起きたか」は報告を読む側が信じる情報なので、
+     *    送信側が名乗れる形にしない（呼ぶ側がサーバで求めて渡す）。
+     */
+    appVersion?: string | null;
+  },
 ): Promise<BugReport> {
-  const { title, body, pagePath, expected, viewport, locale, appVersion } = validate(input);
+  const { title, body, pagePath, expected, viewport, locale } = validate(input);
+  const appVersion = context.appVersion ? context.appVersion.slice(0, 64) : null;
 
   const id = randomUUID();
   const createdAt = new Date();

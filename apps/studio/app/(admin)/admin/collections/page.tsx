@@ -37,13 +37,16 @@ export default async function CollectionsPage({ searchParams }: Props) {
             （右サイドバー・Storybook・LLM がそこから読む）。
           🚨 パンくずと右サイドバーは **ui ペインが作る**。**それが入るまで、
              この画面にはページ名がどこにも出ない**（意図した中間状態）。 */}
-      <div className="flex justify-end">
-        <PageAction
-          href="/admin/collections/new"
-          label={t("new_button")}
-          icon={<Plus />}
-        />
-      </div>
+      {/* 🚨 **囲まない。** `PageAction` は PC も SP も portal で外（ヘッダー / 下部ナビ）へ出る
+          ので、ここに残る中身は無い。以前あった `<div className="flex justify-end">` は
+          **何も入っていないのに縦の余白だけ取っていた**（shell 583cf84 の申し送り）。 */}
+      <PageAction
+        href="/admin/collections/new"
+        label={t("new_button")}
+        icon={<Plus />}
+      />
+      {/* 🚨 `params.error` は main 側で復活した分。**落とさない**
+          （リダイレクトで返ってくる失敗を出す唯一の経路）。 */}
       <ErrorBanner message={params.error ?? (!result.ok ? result.message : null)} />
       {/* 🚨 **枠で囲まない**（堀池・2026-08-15）:
           > 「ボーダー＋Padding はいらない。親要素にすでに Padding があるのと、

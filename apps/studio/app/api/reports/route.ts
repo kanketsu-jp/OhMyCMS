@@ -1,6 +1,7 @@
 import { requireActor } from "@/lib/auth/context";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
+import { getBuildVersion } from "@/lib/version/service";
 import {
   canManageReports,
   listBugReports,
@@ -25,9 +26,12 @@ export async function POST(request: Request) {
     const reporter = actor.type === "human" ? actor.userId : actor.onBehalfOf;
     const body = await readJsonObject(request);
 
+    // 🚨 「どの版で起きたか」はサーバが知っている値を入れる（画面から名乗らせない）。
+    const build = getBuildVersion();
     const report = await submitBugReport(body, {
       reporter,
       userAgent: request.headers.get("user-agent"),
+      appVersion: build.commit === "unknown" ? null : build.commit,
     });
     return ok({ data: report }, 201);
   } catch (error) {
