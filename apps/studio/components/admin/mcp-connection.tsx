@@ -81,7 +81,7 @@ export function McpConnection({ url, entrypoint }: Props) {
 
       <p className="text-muted-foreground">
         {t("issue_token_prefix")}{" "}
-        <Link href="/admin/settings/agents" className="font-medium text-foreground underline underline-offset-4">
+        <Link href="/admin/settings/agents" className="font-medium text-primary hover:text-primary/80">
           {t("issue_token_link")}
         </Link>
       </p>

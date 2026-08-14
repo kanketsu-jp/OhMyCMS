@@ -15,7 +15,7 @@ export default async function NewFieldPage({ params }: Props) {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:underline">
+        <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:text-foreground">
           {tFields("back_to_collection")}
         </Link>
       </div>

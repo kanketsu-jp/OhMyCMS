@@ -162,7 +162,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
         </div>
 
         <p className="text-xs">
-          <a className="underline" href={settings.sp.metadataUrl}>
+          <a className="text-primary hover:text-primary/80" href={settings.sp.metadataUrl}>
             {t("sp_metadata_link")}
           </a>
         </p>

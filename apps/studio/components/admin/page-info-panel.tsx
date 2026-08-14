@@ -74,7 +74,7 @@ export function PageInfoPanel() {
         <AccordionItem value="sections">
           <AccordionTrigger>{t("sections")}</AccordionTrigger>
           {/* 下線は消す。堀池（原文）:「意味がわからない＋デザインとしてノイズ」 */}
-          <AccordionContent className="[&_a]:no-underline">
+          <AccordionContent>
             <ul className="flex flex-col">
               {sections.map((key) => {
                 const id = sectionAnchorId(key);

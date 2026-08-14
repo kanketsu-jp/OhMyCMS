@@ -35,7 +35,7 @@ export default async function NewCollectionPage({ searchParams }: Props) {
       <div>
         <Link
           href="/admin/collections"
-          className="text-sm text-muted-foreground hover:underline"
+          className="text-sm text-muted-foreground hover:text-foreground"
         >
           {t("back_to_list")}
         </Link>

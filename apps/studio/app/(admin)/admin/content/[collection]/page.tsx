@@ -102,7 +102,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
     <div className="max-w-7xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:underline">
+          <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:text-foreground">
             {tFields("manage_link")}
           </Link>
         </div>

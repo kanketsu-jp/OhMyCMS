@@ -170,7 +170,11 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        // 🚨 リンクに下線を既定で持たせない（堀池・2026-08-15「下線は…デザインとしてノイズ」）。
+        // 実測: DialogDescription を使う3箇所はいずれも**文字だけでリンクを含まない**。
+        // 文中にリンクを置く説明を書くときは、**その場で下線を付ける**
+        // （色だけが手掛かりだと WCAG 1.4.1 に触れるため、文中では下線が要る）。
+        "text-sm text-muted-foreground",
         className
       )}
       {...props}

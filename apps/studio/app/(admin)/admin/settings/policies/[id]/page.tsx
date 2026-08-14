@@ -38,7 +38,7 @@ export default async function PolicyDetailPage({ params }: Props) {
   return (
     <div className="max-w-6xl space-y-6">
       <div>
-        <Link href="/admin/settings/policies" className="text-sm text-muted-foreground hover:underline">
+        <Link href="/admin/settings/policies" className="text-sm text-muted-foreground hover:text-foreground">
           {t("back_to_list")}
         </Link>
       </div>

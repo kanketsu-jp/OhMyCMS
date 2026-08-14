@@ -115,7 +115,11 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
           <li>
             <Link
               href="/admin/settings/general"
-              className="text-primary underline-offset-4 hover:underline"
+              // 🚨 下線を持たせない（堀池・2026-08-15「下線は…デザインとしてノイズ」）。
+              // ここは文中リンクではなく**完了画面の行き先の一覧**（ul の項目）なので、
+              // 色 + hover の濃さで足りる。**文中に埋まったリンクなら下線を残す**
+              // （色だけが手掛かりになると WCAG 1.4.1 に触れる）。
+              className="text-primary hover:text-primary/80"
             >
               {t("done_settings_link")}
             </Link>

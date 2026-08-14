@@ -117,7 +117,7 @@ export function FieldCreateForm({ collection }: Props) {
 
       <Accordion className="border-0">
         <AccordionItem value="advanced" className="border-0">
-          <AccordionTrigger className="py-0 hover:no-underline">
+          <AccordionTrigger className="py-0">
             {t("advanced_title")}
           </AccordionTrigger>
           <AccordionContent className="pb-0">

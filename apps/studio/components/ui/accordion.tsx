@@ -71,6 +71,19 @@ function AccordionItem({
   )
 }
 
+/**
+ * 🚨 **下線を持たせない**（堀池・2026-08-15 原文）:
+ * > 「下線は廃止。…設定の中の文字にすべて下線があるがそれは意味がわからない＋
+ * >   **デザインとしてノイズ**なので削除」
+ *
+ * 上流（shadcn）は trigger に `hover:underline`、本文に `[&_a]:underline` を持たせている。
+ * それを残すと、**使う側が毎回 `hover:no-underline` / `[&_a]:no-underline` で打ち消す**ことになり、
+ * 次に accordion を使う人が必ず忘れる（実際 nav-links.tsx がそうなっていた）。
+ * 🚨 **打ち消しは呼び出し側に置かない。発生源で持たない。**（憲章 §6）
+ *
+ * 下線が要る場所（本文中のリンクなど、色だけでは link と分からない箇所）は、
+ * **その場で明示的に付ける**。既定で付けない。
+ */
 function AccordionTrigger({
   className,
   children,
@@ -86,7 +99,7 @@ function AccordionTrigger({
           // 使う側で1つずつ足すと、次に accordion を使う人が必ず忘れる（§6 共通部品側で持つ）。
           // 🚨 `h-` ではなく `min-h-`。見出しが2行になったときにはみ出すため。
           "min-h-(--control-h) md:min-h-(--control-h-pc)",
-          "group/accordion-trigger relative flex flex-1 items-start justify-between rounded-lg border border-transparent py-2.5 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:after:border-ring aria-disabled:pointer-events-none aria-disabled:opacity-50 **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 **:data-[slot=accordion-trigger-icon]:text-muted-foreground",
+          "group/accordion-trigger relative flex flex-1 items-start justify-between rounded-lg border border-transparent py-2.5 text-left text-sm font-medium transition-all outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:after:border-ring aria-disabled:pointer-events-none aria-disabled:opacity-50 **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 **:data-[slot=accordion-trigger-icon]:text-muted-foreground",
           className
         )}
         {...props}
@@ -118,7 +131,7 @@ function AccordionContent({
     >
       <div
         className={cn(
-          "h-(--radix-accordion-content-height) pt-0 pb-2.5 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+          "h-(--radix-accordion-content-height) pt-0 pb-2.5 data-ending-style:h-0 data-starting-style:h-0 [&_p:not(:last-child)]:mb-4",
           className
         )}
       >

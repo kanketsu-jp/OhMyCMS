@@ -31,7 +31,7 @@ export default async function EditItemPage({ params, searchParams }: Props) {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <Link href={`/admin/content/${encoded}`} className="text-sm text-muted-foreground hover:underline">
+        <Link href={`/admin/content/${encoded}`} className="text-sm text-muted-foreground hover:text-foreground">
           {t("back_to_list")}
         </Link>
       </div>

@@ -45,7 +45,7 @@ export default async function FileDetailPage({ params }: Props) {
   return (
     <div className="max-w-6xl space-y-6">
       <div>
-        <Link href="/admin/files" className="text-sm text-muted-foreground hover:underline">
+        <Link href="/admin/files" className="text-sm text-muted-foreground hover:text-foreground">
           {t("back_to_files")}
         </Link>
       </div>

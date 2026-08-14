@@ -92,18 +92,18 @@ export function NavLinks({ items, groups, onNavigate }: Props) {
                     // （オーナー指摘「設定の高さが違う」の正体。高さは揃っていて、縦の位置がずれていた）。
                     // 🚨 accordion.tsx 側は直さない。**本文用のアコーディオンでは items-start が正しい**
                     // （複数行の見出しが来たとき、アイコンが上に揃う方が読みやすい）。
-                    "flex h-(--control-h) items-center rounded-md px-3 py-0 text-sm hover:no-underline md:h-(--control-h-pc)",
+                    "flex h-(--control-h) items-center rounded-md px-3 py-0 text-sm md:h-(--control-h-pc)",
                     inside ? "font-medium text-foreground" : "text-muted-foreground",
                   )}
                 >
                   {group.label}
                 </AccordionTrigger>
-                {/* 🚨 **下線を消す。** `accordion.tsx` の本文は `[&_a]:underline` を持っていて、
-                    そのままだとナビの行き先すべてに下線が入る。堀池（原文）:
-                    「下線は廃止。設定の中の文字にすべて下線があるが**意味がわからない＋
-                      デザインとしてノイズ**なので削除」
-                    🚨 accordion.tsx 側は直さない。**読みもの用の本文では下線が正しい**。 */}
-                <AccordionContent className="pb-0 [&_a]:no-underline">
+                {/* 🚨 **2026-08-15 に発生源へ移した。** ここで打ち消していたが、
+                    `accordion.tsx` 側の既定から下線を外したので不要になった。
+                    「読みもの用の本文では下線が正しい」という前の判断は、実測すると
+                    **成り立っていなかった**（accordion を使う3箇所に文中リンクは無く、
+                    page-info-panel の a はアンカーの行で、行ごと塗って現在地を示す形）。 */}
+                <AccordionContent className="pb-0">
                   <div className="flex flex-col">
                     {group.children.length > 0
                       ? group.children.map((item) => row(item, true))
