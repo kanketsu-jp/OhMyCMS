@@ -8,5 +8,11 @@
   "pagination_more": "他のページ",
   "pagination_next": "次へ",
   "pagination_page": "{page} ページ目",
-  "pagination_previous": "前へ"
+  "pagination_previous": "前へ",
+  "shortcut_back": "戻る",
+  "shortcut_save": "保存",
+  "shortcut_search": "検索",
+  "shortcut_submit": "送信",
+  "shortcut_toggle_left_sidebar": "メニューの開閉",
+  "shortcut_toggle_right_sidebar": "詳細パネルの開閉"
 }

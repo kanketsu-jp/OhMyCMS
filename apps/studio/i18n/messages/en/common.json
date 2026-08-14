@@ -8,5 +8,11 @@
   "pagination_more": "More pages",
   "pagination_next": "Next",
   "pagination_page": "Page {page}",
-  "pagination_previous": "Previous"
+  "pagination_previous": "Previous",
+  "shortcut_back": "Back",
+  "shortcut_save": "Save",
+  "shortcut_search": "Search",
+  "shortcut_submit": "Submit",
+  "shortcut_toggle_left_sidebar": "Toggle menu",
+  "shortcut_toggle_right_sidebar": "Toggle detail panel"
 }
