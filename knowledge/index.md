@@ -48,6 +48,7 @@ x_rag_okf:
 - [v0.9 は Next.js 単一アプリ、分離時は Hono](./decisions/single-nextjs-app-then-hono.md) — `decisions/single-nextjs-app-then-hono`
 - [手順ドキュメントはステップ式で書く。前提を独立させ、スクリーンショットを使わない](./decisions/stepwise-docs.md) — `decisions/stepwise-docs`
 - [保管先のキー設計を固定する（接頭辞は後から変えない）](./decisions/storage-key-prefix-is-fixed.md) — `decisions/storage-key-prefix-is-fixed`
+- [通知は「終わったこと」だけトーストへ。直す必要があるものはその場に残す](./decisions/toast-for-events-page-for-what-needs-fixing.md) — `decisions/toast-for-events-page-for-what-needs-fixing`
 - [二階建て認証（人間とエージェントを分ける）](./decisions/two-tier-auth.md) — `decisions/two-tier-auth`
 - [UI の置き場所は「操作の頻度」で決める](./decisions/ui-placement-by-frequency.md) — `decisions/ui-placement-by-frequency`
 - [middleware.ts でなく proxy.ts を使う](./decisions/use-proxy-not-middleware.md) — `decisions/use-proxy-not-middleware`
