@@ -14,6 +14,8 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { db } from "../lib/db/knex";
+import { connectionStatus, disconnect, saveConnection } from "../lib/drive/tokens";
 import { authorizationUrl, createPkcePair, DRIVE_SCOPE } from "../lib/drive/oauth";
 
 let failures = 0;
@@ -34,6 +36,64 @@ async function driveFiles(): Promise<string[]> {
     }
   }
   return found;
+}
+
+/**
+ * リフレッシュトークンの保管。
+ * 🚨 **DB に平文が入っていないこと**を、暗号文そのものを見て確かめる。
+ *    「暗号化しているつもり」は、保存された値を見るまで確かめたことにならない。
+ * 🚨 検証用の鍵は**この実行の中だけ**で作る（`.env` に書かない）。
+ */
+async function tokenStorageChecks(): Promise<void> {
+  if (!process.env.OHMYCMS_SECRET_KEY) {
+    console.log("   OHMYCMS_SECRET_KEY が無いので、トークンの保管は測っていない（unverified）");
+    return;
+  }
+  const user = await db("directus_users").select("id").first().catch(() => null);
+  if (!user) {
+    console.log("   利用者がいないので、トークンの保管は測っていない（unverified）");
+    return;
+  }
+
+  const secret = "1//verify-refresh-token-DO-NOT-LOG";
+  await saveConnection(user.id, {
+    refreshToken: secret,
+    scope: DRIVE_SCOPE,
+    accountEmail: "someone@example.com",
+  });
+
+  const raw = await db("ohmycms_drive_tokens").where({ user_id: user.id }).first();
+  check(
+    "🚨 保管: DB に平文が入っていない",
+    Boolean(raw) && !String(raw.refresh_token).includes(secret),
+    `先頭 ${String(raw?.refresh_token).slice(0, 3)}…（${String(raw?.refresh_token).length}文字）`,
+  );
+  check(
+    "保管: secret-box の形式で入っている",
+    String(raw?.refresh_token).startsWith("v1:"),
+    String(raw?.refresh_token).slice(0, 3),
+  );
+
+  const status = await connectionStatus(user.id);
+  check(
+    "🚨 保管: 画面へ返す形にトークンが混ざっていない",
+    !JSON.stringify(status).includes(secret),
+    JSON.stringify(status),
+  );
+
+  // 繋ぎ直しで古いトークンが残らないこと。
+  await saveConnection(user.id, {
+    refreshToken: `${secret}-2`,
+    scope: DRIVE_SCOPE,
+    accountEmail: "other@example.com",
+  });
+  const rows = await db("ohmycms_drive_tokens").where({ user_id: user.id });
+  check("保管: 繋ぎ直しても行が増えない（上書き）", rows.length === 1, `${rows.length} 行`);
+
+  await disconnect(user.id);
+  const left = await db("ohmycms_drive_tokens").where({ user_id: user.id });
+  check("保管: 解除で行が消える", left.length === 0, `${left.length} 行`);
+  await db.destroy();
 }
 
 async function main(): Promise<void> {
@@ -128,6 +188,9 @@ async function main(): Promise<void> {
     files.length > 0,
     files.join(", "),
   );
+
+  // 6. トークンの保管。🚨 **平文が DB に入らないこと**が本丸。
+  await tokenStorageChecks();
 
   console.log(
     failures === 0
