@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+import { SHORTCUTS } from "@/components/admin/shortcuts";
+import { useShortcut } from "@/components/admin/use-shortcut";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +77,27 @@ export function PageAction({
   //    ページが補助を先に描くか後に描くかで左右が入れ替わってしまう。
   //    順番をページに委ねず、ここで決める。
   const order = role === "secondary" ? "order-first" : undefined;
+
+  useShortcut(
+    SHORTCUTS.save,
+    () => {
+      if (!form || role !== "primary" || pending) return;
+
+      const target = document.getElementById(form);
+      if (!(target instanceof HTMLFormElement)) return;
+
+      // 開いているダイアログがあるなら、その中の話。裏のページを保存しない。
+      if (document.querySelector('[role="dialog"][data-state="open"]')) return;
+
+      // PC の右パネルはダイアログではない。別フォームに焦点があればそちらを優先する。
+      const active = document.activeElement;
+      const activeForm = active instanceof Element ? active.closest("form") : null;
+      if (activeForm && activeForm !== target) return;
+
+      target.requestSubmit();
+    },
+    { whileTyping: true },
+  );
 
   // PC: 文字つき。SP: アイコンだけ（行の中の操作と同じで、文脈は画面が持っている）
   const pc = renderAction({

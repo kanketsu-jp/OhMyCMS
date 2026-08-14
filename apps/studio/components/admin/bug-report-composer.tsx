@@ -1,13 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { SHORTCUTS } from "@/components/admin/shortcuts";
+import { useShortcut } from "@/components/admin/use-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useLocale, useT } from "@/i18n/client";
 
@@ -44,6 +46,7 @@ export function BugReportComposer({ onDone }: Props) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [expected, setExpected] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
   // 🚨 入力の不足は**その欄の近く**に出す（消えると直せなくなるのでトーストにしない）。
   const [fieldError, setFieldError] = useState<"title" | "body" | null>(null);
 
@@ -118,8 +121,20 @@ export function BugReportComposer({ onDone }: Props) {
     onDone?.();
   });
 
+  useShortcut(
+    SHORTCUTS.submit,
+    () => {
+      // useShortcut は document に付くので、同じ組み合わせを持つ部品が
+      // 2つ載っていると両方動く。いま入力している欄のフォームだけ送る。
+      if (!formRef.current?.contains(document.activeElement)) return;
+      void submit.run();
+    },
+    { whileTyping: true },
+  );
+
   return (
     <form
+      ref={formRef}
       id="bug-report-form"
       className="flex flex-col gap-4"
       onSubmit={(event) => {

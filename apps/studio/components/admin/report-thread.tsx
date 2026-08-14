@@ -2,9 +2,11 @@
 
 import { CheckCheck, RotateCcw, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SHORTCUTS } from "@/components/admin/shortcuts";
+import { useShortcut } from "@/components/admin/use-shortcut";
 import {
   Message,
   MessageContent,
@@ -50,6 +52,7 @@ export function ReportThread({ report, messages, viewerId, canManage }: Props) {
   const format = useFormat();
   const router = useRouter();
   const [draft, setDraft] = useState("");
+  const replyFormRef = useRef<HTMLFormElement>(null);
 
   const send = useSubmitOnce(async () => {
     const text = draft.trim();
@@ -72,6 +75,17 @@ export function ReportThread({ report, messages, viewerId, canManage }: Props) {
     // 相手の発言が挟まったときに順番が食い違う）。
     router.refresh();
   });
+
+  useShortcut(
+    SHORTCUTS.submit,
+    () => {
+      // useShortcut は document に付くので、同じ組み合わせを持つ部品が
+      // 2つ載っていると両方動く。いま入力している欄のフォームだけ送る。
+      if (!replyFormRef.current?.contains(document.activeElement)) return;
+      void send.run();
+    },
+    { whileTyping: true },
+  );
 
   const changeStatus = useSubmitOnce(async (next: "open" | "resolved") => {
     const response = await fetch(`/api/reports/${report.id}`, {
@@ -189,6 +203,7 @@ export function ReportThread({ report, messages, viewerId, canManage }: Props) {
 
       {/* ── 返信を書くところ ── */}
       <form
+        ref={replyFormRef}
         className="flex flex-col gap-2"
         onSubmit={(event) => {
           event.preventDefault();
