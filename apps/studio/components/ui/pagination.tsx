@@ -69,6 +69,7 @@ function PaginationLink({
   className,
   isActive,
   size = "icon",
+  children,
   ...props
 }: PaginationLinkProps) {
   return (
@@ -78,12 +79,22 @@ function PaginationLink({
       size={size}
       className={cn(className)}
     >
+      {/* 🚨 **子は `<a>` の中に入れる。** `asChild` は Radix の Slot で、
+          **子がちょうど1つ**であることを要求する（複数だと
+          「Slot failed to slot onto its children」で**ページごと落ちる**）。
+          2026-08-15 実測: PaginationPrevious/Next がアイコン+文字の2つを渡していて
+          `/admin/settings/users` が Next のエラー画面になっていた。
+          Base UI の `render={}` は複数の子を許したので、Radix 化で顕在化した形。
+          🚨 `{...props}` を先に展開しないこと。children が props に含まれるので、
+          あとから children を書くと上書きされる。 */}
       <a
         aria-current={isActive ? "page" : undefined}
         data-slot="pagination-link"
         data-active={isActive}
         {...props}
-      />
+      >
+        {children}
+      </a>
     </Button>
   )
 }

@@ -91,15 +91,60 @@ function Button({
      */
     loading?: boolean
   }) {
-  const Comp = asChild ? Slot.Root : "button"
+  const buttonClassName = cn(
+    buttonVariants({ variant, size, className }),
+    // 🚨 幅を変えない。スピナーを文字の**横に足す**と押した瞬間にボタンが伸び、
+    //    カーソルの下にあるものがずれる（design 指示・実測すること）。
+    //    中身は場所を占めたまま見えなくして、スピナーは絶対配置で中央に重ねる。
+    loading && "relative cursor-progress"
+  )
+  const renderContent = (content: React.ReactNode) => (
+    <>
+      {loading ? <Spinner className="absolute" /> : null}
+      {/* 🚨 `contents` は箱を作らないので、**flex の gap も並びも変わらない**
+          （`<span>` で包むと子が1つになり、アイコンと文字の間の gap が消える）。
+          `visibility` は継承するので、素のテキストノードにも効く。
+          `opacity-0` ではなく `invisible` なのは、読み上げと当たり判定を同時に落とすため。 */}
+      <span className={cn("contents", loading && "invisible")}>{content}</span>
+    </>
+  )
+
+  if (asChild) {
+    const child = React.Children.only(children) as React.ReactElement<{
+      children?: React.ReactNode
+    }>
+
+    return (
+      <Slot.Root
+        data-slot="button"
+        data-variant={variant}
+        data-size={size}
+        aria-disabled={disabled || loading ? true : undefined}
+        // 🚨 処理中は **disabled の色を使わない**（design 指示）。
+        //    「処理中＝働いている」と「無効＝そもそも使えない」は別の状態で、
+        //    同じグレーにすると押せなかったのか処理中なのか区別が付かない。
+        //    Radix の asChild 経路では native の `disabled` 属性を出さず、
+        //    `aria-disabled` で状態だけを伝える。
+        //    ただし呼び出し側が本当に `disabled` を渡したときは、従来どおりグレーにする。
+        data-loading={loading || undefined}
+        className={buttonClassName}
+        {...props}
+      >
+        {React.cloneElement(
+          child,
+          undefined,
+          renderContent(child.props.children)
+        )}
+      </Slot.Root>
+    )
+  }
 
   return (
-    <Comp
+    <button
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      disabled={asChild ? undefined : disabled || loading}
-      aria-disabled={asChild && (disabled || loading) ? true : undefined}
+      disabled={disabled || loading}
       // 🚨 処理中は **disabled の色を使わない**（design 指示）。
       //    「処理中＝働いている」と「無効＝そもそも使えない」は別の状態で、
       //    同じグレーにすると押せなかったのか処理中なのか区別が付かない。
@@ -107,22 +152,11 @@ function Button({
       //    `aria-disabled` で状態だけを伝える。
       //    ただし呼び出し側が本当に `disabled` を渡したときは、従来どおりグレーにする。
       data-loading={loading || undefined}
-      className={cn(
-        buttonVariants({ variant, size, className }),
-        // 🚨 幅を変えない。スピナーを文字の**横に足す**と押した瞬間にボタンが伸び、
-        //    カーソルの下にあるものがずれる（design 指示・実測すること）。
-        //    中身は場所を占めたまま見えなくして、スピナーは絶対配置で中央に重ねる。
-        loading && "relative cursor-progress"
-      )}
+      className={buttonClassName}
       {...props}
     >
-      {loading ? <Spinner className="absolute" /> : null}
-      {/* 🚨 `contents` は箱を作らないので、**flex の gap も並びも変わらない**
-          （`<span>` で包むと子が1つになり、アイコンと文字の間の gap が消える）。
-          `visibility` は継承するので、素のテキストノードにも効く。
-          `opacity-0` ではなく `invisible` なのは、読み上げと当たり判定を同時に落とすため。 */}
-      <span className={cn("contents", loading && "invisible")}>{children}</span>
-    </Comp>
+      {renderContent(children)}
+    </button>
   )
 }
 
