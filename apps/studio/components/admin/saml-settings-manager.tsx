@@ -130,7 +130,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   );
 
   return (
-    <form
+    <form id="saml-settings-form"
       className="max-w-2xl space-y-8"
       onSubmit={(event) => {
         event.preventDefault();

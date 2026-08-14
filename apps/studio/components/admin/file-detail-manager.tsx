@@ -82,7 +82,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
           {error}
         </div>
       ) : null}
-      <form action={save.run} className="space-y-4">
+      <form id="file-detail-form" action={save.run} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="title">{t("title_label")}</Label>
           <Input id="title" name="title" defaultValue={file.title ?? ""} />

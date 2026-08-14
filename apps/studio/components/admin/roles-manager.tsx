@@ -74,7 +74,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
+      <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
         <div className="space-y-1.5">
           <Label htmlFor="name">{t("name_label")}</Label>
           <Input id="name" name="name" required />

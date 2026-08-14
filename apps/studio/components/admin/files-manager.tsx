@@ -58,7 +58,7 @@ export function FileUploadForm({
           {error}
         </div>
       ) : null}
-      <form action={upload.run} className="grid gap-4">
+      <form id="file-upload-form" action={upload.run} className="grid gap-4">
         {/* 🚨 「ファイルを選択 / ファイル未選択」を画面に出さない（オーナー指摘）。
             素の input は FileDropzone の中に隠してある。 */}
         {/* 🚨 `flat` … このフォームは /admin/files/new で `<Surface>` の中に置かれる。

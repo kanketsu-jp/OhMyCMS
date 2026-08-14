@@ -11,5 +11,6 @@
   "outdated": "新しいバージョン {latest} があります。",
   "release_link": "リリースを見る",
   "unreachable": "確認先へ接続できませんでした。",
-  "invalid_response": "確認先の応答を読み取れませんでした。"
+  "invalid_response": "確認先の応答を読み取れませんでした。",
+  "check_button": "更新を確認"
 }

@@ -11,5 +11,6 @@
   "outdated": "Version {latest} is available.",
   "release_link": "View the release",
   "unreachable": "Could not reach the update feed.",
-  "invalid_response": "Could not read the response from the update feed."
+  "invalid_response": "Could not read the response from the update feed.",
+  "check_button": "Check for updates"
 }

@@ -94,7 +94,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           {error}
         </div>
       ) : null}
-      <form action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <div className="space-y-1.5">
           <label htmlFor="user" className="text-sm font-medium">{t("user_label")}</label>
           <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">

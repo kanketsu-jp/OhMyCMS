@@ -19,5 +19,10 @@
   "column_mail": "Email",
   "error_submit_failed": "Could not send.",
   "error_title_required": "Enter a subject.",
-  "error_body_required": "Enter the details."
+  "error_body_required": "Enter the details.",
+  "nav_group": "Bug reports",
+  "nav_create": "Report a problem",
+  "nav_list": "My reports",
+  "nav_manage": "Manage reports",
+  "create_title": "Report a problem"
 }

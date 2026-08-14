@@ -54,7 +54,7 @@ export function NewFolderForm({ parent }: { parent: string | null }) {
   });
 
   return (
-    <form action={create.run} className="flex flex-col gap-4">
+    <form id="folder-create-form" action={create.run} className="flex flex-col gap-4">
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Input
         name="name"

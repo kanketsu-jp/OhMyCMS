@@ -101,7 +101,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             label={tFields("add_title")}
             icon={<Plus />}
           />
-          <form action={`/admin/actions/collections/${encoded}/delete`} method="post">
+          <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post">
             <Button type="submit" variant="destructive">{tCollections("delete_button")}</Button>
           </form>
         </div>

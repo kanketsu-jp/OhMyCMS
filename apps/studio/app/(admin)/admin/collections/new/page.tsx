@@ -37,7 +37,7 @@ export default async function NewCollectionPage({ searchParams }: Props) {
       </div>
       <ErrorBanner message={params.error ?? null} />
       <Surface>
-        <form action="/admin/actions/collections" method="post" className="grid gap-4">
+        <form id="collection-create-form" action="/admin/actions/collections" method="post" className="grid gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="collection">{t("name_label")}</Label>
             <Input id="collection" name="collection" required pattern="[A-Za-z_][A-Za-z0-9_]*" />

@@ -154,7 +154,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
   );
 
   return (
-    <form
+    <form id="storage-settings-form"
       className="flex max-w-2xl flex-col gap-8"
       onSubmit={(event) => {
         event.preventDefault();

@@ -19,5 +19,6 @@
   "field_created": "Field added.",
   "relation_created": "Relation added.",
   "relation_deleted": "Relation deleted.",
-  "collection_deleted": "Collection deleted."
+  "collection_deleted": "Collection deleted.",
+  "mark_all_read": "Mark all as read"
 }

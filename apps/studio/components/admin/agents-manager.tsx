@@ -230,7 +230,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
           {error}
         </div>
       ) : null}
-      <form action={create.run} className="space-y-4">
+      <form id="agent-issue-form" action={create.run} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>

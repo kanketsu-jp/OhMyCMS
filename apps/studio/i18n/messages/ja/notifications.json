@@ -19,5 +19,6 @@
   "field_created": "フィールドを追加しました",
   "relation_created": "リレーションを追加しました",
   "relation_deleted": "リレーションを削除しました",
-  "collection_deleted": "コレクションを削除しました"
+  "collection_deleted": "コレクションを削除しました",
+  "mark_all_read": "すべて既読にする"
 }

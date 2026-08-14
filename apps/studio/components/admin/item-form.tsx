@@ -48,7 +48,7 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
   });
 
   return (
-    <form
+    <form id="item-form"
       action={
         isEdit
           ? `/admin/actions/items/${encodeURIComponent(collection)}/${encodeURIComponent(String(itemId ?? ""))}`

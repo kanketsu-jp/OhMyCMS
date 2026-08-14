@@ -75,15 +75,22 @@ const dynamicNamespaces = new Set(dynamic.map((d) => d.namespace).filter(Boolean
 //    （実際に `files.description` を書いてしまい、手で確かめて見つけた。2026-08-15）。
 //    ここで実在を確かめる。**パンくず・右サイドバー・Storybook・LLM が読む定数なので、
 //    キーが死んでいると画面にキー文字列がそのまま出る。**
+// 🚨 `lib/admin/page-actions.ts`（アクションボタンの定義）も**同じ形**で
+//    辞書キーを文字列として持つ。ここへ足しておかないと、生きているキーが
+//    下の「未使用・掃除候補」に並び、**次の人が消す**（page-meta.ts と同じ穴）。
+//    構造そのもの（form の id が実在するか等）は `scripts/check-page-actions.mjs` が見る。
 const metaPath = resolve(root, "lib/admin/page-meta.ts");
+const actionsPath = resolve(root, "lib/admin/page-actions.ts");
 let metaKeys = new Set();
 const metaMissing = [];
 if (existsSync(metaPath)) {
   const metaSrc = readFileSync(metaPath, "utf8");
+  const actionSrc = existsSync(actionsPath) ? readFileSync(actionsPath, "utf8") : "";
   metaKeys = new Set([
     ...[...metaSrc.matchAll(/(?:titleKey|descriptionKey):\s*"([^"]+)"/g)].map((m) => m[1]),
     ...[...metaSrc.matchAll(/sectionKeys:\s*\[([^\]]*)\]/g)]
       .flatMap((m) => [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1])),
+    ...[...actionSrc.matchAll(/labelKey:\s*"([^"]+)"/g)].map((m) => m[1]),
   ]);
   for (const full of metaKeys) {
     const i = full.indexOf(".");
@@ -96,9 +103,11 @@ if (existsSync(metaPath)) {
       if (!(key in dict)) metaMissing.push(`${full} (${locale}: キーが無い)`);
     }
   }
-  console.log(`page-meta.ts のキー: ${metaKeys.size} 件（ja/en の両方で実在を確認）`);
+  console.log(
+    `page-meta.ts ＋ page-actions.ts のキー: ${metaKeys.size} 件（ja/en の両方で実在を確認）`,
+  );
   if (metaMissing.length > 0) {
-    console.error("\n■ page-meta.ts が実在しないキーを指している");
+    console.error("\n■ page-meta.ts / page-actions.ts が実在しないキーを指している");
     for (const x of metaMissing) console.error(`  ${x}`);
   }
 }

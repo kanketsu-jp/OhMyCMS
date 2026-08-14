@@ -71,7 +71,7 @@ export function FieldCreateForm({ collection }: Props) {
   const resolvedInterface = advancedInterface || selectedKind.interface;
 
   return (
-    <form
+    <form id="field-create-form"
       action={`/admin/actions/collections/${collection}/fields`}
       method="post"
       className="flex flex-col gap-4"
