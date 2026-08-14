@@ -1,8 +1,8 @@
 import Link from "next/link";
-import Image from "next/image";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileDetailManager } from "@/components/admin/file-detail-manager";
+import { FilePreviewLightbox } from "@/components/admin/file-preview-lightbox";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -66,13 +66,13 @@ export default async function FileDetailPage({ params }: Props) {
             <SurfaceTitle>{t("preview_title")}</SurfaceTitle>
             <div className="flex min-h-80 items-center justify-center overflow-hidden rounded-xl bg-muted">
               {file.type?.startsWith("image/") ? (
-                <Image
-                  src={`/api/assets/${file.id}`}
-                  alt={file.title ?? file.filename_download}
-                  width={file.width ?? 1000}
-                  height={file.height ?? 750}
-                  unoptimized
-                  className="max-h-[70vh] max-w-full object-contain"
+                <FilePreviewLightbox
+                  image={{
+                    src: `/api/assets/${file.id}`,
+                    alt: file.title ?? file.filename_download,
+                    width: file.width ?? 1000,
+                    height: file.height ?? 750,
+                  }}
                 />
               ) : (
                 <div className="text-center text-muted-foreground">

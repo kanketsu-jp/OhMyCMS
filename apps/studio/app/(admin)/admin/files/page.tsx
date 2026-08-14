@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
-import { FileIcon, FolderPlus, Plus, Upload } from "lucide-react";
+import { FolderPlus, Plus, Upload } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { FilesLightboxGrid } from "@/components/admin/files-lightbox-grid";
 import { FolderGrid } from "@/components/admin/folder-grid";
 import { ListPagination } from "@/components/admin/list-pagination";
 import {
@@ -48,10 +48,6 @@ type FolderRow = {
   name: string;
   parent: string | null;
 };
-
-function extension(file: FileRow, fallback: string): string {
-  return file.filename_download.split(".").pop()?.toUpperCase() ?? fallback;
-}
 
 function filesHref(folderId: string | null): string {
   return folderId ? `/admin/files?folder=${folderId}` : "/admin/files";
@@ -165,31 +161,7 @@ export default async function FilesPage({ searchParams }: Props) {
         {filesResult.ok || foldersResult.ok ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
-            {files.map((file) => (
-              <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md p-3 hover:bg-muted">
-                {/* 🚨 画像のレターボックス。背景が要るので面に見えるが、面ではない。
-                  例外を検査スクリプト側に隠さず、コードに書いて見えるようにしている */}
-                <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
-                  {file.type?.startsWith("image/") ? (
-                    <Image
-                      src={`/api/assets/${file.id}?width=200&fit=cover`}
-                      alt={file.title ?? file.filename_download}
-                      width={200}
-                      height={200}
-                      unoptimized
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-center text-muted-foreground">
-                      <FileIcon className="mx-auto mb-2 size-10" />
-                      <span className="text-sm font-medium">{extension(file, t("file_extension_fallback"))}</span>
-                    </div>
-                  )}
-                </div>
-                <p className="mt-3 truncate text-sm font-medium">{file.title ?? file.filename_download}</p>
-                <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
-              </Link>
-            ))}
+            <FilesLightboxGrid files={files} />
             {childFolders.length === 0 && files.length === 0 ? (
               <p className="col-span-full text-sm text-muted-foreground">{t("empty_folder")}</p>
             ) : null}
