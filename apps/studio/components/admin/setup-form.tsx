@@ -45,15 +45,15 @@ export function SetupForm() {
         <Input
           id="setup-password"
           type="password"
+          variant="entry"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
           autoComplete="current-password"
-          className="h-(--control-h) md:h-(--control-h-pc)"
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" className="min-h-(--control-h) w-full md:min-h-0" disabled={submit.pending || pending}>
+      <Button type="submit" size="entry" disabled={submit.pending || pending}>
         {pending ? t("sign_in_pending") : t("sign_in")}
       </Button>
     </form>

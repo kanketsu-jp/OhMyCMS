@@ -67,17 +67,17 @@ export function OtpLoginForm() {
           <Input
             id="otp-email"
             type="email"
+            variant="entry"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
             autoComplete="email"
-            className="h-(--control-h) md:h-(--control-h-pc)"
           />
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button
           type="submit"
-          className="min-h-(--control-h) w-full md:min-h-0"
+          size="entry"
           disabled={requestCode.pending || pending}
         >
           {pending ? t("otp_sending") : t("otp_send_code")}
@@ -94,19 +94,19 @@ export function OtpLoginForm() {
         <Input
           id="otp-code"
           type="text"
+          variant="entry"
           inputMode="numeric"
           autoComplete="one-time-code"
           value={code}
           onChange={(event) => setCode(event.target.value)}
           required
-          className="h-(--control-h) md:h-(--control-h-pc)"
         />
         <p className="text-xs text-muted-foreground">{t("otp_code_help")}</p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button
         type="submit"
-        className="min-h-(--control-h) w-full md:min-h-0"
+        size="entry"
         disabled={verifyCode.pending || pending}
       >
         {pending ? t("otp_verifying") : t("otp_verify")}
