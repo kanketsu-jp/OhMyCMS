@@ -1,0 +1,11 @@
+{
+  "error_license_bad_signature": "ライセンスキーの署名が一致しません。",
+  "error_license_device_limit": "このライセンスで利用できる端末数の上限に達しています。",
+  "error_license_device_mismatch": "この端末用ではないライセンス許可証です。",
+  "error_license_expired": "ライセンスキーの期限が切れています。",
+  "error_license_malformed": "ライセンスキーの形式が正しくありません。",
+  "error_license_public_key_missing": "ライセンス検証鍵が設定されていません。",
+  "error_license_revocation_stale": "失効情報が古いため、ライセンス状態を判定できません。",
+  "error_license_revoked": "このライセンスは失効しています。",
+  "error_license_signing_key_missing": "ライセンス発行鍵が設定されていません。"
+}

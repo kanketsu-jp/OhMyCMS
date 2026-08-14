@@ -1,0 +1,11 @@
+{
+  "error_license_bad_signature": "The license key signature does not match.",
+  "error_license_device_limit": "This license has reached its device limit.",
+  "error_license_device_mismatch": "This device grant is not for this device.",
+  "error_license_expired": "The license key has expired.",
+  "error_license_malformed": "The license key format is invalid.",
+  "error_license_public_key_missing": "The license verification key is not configured.",
+  "error_license_revocation_stale": "The revocation information is stale, so the license state cannot be determined.",
+  "error_license_revoked": "This license has been revoked.",
+  "error_license_signing_key_missing": "The license signing key is not configured."
+}

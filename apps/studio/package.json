@@ -20,7 +20,9 @@
     "migrate:storage": "bun run scripts/migrate-storage.ts",
     "migrate:status": "bun node_modules/knex/bin/cli.js migrate:status --knexfile lib/db/knexfile.ts",
     "verify:labels": "bun run scripts/verify-labels.ts",
-    "verify:drive": "bun run scripts/verify-drive-oauth.ts"
+    "verify:drive": "bun run scripts/verify-drive-oauth.ts",
+    "verify:license": "bun run scripts/verify-license.ts",
+    "verify:license-race": "bun run scripts/verify-license-race.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1102.0",
