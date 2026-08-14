@@ -1223,7 +1223,7 @@ if (AS_JSON) {
       console.error(`      ${v.detail}`);
       for (const w of v.worst ?? []) console.error(`        - ${JSON.stringify(w)}`);
     }
-    console.error("\n  規則: .claude/design-perf-charter.md / docs/design/surface-rules.md");
+    console.error("\n  規則: .claude/design-perf-charter.md / knowledge/decisions/no-nested-surfaces.md");
     process.exit(1);
   }
 }

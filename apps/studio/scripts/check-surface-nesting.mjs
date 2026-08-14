@@ -8,7 +8,7 @@
  * 実際、Card を Surface へ置き換えただけでは深さ3が消えなかった。
  *
  * ルールを文書に書くだけでは同じことが起きるので、**落とせる検査**にする。
- * 由来: 堀池「必ずルールを見直して。洗礼させて」／docs/design/surface-rules.md §3
+ * 由来: 堀池「必ずルールを見直して。洗礼させて」／knowledge/decisions/no-nested-surfaces.md §3
  *
  *   node scripts/check-surface-nesting.mjs
  */
@@ -34,7 +34,7 @@ const SURFACE_PATTERNS = [
 
 /**
  * 面として許容するもの（面1つぶんとして数えてよい正当な箱）。
- * 🚨 ここを増やすときは docs/design/surface-rules.md にも理由を書くこと。
+ * 🚨 ここを増やすときは knowledge/decisions/no-nested-surfaces.md にも理由を書くこと。
  */
 const ALLOW = [
   // 警告・エラーの箱。色で意味を持つので面1つとして許容（ページ直下に置く前提）
@@ -114,7 +114,7 @@ console.log(`許容した面: ${allowed.length} 件（エラー箱・メディ�
 console.log(`🚨 面の中の生の面: ${hits.length} 件`);
 
 if (hits.length > 0) {
-  console.error("\n■ 面の中に生の面クラスがあります（docs/design/surface-rules.md §2-1）");
+  console.error("\n■ 面の中に生の面クラスがあります（knowledge/decisions/no-nested-surfaces.md §2-1）");
   console.error("  Surface が持つ器の中で、さらに罫線・背景・影を持つと面が2段になります。");
   console.error("  区切りたいだけなら <SurfaceDivider> を使ってください。\n");
   for (const h of hits) {

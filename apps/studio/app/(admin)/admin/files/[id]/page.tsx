@@ -60,7 +60,7 @@ export default async function FileDetailPage({ params }: Props) {
           {/*
             プレビューは「メディアの受け皿」自体が面になる。
             外側の Surface まで境界を持つと二重になるので tone="plain" にする。
-            docs/design/surface-rules.md §2-2 の選択肢B（面側の境界を外し、内側に持たせる）。
+            knowledge/decisions/no-nested-surfaces.md §2-2 の選択肢B（面側の境界を外し、内側に持たせる）。
           */}
           <Surface tone="plain">
             <SurfaceTitle>{t("preview_title")}</SurfaceTitle>

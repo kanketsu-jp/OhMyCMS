@@ -8,7 +8,7 @@ import { useInsideSurface } from "@/components/ui/surface"
 /**
  * 複数行の入力。
  *
- * 🚨 **面の中では罫線を外し、背景で区別する**（docs/design/surface-rules.md §2-2）。
+ * 🚨 **面の中では罫線を外し、背景で区別する**（knowledge/decisions/no-nested-surfaces.md §2-2）。
  * input.tsx とまったく同じ考え方で、実装も揃えてある。片方だけ直すとズレるので、
  * どちらかを変えるときは両方見ること。
  *

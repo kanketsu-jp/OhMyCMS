@@ -3,7 +3,7 @@
 /**
  * 面（Surface）— 罫線・背景・影のいずれかを持つ「区切り」を出す唯一の入口。
  *
- * ルール: docs/design/surface-rules.md
+ * ルール: knowledge/decisions/no-nested-surfaces.md
  *   面はレベル1まで。レベル2 を作らない。
  *   面の中の入力欄は境界を持たない。余白は外側の器が持つ。
  *   SP ではカードにせず、上下の Divider だけで区切る。
@@ -78,7 +78,7 @@ export function Surface({
         "A surface must not contain another surface. " +
         "Use <SurfaceDivider> to separate sections instead. " +
         "This Surface renders without its own border/background. " +
-        "See docs/design/surface-rules.md",
+        "See knowledge/decisions/no-nested-surfaces.md",
     );
   }
 

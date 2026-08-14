@@ -90,7 +90,7 @@ B のモーダル内ボタンは画像上 27px → 換算 **約 45px**。**同�
 G の Edit profile は `Name / Sam Lee`・`Bio / Ordinary guy` が**行として並ぶだけ**。
 **罫線で囲まれた箱が無い。** グループの区切りは**間隔と Divider だけ**。
 
-→ `docs/design/surface-rules.md` §4 の記述（リストを罫線で囲まず行間の Divider だけ）を**実物で確認**した。
+→ `knowledge/decisions/no-nested-surfaces.md` §4 の記述（リストを罫線で囲まず行間の Divider だけ）を**実物で確認**した。
 
 ---
 
@@ -145,7 +145,7 @@ X の設定画面の入力は約 53px と背が高い。これは **floating lab
 
 ## 6. 参考
 
-- `docs/design/surface-rules.md` — 面の入れ子の禁止（§2-5 で実物確認）
+- `knowledge/decisions/no-nested-surfaces.md` — 面の入れ子の禁止（§2-5 で実物確認）
 - `docs/design/x-ui-rules.md` — 先行して作られたルール（静止画の目視・px 未実測と自己申告あり）
 - `docs/research/ja-en-ui-evidence.md` — 日本語での寸法
 
@@ -209,7 +209,7 @@ O の通知設定は
 ### 9-4. 塗りブロックはあるが、**ボーダーは無い**（M の Preview）
 
 M の `Preview` セクションには薄い青灰色の塗りブロックがあるが、**ボーダーを持たない**。
-→ `docs/design/surface-rules.md` §2-1「罫線・背景・影のうち**1つだけ**」の実例。
+→ `knowledge/decisions/no-nested-surfaces.md` §2-1「罫線・背景・影のうち**1つだけ**」の実例。
 
 ## 10. 設定画面へ落とすときの形
 

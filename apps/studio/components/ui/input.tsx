@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { useInsideSurface } from "@/components/ui/surface"
 
 /**
- * 🚨 **面の中では罫線を外し、背景で区別する**（docs/design/surface-rules.md §2-2）。
+ * 🚨 **面の中では罫線を外し、背景で区別する**（knowledge/decisions/no-nested-surfaces.md §2-2）。
  * 判定は自動。呼び出し側が意識する必要はない。
  * 余白は自分で持つ（入力欄の内側 padding は部品の責務）。
  */

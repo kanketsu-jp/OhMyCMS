@@ -35,7 +35,7 @@ export function LocaleSwitcher({ className, variant = "compact" }: Props) {
       // 🚨 器は面を持たない。**選択中のボタンの背景だけ**で現在地を示す。
       // 器にも背景を持たせると「器 + ボタン」で面が2段になり、ヘッダ(罫線)と合わせて深さ3になる。
       // これは全画面に出る（ヘッダは共通なので）ため、発生源として潰している。
-      // docs/design/surface-rules.md §2-2
+      // knowledge/decisions/no-nested-surfaces.md §2-2
       className={cn(
         group ? "flex w-full items-center gap-1" : "flex items-center gap-0.5",
         className,
