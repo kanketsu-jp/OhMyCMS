@@ -6,6 +6,7 @@ import { Pencil, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -189,14 +190,14 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
         </div>
         <div className="space-y-2">
           <Label>{t("fields_list_label")}</Label>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-0">
             <input type="checkbox" checked={allFields} onChange={(event) => setAllFields(event.target.checked)} className="size-4" />
             {t("allow_all_label")}
           </label>
           {!allFields ? (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {columns.map((field) => (
-                <label key={field} className="flex items-center gap-2 text-sm">
+                <label key={field} className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-0">
                   <input
                     type="checkbox"
                     checked={selectedFields.includes(field)}
@@ -217,11 +218,11 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="permissions">{t("filter_json_label")}</Label>
-          <textarea
+          <Textarea
             id="permissions"
             value={filterJson}
             onChange={(event) => setFilterJson(event.target.value)}
-            className="min-h-36 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="min-h-36 font-mono md:max-w-2xl"
             placeholder='{"owner":{"_eq":"$CURRENT_USER"}}'
           />
           <p className="text-xs leading-5 text-muted-foreground">{t("filter_json_help_variables")}</p>
