@@ -297,7 +297,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
               </Table>
             </ScrollFade>
           ) : (
-            <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t("collections_empty")}
             </p>
           )}
