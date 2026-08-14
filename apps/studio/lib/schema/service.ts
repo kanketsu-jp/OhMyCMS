@@ -519,6 +519,15 @@ export async function deleteCollection(collection: string): Promise<{ collection
         .orWhere({ one_collection: collection })
         .delete();
       await trx("directus_fields").where({ collection }).delete();
+      // 🚨 権限行も一緒に消す。消し忘れると「消えたコレクションへの許可」が残り、
+      //    **同じ名前のコレクションを後から作ったときに、その古い許可が有効になる**。
+      //    コレクションは GUI で作れるので同名の再登場は普通に起こる。
+      //    実測（2026-08-15）: 権限3行を持つコレクションを消すと 3 行とも残り、
+      //    同名で作り直したら、その孤児のポリシーを持つ利用者が
+      //    GET /api/items/<同名> で 200 と中身を取得できた。
+      //    🚨 directus_activity / directus_revisions は履歴なので、ここでは消さない
+      //       （消すかどうかは保存期間の判断であって、権限の話ではない）。
+      await trx("directus_permissions").where({ collection }).delete();
       await trx("directus_collections").where({ collection }).delete();
       await trx.raw("DROP TABLE ??", [collection]);
     });
