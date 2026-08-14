@@ -86,6 +86,13 @@ export function PageAction({
       const target = document.getElementById(form);
       if (!(target instanceof HTMLFormElement)) return;
 
+      // 実測 2026-08-15: ブラウザで要求の本数を数えて確認済み（見た目では判定していない）。
+      // 項目のフォームに焦点→保存で POST /admin/actions/items/... が1本。
+      // 検索ダイアログに焦点→0本（ガード①）。右パネルの報告フォームに焦点→0本（ガード②）。
+      // 🚨 ガード②のときダイアログは開いていない。PC の右パネルはダイアログではないので
+      //    ガード①だけでは防げず、両方が要る。
+      // 🚨 「正しい側で1本」も対で測る。ガードだけ見ると、何も起きない実装でも0本で緑に見える。
+
       // 開いているダイアログがあるなら、その中の話。裏のページを保存しない。
       if (document.querySelector('[role="dialog"][data-state="open"]')) return;
 
