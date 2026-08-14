@@ -17,8 +17,8 @@ export default async function LoginPage() {
   const settings = await getSettings();
   const brand = await projectName(tCommon("app_name"));
   const logo = await projectLogo();
-  const otpEnabled = mailConfig() !== null;
-  const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  const otpEnabled = (await mailConfig()) !== null;
+  const googleEnabled = Boolean(settings.google_client_id) && settings.google_client_secret_set;
   const showDefaultPasswordWarning = await isDefaultSetupPassword();
 
   return (

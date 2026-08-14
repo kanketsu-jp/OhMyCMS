@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const config = googleOAuthConfig(request);
+    const config = await googleOAuthConfig(request);
     const state = randomToken(32);
     const codeVerifier = randomToken(64);
     const location = googleAuthorizationUrl(config, state, codeVerifier);

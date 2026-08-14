@@ -24,6 +24,7 @@ import type {
   Policy,
   Relation,
   Role,
+  Settings,
   UploadInput,
   User,
 } from "./types.js";
@@ -549,6 +550,20 @@ export class OhMyCmsClient {
     /** GET /api/users。管理者のみ。パスワードやトークンは返らない */
     list: (): Promise<User[]> =>
       this.transport.requestData<User[]>({ path: "/api/users" }),
+  };
+
+  readonly settings = {
+    /** GET /api/settings。秘密項目は値を返さず、設定済みかどうかだけ返る */
+    get: (): Promise<Settings> =>
+      this.transport.requestData<Settings>({ path: "/api/settings" }),
+
+    /** PATCH /api/settings。秘密項目は入力した値だけ保存され、レスポンスには値が返らない */
+    update: (patch: Record<string, unknown>): Promise<Settings> =>
+      this.transport.requestData<Settings>({
+        method: "PATCH",
+        path: "/api/settings",
+        json: patch,
+      }),
   };
 }
 

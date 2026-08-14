@@ -18,6 +18,7 @@ import {
   ListObjectsV2Command,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { db } from "../lib/db/knex";
 import { getStorage, getStorageByName, getStorageStatus } from "../lib/storage/index";
 
 const ENDPOINT = process.env.S3_ENDPOINT ?? "http://localhost:3106";
@@ -132,7 +133,7 @@ async function cleanupPrefix(prefix: string): Promise<void> {
       : "接頭辞なし";
 
     setS3Env(options);
-    const storage = getStorage();
+    const storage = await getStorage();
     check(`${label}: ドライバ選択`, storage.name === "s3", `name=${storage.name}`);
     if (storage.name !== "s3") return;
 
@@ -179,7 +180,7 @@ async function cleanupPrefix(prefix: string): Promise<void> {
 }
 
 /** env が欠けているときは黙って S3 を使わず、ローカルへ落ちること。 */
-function fallbackCases(): void {
+async function fallbackCases(): Promise<void> {
   const cases: Array<{ label: string; env: Record<string, string> }> = [
     { label: "何も無い", env: {} },
     {
@@ -219,7 +220,7 @@ function fallbackCases(): void {
       delete process.env[name];
     }
     Object.assign(process.env, testCase.env);
-    const storage = getStorage();
+    const storage = await getStorage();
     check(`フォールバック（${testCase.label}）`, storage.name === "local", `name=${storage.name}`);
   }
 }
@@ -236,7 +237,7 @@ async function switchoverCase(): Promise<void> {
   for (const name of ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"]) {
     delete process.env[name];
   }
-  const before = getStorage();
+  const before = await getStorage();
   check("切替: 設定前の書き込み先", before.name === "local", `name=${before.name}`);
   const legacyKey = "verify-switchover/before.txt";
   const legacyBody = Buffer.from("切り替え前に置いたファイル", "utf8");
@@ -244,10 +245,11 @@ async function switchoverCase(): Promise<void> {
 
   // 2. S3 を設定する（＝切り替え）。書き込み先は s3 になる。
   setS3Env();
-  check("切替: 設定後の書き込み先", getStorage().name === "s3", `name=${getStorage().name}`);
+  const after = await getStorage();
+  check("切替: 設定後の書き込み先", after.name === "s3", `name=${after.name}`);
 
   // 3. 🚨 保存時のドライバ名で読めば、切り替え前のファイルはまだ読める。
-  const legacyStorage = getStorageByName("local");
+  const legacyStorage = await getStorageByName("local");
   const readBack = legacyStorage ? await legacyStorage.get(legacyKey) : null;
   check(
     "切替: 切り替え前のファイルがまだ読める",
@@ -258,9 +260,9 @@ async function switchoverCase(): Promise<void> {
   // 4. 切り替え後に置いたファイルは s3 側で読める（両方が生きていること）。
   const newKey = "verify-switchover/after.txt";
   const newBody = Buffer.from("切り替え後に置いたファイル", "utf8");
-  const current = getStorage();
+  const current = await getStorage();
   await current.put(newKey, newBody, "text/plain");
-  const s3Storage = getStorageByName("s3");
+  const s3Storage = await getStorageByName("s3");
   const newReadBack = s3Storage ? await s3Storage.get(newKey) : null;
   check(
     "切替: 切り替え後のファイルも読める",
@@ -270,13 +272,13 @@ async function switchoverCase(): Promise<void> {
 
   // 5. 保管先が解決できないケース（設定を外した / 知らない名前）は **null**。
   //    今の設定で代わりに読ませない（別の場所を見て 404 になり原因が消えるため）。
-  check("切替: 知らない保管先は null", getStorageByName("gcs-future") === null, "null");
+  check("切替: 知らない保管先は null", (await getStorageByName("gcs-future")) === null, "null");
   for (const name of ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"]) {
     delete process.env[name];
   }
   check(
     "切替: 設定が外れた s3 は null（今の設定で代読しない）",
-    getStorageByName("s3") === null,
+    (await getStorageByName("s3")) === null,
     "null",
   );
 
@@ -291,10 +293,10 @@ async function switchoverCase(): Promise<void> {
  * 本人は S3 に置いたつもりなので、**サーバを作り直した日に全部消えるまで気づけない**。
  * 秘密を出さずに気づかせられるか（名前だけ出ているか）も一緒に見る。
  */
-function statusCases(): void {
+async function statusCases(): Promise<void> {
   // (1) 全部そろっている → s3。バケットとホスト名は出す（秘密ではない）。
   setS3Env();
-  const healthy = getStorageStatus();
+  const healthy = await getStorageStatus();
   check(
     "状態: 設定が揃っていれば s3",
     healthy.driver === "s3" && healthy.bucket === BUCKET && !healthy.misconfigured,
@@ -309,7 +311,7 @@ function statusCases(): void {
   ]) {
     delete process.env[name];
   }
-  const clean = getStorageStatus();
+  const clean = await getStorageStatus();
   check(
     "状態: 何も設定していなければ local（警告なし）",
     clean.driver === "local" && !clean.misconfigured && clean.missing.length === 0,
@@ -319,7 +321,7 @@ function statusCases(): void {
   // (3) 🚨 途中まで埋めた → local だが **misconfigured**。足りない名前が挙がる。
   process.env.S3_ENDPOINT = ENDPOINT;
   process.env.S3_BUCKET = BUCKET;
-  const partial = getStorageStatus();
+  const partial = await getStorageStatus();
   check(
     "状態: 途中まで埋めたら検出できる",
     partial.driver === "local" &&
@@ -332,7 +334,7 @@ function statusCases(): void {
   // (4) 🚨 空文字だけ（compose の ${VAR:-} が渡す形）も「未設定」と同じ扱いにする。
   process.env.S3_ENDPOINT = "";
   process.env.S3_BUCKET = "   ";
-  const blank = getStorageStatus();
+  const blank = await getStorageStatus();
   check(
     "状態: 空文字・空白は未設定と同じ",
     blank.driver === "local" && !blank.misconfigured,
@@ -341,7 +343,7 @@ function statusCases(): void {
 
   // (5) 🚨 秘密が混ざっていないこと。状態に出てよいのは名前・バケット・ホストだけ。
   setS3Env();
-  const serialized = JSON.stringify(getStorageStatus());
+  const serialized = JSON.stringify(await getStorageStatus());
   check(
     "状態: アクセスキーを含まない",
     !serialized.includes(ACCESS_KEY_ID) && !serialized.includes(SECRET_ACCESS_KEY),
@@ -367,7 +369,7 @@ async function probePathStyle(): Promise<void> {
   for (const forcePathStyle of [true, false]) {
     setS3Env();
     process.env.S3_FORCE_PATH_STYLE = String(forcePathStyle);
-    const storage = getStorage();
+    const storage = await getStorage();
     const key = `verify-path-style/${forcePathStyle ? "path" : "virtual"}.txt`;
     const payload = Buffer.from("probe", "utf8");
     try {
@@ -400,7 +402,7 @@ async function probePathStyle(): Promise<void> {
 async function largeFileCase(megabytes: number): Promise<void> {
   console.log(`\n■ 大きいファイルの往復（${megabytes}MB）`);
   setS3Env();
-  const storage = getStorage();
+  const storage = await getStorage();
   const key = "verify-large/blob.bin";
   // 圧縮で誤魔化されないよう、繰り返しの少ないバイト列にする。
   const payload = Buffer.alloc(megabytes * 1024 * 1024);
@@ -431,22 +433,25 @@ async function main(): Promise<void> {
   // 🚨 R2 / GCS の鍵が来たときに使うモード。既定の往復とは別に呼ぶ。
   if (process.argv.includes("--probe-path-style")) {
     await probePathStyle();
+    await db.destroy();
     return;
   }
   const largeIndex = process.argv.indexOf("--large");
   if (largeIndex !== -1) {
     await largeFileCase(Number(process.argv[largeIndex + 1] ?? 10) || 10);
     console.log(failures === 0 ? "\nすべて通りました" : `\n落ちた項目: ${failures}`);
+    await db.destroy();
     process.exit(failures === 0 ? 0 : 1);
   }
   await roundTrip({});
   await roundTrip({ keyPrefix: "env-a" });
   await roundTrip({ useLegacyR2Names: true });
   await switchoverCase();
-  fallbackCases();
-  statusCases();
+  await fallbackCases();
+  await statusCases();
 
   console.log(failures === 0 ? "\nすべて通りました" : `\n落ちた項目: ${failures}`);
+  await db.destroy();
   process.exit(failures === 0 ? 0 : 1);
 }
 

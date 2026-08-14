@@ -108,7 +108,7 @@ export async function requestLoginCode(email: string): Promise<void> {
   // 🚨 送れなくても利用者は閉じ込められない。**同じ画面にパスワードの入口が残っている**
   //    （decisions/auth-methods.md の「上が使えないとき下へ落ちる」）。
   // 送信できたかどうかは、運用者がサーバのログで見る（値は出さない）。
-  const config = mailConfig();
+  const config = await mailConfig();
   if (!config) return;
 
   void sendLoginCodeMail(config, normalized, code).catch(() => {

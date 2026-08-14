@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       throw new ApiError(400, "MAIL_NOT_CONFIGURED", "メールの設定がありません");
     }
 
-    const config = mailConfig();
+    const config = await mailConfig();
     if (!config) {
       throw new ApiError(400, "MAIL_NOT_CONFIGURED", "メールの設定がありません");
     }

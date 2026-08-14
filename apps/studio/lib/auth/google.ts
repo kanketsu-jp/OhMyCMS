@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { ApiError } from "@/lib/schema/errors";
+import { getSecretSetting, getSettings } from "@/lib/settings/service";
 import { sha256Base64Url } from "./crypto";
 
 const GOOGLE_AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -23,19 +24,27 @@ export type GoogleOAuthConfig = {
   redirectUri: string;
 };
 
-function requiredEnv(name: "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET"): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new ApiError(503, "OAUTH_NOT_CONFIGURED", `${name} が設定されていません`);
-  }
-  return value;
-}
-
-export function googleOAuthConfig(request: Request): GoogleOAuthConfig {
+/**
+ * Google OAuth の設定を読む。clientId/clientSecret は DB(GUI) → 環境変数 の順で解決する
+ * （lib/settings/service.ts の getSettings()/getSecretSetting() が既に DB→env→既定値の
+ * 解決をしている）。どちらか一方でも揃っていなければ ApiError を投げる（従来どおり）。
+ */
+export async function googleOAuthConfig(request: Request): Promise<GoogleOAuthConfig> {
   const url = new URL(request.url);
+  const settings = await getSettings();
+  const clientId = settings.google_client_id || undefined;
+  const clientSecret = await getSecretSetting("google_client_secret");
+
+  if (!clientId) {
+    throw new ApiError(503, "OAUTH_NOT_CONFIGURED", "GOOGLE_CLIENT_ID が設定されていません");
+  }
+  if (!clientSecret) {
+    throw new ApiError(503, "OAUTH_NOT_CONFIGURED", "GOOGLE_CLIENT_SECRET が設定されていません");
+  }
+
   return {
-    clientId: requiredEnv("GOOGLE_CLIENT_ID"),
-    clientSecret: requiredEnv("GOOGLE_CLIENT_SECRET"),
+    clientId,
+    clientSecret,
     redirectUri: `${url.origin}/api/auth/google/callback`,
   };
 }

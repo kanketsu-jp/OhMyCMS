@@ -44,7 +44,7 @@ async function toBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
 }
 
 async function main(): Promise<void> {
-  const status = getStorageStatus();
+  const status = await getStorageStatus();
   if (status.driver !== "s3") {
     // 🚨 設定していないのに走らせても意味がない。**足りないものを名前で言う**（値は出さない）。
     console.error("移す先が設定されていません。S3 の設定を入れてから実行してください。");
@@ -71,8 +71,8 @@ async function main(): Promise<void> {
   }
   console.log(`対象: ${rows.length} 件`);
 
-  const target = getStorage();
-  const local = getStorageByName("local");
+  const target = await getStorage();
+  const local = await getStorageByName("local");
   if (!local) {
     console.error("ローカルの保管先を解決できませんでした。");
     process.exit(1);

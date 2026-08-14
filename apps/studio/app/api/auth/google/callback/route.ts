@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       throw new ApiError(401, "OAUTH_STATE_MISMATCH", "OAuth state が一致しません");
     }
 
-    const config = googleOAuthConfig(request);
+    const config = await googleOAuthConfig(request);
     const idToken = await exchangeGoogleCode(config, code, codeVerifier);
     const identity = await verifyGoogleIdToken(idToken, config.clientId);
     const user = await upsertGoogleUser(identity);

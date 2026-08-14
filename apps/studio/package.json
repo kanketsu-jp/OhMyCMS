@@ -13,6 +13,8 @@
     "storybook:build": "storybook build --disable-telemetry",
     "storybook:check": "node .storybook/check-stories.mjs",
     "verify:s3": "bun run scripts/verify-s3-storage.ts",
+    "verify:secrets": "bun run scripts/verify-secret-box.ts",
+    "verify:secret-log": "bun run scripts/verify-secret-safe-logging.ts",
     "check:richtext": "bun run scripts/check-richtext-guards.ts",
     "verify:compress": "bun run scripts/verify-compression.ts",
     "migrate:storage": "bun run scripts/migrate-storage.ts",
