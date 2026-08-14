@@ -56,20 +56,18 @@ export function Breadcrumbs({ brand }: { brand: string }) {
         {parents.length > 0 ? (
           <BreadcrumbItem>
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label={t("nav.breadcrumb_parents")}
-                    // 🚨 **指で押せる大きさを持たせる**（憲章 §7 の 44px）。
-                    //    アイコンは小さいままでよいが、**当たり判定は縦も横も 44px**にする。
-                    //    `size-6`（24px）だと SP で押せない（design が14ページ分を実測）。
-                    //    アイコンを大きくするのではなく、箱を広げるのが正しい。
-                    className="flex min-h-(--control-h) min-w-(--control-h) items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:min-h-(--control-h-pc) md:min-w-(--control-h-pc)"
-                  />
-                }
-              >
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t("nav.breadcrumb_parents")}
+                  // 🚨 **指で押せる大きさを持たせる**（憲章 §7 の 44px）。
+                  //    アイコンは小さいままでよいが、**当たり判定は縦も横も 44px**にする。
+                  //    `size-6`（24px）だと SP で押せない（design が14ページ分を実測）。
+                  //    アイコンを大きくするのではなく、箱を広げるのが正しい。
+                  className="flex min-h-(--control-h) min-w-(--control-h) items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:min-h-(--control-h-pc) md:min-w-(--control-h-pc)"
+                >
                 <ChevronDownIcon className="size-3.5" />
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuGroup>

@@ -12,8 +12,7 @@
  *    shadcn のユーティリティなので JS も要らない）。横に並べると勝手に端がフェードする。
  */
 import * as React from "react"
-import { mergeProps } from "@base-ui/react/merge-props"
-import { useRender } from "@base-ui/react/use-render"
+import { Slot } from "radix-ui"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -182,24 +181,22 @@ function AttachmentAction({
 
 function AttachmentTrigger({
   className,
-  render,
+  asChild = false,
   type,
   ...props
-}: useRender.ComponentProps<"button">) {
-  return useRender({
-    defaultTagName: "button",
-    props: mergeProps<"button">(
-      {
-        type: render ? type : (type ?? "button"),
-        className: cn("absolute inset-0 z-10 outline-none", className),
-      },
-      props
-    ),
-    render,
-    state: {
-      slot: "attachment-trigger",
-    },
-  })
+}: React.ComponentProps<"button"> & {
+  asChild?: boolean
+}) {
+  const Comp = asChild ? Slot.Root : "button"
+
+  return (
+    <Comp
+      data-slot="attachment-trigger"
+      type={asChild ? undefined : (type ?? "button")}
+      className={cn("absolute inset-0 z-10 outline-none", className)}
+      {...props}
+    />
+  )
 }
 
 function AttachmentGroup({ className, ...props }: React.ComponentProps<"div">) {

@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/lib/utils"
 import { useInsideSurface } from "@/components/ui/surface"
@@ -29,7 +28,7 @@ function Input({
   const insideSurface = useInsideSurface()
 
   return (
-    <InputPrimitive
+    <input
       type={type}
       data-slot="input"
       data-inside-surface={insideSurface ? "true" : undefined}

@@ -227,7 +227,7 @@ function PanelBody({
           </Button>
         ) : null}
         {/* ダイアログには見出しの要素が要る（読み上げの対象になる）。 */}
-        {inDialog ? <DialogTitle render={heading} /> : heading}
+        {inDialog ? <DialogTitle asChild>{heading}</DialogTitle> : heading}
         <Button
           type="button"
           variant="ghost"

@@ -32,8 +32,10 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   render: () => (
     <Dialog>
-      <DialogTrigger render={<Button variant="outline" />}>
-        Open dialog
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          Open dialog
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -47,7 +49,9 @@ export const Default: Story = {
           <Input id="story-dialog-name" placeholder="articles" />
         </div>
         <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+          <DialogClose asChild>
+            <Button variant="ghost">Cancel</Button>
+          </DialogClose>
           <Button>Create</Button>
         </DialogFooter>
       </DialogContent>

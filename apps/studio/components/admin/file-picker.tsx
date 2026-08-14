@@ -101,10 +101,10 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
       <input id={inputId} type="hidden" name={name} value={value} />
       <div className="flex flex-wrap items-center gap-2">
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger
-            render={<Button type="button" variant="outline" onClick={() => void loadFiles()} />}
-          >
-            {t("select_file_button")}
+          <DialogTrigger asChild>
+            <Button type="button" variant="outline" onClick={() => void loadFiles()}>
+              {t("select_file_button")}
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[84vh] overflow-y-auto sm:max-w-3xl">
             <DialogHeader>

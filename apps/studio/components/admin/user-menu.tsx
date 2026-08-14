@@ -14,7 +14,6 @@ import {
 import { useLocale, useT } from "@/i18n/client";
 import { setLocaleAction } from "@/i18n/actions";
 import { LOCALES } from "@/i18n/config";
-import { cn } from "@/lib/utils";
 
 type Props = {
   /** いま入っている人。取れなければ null */
@@ -49,28 +48,28 @@ export function UserMenu({ userLabel }: Props) {
   return (
     <div className="shrink-0 border-t px-2 py-2">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full justify-start px-3"
-            />
-          }
-        >
-          <Avatar size="sm">
-            <AvatarFallback>{fallback}</AvatarFallback>
-          </Avatar>
-          <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-          <ChevronsUpDown />
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full justify-start px-3"
+          >
+            <Avatar size="sm">
+              <AvatarFallback>{fallback}</AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+            <ChevronsUpDown />
+          </Button>
         </DropdownMenuTrigger>
         {/*
-          🚨 **`DropdownMenuLabel` をここに置かないこと。押すと画面ごと落ちる。**
-          あれは base-nova（Base UI）では `Menu.GroupLabel`＝**グループの見出し**で、
+          🚨 **`DropdownMenuLabel` をここに置かないこと。以前は押すと画面ごと落ちた。**
+          base-nova（Base UI）では `Menu.GroupLabel`＝**グループの見出し**で、
           `Menu.Group` の外に置くと `MenuGroupContext is missing` を投げる。
           投げる場所が描画の最中なので React が復帰できず、**タブごと死ぬ**
           （Next.js のエラー画面ではなく "This page couldn't load" になる。実測）。
-          🚨 **手本（new-york-v4 / Radix）では Label を単独で置ける。そこが違う。**
+          🚨 **手本（new-york-v4 / Radix）では Label を単独で置ける。**
+          2026-08-15 に Radix へ移してこの制約は解消したが、ここでは中身の重複を避けるため
+          引き続き置かない。
 
           そもそも**中に出す必要が無い**。引き金の行に既にアバターとメールが出ている。
           手本が開いた中でも同じものを出すのは、**畳めるレール**だと引き金に文字が無いため。
@@ -79,7 +78,7 @@ export function UserMenu({ userLabel }: Props) {
         <DropdownMenuContent side="top" align="end">
           {/*
             🚨 **言語も `DropdownMenuItem` にすること。素の button を置かない。**
-            Base UI の Menu は **`Menu.Item` の子孫だけ**を ↑↓ の移動対象にする。
+            Base UI の Menu は **`Menu.Item` の子孫だけ**を ↑↓ の移動対象にしていた。
             ここに `LocaleSwitcher`（素の form + 素の button）を置いていたときは、
             **↓ を4回押しても「日本語」から動かなかった**（実測。Tab では移れた）。
             見た目は同じでも、**キーボードで辿れない項目**になっていた。
@@ -89,39 +88,34 @@ export function UserMenu({ userLabel }: Props) {
           */}
           <form action={setLocaleAction}>
             {LOCALES.map((item) => (
-              <DropdownMenuItem
-                key={item}
-                nativeButton
-                render={
-                  <button
-                    type="submit"
-                    name="locale"
-                    value={item}
-                    className={cn("w-full")}
-                  />
-                }
-              >
-                {tCommon(`locale_${item}`)}
-                {item === locale ? <Check className="ml-auto" /> : null}
+              <DropdownMenuItem key={item} asChild>
+                <button
+                  type="submit"
+                  name="locale"
+                  value={item}
+                  className="w-full"
+                >
+                  {tCommon(`locale_${item}`)}
+                  {item === locale ? <Check className="ml-auto" /> : null}
+                </button>
               </DropdownMenuItem>
             ))}
           </form>
           <DropdownMenuSeparator />
           <form action="/admin/actions/logout" method="post">
             {/*
-              🚨 `nativeButton` を落とさないこと。`Menu.Item` の既定は **false**
-              （`node_modules/@base-ui/react/menu/item/MenuItem.js:28` で実測）。
+              🚨 Base UI 時代は `nativeButton` を落とさないこと。
+              `Menu.Item` の既定は **false**（当時の実測）。
               既定のまま `<button>` を render すると Base UI が
               「non-<button> を期待していた」と警告を出し、`role` や `aria-disabled` を
               **余計に付ける**。ここは form を submit させたいので `<button>` である必要がある。
-              （`Menu.Trigger` の既定は逆に true なので、引き金側には要らない）
+              2026-08-15 に Radix へ移して `asChild` で素直に `<button>` を渡せるようになった。
             */}
-            <DropdownMenuItem
-              nativeButton
-              render={<button type="submit" className={cn("w-full")} />}
-            >
-              <LogOut />
-              {t("logout")}
+            <DropdownMenuItem asChild>
+              <button type="submit" className="w-full">
+                <LogOut />
+                {t("logout")}
+              </button>
             </DropdownMenuItem>
           </form>
         </DropdownMenuContent>

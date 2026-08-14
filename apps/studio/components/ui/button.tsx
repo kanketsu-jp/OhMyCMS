@@ -1,4 +1,5 @@
-import { Button as ButtonPrimitive } from "@base-ui/react/button"
+import * as React from "react"
+import { Slot } from "radix-ui"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -75,10 +76,12 @@ function Button({
   size = "default",
   loading = false,
   disabled = false,
+  asChild = false,
   children,
   ...props
-}: ButtonPrimitive.Props &
+}: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
     /**
      * 処理中の**見た目**。二重送信を止めるのはこれではない。
      *
@@ -88,19 +91,21 @@ function Button({
      */
     loading?: boolean
   }) {
+  const Comp = asChild ? Slot.Root : "button"
+
   return (
-    <ButtonPrimitive
+    <Comp
       data-slot="button"
-      // 押下・キー操作は base-ui 側が止める（internals/use-button の onClick / onKeyDown）。
-      disabled={disabled || loading}
+      data-variant={variant}
+      data-size={size}
+      disabled={asChild ? undefined : disabled || loading}
+      aria-disabled={asChild && (disabled || loading) ? true : undefined}
       // 🚨 処理中は **disabled の色を使わない**（design 指示）。
       //    「処理中＝働いている」と「無効＝そもそも使えない」は別の状態で、
       //    同じグレーにすると押せなかったのか処理中なのか区別が付かない。
-      //    `focusableWhenDisabled` にすると base-ui が native の `disabled` 属性ではなく
-      //    `aria-disabled` を付けるので、variant 表の `disabled:` 系（= CSS の `:disabled`）が
-      //    発火しない。**variant 表には一切触らずに色を分けられる**のはこのため。
+      //    Radix の asChild 経路では native の `disabled` 属性を出さず、
+      //    `aria-disabled` で状態だけを伝える。
       //    ただし呼び出し側が本当に `disabled` を渡したときは、従来どおりグレーにする。
-      focusableWhenDisabled={loading && !disabled}
       data-loading={loading || undefined}
       className={cn(
         buttonVariants({ variant, size, className }),
@@ -117,7 +122,7 @@ function Button({
           `visibility` は継承するので、素のテキストノードにも効く。
           `opacity-0` ではなく `invisible` なのは、読み上げと当たり判定を同時に落とすため。 */}
       <span className={cn("contents", loading && "invisible")}>{children}</span>
-    </ButtonPrimitive>
+    </Comp>
   )
 }
 
