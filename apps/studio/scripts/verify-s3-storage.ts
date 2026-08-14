@@ -19,15 +19,62 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { db } from "../lib/db/knex";
-import { getStorage, getStorageByName, getStorageStatus } from "../lib/storage/index";
+import {
+  getStorage,
+  getStorageByName,
+  getStorageStatus,
+} from "../lib/storage/index";
 
 const ENDPOINT = process.env.S3_ENDPOINT ?? "http://localhost:3106";
+
+/**
+ * 🚨 **本番のバケットに対して走らせない。**
+ *
+ * このハーネスは put / delete / deletePrefix を実際に行う（＝**書いて消す**）。
+ * 本番は R2 を使っていて、**バケット名が検証用と同じ `ohmycms`** なので、
+ * `S3_ENDPOINT` を差し替えたまま実行すると**本番のデータを触る**。
+ *
+ * そこで「ローカルの検証用エンドポイントか」を見て、違えば止める。
+ * どうしても外部のバケットで確かめたいとき（R2 の疎通確認など）は
+ * **使い捨てのバケットを用意して** `--allow-remote` を明示すること。
+ */
+function assertLocalEndpoint(): void {
+  if (process.argv.includes("--allow-remote")) {
+    console.log(
+      "🚨 --allow-remote が指定されています。**使い捨てのバケットか確かめてから**続けてください。",
+    );
+    return;
+  }
+  let host = "";
+  try {
+    host = new URL(ENDPOINT).hostname;
+  } catch {
+    host = "";
+  }
+  const localHosts = [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "minio",
+    "ohmycms-minio",
+  ];
+  if (localHosts.includes(host)) return;
+
+  console.error(
+    `このハーネスは書き込みと削除を行います。ローカルの検証用ストレージ以外へは向けません（endpoint のホスト: ${host || "解釈できません"}）。\n` +
+      "本番のバケットと検証用のバケットは同じ名前（ohmycms）なので、取り違えるとデータを壊します。\n" +
+      "外部のバケットで確かめるときは、使い捨てのバケットを用意して --allow-remote を付けてください。",
+  );
+  process.exit(2);
+}
 const BUCKET = process.env.S3_BUCKET ?? "ohmycms";
 const ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID ?? "minioadmin";
 const SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY ?? "minioadmin";
 
 /** S3 互換の env を一式セットする。keyPrefix だけケースごとに変える。 */
-function setS3Env(options: { keyPrefix?: string; useLegacyR2Names?: boolean } = {}): void {
+function setS3Env(
+  options: { keyPrefix?: string; useLegacyR2Names?: boolean } = {},
+): void {
   for (const name of [
     "S3_ENDPOINT",
     "S3_BUCKET",
@@ -67,7 +114,10 @@ const rawClient = new S3Client({
   endpoint: ENDPOINT,
   region: "us-east-1",
   forcePathStyle: true,
-  credentials: { accessKeyId: ACCESS_KEY_ID, secretAccessKey: SECRET_ACCESS_KEY },
+  credentials: {
+    accessKeyId: ACCESS_KEY_ID,
+    secretAccessKey: SECRET_ACCESS_KEY,
+  },
 });
 
 async function listRawKeys(prefix: string): Promise<string[]> {
@@ -75,12 +125,18 @@ async function listRawKeys(prefix: string): Promise<string[]> {
   let continuationToken: string | undefined;
   do {
     const listed = await rawClient.send(
-      new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, ContinuationToken: continuationToken }),
+      new ListObjectsV2Command({
+        Bucket: BUCKET,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
     );
     for (const object of listed.Contents ?? []) {
       if (object.Key) keys.push(object.Key);
     }
-    continuationToken = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+    continuationToken = listed.IsTruncated
+      ? listed.NextContinuationToken
+      : undefined;
   } while (continuationToken);
   return keys.sort();
 }
@@ -106,41 +162,52 @@ async function removeRawKeys(keys: string[]): Promise<void> {
 async function cleanupPrefix(prefix: string): Promise<void> {
   try {
     await removeRawKeys(await listRawKeys(prefix));
-    } catch {
+  } catch {
     // 後片付けの失敗で検査結果を塗り替えない（残骸は次回の一覧で見える）。
-    }
   }
+}
 
-  async function toBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
-    return Buffer.isBuffer(body) ? body : Buffer.from(await new Response(body).arrayBuffer());
-  }
+async function toBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
+  return Buffer.isBuffer(body)
+    ? body
+    : Buffer.from(await new Response(body).arrayBuffer());
+}
 
-  let failures = 0;
-  function check(label: string, ok: boolean, detail: string): void {
-    if (!ok) failures += 1;
-    console.log(`${ok ? "PASS" : "FAIL"}  ${label}  ${detail}`);
-  }
+let failures = 0;
+function check(label: string, ok: boolean, detail: string): void {
+  if (!ok) failures += 1;
+  console.log(`${ok ? "PASS" : "FAIL"}  ${label}  ${detail}`);
+}
 
-  /**
-   * 1回分の往復。keyPrefix を変えて2回まわし、
-   * 「接頭辞が実キーにだけ効き、呼び出し側のキーは変わらない」ことを見る。
-   */
-  async function roundTrip(options: { keyPrefix?: string; useLegacyR2Names?: boolean }): Promise<void> {
-    const label = options.useLegacyR2Names
+/**
+ * 1回分の往復。keyPrefix を変えて2回まわし、
+ * 「接頭辞が実キーにだけ効き、呼び出し側のキーは変わらない」ことを見る。
+ */
+async function roundTrip(options: {
+  keyPrefix?: string;
+  useLegacyR2Names?: boolean;
+}): Promise<void> {
+  const label = options.useLegacyR2Names
     ? "旧 R2_* 名"
     : options.keyPrefix
       ? `接頭辞 "${options.keyPrefix}"`
       : "接頭辞なし";
 
-    setS3Env(options);
-    const storage = await getStorage();
-    check(`${label}: ドライバ選択`, storage.name === "s3", `name=${storage.name}`);
-    if (storage.name !== "s3") return;
+  setS3Env(options);
+  const storage = await getStorage();
+  check(
+    `${label}: ドライバ選択`,
+    storage.name === "s3",
+    `name=${storage.name}`,
+  );
+  if (storage.name !== "s3") return;
 
-    // 実キー設計に合わせる（<uuid>/<ファイル名> と <uuid>/transformed/<hash>.<ext>）。
-    const id = `verify-${options.keyPrefix ?? "none"}-${options.useLegacyR2Names ? "r2" : "s3"}`;
-    const cleanupTarget = options.keyPrefix ? `${options.keyPrefix}/${id}/` : `${id}/`;
-    try {
+  // 実キー設計に合わせる（<uuid>/<ファイル名> と <uuid>/transformed/<hash>.<ext>）。
+  const id = `verify-${options.keyPrefix ?? "none"}-${options.useLegacyR2Names ? "r2" : "s3"}`;
+  const cleanupTarget = options.keyPrefix
+    ? `${options.keyPrefix}/${id}/`
+    : `${id}/`;
+  try {
     const originalKey = `${id}/original.txt`;
     const derivedKey = `${id}/transformed/thumb.txt`;
     const payload = Buffer.from(`hello ${label}`, "utf8");
@@ -151,28 +218,43 @@ async function cleanupPrefix(prefix: string): Promise<void> {
 
     const head = await storage.head(originalKey);
     check(
-    `${label}: head`,
-    head !== null && head.size === payload.byteLength && head.contentType === "text/plain",
-    `size=${head?.size ?? "null"} contentType=${head?.contentType ?? "null"}`,
+      `${label}: head`,
+      head !== null &&
+        head.size === payload.byteLength &&
+        head.contentType === "text/plain",
+      `size=${head?.size ?? "null"} contentType=${head?.contentType ?? "null"}`,
     );
 
     const got = await toBuffer(await storage.get(originalKey));
-    check(`${label}: get の内容一致`, got.equals(payload), `${got.byteLength} bytes`);
+    check(
+      `${label}: get の内容一致`,
+      got.equals(payload),
+      `${got.byteLength} bytes`,
+    );
 
     // 呼び出し側は接頭辞なしのキーを渡しているのに、バケット上では接頭辞付きで入っているか。
     const rawKeys = await listRawKeys(`${expectedPrefix}${id}/`);
     check(
-    `${label}: 実キーの位置`,
-    rawKeys.length === 2 && rawKeys.every((key) => key.startsWith(expectedPrefix)),
-    rawKeys.join(", ") || "(なし)",
+      `${label}: 実キーの位置`,
+      rawKeys.length === 2 &&
+        rawKeys.every((key) => key.startsWith(expectedPrefix)),
+      rawKeys.join(", ") || "(なし)",
     );
 
     await storage.delete(originalKey);
-    check(`${label}: delete 後の head`, (await storage.head(originalKey)) === null, "null");
+    check(
+      `${label}: delete 後の head`,
+      (await storage.head(originalKey)) === null,
+      "null",
+    );
 
     await storage.deletePrefix?.(`${id}/`);
     const leftovers = await listRawKeys(`${expectedPrefix}${id}/`);
-    check(`${label}: deletePrefix`, leftovers.length === 0, leftovers.join(", ") || "(残りなし)");
+    check(
+      `${label}: deletePrefix`,
+      leftovers.length === 0,
+      leftovers.join(", ") || "(残りなし)",
+    );
   } finally {
     // 🚨 判定が落ちても・例外が出ても、自分が置いたものは消す。
     await cleanupPrefix(cleanupTarget);
@@ -221,7 +303,11 @@ async function fallbackCases(): Promise<void> {
     }
     Object.assign(process.env, testCase.env);
     const storage = await getStorage();
-    check(`フォールバック（${testCase.label}）`, storage.name === "local", `name=${storage.name}`);
+    check(
+      `フォールバック（${testCase.label}）`,
+      storage.name === "local",
+      `name=${storage.name}`,
+    );
   }
 }
 
@@ -234,11 +320,20 @@ async function fallbackCases(): Promise<void> {
  */
 async function switchoverCase(): Promise<void> {
   // 1. まだ S3 の設定が無い状態（＝ローカル運用）で1件置く。
-  for (const name of ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"]) {
+  for (const name of [
+    "S3_ENDPOINT",
+    "S3_BUCKET",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+  ]) {
     delete process.env[name];
   }
   const before = await getStorage();
-  check("切替: 設定前の書き込み先", before.name === "local", `name=${before.name}`);
+  check(
+    "切替: 設定前の書き込み先",
+    before.name === "local",
+    `name=${before.name}`,
+  );
   const legacyKey = "verify-switchover/before.txt";
   const legacyBody = Buffer.from("切り替え前に置いたファイル", "utf8");
   await before.put(legacyKey, legacyBody, "text/plain");
@@ -272,8 +367,17 @@ async function switchoverCase(): Promise<void> {
 
   // 5. 保管先が解決できないケース（設定を外した / 知らない名前）は **null**。
   //    今の設定で代わりに読ませない（別の場所を見て 404 になり原因が消えるため）。
-  check("切替: 知らない保管先は null", (await getStorageByName("gcs-future")) === null, "null");
-  for (const name of ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"]) {
+  check(
+    "切替: 知らない保管先は null",
+    (await getStorageByName("gcs-future")) === null,
+    "null",
+  );
+  for (const name of [
+    "S3_ENDPOINT",
+    "S3_BUCKET",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+  ]) {
     delete process.env[name];
   }
   check(
@@ -299,22 +403,34 @@ async function statusCases(): Promise<void> {
   const healthy = await getStorageStatus();
   check(
     "状態: 設定が揃っていれば s3",
-    healthy.driver === "s3" && healthy.bucket === BUCKET && !healthy.misconfigured,
+    healthy.driver === "s3" &&
+      healthy.bucket === BUCKET &&
+      !healthy.misconfigured,
     `driver=${healthy.driver} bucket=${healthy.bucket} host=${healthy.endpointHost}`,
   );
 
   // (2) 何も設定していない → local。**警告を出さない**（これは正常な状態）。
   for (const name of [
-    "S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY",
-    "S3_REGION", "S3_FORCE_PATH_STYLE", "S3_KEY_PREFIX",
-    "R2_ACCOUNT_ID", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY",
+    "S3_ENDPOINT",
+    "S3_BUCKET",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+    "S3_REGION",
+    "S3_FORCE_PATH_STYLE",
+    "S3_KEY_PREFIX",
+    "R2_ACCOUNT_ID",
+    "R2_BUCKET",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
   ]) {
     delete process.env[name];
   }
   const clean = await getStorageStatus();
   check(
     "状態: 何も設定していなければ local（警告なし）",
-    clean.driver === "local" && !clean.misconfigured && clean.missing.length === 0,
+    clean.driver === "local" &&
+      !clean.misconfigured &&
+      clean.missing.length === 0,
     `misconfigured=${clean.misconfigured}`,
   );
 
@@ -346,7 +462,8 @@ async function statusCases(): Promise<void> {
   const serialized = JSON.stringify(await getStorageStatus());
   check(
     "状態: アクセスキーを含まない",
-    !serialized.includes(ACCESS_KEY_ID) && !serialized.includes(SECRET_ACCESS_KEY),
+    !serialized.includes(ACCESS_KEY_ID) &&
+      !serialized.includes(SECRET_ACCESS_KEY),
     serialized,
   );
 }
@@ -406,14 +523,19 @@ async function largeFileCase(megabytes: number): Promise<void> {
   const key = "verify-large/blob.bin";
   // 圧縮で誤魔化されないよう、繰り返しの少ないバイト列にする。
   const payload = Buffer.alloc(megabytes * 1024 * 1024);
-  for (let i = 0; i < payload.length; i += 1) payload[i] = (i * 31 + (i >> 8)) & 0xff;
+  for (let i = 0; i < payload.length; i += 1)
+    payload[i] = (i * 31 + (i >> 8)) & 0xff;
 
   const startedPut = performance.now();
   await storage.put(key, payload, "application/octet-stream");
   const putMs = performance.now() - startedPut;
 
   const head = await storage.head(key);
-  check("大きいファイル: head のサイズが一致", head?.size === payload.byteLength, `${head?.size ?? "null"}B`);
+  check(
+    "大きいファイル: head のサイズが一致",
+    head?.size === payload.byteLength,
+    `${head?.size ?? "null"}B`,
+  );
 
   const startedGet = performance.now();
   const got = await toBuffer(await storage.get(key));
@@ -428,6 +550,8 @@ async function largeFileCase(megabytes: number): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // 🚨 何かを書く前に、向き先がローカルの検証用かを確かめる。
+  assertLocalEndpoint();
   console.log(`endpoint=${ENDPOINT} bucket=${BUCKET}`);
 
   // 🚨 R2 / GCS の鍵が来たときに使うモード。既定の往復とは別に呼ぶ。
@@ -439,7 +563,9 @@ async function main(): Promise<void> {
   const largeIndex = process.argv.indexOf("--large");
   if (largeIndex !== -1) {
     await largeFileCase(Number(process.argv[largeIndex + 1] ?? 10) || 10);
-    console.log(failures === 0 ? "\nすべて通りました" : `\n落ちた項目: ${failures}`);
+    console.log(
+      failures === 0 ? "\nすべて通りました" : `\n落ちた項目: ${failures}`,
+    );
     await db.destroy();
     process.exit(failures === 0 ? 0 : 1);
   }
@@ -450,7 +576,9 @@ async function main(): Promise<void> {
   await fallbackCases();
   await statusCases();
 
-  console.log(failures === 0 ? "\nすべて通りました" : `\n落ちた項目: ${failures}`);
+  console.log(
+    failures === 0 ? "\nすべて通りました" : `\n落ちた項目: ${failures}`,
+  );
   await db.destroy();
   process.exit(failures === 0 ? 0 : 1);
 }
