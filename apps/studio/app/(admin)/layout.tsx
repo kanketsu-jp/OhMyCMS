@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
+import { displayUserLabel } from "@/lib/admin/user-label";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import { GlobalSearch } from "@/components/admin/global-search";
 import { HeaderBack } from "@/components/admin/header-back";
@@ -136,7 +137,7 @@ export default async function AdminLayout({
         </nav>
         {/* 🚨 PC にも置く。ここが無いと**PC からログアウトも言語切替もできない**
             （ヘッダから降ろしたとき SP のドロワーにしか置かず、実測で 0 個になっていた）。 */}
-        <UserMenu userLabel={me.ok && me.data.type === "human" ? me.data.email : null} />
+        <UserMenu userLabel={displayUserLabel(me.ok ? me.data : null)} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ヘッダーは **左｜中央｜右** の3つの塊。堀池さん（原文・2026-08-15）:
@@ -199,7 +200,7 @@ export default async function AdminLayout({
             : []
         }
         contentHeading={t("content_heading")}
-        userLabel={me.ok && me.data.type === "human" ? me.data.email : null}
+        userLabel={displayUserLabel(me.ok ? me.data : null)}
       />
     </div>
   );

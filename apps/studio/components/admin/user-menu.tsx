@@ -40,7 +40,10 @@ export function UserMenu({ userLabel }: Props) {
   const t = useT("nav");
   const tCommon = useT("common");
   const locale = useLocale();
-  const label = userLabel ?? t("menu_title");
+  // 🚨 名前が出せないときの控えは「メニュー」ではなく「アカウント」。
+  //    この行は**人のアカウントの行**なので、器の名前（メニュー）を出すと何の行か分からない。
+  //    名前が出せない例: エージェント／起動用の内部ユーザー（`lib/admin/user-label.ts`）。
+  const label = userLabel ?? t("account");
   const fallback = label.slice(0, 1).toUpperCase();
 
   return (

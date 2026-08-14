@@ -38,6 +38,14 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-i18n-hardcoded.mjs && node scripts/check-i18n-keys.mjs && node scripts/check-i18n-usage.mjs
 
+    # 内部専用の固定ユーザー（local-admin@localhost）が画面のラベルへ届かないこと。
+    # 一度実際に左サイドバーへ出た（2026-08-15）。**直しただけだと必ず戻る**ので検査で留める。
+    # 🚨 この検査は走るたびに「自分が検出できること」を2通りの壊し方で証明してから判定を出す
+    #    （緑が「異常が無い」なのか「見ていない」なのかを区別できるようにするため）。
+    userlabel:
+      root: "apps/studio"
+      run: node scripts/check-user-label-leak.mjs
+
     # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
     knowledge:
       run: bash .lefthook/rokf-doctor.sh

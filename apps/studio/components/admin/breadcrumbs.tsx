@@ -106,7 +106,11 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                   <button
                     type="button"
                     aria-label={t("nav.breadcrumb_parents")}
-                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    // 🚨 **指で押せる大きさを持たせる**（憲章 §7 の 44px）。
+                    //    アイコンは小さいままでよいが、**当たり判定は縦も横も 44px**にする。
+                    //    `size-6`（24px）だと SP で押せない（design が14ページ分を実測）。
+                    //    アイコンを大きくするのではなく、箱を広げるのが正しい（InputGroupButton と同じ手）。
+                    className="flex min-h-(--control-h) min-w-(--control-h) items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:min-h-(--control-h-pc) md:min-w-(--control-h-pc)"
                   />
                 }
               >

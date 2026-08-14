@@ -1,4 +1,5 @@
 {
+  "account": "Account",
   "auth_error": "Authentication error",
   "breadcrumb_label": "Breadcrumb",
   "breadcrumb_parents": "Parent pages",
