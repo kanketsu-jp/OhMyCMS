@@ -238,7 +238,10 @@ function SidebarTrigger({
       {...props}
     >
       <PanelLeftIcon />
-      <span className="sr-only">{label}</span>
+      {/* 🚨 `sr-only` の見出しを置かないこと。上流の素の実装は置いているが、
+          こちらは `aria-label` を付けているので**読み上げ名は同じ文言で二重**になり、
+          しかも sr-only の文字は箱の外（下 9px）に置かれて「行の揃い」の検査を鳴らす。
+          実測: 文字の矩形 top=27 h=19 に対して箱は top=14 h=28（アイコン自体は中心 28 で揃っている）。 */}
     </Button>
   )
 }
