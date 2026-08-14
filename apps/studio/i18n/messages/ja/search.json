@@ -36,5 +36,6 @@
   "page_settings_policies": "ポリシー",
   "page_settings_users": "ユーザー",
   "page_settings_agents": "エージェント",
+  "page_settings_mcp": "MCP 接続",
   "shortcut_hint": "⌘K"
 }

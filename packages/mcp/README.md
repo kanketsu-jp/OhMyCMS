@@ -13,7 +13,7 @@ OHMYCMS_URL=http://localhost:3999 node packages/mcp/scripts/verify.mjs   # 実�
 
 ```bash
 claude mcp add ohmycms --scope local \
-  --env OHMYCMS_URL=http://localhost:3000 \
+  --env OHMYCMS_URL=http://localhost:3102 \
   --env OHMYCMS_TOKEN=<エージェントトークン> \
   -- node /絶対パス/packages/mcp/dist/index.js
 
@@ -27,7 +27,7 @@ claude mcp list      # → ohmycms: … - ✔ Connected
 
 | 変数 | 既定 | 説明 |
 |---|---|---|
-| `OHMYCMS_URL` | `http://localhost:3000` | 接続先 |
+| `OHMYCMS_URL` | `http://localhost:3102` | 接続先 |
 | `OHMYCMS_TOKEN` | （なし） | エージェントトークン。**未設定だと認証が要るツールは全部 401** |
 
 🚨 **トークンはツールの応答にもログにも出さない。** 起動メッセージも接続先だけを stderr に出す
@@ -113,7 +113,7 @@ claude mcp list      # → ohmycms: … - ✔ Connected
     "code": "CAPABILITY_DENIED",
     "message": "このcapabilityでは管理操作が許可されていません",
     "status": 403,
-    "request": "POST http://localhost:3000/api/collections"
+    "request": "POST http://localhost:3102/api/collections"
   }
 }
 ```

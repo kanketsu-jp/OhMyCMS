@@ -14,6 +14,7 @@
   "settings_agents": "設定 / エージェント",
   "settings_child_agents": "エージェント",
   "settings_child_general": "一般",
+  "settings_child_mcp": "MCP 接続",
   "settings_child_policies": "ポリシー",
   "settings_child_roles": "ロール",
   "settings_child_storage": "ストレージ",

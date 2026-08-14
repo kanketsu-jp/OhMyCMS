@@ -37,6 +37,7 @@ const settingsItems = [
   { href: "/admin/settings/policies", labelKey: "settings_child_policies" },
   { href: "/admin/settings/users", labelKey: "settings_child_users" },
   { href: "/admin/settings/agents", labelKey: "settings_child_agents" },
+  { href: "/admin/settings/mcp", labelKey: "settings_child_mcp" },
   { href: "/admin/settings/version", labelKey: "settings_child_version" },
 ];
 

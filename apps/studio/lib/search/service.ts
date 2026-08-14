@@ -104,6 +104,7 @@ const PAGE_ENTRIES: StaticEntry[] = [
   { labelKey: "page_settings_policies", href: "/admin/settings/policies" },
   { labelKey: "page_settings_users", href: "/admin/settings/users" },
   { labelKey: "page_settings_agents", href: "/admin/settings/agents" },
+  { labelKey: "page_settings_mcp", href: "/admin/settings/mcp" },
 ];
 
 /**

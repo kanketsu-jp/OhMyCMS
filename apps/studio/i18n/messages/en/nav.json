@@ -14,6 +14,7 @@
   "settings_agents": "Settings / Agents",
   "settings_child_agents": "Agents",
   "settings_child_general": "General",
+  "settings_child_mcp": "MCP Connection",
   "settings_child_policies": "Policies",
   "settings_child_roles": "Roles",
   "settings_child_storage": "Storage",

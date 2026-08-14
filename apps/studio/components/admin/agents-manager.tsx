@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, KeyRound, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollFade } from "@/components/ui/scroll-fade";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
+import type { PermissionAction } from "@/lib/permissions/resolve";
 
 type AgentRow = {
   id: string;
@@ -20,6 +24,17 @@ type AgentRow = {
   revoked_at: string | null;
   created_at: string;
 };
+
+type CollectionNameRow = {
+  collection: string;
+};
+
+type CapabilitiesState = {
+  selection: Record<string, PermissionAction[]>;
+  text: string;
+};
+
+const permissionActions = ["read", "create", "update", "delete"] as const satisfies readonly PermissionAction[];
 
 function messageFrom(payload: unknown, fallback: string): string {
   if (
@@ -45,6 +60,44 @@ function parseOptionalJson(text: string, invalidMessage: string): { ok: true; va
   }
 }
 
+function collectionRowsFrom(payload: unknown): CollectionNameRow[] | null {
+  const candidate =
+    payload &&
+    typeof payload === "object" &&
+    "data" in payload &&
+    Array.isArray((payload as { data?: unknown }).data)
+      ? (payload as { data: unknown[] }).data
+      : Array.isArray(payload)
+        ? payload
+        : null;
+
+  if (!candidate) return null;
+
+  const rows: CollectionNameRow[] = [];
+  for (const item of candidate) {
+    if (
+      item &&
+      typeof item === "object" &&
+      "collection" in item &&
+      typeof item.collection === "string"
+    ) {
+      rows.push({ collection: item.collection });
+    }
+  }
+  return rows;
+}
+
+function capabilitiesFromSelection(selection: Record<string, PermissionAction[]>): string {
+  const collections = Object.fromEntries(
+    Object.entries(selection)
+      .filter(([, actions]) => actions.length > 0)
+      .map(([collection, actions]) => [collection, actions]),
+  );
+
+  if (Object.keys(collections).length === 0) return "";
+  return JSON.stringify({ collections }, null, 2);
+}
+
 export function AgentsManager({ agents }: { agents: AgentRow[] }) {
   // 🚨 スクロールする要素そのものに fade を当てる（外側に巻くと監査が赤のまま）。
   // <code> はタグを差し替えられないので、部品ではなくフックで振る舞いだけ付ける。
@@ -52,15 +105,73 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [collections, setCollections] = useState<CollectionNameRow[]>([]);
+  const [collectionsError, setCollectionsError] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<CapabilitiesState>({ selection: {}, text: "" });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCollections() {
+      setCollectionsError(null);
+      try {
+        const response = await fetch("/api/collections?names=true");
+        const payload = await response.json().catch(() => null);
+        if (cancelled) return;
+        if (!response.ok) {
+          setCollections([]);
+          setCollectionsError(messageFrom(payload, t("collections_load_failed")));
+          return;
+        }
+        const rows = collectionRowsFrom(payload);
+        if (!rows) {
+          setCollections([]);
+          setCollectionsError(t("collections_load_failed"));
+          return;
+        }
+        setCollections(rows);
+      } catch {
+        if (!cancelled) {
+          setCollections([]);
+          setCollectionsError(t("collections_load_failed"));
+        }
+      }
+    }
+
+    void loadCollections();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  function toggleCapability(collection: string, action: PermissionAction, checked: boolean) {
+    setCapabilities((current) => {
+      const nextActions = new Set(current.selection[collection] ?? []);
+      if (checked) {
+        nextActions.add(action);
+      } else {
+        nextActions.delete(action);
+      }
+
+      const selection = { ...current.selection };
+      if (nextActions.size === 0) {
+        delete selection[collection];
+      } else {
+        selection[collection] = permissionActions.filter((item) => nextActions.has(item));
+      }
+      return { selection, text: capabilitiesFromSelection(selection) };
+    });
+  }
 
   const create = useSubmitOnce(async (formData: FormData) => {
     setError(null);
-    const capabilities = parseOptionalJson(String(formData.get("capabilities") ?? ""), t("invalid_json", { label: "capabilities" }));
+    const capabilities = parseOptionalJson(String(formData.get("capabilities") ?? ""), t("invalid_json", { label: t("capabilities_label") }));
     if (!capabilities.ok) {
       setError(capabilities.message);
       return;
     }
-    const tenantScope = parseOptionalJson(String(formData.get("tenant_scope") ?? ""), t("invalid_json", { label: "tenant_scope" }));
+    const tenantScope = parseOptionalJson(String(formData.get("tenant_scope") ?? ""), t("invalid_json", { label: t("tenant_scope_label") }));
     if (!tenantScope.ok) {
       setError(tenantScope.message);
       return;
@@ -101,7 +212,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
       {token ? (
         <div className="space-y-3 rounded-md border border-destructive/30 bg-destructive/10 p-4">
           <div className="flex items-center gap-2 font-medium text-destructive">
-            <KeyRound className="size-4" />
+            <KeyRound />
             {t("token_heading")}
           </div>
           <p className="text-sm text-destructive">{t("token_warning")}</p>
@@ -109,7 +220,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             className="block overflow-x-auto scroll-fade-x py-2 font-mono text-sm break-all"
           >{token}</code>
           <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(token)}>
-            <Copy />
+            <Copy data-icon="inline-start" />
             {t("copy_button")}
           </Button>
         </div>
@@ -130,14 +241,77 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <Input id="expires_in_days" name="expires_in_days" type="number" min="1" max="365" required />
           </div>
         </div>
+        <div className="flex flex-col gap-2">
+          <div>
+            <Label>{t("capabilities_picker_label")}</Label>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{t("capabilities_picker_help")}</p>
+          </div>
+          {collectionsError ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {collectionsError}
+            </div>
+          ) : null}
+          {collections.length > 0 ? (
+            <ScrollFade direction="vertical" className="max-h-72 rounded-lg bg-muted/40">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-48">{t("collection_column")}</TableHead>
+                    {permissionActions.map((action) => (
+                      <TableHead key={action}>{t(`action_${action}`)}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {collections.map((row) => (
+                    <TableRow key={row.collection}>
+                      <TableCell className="font-mono text-xs">{row.collection}</TableCell>
+                      {permissionActions.map((action) => {
+                        const checked = capabilities.selection[row.collection]?.includes(action) ?? false;
+                        return (
+                          <TableCell key={action}>
+                            <label className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                aria-label={t("action_checkbox_label", {
+                                  collection: row.collection,
+                                  action: t(`action_${action}`),
+                                })}
+                                onChange={(event) => toggleCapability(row.collection, action, event.target.checked)}
+                                className="size-4"
+                              />
+                              <span className="sr-only">{t(`action_${action}`)}</span>
+                            </label>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollFade>
+          ) : (
+            <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+              {t("collections_empty")}
+            </p>
+          )}
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="capabilities">{t("capabilities_label")}</Label>
-            <textarea id="capabilities" name="capabilities" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-base md:text-sm" />
+            <Textarea
+              id="capabilities"
+              name="capabilities"
+              value={capabilities.text}
+              onChange={(event) => setCapabilities((current) => ({ ...current, text: event.target.value }))}
+              className="min-h-28 font-mono"
+            />
+            <p className="text-xs leading-5 text-muted-foreground">{t("capabilities_json_help")}</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tenant_scope">{t("tenant_scope_label")}</Label>
-            <textarea id="tenant_scope" name="tenant_scope" className="min-h-28 w-full rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-base md:text-sm" />
+            <Textarea id="tenant_scope" name="tenant_scope" className="min-h-28 font-mono" />
           </div>
         </div>
         <Button type="submit" disabled={create.pending}>{t("issue_button")}</Button>
@@ -155,7 +329,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
               </p>
             </div>
             <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("revoke_button")} disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)} onClick={() => void revoke.run(agent.id)}>
-              <Ban />
+              <Ban data-icon="inline-start" />
               <span className="hidden md:inline">{t("revoke_button")}</span>
             </Button>
           </div>
