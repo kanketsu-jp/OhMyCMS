@@ -10,6 +10,7 @@
 #   base      共通 (bun のみ)
 #   deps      lockfile だけを使った依存インストール (キャッシュ層)
 #   source    deps + ソース。ここから builder と migrate が分岐する
+#   gitinfo   .git から版情報を抽出し、小さなテキストファイルだけ runner へ渡す
 #   builder   next build (output: 'standalone')
 #   migrate   knex マイグレーション実行専用
 #   runner    本番実行イメージ。standalone の成果物だけを持ち、bun で起動する
@@ -40,7 +41,45 @@ FROM base AS source
 #    （実測: root は lefthook のみ / apps/studio/node_modules に next などが入る）。
 #    ルートだけコピーすると next が見つからずビルドが落ちるので、/app ごと持ってくる。
 COPY --from=deps /app ./
+COPY --exclude=.git . .
+
+# ---------------------------------------------------------------- gitinfo
+# .git から commit / dirty / ビルド時刻を抽出する専用ステージ。
+# 🚨 このステージだけが .git を扱う。抽出した値（3つの小さなテキストファイル）だけを
+#    runner ステージへ渡し、.git 自体は他のどのステージ・最終イメージにもコピーしない。
+#    .dockerignore は .git を除外しなくなったが、source 側は COPY --exclude=.git で
+#    引き続き .git を持ち込まない。
+FROM base AS gitinfo
+ARG GIT_SHA=unknown
+ARG GIT_DIRTY=unknown
+ARG BUILD_TIME=unknown
+WORKDIR /app
+# dirty 判定には作業ツリーも必要なので、この一時ステージ内だけにソースと .git を置く。
 COPY . .
+RUN set -eu; \
+    if [ -e .git ]; then \
+      apt-get update -qq && apt-get install -y -qq --no-install-recommends git \
+        && rm -rf /var/lib/apt/lists/*; \
+      DETECTED_SHA="$(git rev-parse HEAD 2>/dev/null || echo unknown)"; \
+      if [ "$DETECTED_SHA" != "unknown" ]; then \
+        git ls-files | while IFS= read -r tracked; do \
+          if [ ! -e "$tracked" ]; then git update-index --skip-worktree -- "$tracked" 2>/dev/null || true; fi; \
+        done; \
+        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then DETECTED_DIRTY=1; else DETECTED_DIRTY=0; fi; \
+      else \
+        DETECTED_DIRTY=unknown; \
+      fi; \
+    else \
+      DETECTED_SHA=unknown; \
+      DETECTED_DIRTY=unknown; \
+    fi; \
+    if [ "$DETECTED_SHA" != "unknown" ]; then FINAL_SHA="$DETECTED_SHA"; else FINAL_SHA="$GIT_SHA"; fi; \
+    if [ "$DETECTED_DIRTY" != "unknown" ]; then FINAL_DIRTY="$DETECTED_DIRTY"; else FINAL_DIRTY="$GIT_DIRTY"; fi; \
+    if [ "$BUILD_TIME" != "unknown" ]; then FINAL_BUILT_AT="$BUILD_TIME"; else FINAL_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; fi; \
+    printf '%s' "$FINAL_SHA" > /tmp/GIT_SHA; \
+    printf '%s' "$FINAL_DIRTY" > /tmp/GIT_DIRTY; \
+    printf '%s' "$FINAL_BUILT_AT" > /tmp/BUILD_TIME; \
+    rm -rf ./.git
 
 # ---------------------------------------------------------------- sharp
 # sharp は serverExternalPackages に入れてある（= バンドルせず実行時 require する）ため、
@@ -103,6 +142,7 @@ CMD ["bun", "--filter", "@ohmycms/studio", "migrate"]
 FROM oven/bun:${BUN_VERSION} AS runner
 ARG GIT_SHA=unknown
 ARG GIT_DIRTY=unknown
+ARG BUILD_TIME=unknown
 # どのコミットから焼いたイメージかを後から確認できるようにする。
 # 「稼働中のコンテナが古くて、修正が入っていない状態を検証してしまう」事故の再発防止。
 # 読み方: docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' <image>
@@ -112,6 +152,12 @@ LABEL app.ohmycms.git-dirty=$GIT_DIRTY
 # ラベルは docker inspect でしか読めないが、これは**アプリから見える**ので
 # 受入ハーネスが「測った対象の版」を出せる（sdk の依頼）。
 ENV OHMYCMS_GIT_COMMIT=$GIT_SHA
+# /api/health(認証不要)が「どの版が動いているか」を機械判定できるように、実行時にも渡す。
+# 起動時には gitinfo が .git から抽出した値で上書き export する。
+# Docker の LABEL / ENV はファイル内容を読めないため、docker inspect の LABEL は ARG 由来のまま。
+# つまり /api/health は実測値、LABEL は ARG が渡された場合だけ正確、という非対称がある。
+ENV OHMYCMS_GIT_DIRTY=$GIT_DIRTY
+ENV OHMYCMS_BUILT_AT=$BUILD_TIME
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
@@ -129,8 +175,13 @@ COPY --from=builder --chown=bun:bun /app/apps/studio/public ./apps/studio/public
 # sharp 一式（上の sharpdeps ステージ参照）。
 COPY --from=sharpdeps --chown=bun:bun /sharp/node_modules ./node_modules
 
+# gitinfo が .git から抽出した小さな版情報ファイルだけを持ち込む。
+COPY --from=gitinfo --chown=bun:bun /tmp/GIT_SHA /app/.build-info/GIT_SHA
+COPY --from=gitinfo --chown=bun:bun /tmp/GIT_DIRTY /app/.build-info/GIT_DIRTY
+COPY --from=gitinfo --chown=bun:bun /tmp/BUILD_TIME /app/.build-info/BUILD_TIME
+
 # ローカルストレージ (S3 未設定時のフォールバック先)。compose でボリュームを当てる。
-RUN mkdir -p /app/.storage && chown -R bun:bun /app/.storage
+RUN mkdir -p /app/.storage /app/.build-info && chown -R bun:bun /app/.storage /app/.build-info
 
 USER bun
 EXPOSE 3000
@@ -139,4 +190,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=6 \
   CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
 
+ENTRYPOINT ["sh", "-c", "export OHMYCMS_GIT_COMMIT=\"$(cat /app/.build-info/GIT_SHA)\" OHMYCMS_GIT_DIRTY=\"$(cat /app/.build-info/GIT_DIRTY)\" OHMYCMS_BUILT_AT=\"$(cat /app/.build-info/BUILD_TIME)\"; exec \"$@\"", "ohmycms-entrypoint"]
 CMD ["bun", "apps/studio/server.js"]

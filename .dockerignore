@@ -21,7 +21,7 @@ build
 *.tsbuildinfo
 
 # --- VCS / このPCだけのもの ---
-.git
+# .git は Dokploy のビルド時に版情報を焼くため、コンテキストへ残す。
 .gitignore
 .temp
 .claude

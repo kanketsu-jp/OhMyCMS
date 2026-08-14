@@ -34,6 +34,15 @@ export type UpdateCheck =
   /** 確認できた。 */
   | { checked: true; latest: string; isOutdated: boolean; url: string | null };
 
+export type BuildVersion = {
+  /** ビルド時に焼かれた git commit SHA。未設定なら "unknown"。 */
+  commit: string;
+  /** ビルド時に作業ツリーへ未コミットの変更があったか。"0"=無い / "1"=有る / "unknown"=不明。 */
+  dirty: "0" | "1" | "unknown";
+  /** ビルド時刻（ISO8601）。未設定なら "unknown"。 */
+  builtAt: string;
+};
+
 /**
  * 環境変数から更新確認先を読む。
  * **空文字は未設定として扱う**（compose が空文字を渡してくるため。
@@ -48,6 +57,22 @@ export function updateFeedUrl(): string | null {
 function currentCommit(): string | null {
   const value = process.env.OHMYCMS_GIT_COMMIT?.trim();
   return value ? value : null;
+}
+
+/**
+ * ビルド時に焼かれた版情報。**ネットワークアクセスを一切行わない**
+ * （checkForUpdate() とは違い、health の同期パスから呼ばれるため）。
+ * 環境変数が空文字/未設定なら "unknown" を返す（"unknown" を「一致」や「値あり」に読み替えないこと）。
+ */
+export function getBuildVersion(): BuildVersion {
+  const dirty = process.env.OHMYCMS_GIT_DIRTY?.trim();
+  const builtAt = process.env.OHMYCMS_BUILT_AT?.trim();
+
+  return {
+    commit: currentCommit() ?? "unknown",
+    dirty: dirty === "0" || dirty === "1" ? dirty : "unknown",
+    builtAt: builtAt ? builtAt : "unknown",
+  };
 }
 
 /**

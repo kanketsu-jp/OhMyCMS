@@ -95,6 +95,7 @@ services:
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
         GIT_DIRTY: ${GIT_DIRTY:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
     image: ohmycms-studio
     # 🚨 ports: は書かない。外部公開は Dokploy の Domain（Traefik）が studio:3101 へ振る。
     environment: *app-env

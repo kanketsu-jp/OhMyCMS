@@ -1,11 +1,15 @@
 import { db } from "@/lib/db/knex";
+import { getBuildVersion } from "@/lib/version/service";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
     await db.raw("SELECT 1");
-    return Response.json({ status: "ok", db: "connected" }, { status: 200 });
+    return Response.json(
+      { status: "ok", db: "connected", version: getBuildVersion() },
+      { status: 200 },
+    );
   } catch (error) {
     // 🚨 このエンドポイントは**認証不要**なので、例外メッセージを返すと
     // 誰でも DB の接続先やホスト名を読める。詳細はログにだけ出す。
