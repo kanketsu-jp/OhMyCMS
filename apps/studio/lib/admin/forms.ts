@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicBaseUrl } from "@/lib/auth/urls";
 
 type ApiErrorPayload = {
   error?: {
@@ -12,7 +13,7 @@ export function redirectWithMessage(
   key: "error" | "notice",
   message: string,
 ): Response {
-  const url = new URL(path, request.url);
+  const url = new URL(path, publicBaseUrl(request));
   url.searchParams.set(key, message);
   return NextResponse.redirect(url, { status: 303 });
 }
@@ -28,5 +29,5 @@ export async function apiMessage(response: Response): Promise<string> {
 }
 
 export function sameOriginUrl(request: Request, path: string): URL {
-  return new URL(path, request.url);
+  return new URL(path, publicBaseUrl(request));
 }

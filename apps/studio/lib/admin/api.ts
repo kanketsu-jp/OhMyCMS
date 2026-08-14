@@ -17,9 +17,13 @@ export type MeResult =
 
 export async function requestOrigin(): Promise<string> {
   const incoming = await headers();
-  const host = incoming.get("x-forwarded-host") ?? incoming.get("host") ?? "localhost:3001";
-  const proto = incoming.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}`;
+  const forwardedHost = incoming.get("x-forwarded-host");
+  const forwardedProto = incoming.get("x-forwarded-proto");
+  if (forwardedHost || forwardedProto) {
+    return `http://127.0.0.1:${process.env.PORT ?? "3000"}`;
+  }
+  const host = incoming.get("host") ?? "localhost:3001";
+  return `http://${host}`;
 }
 
 function errorMessage(status: number, payload: ApiErrorPayload | null): string {

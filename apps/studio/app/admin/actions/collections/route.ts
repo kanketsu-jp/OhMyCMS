@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 
 export const runtime = "nodejs";
 
@@ -8,7 +9,7 @@ export async function POST(request: Request) {
   const collection = formString(formData, "collection");
   const note = formString(formData, "note");
 
-  const response = await fetch(new URL("/api/collections", request.url), {
+  const response = await fetch(new URL("/api/collections", internalOrigin(request)), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     return redirectWithMessage(request, "/admin/collections", "error", await apiMessage(response));
   }
 
-  return NextResponse.redirect(new URL(`/admin/collections/${collection}`, request.url), {
+  return NextResponse.redirect(new URL(`/admin/collections/${collection}`, publicBaseUrl(request)), {
     status: 303,
   });
 }

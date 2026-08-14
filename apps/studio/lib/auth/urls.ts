@@ -46,6 +46,20 @@ export function publicBaseUrl(request: Request): string {
 }
 
 /**
+ * 内部の自己呼び出し(サーバ側から自分の /api/* を fetch する)用のオリジン。
+ *
+ * プロキシ配下では `request.url` が `https://0.0.0.0:PORT/...` 等の到達不能な値になるため、
+ * その場合はループバック(http)＋実際の待受ポートへ向ける。直アクセス/devではプロキシヘッダが
+ * 無いため、従来どおり `request.url` の origin を使う。
+ */
+export function internalOrigin(request: Request): string {
+  const behindProxy =
+    request.headers.get("x-forwarded-host") || request.headers.get("x-forwarded-proto");
+  if (behindProxy) return `http://127.0.0.1:${process.env.PORT ?? "3000"}`;
+  return new URL(request.url).origin;
+}
+
+/**
  * 🚨 **外から受け取った「戻り先」は、必ずこれを通すこと。**
  *    `?next=` / `?redirect=` / SAML の `RelayState` / OAuth の `state` に載せたパス——
  *    **利用者以外が値を決められる経路はすべて対象**。

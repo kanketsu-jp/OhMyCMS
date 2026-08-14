@@ -6,6 +6,7 @@ import {
   sessionCookieHeader,
   isSecureRequest,
 } from "@/lib/auth/cookies";
+import { publicBaseUrl } from "@/lib/auth/urls";
 import {
   exchangeGoogleCode,
   googleOAuthConfig,
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
 
     const response = new Response(null, {
       status: 302,
-      headers: { location: new URL("/", request.url).toString() },
+      headers: { location: new URL("/", publicBaseUrl(request)).toString() },
     });
     response.headers.append("Set-Cookie", sessionCookieHeader(session.rawToken, session.maxAge, isSecureRequest(request)));
     return clearOAuthCookies(response);

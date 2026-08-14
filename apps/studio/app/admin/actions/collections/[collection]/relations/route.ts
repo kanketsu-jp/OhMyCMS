@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 import { getT } from "@/i18n/server";
 
 export const runtime = "nodejs";
@@ -40,7 +41,7 @@ export async function POST(request: Request, ctx: Context) {
   const fieldCollection = kind === "m2o" ? collection : relatedCollection;
   const fieldName = kind === "m2o" ? field : relatedField;
   const fieldResponse = await fetch(
-    new URL(`/api/fields/${encodeURIComponent(fieldCollection)}`, request.url),
+    new URL(`/api/fields/${encodeURIComponent(fieldCollection)}`, internalOrigin(request)),
     {
       method: "POST",
       headers: {
@@ -74,7 +75,7 @@ export async function POST(request: Request, ctx: Context) {
       one_field: oneField,
     };
 
-  const relationResponse = await fetch(new URL("/api/relations", request.url), {
+  const relationResponse = await fetch(new URL("/api/relations", internalOrigin(request)), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -96,7 +97,7 @@ export async function POST(request: Request, ctx: Context) {
     );
   }
 
-  const url = new URL(path, request.url);
+  const url = new URL(path, publicBaseUrl(request));
   url.searchParams.set("notice", "relation_created");
   return NextResponse.redirect(url, { status: 303 });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 import { getT } from "@/i18n/server";
 
 export const runtime = "nodejs";
@@ -23,7 +24,7 @@ export async function POST(request: Request, ctx: Context) {
   const response = await fetch(
     new URL(
       `/api/relations/${encodeURIComponent(manyCollection)}/${encodeURIComponent(manyField)}`,
-      request.url,
+      internalOrigin(request),
     ),
     {
       method: "DELETE",
@@ -36,7 +37,7 @@ export async function POST(request: Request, ctx: Context) {
     return redirectWithMessage(request, path, "error", await apiMessage(response));
   }
 
-  const url = new URL(path, request.url);
+  const url = new URL(path, publicBaseUrl(request));
   url.searchParams.set("notice", "relation_deleted");
   return NextResponse.redirect(url, { status: 303 });
 }

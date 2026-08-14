@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessage, redirectWithMessage } from "@/lib/admin/forms";
+import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 import { getT } from "@/i18n/server";
 import type { Translator } from "@/i18n/translator";
 
@@ -71,7 +72,7 @@ export async function POST(request: Request, ctx: Context) {
     return redirectWithMessage(request, backPath, "error", parsed.error ?? t("error_invalid_input"));
   }
 
-  const response = await fetch(new URL(`/api/items/${encoded}`, request.url), {
+  const response = await fetch(new URL(`/api/items/${encoded}`, internalOrigin(request)), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -85,7 +86,7 @@ export async function POST(request: Request, ctx: Context) {
     return redirectWithMessage(request, backPath, "error", await apiMessage(response));
   }
 
-  const url = new URL(`/admin/content/${encoded}`, request.url);
+  const url = new URL(`/admin/content/${encoded}`, publicBaseUrl(request));
   url.searchParams.set("notice", "item_created");
   return NextResponse.redirect(url, { status: 303 });
 }

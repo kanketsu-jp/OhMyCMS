@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 import { isInterfaceAllowedForType } from "@/lib/schema/interfaces";
 
 export const runtime = "nodejs";
@@ -29,7 +30,7 @@ export async function POST(request: Request, ctx: Context) {
     : undefined;
 
   const response = await fetch(
-    new URL(`/api/fields/${encodeURIComponent(collection)}`, request.url),
+    new URL(`/api/fields/${encodeURIComponent(collection)}`, internalOrigin(request)),
     {
       method: "POST",
       headers: {
@@ -46,7 +47,7 @@ export async function POST(request: Request, ctx: Context) {
     return redirectWithMessage(request, path, "error", await apiMessage(response));
   }
 
-  const url = new URL(path, request.url);
+  const url = new URL(path, publicBaseUrl(request));
   url.searchParams.set("notice", "field_created");
   return NextResponse.redirect(url, { status: 303 });
 }

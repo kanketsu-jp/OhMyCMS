@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMessage, redirectWithMessage } from "@/lib/admin/forms";
+import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 import { getT } from "@/i18n/server";
 import type { Translator } from "@/i18n/translator";
 
@@ -68,7 +69,7 @@ export async function POST(request: Request, ctx: Context) {
   const backPath = `/admin/content/${encoded}/${encodedId}`;
 
   if (formData.get("_method") === "delete") {
-    const response = await fetch(new URL(`/api/items/${encoded}/${encodedId}`, request.url), {
+    const response = await fetch(new URL(`/api/items/${encoded}/${encodedId}`, internalOrigin(request)), {
       method: "DELETE",
       headers: { cookie: request.headers.get("cookie") ?? "" },
       cache: "no-store",
@@ -78,7 +79,7 @@ export async function POST(request: Request, ctx: Context) {
       return redirectWithMessage(request, `/admin/content/${encoded}`, "error", await apiMessage(response));
     }
 
-    const url = new URL(`/admin/content/${encoded}`, request.url);
+    const url = new URL(`/admin/content/${encoded}`, publicBaseUrl(request));
     url.searchParams.set("notice", "item_deleted");
     return NextResponse.redirect(url, { status: 303 });
   }
@@ -88,7 +89,7 @@ export async function POST(request: Request, ctx: Context) {
     return redirectWithMessage(request, backPath, "error", parsed.error ?? t("error_invalid_input"));
   }
 
-  const response = await fetch(new URL(`/api/items/${encoded}/${encodedId}`, request.url), {
+  const response = await fetch(new URL(`/api/items/${encoded}/${encodedId}`, internalOrigin(request)), {
     method: "PATCH",
     headers: {
       "content-type": "application/json",
@@ -102,7 +103,7 @@ export async function POST(request: Request, ctx: Context) {
     return redirectWithMessage(request, backPath, "error", await apiMessage(response));
   }
 
-  const url = new URL(backPath, request.url);
+  const url = new URL(backPath, publicBaseUrl(request));
   url.searchParams.set("notice", "item_saved");
   return NextResponse.redirect(url, { status: 303 });
 }
