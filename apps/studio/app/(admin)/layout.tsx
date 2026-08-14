@@ -207,6 +207,16 @@ export default async function AdminLayout({
             <RightPanelToggle />
           </div>
         </header>
+        {/* ヘッダー直下のタブ（堀池・2026-08-15）:
+            「そのページで下層ページにせず、切り替えて表示する場合のもの。**ない場合もある**。」
+            🚨 **空のときは高さも罫線も持たない。** 中身が入ったときだけ帯になる
+               （`:empty` で判定する。空の帯が全ページに残ると、無いページで邪魔になる）。
+            中身は各ページが `components/admin/header-tabs.tsx` から portal で差し込む。 */}
+        <div
+          id="header-tabs"
+          data-slot="header-tabs"
+          className="flex items-center gap-2 px-4 not-empty:border-b not-empty:py-2 md:px-6"
+        />
         {/* 🚨 SP は下部の固定ナビに隠れるぶんの余白を本体側で持つ。
             ナビ側で持つと、safe-area の余白と二重になる。 */}
         <main className="flex-1 px-4 pt-6 pb-24 md:px-8 md:pb-6">{children}</main>

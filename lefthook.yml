@@ -54,6 +54,13 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-qualified-keys.mjs
 
+    # ショートカットの被り（堀池「ショートカットは被ってはいけない」）。
+    # 🚨 走るたびに囮を2つ仕込んで検出できることを確かめ、拾えた件数も出す
+    #    （「被りが無いから緑」と「拾えていないから緑」を区別するため）。
+    shortcuts:
+      root: "apps/studio"
+      run: node scripts/check-shortcuts.mjs
+
     # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
     knowledge:
       run: bash .lefthook/rokf-doctor.sh
