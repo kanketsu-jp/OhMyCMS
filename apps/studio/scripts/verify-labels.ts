@@ -45,6 +45,59 @@ async function caught(fn: () => Promise<unknown>): Promise<{ status?: number; co
   }
 }
 
+/**
+ * 🚨 **消えた対象を指したままの割り当て（孤児）を検出する。**
+ *
+ * 割り当てには外部キーを張れない（target_id がファイルとフォルダのどちらも指すため）。
+ * つまり **削除パスで消し忘れると、誰も気づかないまま残る**。
+ *
+ * 🚨 **「0 件でした」だけでは意味がない**（異常が無い 0 と、見ていない 0 は同じ見た目）。
+ *    そこで **わざと孤児を 1 件作って、検出できることを確かめてから**、実データを数える。
+ */
+async function orphanCheck(): Promise<void> {
+  const label = await db("ohmycms_labels").select("id").first();
+  if (!label) {
+    check("孤児: 検出できることを確かめた", false, "ラベルが1件も無く、確かめられなかった");
+    return;
+  }
+
+  const findOrphans = async (): Promise<number> => {
+    const rows = await db("ohmycms_label_assignments as a")
+      .leftJoin("directus_files as f", function join() {
+        this.on("a.target_id", "=", "f.id").andOn(db.raw("a.target_type = ?", ["file"]));
+      })
+      .leftJoin("directus_folders as d", function join() {
+        this.on("a.target_id", "=", "d.id").andOn(db.raw("a.target_type = ?", ["folder"]));
+      })
+      .whereNull("f.id")
+      .whereNull("d.id")
+      .select("a.target_id");
+    return rows.length;
+  };
+
+  // わざと孤児を作る（存在しない対象を指す割り当て）。
+  const ghostId = randomUUID();
+  await db("ohmycms_label_assignments").insert({
+    label_id: label.id,
+    target_type: "file",
+    target_id: ghostId,
+  });
+  const withGhost = await findOrphans();
+  await db("ohmycms_label_assignments").where({ target_id: ghostId }).delete();
+  const withoutGhost = await findOrphans();
+
+  check(
+    "孤児: わざと作った1件を検出できる（検査が効いている）",
+    withGhost === withoutGhost + 1,
+    `作った状態 ${withGhost} 件 → 消した状態 ${withoutGhost} 件`,
+  );
+  check(
+    "孤児: 実データに孤児が無い（0 件の意味を確かめた上で）",
+    withoutGhost === 0,
+    `${withoutGhost} 件`,
+  );
+}
+
 async function main(): Promise<void> {
   // 実在する管理者を使う（権限解決を本物のまま通したいので、偽の actor を作らない）。
   const user = await db("directus_users").select("id", "email", "role").first();
@@ -157,6 +210,11 @@ async function main(): Promise<void> {
   } else {
     await deleteLabel(actor, created.id);
   }
+
+  // 7. 🚨 **孤児の検出**（司令塔の指示: 責任を記憶に頼らない）。
+  //    割り当てには外部キーを張れないので、**削除パスの呼び忘れは静かに残る**。
+  //    ここで「検出できること」を先に確かめてから、実データの件数を数える。
+  await orphanCheck();
 
   // 後片付けの確認（検証用に作ったラベルが残っていないこと）。
   const leftovers = await db("ohmycms_labels").whereLike("name", "検証用ラベル%");
