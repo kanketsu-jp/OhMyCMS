@@ -31,7 +31,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -69,6 +69,8 @@ const FILE = arg("file", "");
 //    「押してみた人」にしか見つけられなかった（監査は寸法と面しか見ていなかった）。
 //    焦点が1度も動かなければ違反に数える。
 const KEYS = arg("keys", "");
+// 🚨 測る言語。既定は ja（**利用者が見ている画面**）。headless の既定 en のままにしない。
+const LOCALE = arg("locale", "ja");
 const KEYCODE = { ArrowDown: 40, ArrowUp: 38, Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35 };
 
 const DEFAULT_PATHS = [
@@ -430,6 +432,11 @@ const PROBE = String.raw`(() => {
     const cs = getComputedStyle(el);
     // 🚨 固定バーは中身の上に浮くだけで、区切りを二重にしているわけではない（憲章 §1 の 2-6）。
     if (cs.position === "fixed" || cs.position === "sticky") continue;
+    // 🚨 **読み上げから外された層は、比べる相手ではない。**
+    //    ドロワー（Sheet）を開くと背後の全体が inert / aria-hidden になる。
+    //    そこにある線と、ドロワーの中の線が偶然7px 離れて並び、「区切りが重複」と出た
+    //    （2026-08-15 実測。**別の層にあるものを比べていた**＝検査の誤り）。
+    if (el.closest("[aria-hidden=true], [inert]")) continue;
     const r = el.getBoundingClientRect();
     if (r.width < 40) continue;
     // 🚨 **4辺すべてに罫線があって角が丸い箱は「カード」。その上下の辺は区切りではなく輪郭。**
@@ -652,6 +659,30 @@ function freePort() {
   });
 }
 
+// ── headless Chrome の後始末 ───────────────────────────────────────────
+// 🚨 proc.kill() を成功経路にだけ置くと、測定中の例外・Ctrl-C・親プロセスの停止で
+//    Chrome が親なし(PPID=1)のまま残る。残った headless Chrome は macOS の
+//    LaunchServices に type="Foreground" で登録されるため、
+//    **Chrome.app を起動しても既存の headless が前面に出るだけでウィンドウが開かなくなる**。
+//    2026-08-15 に実際に 4 セット(41 プロセス・約 2.8GB)が残り、Chrome が使えなくなった。
+//    使い捨てプロファイルも消えずにゴミ箱へ約 240 個溜まっていた。
+const launched = [];
+let cleanedUp = false;
+function cleanupChrome() {
+  if (cleanedUp) return;
+  cleanedUp = true;
+  for (const { proc, profile } of launched) {
+    try { proc.kill("SIGKILL"); } catch { /* すでに終了している */ }
+    try { rmSync(profile, { recursive: true, force: true }); } catch { /* 消せなくても続行 */ }
+  }
+}
+process.on("exit", cleanupChrome);
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(sig, () => { cleanupChrome(); process.exit(130); });
+}
+process.on("uncaughtException", (e) => { cleanupChrome(); console.error(e); process.exit(1); });
+process.on("unhandledRejection", (e) => { cleanupChrome(); console.error(e); process.exit(1); });
+
 async function launchChrome() {
   const port = PORT || (await freePort());
   // プロファイルも毎回使い捨てにする（同じプロファイルは多重起動でロックされる）。
@@ -663,6 +694,9 @@ async function launchChrome() {
       "--no-first-run", "--no-default-browser-check", "--disable-gpu", "--hide-scrollbars",
       "about:blank",
     ], { stdio: "ignore" });
+    // 起動した瞬間に後始末の対象へ入れる（起動確認を待たない。
+    // 待つと、待っている最中に落ちたときに取りこぼす）。
+    launched.push({ proc, profile });
     let failed = false;
     proc.on("error", () => { failed = true; });
     for (let i = 0; i < 60 && !failed; i++) {
@@ -723,9 +757,23 @@ await cdp.send("Runtime.enable");
 await cdp.send("Accessibility.enable");
 await cdp.send("Network.enable");
 
-if (SESSION) {
+// 🚨 **言語を固定する。** headless Chrome の Accept-Language は既定で `en` なので、
+//    何もしないと**英語の画面を測る**ことになる（2026-08-15 実測。shell ペインの指摘で発覚）。
+//    堀池さんが見ているのは日本語。英語を測った寸法・あふれ・書体は**別の画面の話**になる
+//    （日本語は同じ意味でも文字幅が違う。「設定」2文字 と "Settings" 8文字）。
+//    --locale en で英語側も測れる。
+{
   const { hostname } = new URL(BASE);
-  await cdp.send("Network.setCookie", { name: "session", value: SESSION, domain: hostname, path: "/", httpOnly: true });
+  // 🚨 `file://` には hostname が無い。**対照（ローカルの HTML）で検査ごと落ちる**
+  //    ので、cookie を置くのは実際のホストがあるときだけ（2026-08-15 実測で踏んだ）。
+  if (hostname) {
+    await cdp.send("Network.setCookie", {
+      name: "ohmycms_locale", value: LOCALE, domain: hostname, path: "/",
+    });
+    if (SESSION) {
+      await cdp.send("Network.setCookie", { name: "session", value: SESSION, domain: hostname, path: "/", httpOnly: true });
+    }
+  }
 }
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
@@ -999,7 +1047,7 @@ for (const vp of VIEWPORTS) {
 }
 
 cdp.close();
-proc.kill();
+cleanupChrome();
 
 if (AS_JSON) {
   console.log(JSON.stringify({ base: BASE, report, violations }, null, 2));

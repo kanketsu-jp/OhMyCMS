@@ -60,6 +60,8 @@ export function LocaleSwitcher({ className, variant = "compact" }: Props) {
                 // ここはログイン画面＝**オンボーディングより前**で、日本語以外の人が
                 // 最初に触る唯一の切替なので、指で外すと先へ進めない。
                 // `text-xs` は変えない（ログイン画面で言語が主役になってしまうため）。
+                // 🚨 **2026-08-15 に一度戻された。** コメントだけ残り、クラスが消えていた。
+                //    英語では 24px でも収まって見えるが、これは高さの話なので言語に関係なく足りない。
                 : "flex min-h-(--control-h) items-center rounded px-2 py-1 text-xs md:min-h-(--control-h-pc)",
               isActive
                 ? "bg-muted text-foreground"
