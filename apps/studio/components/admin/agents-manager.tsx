@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, KeyRound, Ban } from "lucide-react";
+import { Copy, KeyRound, Ban, Plus } from "lucide-react";
+import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -319,7 +320,13 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <Textarea id="tenant_scope" name="tenant_scope" className="min-h-28 font-mono" />
           </div>
         </div>
-        <Button type="submit" disabled={create.pending}>{t("issue_button")}</Button>
+        <PageAction
+          form="agent-issue-form"
+          role="primary"
+          pending={create.pending}
+          label={t("issue_button")}
+          icon={<Plus />}
+        />
       </form>
       <div className="divide-y border-t">
         {agents.map((agent) => (

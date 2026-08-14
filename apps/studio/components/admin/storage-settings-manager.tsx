@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check } from "lucide-react";
+import { PageAction } from "@/components/admin/page-action";
 import { toast } from "@/components/ui/toast";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -52,15 +53,6 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
   );
   const [draft, setDraft] = useState<Draft>(initial);
   const [error, setError] = useState<string | null>(null);
-
-  const dirty =
-    draft.s3_endpoint !== initial.s3_endpoint ||
-    draft.s3_bucket !== initial.s3_bucket ||
-    draft.s3_region !== initial.s3_region ||
-    draft.s3_access_key_id.trim().length > 0 ||
-    draft.s3_secret_access_key.trim().length > 0 ||
-    draft.s3_force_path_style !== initial.s3_force_path_style ||
-    draft.s3_key_prefix !== initial.s3_key_prefix;
 
   const sourceLabel = (key: string) => {
     const source = settings.sources?.[key] ?? "default";
@@ -212,9 +204,6 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       </section>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" loading={save.pending} disabled={!dirty}>
-          {t("save_button")}
-        </Button>
         <span className="text-xs text-muted-foreground">
           {t("updated_at")}:{" "}
           {settings.updated_at
@@ -222,6 +211,13 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
             : t("never_updated")}
         </span>
       </div>
+      <PageAction
+        form="storage-settings-form"
+        role="primary"
+        pending={save.pending}
+        label={t("save_button")}
+        icon={<Check />}
+      />
     </form>
   );
 }

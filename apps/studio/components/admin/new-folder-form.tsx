@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FolderPlus } from "lucide-react";
+import { Check } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { PageAction } from "@/components/admin/page-action";
 import { Input } from "@/components/ui/input";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
@@ -62,10 +62,13 @@ export function NewFolderForm({ parent }: { parent: string | null }) {
         placeholder={t("name_placeholder")}
         aria-label={t("name_label")}
       />
-      <Button type="submit" className="w-full md:w-fit" disabled={create.pending}>
-        <FolderPlus />
-        {t("create_button")}
-      </Button>
+      <PageAction
+        form="folder-create-form"
+        role="primary"
+        pending={create.pending}
+        label={t("create_button")}
+        icon={<Check />}
+      />
     </form>
   );
 }

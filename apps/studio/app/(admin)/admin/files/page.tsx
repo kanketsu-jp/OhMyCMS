@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { FolderPlus, Plus, Upload } from "lucide-react";
+import { FolderPlus, Upload } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FilesLightboxGrid } from "@/components/admin/files-lightbox-grid";
 import { FolderGrid } from "@/components/admin/folder-grid";
 import { ListPagination } from "@/components/admin/list-pagination";
+import { PageAction } from "@/components/admin/page-action";
 import {
   GRID_PAGE_SIZE,
   currentPage,
   pageHref,
   splitPage,
 } from "@/components/admin/pagination-href";
-import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,13 +18,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -98,8 +91,23 @@ export default async function FilesPage({ searchParams }: Props) {
   const newFileHref = `/admin/files/new?folder=${currentLocation}`;
 
   return (
-    <div className="flex max-w-7xl flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <>
+      {/* 🚨 行き先は `newFileHref` / `newFolderHref`（既存の変数）を渡す。
+          `page-actions.ts` の `/admin/files/new` は**ルートの形**であって行き先ではない。
+          直書きすると `?folder=` が落ちて「フォルダの中で追加を押すと根に作られる」退行になる。 */}
+      <PageAction
+        href={newFileHref}
+        role="primary"
+        label={t("new_file_button")}
+        icon={<Upload />}
+      />
+      <PageAction
+        href={newFolderHref}
+        role="secondary"
+        label={t("new_folder_button")}
+        icon={<FolderPlus />}
+      />
+      <div className="flex max-w-7xl flex-col gap-6">
         <Breadcrumb aria-label={t("breadcrumb_label")}>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -125,57 +133,33 @@ export default async function FilesPage({ searchParams }: Props) {
             ))}
           </BreadcrumbList>
         </Breadcrumb>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button">
-              <Plus />
-              {t("new_button")}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <Link href={newFolderHref}>
-                  <FolderPlus />
-                  {t("new_folder_button")}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={newFileHref}>
-                  <Upload />
-                  {t("new_file_button")}
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ErrorBanner
+          message={
+            (!filesResult.ok ? filesResult.message : null) ??
+            (!foldersResult.ok ? foldersResult.message : null)
+          }
+        />
+        <Surface>
+          <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+          {filesResult.ok || foldersResult.ok ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
+              <FilesLightboxGrid files={files} />
+              {childFolders.length === 0 && files.length === 0 ? (
+                <p className="col-span-full text-sm text-muted-foreground">{t("empty_folder")}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {filesResult.ok ? (
+            <ListPagination
+              page={page}
+              hasNext={hasNext}
+              prevHref={page > 1 ? pageHref("/admin/files", query, page - 1) : null}
+              nextHref={hasNext ? pageHref("/admin/files", query, page + 1) : null}
+            />
+          ) : null}
+        </Surface>
       </div>
-      <ErrorBanner
-        message={
-          (!filesResult.ok ? filesResult.message : null) ??
-          (!foldersResult.ok ? foldersResult.message : null)
-        }
-      />
-      <Surface>
-        <SurfaceTitle>{t("list_title")}</SurfaceTitle>
-        {filesResult.ok || foldersResult.ok ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
-            <FilesLightboxGrid files={files} />
-            {childFolders.length === 0 && files.length === 0 ? (
-              <p className="col-span-full text-sm text-muted-foreground">{t("empty_folder")}</p>
-            ) : null}
-          </div>
-        ) : null}
-        {filesResult.ok ? (
-          <ListPagination
-            page={page}
-            hasNext={hasNext}
-            prevHref={page > 1 ? pageHref("/admin/files", query, page - 1) : null}
-            nextHref={hasNext ? pageHref("/admin/files", query, page + 1) : null}
-          />
-        ) : null}
-      </Surface>
-    </div>
+    </>
   );
 }

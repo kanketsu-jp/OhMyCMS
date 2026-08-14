@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, Trash2 } from "lucide-react";
+import { Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { PageAction } from "@/components/admin/page-action";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,7 +103,13 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
             </span>
           </label>
         </div>
-        <Button type="submit" disabled={create.pending}>{t("create_button")}</Button>
+        <PageAction
+          form="policy-create-form"
+          role="primary"
+          pending={create.pending}
+          label={t("create_button")}
+          icon={<Plus />}
+        />
       </form>
       <div className="divide-y border-t">
         {policies.map((policy) => (

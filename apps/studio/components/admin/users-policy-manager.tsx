@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserMinus } from "lucide-react";
+import { Plus, UserMinus } from "lucide-react";
+import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
@@ -111,7 +112,13 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
             ))}
           </select>
         </div>
-        <Button type="submit" disabled={assign.pending || users.length === 0 || policies.length === 0}>{t("assign_button")}</Button>
+        <PageAction
+          form="user-policy-assign-form"
+          role="primary"
+          pending={assign.pending}
+          label={t("assign_button")}
+          icon={<Plus />}
+        />
       </form>
       <div className="divide-y border-t">
         {access.map((row) => (

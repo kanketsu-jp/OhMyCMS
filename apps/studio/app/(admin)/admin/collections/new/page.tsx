@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Check } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { PageAction } from "@/components/admin/page-action";
 import { Input } from "@/components/ui/input";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { Label } from "@/components/ui/label";
@@ -52,7 +54,6 @@ export default async function NewCollectionPage({ searchParams }: Props) {
             <Input id="note" name="note" />
           </div>
           <div className="flex items-center gap-2">
-            <Button type="submit">{t("create_button")}</Button>
             <Link
               href="/admin/collections"
               className={cn(buttonVariants({ variant: "ghost" }))}
@@ -60,6 +61,12 @@ export default async function NewCollectionPage({ searchParams }: Props) {
               {t("cancel_button")}
             </Link>
           </div>
+          <PageAction
+            form="collection-create-form"
+            role="primary"
+            label={t("create_button")}
+            icon={<Check />}
+          />
         </form>
       </Surface>
     </div>

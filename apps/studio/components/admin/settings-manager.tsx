@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check } from "lucide-react";
 import { ColorField } from "@/components/admin/color-field";
+import { PageAction } from "@/components/admin/page-action";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -223,9 +225,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
       <p className="text-xs text-muted-foreground">{t("reset_hint")}</p>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" loading={saving}>
-          {t("save_button")}
-        </Button>
         <span className="text-xs text-muted-foreground">
           {t("updated_at")}:{" "}
           {settings.updated_at
@@ -233,6 +232,13 @@ export function SettingsManager({ settings }: { settings: Settings }) {
             : t("never_updated")}
         </span>
       </div>
+      <PageAction
+        form="settings-form"
+        role="primary"
+        pending={saving}
+        label={t("save_button")}
+        icon={<Check />}
+      />
     </form>
   );
 }

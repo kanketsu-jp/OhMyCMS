@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
@@ -92,7 +93,13 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
             ))}
           </select>
         </div>
-        <Button type="submit" disabled={create.pending}>{t("create_button")}</Button>
+        <PageAction
+          form="role-create-form"
+          role="primary"
+          pending={create.pending}
+          label={t("create_button")}
+          icon={<Plus />}
+        />
       </form>
       <div className="divide-y border-t">
         {roles.map((role) => (

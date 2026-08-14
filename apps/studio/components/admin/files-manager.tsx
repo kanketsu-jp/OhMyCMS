@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { FileDropzone } from "@/components/admin/file-dropzone";
-import { Button } from "@/components/ui/button";
+import { PageAction } from "@/components/admin/page-action";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -70,10 +70,13 @@ export function FileUploadForm({
             <option key={folder.id} value={folder.id}>{folder.name}</option>
           ))}
         </select>
-        <Button type="submit" className="w-full md:w-fit" disabled={upload.pending}>
-          <Upload />
-          {t("upload_button")}
-        </Button>
+        <PageAction
+          form="file-upload-form"
+          role="primary"
+          pending={upload.pending}
+          label={t("upload_button")}
+          icon={<Upload />}
+        />
       </form>
     </div>
   );

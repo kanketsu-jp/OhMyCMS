@@ -129,6 +129,20 @@ for (const { route, entries, forms } of declarations) {
   }
   foundCallSites += calls;
 
+  // 🚨 **この検査は「ルートに 1 つでも出ているか」までしか見ていない。**
+  //    宣言が 2 件あって 1 件しか描いていなくても通る。
+  //    実際に踏んだ（2026-08-15）: `/admin/files/[id]` は「保存(submit)」と「削除(button)」の
+  //    2 件を宣言していて、保存を足した時点でこの検査は緑になった。**削除は無いまま。**
+  //
+  //    件数で比べる形（見つけた数 < 宣言数 なら落とす）にはしていない。
+  //    `reachableFrom` は import を辿るので、**別のルート用の `<PageAction>` を持つ部品を
+  //    経由しただけで数が増える**（例: files のページから files-manager を辿ると、
+  //    アップロード用の呼び出しまで数に入る）。**過検出で人を止めるほうが害が大きい。**
+  //
+  //    いま確実に一致を見られるのは `kind:"submit"` だけ（form の id という手がかりがある）。
+  //    `link` / `button` は呼び出し側に宣言と結びつく文字列が無いので、静的には照合できない。
+  //    → **照合できないものは「見た」と言わない。** 下の集計で件数を出して、
+  //      人が突き合わせられるようにしてある。
   if (calls === 0) {
     problems.push(
       `${route} … ${entries.length} 件を宣言しているのに <PageAction> がどこにも無い` +
@@ -147,6 +161,24 @@ for (const { route, entries, forms } of declarations) {
 
 console.log(`宣言のあるルート: ${declarations.length} 件 / page.tsx があり検査したもの: ${inspectedRoutes} 件`);
 console.log(`辿ったファイル: のべ ${inspectedFiles} 件 / 見つけた <PageAction>: のべ ${foundCallSites} 件`);
+
+// 🚨 **緑を「全部照合した結果」と読ませない。**
+//    form の id で一致まで見られるのは submit だけ。link と button は静的に結びつけられない。
+//    その件数をここに出して、**何を見ていないか**が数で分かるようにする。
+const totalEntries = declarations.reduce((sum, d) => sum + d.entries.length, 0);
+const submitEntries = declarations.reduce(
+  (sum, d) => sum + d.entries.filter((k) => k === "submit").length,
+  0,
+);
+console.log(
+  `宣言の総数: ${totalEntries} 件` +
+    ` … うち form の id まで一致を見たもの: ${submitEntries} 件 /` +
+    ` 一致を見ていないもの（link・button）: ${totalEntries - submitEntries} 件`,
+);
+console.log(
+  "🚨 link と button は、呼び出し側に宣言と結びつく文字列が無いため**静的には照合できない**。" +
+    "「ルートに 1 つでも <PageAction> があるか」までしか見ていない。",
+);
 
 // 🚨 対象が 0 なら「異常が無い」ではなく「見ていない」。失敗として扱う。
 if (inspectedRoutes === 0) {
