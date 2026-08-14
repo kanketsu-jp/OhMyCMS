@@ -9,6 +9,7 @@ import { HeaderBack } from "@/components/admin/header-back";
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { UserMenu } from "@/components/admin/user-menu";
 import { NavLinks } from "@/components/admin/nav-links";
+import { RightPanelProvider, RightPanelToggle } from "@/components/admin/right-panel";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { getT } from "@/i18n/server";
 import { projectColor } from "@/lib/settings/project-color";
@@ -90,6 +91,10 @@ export default async function AdminLayout({
       // 未設定・不正な値なら null が返り、既定の配色のままになる。
       style={accent ? ({ "--primary": accent } as React.CSSProperties) : undefined}
     >
+      {/* 🚨 **左サイドバー｜コンテンツ｜右サイドバー** の3カラム（堀池・2026-08-15）。
+          右サイドバーは `RightPanelProvider` が末尾に描く（開いているときだけ）。
+          Provider は DOM を作らないので、flex の直下の子は aside / div / 右サイドバー のまま。 */}
+      <RightPanelProvider brand={brand}>
       {/* 面は「罫線・背景・影」のうち1つだけ（docs/design/surface-rules.md §2-1）。
           サイドバーは罫線1本で区切る。背景も付けると面が濃くなり、中の区切りが2段目になる。 */}
       <aside className="hidden w-64 shrink-0 border-r md:flex md:flex-col">
@@ -177,7 +182,8 @@ export default async function AdminLayout({
                 いま動かすと header の3分割と同時に2箇所が変わって、
                 崩れたときにどちらが原因か分からなくなるので、次の回に分ける。 */}
             <GlobalSearch />
-            {/* TODO(A群②): lucide の `info` アイコン。押すと右サイドバーが開く。 */}
+            {/* 一番右。押すと右サイドバー（このページの説明）が開く。 */}
+            <RightPanelToggle />
           </div>
         </header>
         {/* 🚨 SP は下部の固定ナビに隠れるぶんの余白を本体側で持つ。
@@ -202,6 +208,9 @@ export default async function AdminLayout({
         contentHeading={t("content_heading")}
         userLabel={displayUserLabel(me.ok ? me.data : null)}
       />
+      {/* 🚨 `MobileNav` も Provider の中に置く。SP のドロワーから右パネルを開くものが入るため
+          （不具合報告の「報告する」）。`MobileNav` は fixed なので、flex の並びには影響しない。 */}
+      </RightPanelProvider>
     </div>
   );
 }

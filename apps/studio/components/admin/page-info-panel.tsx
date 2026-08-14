@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 
 import {
   Accordion,
@@ -25,6 +26,25 @@ import { pageMeta } from "@/lib/admin/page-meta";
  * 🚨 文言の出所は `lib/admin/page-meta.ts`（design が作った定義）ただ1つ。
  *    ここで説明文を書かない。書くと Storybook・LLM が読むものと画面が食い違う。
  */
+/**
+ * その id がページの中に実在するか。
+ *
+ * 🚨 **飛び先が無いリンクを描かない**（`page-actions.ts` の「壊れたリンクを描かない」と同じ考え方）。
+ *    押しても何も起きないリンクは、**画面を見ているかぎり壊れていると分からない**。
+ *    節がまだ用意されていないページでは、リンクではなく**ただの文字**として出す。
+ *
+ * 🚨 `useEffect` + `setState` にしない（React Compiler の lint が error にする）。
+ *    返すのは文字列なので、同じ状態なら同じ値になり再描画も起きない。
+ */
+function useExistingAnchors(ids: readonly string[]): Set<string> {
+  const key = useSyncExternalStore(
+    () => () => {},
+    () => ids.filter((id) => document.getElementById(id) !== null).join(","),
+    () => "",
+  );
+  return new Set(key ? key.split(",") : []);
+}
+
 export function PageInfoPanel() {
   const t = useT("panel");
   // 名前空間を付けない。page-meta が名前空間つきの完全なキーを持っているため。
@@ -33,6 +53,7 @@ export function PageInfoPanel() {
   const meta = pageMeta(pathname);
 
   const sections = meta?.sectionKeys ?? [];
+  const anchors = useExistingAnchors(sections.map(sectionAnchorId));
 
   return (
     <Accordion defaultValue={["overview"]}>
@@ -55,16 +76,22 @@ export function PageInfoPanel() {
           {/* 下線は消す。堀池（原文）:「意味がわからない＋デザインとしてノイズ」 */}
           <AccordionContent className="[&_a]:no-underline">
             <ul className="flex flex-col">
-              {sections.map((key) => (
-                <li key={key}>
-                  <a
-                    href={`#${sectionAnchorId(key)}`}
-                    className="flex min-h-(--control-h) items-center rounded-md px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-(--control-h-pc)"
-                  >
-                    {tKey(key)}
-                  </a>
-                </li>
-              ))}
+              {sections.map((key) => {
+                const id = sectionAnchorId(key);
+                const row = "flex min-h-(--control-h) items-center rounded-md px-2 text-sm text-muted-foreground md:min-h-(--control-h-pc)";
+                return (
+                  <li key={key}>
+                    {anchors.has(id) ? (
+                      <a href={`#${id}`} className={`${row} hover:bg-muted hover:text-foreground`}>
+                        {tKey(key)}
+                      </a>
+                    ) : (
+                      // 飛び先がまだ無い節。名前は出すが、押せるようには見せない。
+                      <span className={row}>{tKey(key)}</span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </AccordionContent>
         </AccordionItem>

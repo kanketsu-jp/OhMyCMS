@@ -29,6 +29,7 @@ import enMcp from "./messages/en/mcp.json";
 import enNav from "./messages/en/nav.json";
 import enNotifications from "./messages/en/notifications.json";
 import enOnboarding from "./messages/en/onboarding.json";
+import enPanel from "./messages/en/panel.json";
 import enPolicies from "./messages/en/policies.json";
 import enRelations from "./messages/en/relations.json";
 import enReports from "./messages/en/reports.json";
@@ -54,6 +55,7 @@ import jaMcp from "./messages/ja/mcp.json";
 import jaNav from "./messages/ja/nav.json";
 import jaNotifications from "./messages/ja/notifications.json";
 import jaOnboarding from "./messages/ja/onboarding.json";
+import jaPanel from "./messages/ja/panel.json";
 import jaPolicies from "./messages/ja/policies.json";
 import jaRelations from "./messages/ja/relations.json";
 import jaReports from "./messages/ja/reports.json";
@@ -81,6 +83,7 @@ export const NAMESPACES = [
   "nav",
   "notifications",
   "onboarding",
+  "panel",
   "policies",
   "relations",
   "reports",
@@ -109,6 +112,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     nav: jaNav,
     notifications: jaNotifications,
     onboarding: jaOnboarding,
+    panel: jaPanel,
     policies: jaPolicies,
     relations: jaRelations,
     reports: jaReports,
@@ -135,6 +139,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     nav: enNav,
     notifications: enNotifications,
     onboarding: enOnboarding,
+    panel: enPanel,
     policies: enPolicies,
     relations: enRelations,
     reports: enReports,

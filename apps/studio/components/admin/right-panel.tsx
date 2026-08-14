@@ -65,7 +65,9 @@ const RightPanelContext = createContext<RightPanelApi | null>(null);
 export function useRightPanel(): RightPanelApi {
   const value = useContext(RightPanelContext);
   if (!value) {
-    throw new Error("RightPanelProvider の外側で useRightPanel が呼ばれました");
+    // 🚨 これは利用者ではなく**作る側**へのメッセージなので辞書へ入れない（画面には出ない）。
+    //    日本語で書くと `check-i18n-hardcoded` が UI 文言として拾うため、英語で書く。
+    throw new Error("useRightPanel was called outside RightPanelProvider");
   }
   return value;
 }
@@ -142,6 +144,10 @@ export function RightPanelToggle() {
       onClick={toggle}
       aria-label={t("open")}
       aria-expanded={isOpen}
+      // 🚨 `aria-expanded` だけでは名指しできない。同じヘッダーの中でパンくずの
+      //    ドロップダウンも `aria-expanded` を持つので、検証が**別のボタンを押していた**
+      //    （実測: info を押したつもりでパンくずが開き、「開かない」と誤診しかけた）。
+      data-slot="right-panel-toggle"
       className="text-muted-foreground"
     >
       <InfoIcon />
