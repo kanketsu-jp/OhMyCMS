@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +77,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
         </div>
       ) : null}
       <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
+        <FormDraft formId="role-create-form" />
         <div className="space-y-1.5">
           <Label htmlFor="name">{t("name_label")}</Label>
           <Input id="name" name="name" required />

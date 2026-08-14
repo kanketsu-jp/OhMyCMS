@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { ColorField } from "@/components/admin/color-field";
+import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -129,6 +130,7 @@ export function SettingsManager({ settings }: { settings: Settings }) {
 
   return (
     <form id="settings-form" action={save} className="max-w-2xl space-y-6">
+      <FormDraft formId="settings-form" />
       {error ? (
         <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}

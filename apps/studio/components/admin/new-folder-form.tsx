@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { useState } from "react";
 
+import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { Input } from "@/components/ui/input";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
@@ -55,6 +56,7 @@ export function NewFolderForm({ parent }: { parent: string | null }) {
 
   return (
     <form id="folder-create-form" action={create.run} className="flex flex-col gap-4">
+      <FormDraft formId="folder-create-form" />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Input
         name="name"

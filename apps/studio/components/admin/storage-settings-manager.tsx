@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
@@ -150,6 +151,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
         void save.run();
       }}
     >
+      <FormDraft formId="storage-settings-form" />
       {error ? (
         <p className="rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive">
           {error}

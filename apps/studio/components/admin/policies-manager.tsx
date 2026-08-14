@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +81,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
         </div>
       ) : null}
       <form id="policy-create-form" action={create.run} className="space-y-4">
+        <FormDraft formId="policy-create-form" />
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>

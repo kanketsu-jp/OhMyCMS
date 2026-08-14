@@ -1,0 +1,6 @@
+{
+  "restore_prompt": "You have unsaved input from before.",
+  "restore_button": "Restore",
+  "discard_button": "Discard",
+  "leave_confirm": "Your changes are not saved. Leave this page?"
+}

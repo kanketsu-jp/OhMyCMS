@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, KeyRound, Ban, Plus } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -232,6 +233,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         </div>
       ) : null}
       <form id="agent-issue-form" action={create.run} className="space-y-4">
+        <FormDraft formId="agent-issue-form" />
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>

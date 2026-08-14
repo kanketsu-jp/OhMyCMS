@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 
+import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import {
   Accordion,
@@ -77,6 +78,7 @@ export function FieldCreateForm({ collection }: Props) {
       method="post"
       className="flex flex-col gap-4"
     >
+      <FormDraft formId="field-create-form" />
       <input type="hidden" name="type" value={resolvedType} />
       <input type="hidden" name="interface" value={resolvedInterface} />
 

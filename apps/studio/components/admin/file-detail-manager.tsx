@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Trash2 } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,6 +86,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
         </div>
       ) : null}
       <form id="file-detail-form" action={save.run} className="space-y-4">
+        <FormDraft formId="file-detail-form" />
         <div className="space-y-1.5">
           <Label htmlFor="title">{t("title_label")}</Label>
           <Input id="title" name="title" defaultValue={file.title ?? ""} />
