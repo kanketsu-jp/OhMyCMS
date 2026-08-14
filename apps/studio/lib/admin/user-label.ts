@@ -1,6 +1,11 @@
 import type { MeResult } from "@/lib/admin/api";
 import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/service";
 
+// アバターに何も無いときの既定の絵文字。
+// 🚨 辞書に入れない: `components/admin/shortcuts.ts` の `MOD_SYMBOL` と同じ理由で、
+// 記号は言語で変わらない（日本語版と英語版で違う絵文字にする理由が無い）。
+const DEFAULT_AVATAR_EMOJI = "🙂";
+
 function visibleHuman(me: MeResult | null): Extract<MeResult, { type: "human" }> | null {
   if (!me) return null;
   // エージェント（機械）は人のアカウント行に出さない。
@@ -33,4 +38,14 @@ export function displayUserLabel(me: MeResult | null): string | null {
 
 export function displayUserPicture(me: MeResult | null): string | null {
   return visibleHuman(me)?.picture ?? null;
+}
+
+/**
+ * アバターに出す絵文字。SSO の画像が無いときの控え。
+ *
+ * 優先順位: SSO の画像（`displayUserPicture` が別途優先される）→ 利用者が選んだ絵文字 → 既定の絵文字。
+ * 🚨 戻り値は必ず文字列。アバターは常に何かを出すため、null にしない。
+ */
+export function displayUserAvatarEmoji(me: MeResult | null): string {
+  return visibleHuman(me)?.avatarEmoji ?? DEFAULT_AVATAR_EMOJI;
 }

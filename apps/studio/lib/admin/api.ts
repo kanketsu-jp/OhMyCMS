@@ -12,7 +12,14 @@ export type ApiResult<T> =
   | { ok: false; status: number; message: string; code?: string };
 
 export type MeResult =
-  | { type: "human"; userId: string; email: string; role: string | null; picture: string | null }
+  | {
+      type: "human";
+      userId: string;
+      email: string;
+      role: string | null;
+      picture: string | null;
+      avatarEmoji: string | null;
+    }
   | { type: "agent"; agentId: string; name: string; onBehalfOf: string };
 
 export async function requestOrigin(): Promise<string> {

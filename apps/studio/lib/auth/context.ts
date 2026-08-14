@@ -9,6 +9,7 @@ export type HumanActor = {
   email: string;
   role: string | null;
   picture: string | null;
+  avatarEmoji: string | null;
 };
 
 export type AgentActor = {
@@ -35,6 +36,7 @@ type SessionUserRow = {
   email: string;
   role: string | null;
   auth_data: unknown;
+  avatar_emoji: string | null;
 };
 
 function authDataPicture(value: unknown): string | null {
@@ -98,6 +100,7 @@ async function resolveHuman(token: string): Promise<HumanActor> {
       email: "directus_users.email",
       role: "directus_users.role",
       auth_data: "directus_users.auth_data",
+      avatar_emoji: "directus_users.avatar_emoji",
     })
     .where("directus_sessions.token", tokenHash)
     .where("directus_sessions.expires", ">", db.fn.now())
@@ -113,6 +116,7 @@ async function resolveHuman(token: string): Promise<HumanActor> {
     email: row.email,
     role: row.role,
     picture: authDataPicture(row.auth_data),
+    avatarEmoji: row.avatar_emoji,
   };
 }
 

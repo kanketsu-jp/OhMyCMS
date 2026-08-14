@@ -38,6 +38,8 @@ type Props = {
   userLabel: string | null;
   /** SSO のプロフィール画像。出せなければ null */
   userPicture: string | null;
+  /** アバターに出す絵文字。画像が無いときの控え。常に何か入っている */
+  userAvatarEmoji: string;
 };
 
 /**
@@ -60,7 +62,15 @@ type Props = {
  *
  * 🚨 面は作らない（§1）。上辺の罫線1本だけで、背景は本体と同じ。
  */
-export function MobileNav({ items, groups, collections, contentHeading, userLabel, userPicture }: Props) {
+export function MobileNav({
+  items,
+  groups,
+  collections,
+  contentHeading,
+  userLabel,
+  userPicture,
+  userAvatarEmoji,
+}: Props) {
   const t = useT("nav");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -137,7 +147,7 @@ export function MobileNav({ items, groups, collections, contentHeading, userLabe
                 ) : null}
               </div>
             </div>
-            <UserMenu userLabel={userLabel} userPicture={userPicture} />
+            <UserMenu userLabel={userLabel} userPicture={userPicture} userAvatarEmoji={userAvatarEmoji} />
           </SheetContent>
         </Sheet>
 

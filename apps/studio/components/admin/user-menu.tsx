@@ -20,6 +20,12 @@ type Props = {
   userLabel: string | null;
   /** SSO のプロフィール画像。取れなければ null */
   userPicture: string | null;
+  /**
+   * アバターに出す絵文字。画像が無いときの控え。
+   * 🚨 省略可（`?`）にしない。省略できると渡し忘れた呼び出し側で `tsc` が黙って通り、
+   * 画面だけ変わらない事故になる。
+   */
+  userAvatarEmoji: string;
 };
 
 /**
@@ -37,7 +43,7 @@ type Props = {
  *
  * 🚨 PC のサイドバー末尾も SP のドロワー末尾も画面の下端なので、メニューは常に上へ開く。
  */
-export function UserMenu({ userLabel, userPicture }: Props) {
+export function UserMenu({ userLabel, userPicture, userAvatarEmoji }: Props) {
   const t = useT("nav");
   const tCommon = useT("common");
   const locale = useLocale();
@@ -45,7 +51,6 @@ export function UserMenu({ userLabel, userPicture }: Props) {
   //    この行は**人のアカウントの行**なので、器の名前（メニュー）を出すと何の行か分からない。
   //    名前が出せない例: エージェント／起動用の内部ユーザー（`lib/admin/user-label.ts`）。
   const label = userLabel ?? t("account");
-  const fallback = label.slice(0, 1).toUpperCase();
 
   return (
     <div className="shrink-0 border-t px-2 py-2">
@@ -60,7 +65,7 @@ export function UserMenu({ userLabel, userPicture }: Props) {
               {userPicture ? (
                 <AvatarImage src={userPicture} alt="" referrerPolicy="no-referrer" />
               ) : null}
-              <AvatarFallback>{fallback}</AvatarFallback>
+              <AvatarFallback>{userAvatarEmoji}</AvatarFallback>
             </Avatar>
             <span className="min-w-0 flex-1 truncate text-left">{label}</span>
             <ChevronsUpDown />

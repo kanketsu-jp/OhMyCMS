@@ -94,6 +94,8 @@ type Props = {
   userLabel: string | null;
   /** SSO のプロフィール画像。出せないなら null */
   userPicture: string | null;
+  /** アバターに出す絵文字。画像が無いときの控え。常に何か入っている */
+  userAvatarEmoji: string;
 };
 
 function isCurrent(pathname: string, href: string): boolean {
@@ -220,6 +222,7 @@ export function LeftSidebar({
   reports,
   userLabel,
   userPicture,
+  userAvatarEmoji,
 }: Props) {
   const t = useT("nav");
 
@@ -280,7 +283,7 @@ export function LeftSidebar({
             "group-data-[collapsible=icon]:[&_[data-slot=button]>svg]:hidden",
           )}
         >
-          <UserMenu userLabel={userLabel} userPicture={userPicture} />
+          <UserMenu userLabel={userLabel} userPicture={userPicture} userAvatarEmoji={userAvatarEmoji} />
         </div>
       </SidebarFooter>
 
