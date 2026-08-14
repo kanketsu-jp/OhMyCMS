@@ -150,8 +150,13 @@ hrdr channel list       # チャネルのポート台帳
 - **「送信は成功、しかし相手は永久に気づかない」**: 送信側には「inbox投函・未読1件」と
   正常っぽく見えるが、相手が busy で起こされず、督促も無ければ気づかれない。これへの
   対策が `msg` の3状態区別と `nudge`。急ぐ連絡は `msg` でなく `send` を使う。
-  `--json` なら `delivery`（`channel`/`inbox+wake`/`inbox-only`）と `woke`/`unread` が
-  返るので、自動化側が「届いていない」を機械判定できる。
+  `--json` なら `delivery`（`channel`/`inbox+wake`/`inbox-only`）と `wake_attempted`/`unread` が
+  返るので、自動化側が「届いていない」を機械判定できる（`wake_attempted` は起こす注入を
+  実行したかという送信側の動作で、相手が読んだ/起きた証拠ではない。受信側サーバーが
+  返す応答は `push_ack` で、これも「push したと応答した」だけで既読の証拠ではない）。
+  2026-08-14 hrdr 0.1.3 で `woke`→`wake_attempted`、`pushed`→`push_ack` に改名（利用者に出る
+  フィールド名のみの変更。HTTPのワイヤ上のフィールド名は稼働中の旧受信側との互換のため
+  `pushed` のまま）。
 - **`hrdr revive` の失敗（コード3）**: 台帳の `last_session_id` を使い、ID が無ければ
   失敗する。推測で新規セッションを開かない（復活したつもりで文脈が空のペインが
   立つのが最悪のため）。
