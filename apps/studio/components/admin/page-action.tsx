@@ -77,7 +77,17 @@ export function PageAction({
   const order = role === "secondary" ? "order-first" : undefined;
 
   // PC: 文字つき。SP: アイコンだけ（行の中の操作と同じで、文脈は画面が持っている）
-  const pc = renderAction({ href, form, onClick, label, icon, pending, variant, order, compact: false });
+  const pc = renderAction({
+    href,
+    form,
+    onClick,
+    label,
+    icon,
+    pending,
+    variant,
+    order: cn(order, "hidden md:inline-flex"),
+    compact: false,
+  });
   const sp = renderAction({ href, form, onClick, label, icon, pending, variant, order, compact: true });
 
   return (
