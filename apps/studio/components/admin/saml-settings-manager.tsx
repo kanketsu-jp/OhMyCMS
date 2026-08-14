@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,7 +58,6 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   });
 
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // 🚨 §3c「未入力なら確定を無効にする」。
@@ -68,7 +68,6 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   async function save() {
     setSaving(true);
     setError(null);
-    setSaved(false);
 
     const body: Record<string, unknown> = {
       enabled,
@@ -108,7 +107,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
       return;
     }
 
-    setSaved(true);
+    toast.success(t("saved"));
     router.refresh();
   }
 
@@ -142,7 +141,6 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
           {error}
         </p>
       ) : null}
-      {saved ? <p className="text-sm text-muted-foreground">{t("saved")}</p> : null}
 
       {/* ── IdP に登録する値（利用者が IdP 側へ写す） ── */}
       <section className="space-y-3">
@@ -282,8 +280,8 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
 
       <div className="flex items-center gap-3">
         {/* 🚨 §3c: 未入力なら確定できない。 */}
-        <Button type="submit" disabled={saving || !ready}>
-          {saving ? t("saving") : t("save_button")}
+        <Button type="submit" loading={saving} disabled={!ready}>
+          {t("save_button")}
         </Button>
         <span className="text-xs text-muted-foreground">
           {t("updated_at")}:{" "}

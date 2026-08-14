@@ -4,7 +4,6 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
 import { Plus } from "lucide-react";
-import { noticeKeyFromQuery } from "@/i18n/notice";
 import { getT } from "@/i18n/server";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -17,15 +16,8 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-type Props = {
-  searchParams: Promise<{ error?: string; notice?: string }>;
-};
-
-export default async function CollectionsPage({ searchParams }: Props) {
+export default async function CollectionsPage() {
   const t = await getT("collections");
-  const tNotice = await getT("notifications");
-  const params = await searchParams;
-  const noticeKey = noticeKeyFromQuery(params.notice);
   const result = await apiFetch<CollectionResult[]>("/api/collections");
 
   return (
@@ -47,10 +39,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
           icon={<Plus />}
         />
       </div>
-      <ErrorBanner message={params.error ?? (!result.ok ? result.message : null)} />
-      {noticeKey ? (
-        <div className="text-sm text-muted-foreground">{tNotice(noticeKey)}</div>
-      ) : null}
+      <ErrorBanner message={!result.ok ? result.message : null} />
       {/* 🚨 **枠で囲まない**（堀池・2026-08-15）:
           > 「ボーダー＋Padding はいらない。親要素にすでに Padding があるのと、
           >   カードコンポーネントを多用するのはデザインスキルが低い。

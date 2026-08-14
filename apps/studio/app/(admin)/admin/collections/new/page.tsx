@@ -1,15 +1,10 @@
 import Link from "next/link";
-import { ErrorBanner } from "@/components/admin/error-banner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Surface } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { cn } from "@/lib/utils";
-
-type Props = {
-  searchParams: Promise<{ error?: string }>;
-};
 
 /**
  * コレクションを作る画面。
@@ -21,9 +16,8 @@ type Props = {
  * 🚨 その場で開く形（畳んで展開）にはしない。**開くとその場に割り込んで、
  * そのページの主役が入れ替わる**のが弱点だった。別ページなら一覧は最後まで一覧のまま。
  */
-export default async function NewCollectionPage({ searchParams }: Props) {
+export default async function NewCollectionPage() {
   const t = await getT("collections");
-  const params = await searchParams;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -35,7 +29,6 @@ export default async function NewCollectionPage({ searchParams }: Props) {
           {t("back_to_list")}
         </Link>
       </div>
-      <ErrorBanner message={params.error ?? null} />
       <Surface>
         <form id="collection-create-form" action="/admin/actions/collections" method="post" className="grid gap-4">
           <div className="space-y-1.5">

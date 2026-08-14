@@ -201,6 +201,23 @@
       outline-offset: 2px;
     }
   }
+
+  /* トーストの残り時間を**背景色**で示す（堀池 2026-08-15:「プログレスバーは背景色で
+     表現する。Success の場合背景色は emerald-50 にして左から３秒かけて emerald-100 に
+     なるイメージ」）。細い棒を足すのではなく、面そのものが左から塗り替わる。
+
+     🚨 秒数は components/ui/toast.tsx の `TOAST_TIMEOUT_MS` と**対で 3 秒**。
+        片方だけ変えると、バーが端に着く前に消える／着いたのに残る＝表示が嘘をつく。
+     🚨 width ではなく transform を動かす。width はレイアウトを毎フレーム計算させるので、
+        トーストの中の文字が微妙に揺れる。 */
+  @keyframes ohmycms-toast-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
 }
 
 @layer base {

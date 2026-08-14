@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColorField } from "@/components/admin/color-field";
+import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +39,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   // ロゴは「選んだ瞬間にアップロードして ID を持つ」形。
   // 🚨 堀池さん指示「ファイルidを指定することは gui ではない。ちゃんとアップロード ui を用意する」。
   //    FileDropzone は File を返すだけなので、ID にするのはこちらの責任。
@@ -71,7 +71,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
   async function save(formData: FormData) {
     setSaving(true);
     setError(null);
-    setSaved(false);
 
     const response = await fetch("/api/settings", {
       method: "PATCH",
@@ -99,7 +98,7 @@ export function SettingsManager({ settings }: { settings: Settings }) {
       return;
     }
 
-    setSaved(true);
+    toast.success(t("saved"));
     // ヘッダのサービス名などが即座に変わるようサーバ側を引き直す。
     router.refresh();
   }
@@ -131,11 +130,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
       {error ? (
         <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
-        </p>
-      ) : null}
-      {saved ? (
-        <p className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          {t("saved")}
         </p>
       ) : null}
 
@@ -229,8 +223,8 @@ export function SettingsManager({ settings }: { settings: Settings }) {
       <p className="text-xs text-muted-foreground">{t("reset_hint")}</p>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={saving}>
-          {saving ? t("saving") : t("save_button")}
+        <Button type="submit" loading={saving}>
+          {t("save_button")}
         </Button>
         <span className="text-xs text-muted-foreground">
           {t("updated_at")}:{" "}

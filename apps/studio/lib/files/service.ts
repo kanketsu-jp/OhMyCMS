@@ -14,6 +14,7 @@ import {
 import { ApiError } from "@/lib/schema/errors";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { RelationMeta } from "@/lib/schema/models";
+import { removeLabelsForTarget } from "@/lib/labels/service";
 import { getStorage, getStorageByName } from "@/lib/storage";
 import type { StorageDriver } from "@/lib/storage/driver";
 
@@ -561,6 +562,9 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
   const deleteQuery = db<FileRow>("directus_files").where({ id });
   applyRowFilter(deleteQuery, permission.rowFilter, "directus_files", schemaOverview, relations);
   await deleteQuery.delete();
+  // 🚨 ラベルの割り当ては外部キーで消えない（target_id が files と folders の
+  //    どちらも指すため、外部キーを張れない）。**ここで消さないと残り続ける。**
+  await removeLabelsForTarget("file", id);
 }
 
 function parseDimension(value: string | null | undefined, field: string): number | undefined {
@@ -866,6 +870,8 @@ export async function deleteFolder(actor: Actor, id: string): Promise<void> {
   if (!deleted) {
     throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
   }
+  // 🚨 ファイルと同じ理由で、ここで割り当てを消す。
+  await removeLabelsForTarget("folder", id);
 }
 
 export function recordBody(body: unknown): Record<string, unknown> {

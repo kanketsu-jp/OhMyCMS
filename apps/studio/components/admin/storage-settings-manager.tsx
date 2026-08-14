@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +51,6 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
   );
   const [draft, setDraft] = useState<Draft>(initial);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const dirty =
@@ -74,7 +74,6 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
   async function save() {
     setSaving(true);
     setError(null);
-    setSaved(false);
 
     const patch: Record<string, unknown> = {
       s3_endpoint: draft.s3_endpoint,
@@ -109,7 +108,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       return;
     }
 
-    setSaved(true);
+    toast.success(t("saved"));
     setDraft({ ...draft, s3_access_key_id: "", s3_secret_access_key: "" });
     router.refresh();
   }
@@ -166,7 +165,6 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
           {error}
         </p>
       ) : null}
-      {saved ? <p className="text-sm text-muted-foreground">{t("saved")}</p> : null}
 
       <section className="flex flex-col gap-3">
         <div>
@@ -216,8 +214,8 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       </section>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={saving || !dirty}>
-          {saving ? t("saving") : t("save_button")}
+        <Button type="submit" loading={saving} disabled={!dirty}>
+          {t("save_button")}
         </Button>
         <span className="text-xs text-muted-foreground">
           {t("updated_at")}:{" "}

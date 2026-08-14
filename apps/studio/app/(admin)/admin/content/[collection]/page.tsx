@@ -5,7 +5,6 @@ import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
 import { isFileField } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
-import { noticeKeyFromQuery } from "@/i18n/notice";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
@@ -44,10 +43,8 @@ function primaryKey(fields: FieldResult[]): string {
 export default async function ContentPage({ params, searchParams }: Props) {
   const t = await getT("items");
   const tFields = await getT("fields");
-  const tNotice = await getT("notifications");
   const { collection } = await params;
   const query = await searchParams;
-  const noticeKey = noticeKeyFromQuery(query.notice);
   const page = Math.max(1, Number(query.page ?? "1") || 1);
   const limit = 20;
   const offset = (page - 1) * limit;
@@ -110,14 +107,10 @@ export default async function ContentPage({ params, searchParams }: Props) {
       </div>
       <ErrorBanner
         message={
-          query.error ??
           (!fieldsResult.ok ? fieldsResult.message : null) ??
           (!itemsResult.ok ? itemsResult.message : null)
         }
       />
-      {noticeKey ? (
-        <div className="text-sm text-muted-foreground">{tNotice(noticeKey)}</div>
-      ) : null}
       <Surface>
         <SurfaceTitle>{t("list_title")}</SurfaceTitle>
         {itemsResult.ok ? (

@@ -5,7 +5,6 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
 import { RelationForm } from "@/components/admin/relation-form";
-import { noticeKeyFromQuery } from "@/i18n/notice";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
@@ -21,7 +20,6 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ collection: string }>;
-  searchParams: Promise<{ error?: string; notice?: string }>;
 };
 
 type CollectionRelationRow = {
@@ -64,15 +62,12 @@ function relationRows(relations: RelationResult[], collection: string): Collecti
   });
 }
 
-export default async function CollectionDetailPage({ params, searchParams }: Props) {
+export default async function CollectionDetailPage({ params }: Props) {
   const tCollections = await getT("collections");
   const tFields = await getT("fields");
   const tItems = await getT("items");
-  const tNotice = await getT("notifications");
   const tRelations = await getT("relations");
   const { collection } = await params;
-  const query = await searchParams;
-  const noticeKey = noticeKeyFromQuery(query.notice);
   const encoded = encodeURIComponent(collection);
   const [collectionResult, fieldsResult, relationsResult, collectionsResult] = await Promise.all([
     apiFetch<CollectionResult>(`/api/collections/${encoded}`),
@@ -108,15 +103,11 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       </div>
       <ErrorBanner
         message={
-          query.error ??
           (!collectionResult.ok ? collectionResult.message : null) ??
           (!fieldsResult.ok ? fieldsResult.message : null) ??
           (!relationsResult.ok ? relationsResult.message : null)
         }
       />
-      {noticeKey ? (
-        <div className="text-sm text-muted-foreground">{tNotice(noticeKey)}</div>
-      ) : null}
       <Surface>
         <SurfaceTitle>{tFields("list_title")}</SurfaceTitle>
         {fieldsResult.ok ? (
