@@ -1,8 +1,10 @@
+import { Check } from "lucide-react";
+
 import type { FieldResult } from "@/lib/schema/models";
+import { PageAction } from "@/components/admin/page-action";
 import { FilePicker } from "@/components/admin/file-picker";
 import { RichTextField } from "@/components/admin/rich-text-field";
 import { getT } from "@/i18n/server";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fieldWidthClass, resolveFieldInterface } from "@/lib/schema/interfaces";
@@ -145,7 +147,21 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
       {visibleFields.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("empty_fields")}</p>
       ) : null}
-      <Button type="submit">{isEdit ? tItems("save_button") : tItems("create_button")}</Button>
+      {/* 🚨 主要アクションは**ヘッダー（PC）と下部ナビ（SP）へ portal で出す**。
+          `lib/admin/page-actions.ts` が
+            /admin/content/[collection]/new  → items.create_button
+            /admin/content/[collection]/[id] → items.save_button
+          を `kind:"submit" form:"item-form" role:"primary"` として**宣言していたのに、
+          どの画面も PageAction を描いていなかった**（2026-08-15 実測。宣言だけがあり、
+          画面には保存ボタンが無かった）。
+          🚨 ここに `<Button type="submit">` を**併置しない**。併置すると保存が 2 箇所に出る。
+             ボタンはこの form の外（ヘッダー）に描かれるので、HTML の `form` 属性で結ぶ。 */}
+      <PageAction
+        form="item-form"
+        role="primary"
+        label={isEdit ? tItems("save_button") : tItems("create_button")}
+        icon={<Check />}
+      />
     </form>
   );
 }
