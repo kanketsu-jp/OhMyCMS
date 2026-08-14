@@ -103,6 +103,7 @@ CMD ["bun", "--filter", "@ohmycms/studio", "migrate"]
 FROM oven/bun:${BUN_VERSION} AS runner
 ARG GIT_SHA=unknown
 ARG GIT_DIRTY=unknown
+ARG BUILD_TIME=unknown
 # どのコミットから焼いたイメージかを後から確認できるようにする。
 # 「稼働中のコンテナが古くて、修正が入っていない状態を検証してしまう」事故の再発防止。
 # 読み方: docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' <image>
@@ -112,6 +113,13 @@ LABEL app.ohmycms.git-dirty=$GIT_DIRTY
 # ラベルは docker inspect でしか読めないが、これは**アプリから見える**ので
 # 受入ハーネスが「測った対象の版」を出せる（sdk の依頼）。
 ENV OHMYCMS_GIT_COMMIT=$GIT_SHA
+# /api/health(認証不要)が「どの版が動いているか」を機械判定できるように、実行時にも渡す。
+# 🚨 .dockerignore が .git をビルドコンテキストから除外している（境界外・確認済み・変更しない）ため、
+#    Dockerfile 内で .git から自動検出することはできない。ARG 経由の値渡しが唯一の正の経路。
+#    Dokploy 側でこの ARG (GIT_SHA / GIT_DIRTY / BUILD_TIME) をどう埋めるかは compose.dokploy.yml 側の
+#    ${VAR:-unknown} 展開に委ねており、ホスト環境変数が無ければ "unknown" になる。
+ENV OHMYCMS_GIT_DIRTY=$GIT_DIRTY
+ENV OHMYCMS_BUILT_AT=$BUILD_TIME
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
