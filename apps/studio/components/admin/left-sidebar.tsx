@@ -1,23 +1,41 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+import { Accordion as AccordionPrimitive } from "radix-ui";
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import { PanelLeftIcon } from "lucide-react";
+  BellIcon,
+  BugIcon,
+  ChevronDownIcon,
+  DatabaseIcon,
+  FilesIcon,
+  FolderIcon,
+  SettingsIcon,
+  TableIcon,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { ScrollFade } from "@/components/ui/scroll-fade";
 import { GlobalSearchButton } from "@/components/admin/global-search";
-import { NavLinks, type NavGroup, type NavLink } from "@/components/admin/nav-links";
+import { type NavGroup, type NavLink } from "@/components/admin/nav-links";
 import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
 import { UserMenu } from "@/components/admin/user-menu";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -32,50 +50,30 @@ import { cn } from "@/lib/utils";
  * > 「左サイドバーは**右のボーダーをクリックしたら閉じる**ようにする。」
  */
 
-type LeftSidebarApi = { isOpen: boolean; toggle: () => void; close: () => void };
+type ProviderProps = {
+  children: ReactNode;
+  defaultOpen?: boolean;
+};
 
-const LeftSidebarContext = createContext<LeftSidebarApi | null>(null);
-
-function useLeftSidebar(): LeftSidebarApi {
-  const value = useContext(LeftSidebarContext);
-  if (!value) {
-    // 作る側へのメッセージ（画面には出ない）。
-    throw new Error("useLeftSidebar was called outside LeftSidebarProvider");
-  }
-  return value;
-}
-
-export function LeftSidebarProvider({ children }: { children: ReactNode }) {
-  const [isOpen, setIsOpen] = useState(true);
-  const toggle = useCallback(() => setIsOpen((value) => !value), []);
-  const close = useCallback(() => setIsOpen(false), []);
-  const api = useMemo(() => ({ isOpen, toggle, close }), [isOpen, toggle, close]);
-  return <LeftSidebarContext value={api}>{children}</LeftSidebarContext>;
+export function LeftSidebarProvider({ children, defaultOpen = true }: ProviderProps) {
+  return <SidebarProvider defaultOpen={defaultOpen}>{children}</SidebarProvider>;
 }
 
 /** ヘッダー左端の、常に固定の開閉ボタン。 */
 export function LeftSidebarToggle() {
-  const t = useT("nav");
-  const { toggle, isOpen } = useLeftSidebar();
+  const { state, toggleSidebar } = useSidebar();
 
-  useShortcut(SHORTCUTS.toggleLeftSidebar, toggle);
+  useShortcut(SHORTCUTS.toggleLeftSidebar, toggleSidebar);
 
   return (
-    <Button
+    <SidebarTrigger
       type="button"
-      variant="ghost"
-      size="icon-sm"
-      onClick={toggle}
-      aria-label={t("menu_open")}
-      aria-expanded={isOpen}
-      // 🚨 パンくずのドロップダウンも `aria-expanded` を持つので、名指しできる印を付ける。
+      aria-expanded={state === "expanded"}
+      // パンくずのドロップダウンも `aria-expanded` を持つので、名指しできる印を付ける。
       data-slot="left-sidebar-toggle"
-      // 🚨 SP には出さない。SP の開閉は下部ナビの左端（`mobile-nav.tsx`）が持っていて、
-      //    2つあると「どちらが本物か」が分からなくなる。
+      // SP には出さない。SP の開閉は下部ナビの左端（`mobile-nav.tsx`）が持つ。
       className="hidden text-muted-foreground md:inline-flex"
-    >
-      <PanelLeftIcon />
-    </Button>
+    />
   );
 }
 
@@ -98,6 +96,120 @@ type Props = {
   userPicture: string | null;
 };
 
+function isCurrent(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavItemIcon({ href }: { href: string }) {
+  if (href === "/admin/notifications") return <BellIcon />;
+  return <TableIcon />;
+}
+
+function NavGroupIcon({ groupKey }: { groupKey: string }) {
+  if (groupKey === "content") return <DatabaseIcon />;
+  if (groupKey === "files") return <FilesIcon />;
+  if (groupKey === "settings") return <SettingsIcon />;
+  return <FolderIcon />;
+}
+
+function SidebarLink({ item }: { item: NavLink }) {
+  const pathname = usePathname();
+  const current = isCurrent(pathname, item.href);
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={current} tooltip={item.label}>
+        <Link href={item.href} aria-current={current ? "page" : undefined}>
+          <NavItemIcon href={item.href} />
+          {/* 🚨 レール（48px）では**文字を消す**。隠さないと 1文字ずつ縦に折り返して積み上がる
+              （実測: 「コンテンツ」が w=14 h=100 になっていた）。アイコンとツールチップで足りる。 */}
+          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function SidebarGroupNav({ group }: { group: NavGroup }) {
+  const pathname = usePathname();
+  const inside = pathname.startsWith(group.match);
+
+  return (
+    <AccordionPrimitive.Item value={group.key} className="border-0">
+      <SidebarMenuItem>
+        <AccordionPrimitive.Header className="flex">
+          <SidebarMenuButton asChild isActive={inside} tooltip={group.label}>
+            <AccordionPrimitive.Trigger className="group/accordion-trigger">
+              <NavGroupIcon groupKey={group.key} />
+              <span className="group-data-[collapsible=icon]:hidden">{group.label}</span>
+              <ChevronDownIcon className="ml-auto transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/accordion-trigger:rotate-180" />
+            </AccordionPrimitive.Trigger>
+          </SidebarMenuButton>
+        </AccordionPrimitive.Header>
+        <AccordionPrimitive.Content className="overflow-hidden data-closed:animate-accordion-up data-open:animate-accordion-down">
+          <SidebarMenuSub>
+            {group.children.length > 0
+              ? group.children.map((item) => (
+                  <SidebarMenuSubItem key={item.href}>
+                    <SidebarMenuSubButton asChild isActive={isCurrent(pathname, item.href)}>
+                      <Link href={item.href} aria-current={isCurrent(pathname, item.href) ? "page" : undefined}>
+                        <TableIcon />
+                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                ))
+              : group.emptyMessage
+                ? (
+                    <p className="px-2 py-1 text-xs text-muted-foreground">
+                      {group.emptyMessage}
+                    </p>
+                  )
+                : null}
+          </SidebarMenuSub>
+        </AccordionPrimitive.Content>
+      </SidebarMenuItem>
+    </AccordionPrimitive.Item>
+  );
+}
+
+function SidebarNav({
+  items,
+  groups,
+  collections,
+  collectionsError,
+}: Pick<Props, "items" | "groups" | "collections" | "collectionsError">) {
+  const t = useT("nav");
+  const pathname = usePathname();
+  const contentGroup: NavGroup = {
+    key: "content",
+    label: t("content_heading"),
+    match: "/admin/content",
+    children: collections,
+    emptyMessage: collectionsError,
+  };
+  const allGroups = [...groups, contentGroup];
+  const open = allGroups.filter((group) => pathname.startsWith(group.match)).map((group) => group.key);
+
+  return (
+    <div className="flex min-h-0 flex-col gap-6 px-2 pb-2">
+      <SidebarMenu>
+        {items.map((item) => (
+          <SidebarLink key={item.href} item={item} />
+        ))}
+      </SidebarMenu>
+
+      <AccordionPrimitive.Root type="multiple" defaultValue={open} className="flex flex-col">
+        <SidebarMenu>
+          {allGroups.map((group) => (
+            <SidebarGroupNav key={group.key} group={group} />
+          ))}
+        </SidebarMenu>
+      </AccordionPrimitive.Root>
+    </div>
+  );
+}
+
 export function LeftSidebar({
   brand,
   logo,
@@ -110,75 +222,69 @@ export function LeftSidebar({
   userPicture,
 }: Props) {
   const t = useT("nav");
-  const { isOpen, close } = useLeftSidebar();
-
-  if (!isOpen) return null;
 
   return (
-    // 面は「罫線・背景・影」のうち1つだけ（憲章 §1）。サイドバーは罫線1本で区切る。
-    <aside
-      data-slot="left-sidebar"
-      className="relative hidden w-64 shrink-0 border-r md:flex md:flex-col"
-    >
-      <div className="px-4 py-4">
-        <Link href="/admin" className="flex items-center gap-2 text-base font-semibold">
+    <Sidebar collapsible="icon" className="hidden md:flex">
+      <SidebarHeader className="gap-3 px-2 py-3">
+        <Link
+          href="/admin"
+          className="flex h-8 min-w-0 items-center gap-2 rounded-md px-2 text-base font-semibold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+        >
           {logo ? (
             // eslint-disable-next-line @next/next/no-img-element -- 外部URLもありうるので Image コンポーネントを使わない
-            <img src={logo} alt="" className="h-6 w-auto max-w-32 object-contain" />
-          ) : null}
-          <span className="truncate">{brand}</span>
+            <img src={logo} alt="" className="h-6 w-auto max-w-32 shrink-0 object-contain" />
+          ) : (
+            <span className="shrink-0 text-sm">{brand.slice(0, 1).toUpperCase()}</span>
+          )}
+          <span className="truncate group-data-[collapsible=icon]:hidden">{brand}</span>
         </Link>
-      </div>
 
-      {/* ── 上部: 検索 ────────────────────────────────────────
-          🚨 ここに置くのは**起動ボタンだけ**。ダイアログ本体は `GlobalSearchProvider` が
-             1つだけ描く（2箇所に置いてもダイアログも ⌘K も増えない）。 */}
-      <div className="shrink-0 px-3 pb-3">
-        <GlobalSearchButton />
-      </div>
+        <GlobalSearchButton className="group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:[&>span]:hidden" />
+      </SidebarHeader>
 
-      {/* ── 中央: メニュー ──────────────────────────────────
-          🚨 `items-center` にしない。**上から詰める**（堀池の原文どおり）。
-             `flex-1` で余りを吸い、余白は下部を押し下げるためだけに使う。 */}
-      <nav className="flex min-h-0 flex-1 flex-col">
-        <ScrollFade direction="vertical" className="flex-1 space-y-6 px-3 pb-4">
-          <NavLinks items={items} groups={groups} />
-
-          {/* 「コンテンツ」は**ディレクトリとして**畳めるようにする（堀池の原文）。
-              見出しの `<p>` を置くだけだと、増えたときに畳めない。 */}
-          <NavLinks
-            items={[]}
-            groups={[
-              {
-                key: "content",
-                label: t("content_heading"),
-                match: "/admin/content",
-                children: collections,
-                emptyMessage: collectionsError,
-              },
-            ]}
+      <SidebarContent className="pt-1">
+        {/* 🚨 ここは `<nav>` にする。ナビゲーション領域のランドマークがあると、
+            読み上げの利用者が「ナビへ飛ぶ」で直接来られる。
+            素の shadcn は `<div>` を出すが、それは上流の選択であって制約ではない。
+            aria-label は mobile-nav.tsx の `<nav>` と同じ `menu_title`（「メニュー」）を再利用する。 */}
+        <nav aria-label={t("menu_title")}>
+          <SidebarNav
+            items={items}
+            groups={groups}
+            collections={collections}
+            collectionsError={collectionsError}
           />
-        </ScrollFade>
-      </nav>
+        </nav>
+      </SidebarContent>
 
-      {/* ── 下部: 不具合報告 ────────────────────────────────── */}
-      <div className="shrink-0 border-t px-3 py-2">{reports}</div>
+      <SidebarFooter className="gap-0 p-0">
+        <div className="border-t px-2 py-2">
+          <div className="group-data-[collapsible=icon]:hidden">{reports}</div>
+          <SidebarMenu className="hidden group-data-[collapsible=icon]:flex">
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t("reports")}>
+                <Link href="/admin/reports">
+                  <BugIcon />
+                  <span>{t("reports")}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
+        <div
+          className={cn(
+            "group-data-[collapsible=icon]:[&_[data-slot=button]]:size-8",
+            "group-data-[collapsible=icon]:[&_[data-slot=button]]:justify-center",
+            "group-data-[collapsible=icon]:[&_[data-slot=button]]:px-0",
+            "group-data-[collapsible=icon]:[&_[data-slot=button]>span:not([data-slot=avatar])]:hidden",
+            "group-data-[collapsible=icon]:[&_[data-slot=button]>svg]:hidden",
+          )}
+        >
+          <UserMenu userLabel={userLabel} userPicture={userPicture} />
+        </div>
+      </SidebarFooter>
 
-      <UserMenu userLabel={userLabel} userPicture={userPicture} />
-
-      {/* 🚨 右のボーダーそのものを押して閉じる（堀池の原文）。
-          罫線は 1px しかなく指でも矢印でも当てられないので、**当たり判定だけを広げた
-          透明な帯**を重ねる。見た目は変えない（帯に色を付けると面が増える）。 */}
-      <button
-        type="button"
-        onClick={close}
-        aria-label={t("menu_close")}
-        data-slot="left-sidebar-edge"
-        className={cn(
-          "absolute inset-y-0 -right-1 w-2 cursor-w-resize",
-          "hover:bg-border focus-visible:bg-border focus-visible:outline-none",
-        )}
-      />
-    </aside>
+      <SidebarRail />
+    </Sidebar>
   );
 }

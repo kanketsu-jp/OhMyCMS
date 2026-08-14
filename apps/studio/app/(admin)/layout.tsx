@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
 import { displayUserLabel, displayUserPicture } from "@/lib/admin/user-label";
@@ -125,6 +125,8 @@ export default async function AdminLayout({
       {t("reports")}
     </Link>
   );
+  const sidebarCookie = (await cookies()).get("sidebar_state")?.value;
+  const leftSidebarDefaultOpen = sidebarCookie !== "false";
 
   return (
     <div
@@ -143,7 +145,7 @@ export default async function AdminLayout({
           起動ボタンは左サイドバーと SP のドロワーの2箇所に置くので、
           部品ごとに本体を持たせるとダイアログも ⌘K の購読も2つになる。 */}
       <GlobalSearchProvider>
-      <LeftSidebarProvider>
+      <LeftSidebarProvider defaultOpen={leftSidebarDefaultOpen}>
       <RightPanelProvider brand={brand}>
       {/* 左サイドバー。**上部＝検索 / 中央＝メニュー / 下部＝不具合報告**（堀池・2026-08-15）。
           🚨 中身の並べ方は `left-sidebar.tsx` が持つ。ここは**データを渡すだけ**にする
