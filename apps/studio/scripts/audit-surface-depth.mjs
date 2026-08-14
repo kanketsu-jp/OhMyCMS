@@ -50,6 +50,10 @@ const SHOTS = arg("shots", "");
 const MAX_DEPTH = Number(arg("max-depth", "1"));
 const AS_JSON = has("json");
 const PORT = Number(arg("cdp-port", "0"));  // 0 = 空きポートを OS に選ばせる
+const HAS_EXPLICIT_PATHS = arg("paths", "").length > 0;
+// 🚨 発見の段が「赤を出せるか」を見る陽性対照用。
+//    通常の監査には混ぜない。--paths 明示時は発見の段ごと走らない。
+const DISCOVERY_POSITIVE_CONTROL = has("discovery-positive-control");
 // 🚨 開いている間しか存在しない箱（select の候補・command のリスト・dialog / sheet の本文）を測るための入口。
 //    ページを開いただけでは DOM に無いので、**測る前にこれを押す**。
 //    例: --click '[data-slot=global-search-trigger]'
@@ -101,9 +105,67 @@ const DEFAULT_PATHS = [
   "/admin/settings/policies",
   "/admin/settings/users",
 ];
-const PATHS = arg("paths", "").length
+let PATHS = HAS_EXPLICIT_PATHS
   ? arg("paths", "").split(",").map((s) => s.trim()).filter(Boolean)
   : DEFAULT_PATHS;
+
+// 🚨 動的ルートは DEFAULT_PATHS に直書きできない（実データの id が要る）。
+//    だから「測れなかった」を黙らせず、実際の一覧ページの href から拾って 1 種類 1 本だけ足す。
+const DISCOVERY_LIST_PATHS = [
+  "/admin/collections",
+  "/admin/files",
+  "/admin/reports",
+  "/admin/settings/policies",
+];
+const DYNAMIC_ROUTE_PATTERNS = [
+  {
+    label: "/admin/collections/[collection]/fields/new",
+    source: "/admin/collections の href に詳細ページ内リンクが無ければ見つからない",
+    re: /^\/admin\/collections\/(?!new(?:\/|$))[^/]+\/fields\/new$/,
+  },
+  {
+    label: "/admin/collections/[collection]",
+    source: "/admin/collections の href",
+    re: /^\/admin\/collections\/(?!new(?:\/|$))[^/]+$/,
+  },
+  {
+    label: "/admin/content/[collection]/[id]",
+    source: "/admin/collections の href から辿れる content 導線（アイテム id が href に出ている場合のみ）",
+    re: /^\/admin\/content\/[^/]+\/(?!new(?:\/|$))[^/]+$/,
+  },
+  {
+    label: "/admin/content/[collection]/new",
+    source: "/admin/collections の href から辿れる content 導線",
+    re: /^\/admin\/content\/[^/]+\/new$/,
+  },
+  {
+    label: "/admin/content/[collection]",
+    source: "/admin/collections の href",
+    re: /^\/admin\/content\/[^/]+$/,
+  },
+  {
+    label: "/admin/files/[id]",
+    source: "/admin/files の href",
+    re: /^\/admin\/files\/(?!new(?:\/|$)|new-folder(?:\/|$))[^/]+$/,
+  },
+  {
+    label: "/admin/reports/[id]",
+    source: "/admin/reports の href",
+    re: /^\/admin\/reports\/(?!manage(?:\/|$))[^/]+$/,
+  },
+  {
+    label: "/admin/settings/policies/[id]",
+    source: "/admin/settings/policies の href",
+    re: /^\/admin\/settings\/policies\/[^/]+$/,
+  },
+];
+if (DISCOVERY_POSITIVE_CONTROL) {
+  DYNAMIC_ROUTE_PATTERNS.push({
+    label: "/__audit_positive_control__/[id]",
+    source: "--discovery-positive-control で一時的に混ぜた存在しないパターン",
+    re: /^\/__audit_positive_control__\/[^/]+$/,
+  });
+}
 
 // 🚨 素の CSS がモバイル、min-width で広げるのが規約（憲章 §7）なので SP を先に測る。
 const VIEWPORTS = [
@@ -760,8 +822,89 @@ function connect(url) {
   return { ready, send, close: () => ws.close(), drainEvents: () => events.splice(0) };
 }
 
+async function navigateAndSettle(cdp, path) {
+  await cdp.send("Page.navigate", { url: BASE + path });
+  // 🚨 固定待ちにしない。dev サーバは初回アクセスでルートをコンパイルするので、
+  //    固定 1500ms だと**前のページを測ってしまい、実行のたびに深さが変わる**（実測で判明）。
+  //    「読み込み完了」かつ「URL が目的地」になるまで待つ。
+  const target = new URL(BASE + path).pathname;
+  let settled = false;
+  let landed = target;
+  for (let i = 0; i < 40; i++) {
+    const { result } = await cdp.send("Runtime.evaluate", {
+      expression: `({ ready: document.readyState, path: location.pathname })`,
+      returnByValue: true,
+    });
+    landed = result.value.path;
+    if (result.value.ready === "complete") {
+      if (landed === target) { settled = true; break; }
+      // 🚨 目的地と違う所に着いた＝リダイレクト。待っても変わらないので即座に諦める。
+      // ここで待ち続けると 1 ページ 30 秒を無駄にし、**堀池さんが見ている dev サーバに負荷をかける**。
+      break;
+    }
+    await sleep(500);
+  }
+  return { settled, landed, target };
+}
+
+function normalizeLocalHref(href) {
+  try {
+    const base = new URL(BASE);
+    const url = new URL(href, base);
+    if (url.origin !== base.origin) return null;
+    return url.pathname;
+  } catch {
+    return null;
+  }
+}
+
+async function discoverDynamicPaths(cdp) {
+  log("\n動的ルート発見:");
+  log(`  検索元: ${DISCOVERY_LIST_PATHS.join(", ")}`);
+  log(`  方法: 各一覧ページを実ブラウザで開き、DOM 上の a[href] を ${DYNAMIC_ROUTE_PATTERNS.length} 種類のルート形に照合`);
+
+  const byList = [];
+  const allHrefs = [];
+  for (const listPath of DISCOVERY_LIST_PATHS) {
+    const nav = await navigateAndSettle(cdp, listPath);
+    if (!nav.settled) {
+      const why = nav.landed === "/login"
+        ? "ログインしていません（--session のトークンが切れている可能性）"
+        : `別の場所に着きました: ${nav.landed}`;
+      byList.push({ path: listPath, ok: false, hrefs: [], why });
+      log(`  検索元: ${listPath} → 🚨 開けず（${why}）。この一覧の href は検索していません`);
+      continue;
+    }
+    await sleep(400);
+    const got = await cdp.send("Runtime.evaluate", {
+      expression: `([...document.querySelectorAll("a[href]")].map((a) => a.getAttribute("href")).filter(Boolean))`,
+      returnByValue: true,
+    });
+    const hrefs = [...new Set((got.result.value ?? []).map(normalizeLocalHref).filter(Boolean))];
+    byList.push({ path: listPath, ok: true, hrefs });
+    allHrefs.push(...hrefs);
+    log(`  検索元: ${listPath} → href ${hrefs.length} 件`);
+  }
+
+  const uniqueHrefs = [...new Set(allHrefs)];
+  const found = [];
+  const missing = [];
+  for (const pattern of DYNAMIC_ROUTE_PATTERNS) {
+    const path = uniqueHrefs.find((href) => pattern.re.test(href));
+    if (path) {
+      found.push({ label: pattern.label, path, source: pattern.source });
+      log(`  発見: ${pattern.label.padEnd(38)} → ${path}（検索: ${pattern.source}）`);
+    } else {
+      missing.push({ label: pattern.label, source: pattern.source });
+      log(`  発見: ${pattern.label.padEnd(38)} → 🚨 見つからず（検索: ${pattern.source}; 検索元 ${byList.length} ページ; href ${uniqueHrefs.length} 件）`);
+    }
+  }
+
+  return { byList, hrefs: uniqueHrefs, found, missing };
+}
+
 // ── 実行 ────────────────────────────────────────────────────────────────
-const { proc, page } = await launchChrome();
+const { page } = await launchChrome();
 const cdp = connect(page.webSocketDebuggerUrl);
 await cdp.ready;
 await cdp.send("Page.enable");
@@ -789,6 +932,23 @@ await cdp.send("Network.enable");
 }
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
+let discovery = null;
+if (!HAS_EXPLICIT_PATHS) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
+  });
+  discovery = await discoverDynamicPaths(cdp);
+  const seen = new Set(PATHS);
+  PATHS = [
+    ...PATHS,
+    ...discovery.found.map((entry) => entry.path).filter((path) => {
+      if (seen.has(path)) return false;
+      seen.add(path);
+      return true;
+    }),
+  ];
+}
+
 const report = {};
 const violations = [];
 
@@ -797,27 +957,7 @@ for (const vp of VIEWPORTS) {
     width: vp.width, height: vp.height, deviceScaleFactor: vp.dsf, mobile: vp.mobile,
   });
   for (const path of PATHS) {
-    await cdp.send("Page.navigate", { url: BASE + path });
-    // 🚨 固定待ちにしない。dev サーバは初回アクセスでルートをコンパイルするので、
-    //    固定 1500ms だと**前のページを測ってしまい、実行のたびに深さが変わる**（実測で判明）。
-    //    「読み込み完了」かつ「URL が目的地」になるまで待つ。
-    const target = new URL(BASE + path).pathname;
-    let settled = false;
-    let landed = target;
-    for (let i = 0; i < 40; i++) {
-      const { result } = await cdp.send("Runtime.evaluate", {
-        expression: `({ ready: document.readyState, path: location.pathname })`,
-        returnByValue: true,
-      });
-      landed = result.value.path;
-      if (result.value.ready === "complete") {
-        if (landed === target) { settled = true; break; }
-        // 🚨 目的地と違う所に着いた＝リダイレクト。待っても変わらないので即座に諦める。
-        // ここで待ち続けると 1 ページ 30 秒を無駄にし、**堀池さんが見ている dev サーバに負荷をかける**。
-        break;
-      }
-      await sleep(500);
-    }
+    const { settled, landed } = await navigateAndSettle(cdp, path);
     if (!settled) {
       const why = landed === "/login"
         ? "ログインしていません（--session のトークンが切れている可能性）"
@@ -1070,7 +1210,7 @@ cdp.close();
 cleanupChrome();
 
 if (AS_JSON) {
-  console.log(JSON.stringify({ base: BASE, report, violations }, null, 2));
+  console.log(JSON.stringify({ base: BASE, discovery, report, violations }, null, 2));
 } else {
   console.log(`\n対象: ${PATHS.length} ページ × ${VIEWPORTS.length} 画面幅 = ${PATHS.length * VIEWPORTS.length} 回測定（${BASE}）`);
   if (!SESSION) console.log("⚠ --session を渡していないので、ログインが要るページは /login へ飛んでいる可能性があります。");
