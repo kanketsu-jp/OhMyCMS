@@ -24,6 +24,7 @@ import { randomUUID } from "node:crypto";
 
 import { db } from "@/lib/db/knex";
 import { ApiError } from "@/lib/schema/errors";
+import { getSecretSetting, getSettings } from "@/lib/settings/service";
 
 export type BugReport = {
   id: string;
@@ -54,20 +55,23 @@ export type MailConfig = {
 };
 
 /**
- * 環境変数から送信設定を読む。揃っていなければ null。
- * 空文字は未設定として扱う（compose が空文字を渡してくるため）。
+ * 送信設定を読む。host/port/user/password は DB(GUI) → 環境変数 の順で解決する
+ * （lib/settings/service.ts の getSettings()/getSecretSetting() が既に DB→env→既定値の
+ * 解決をしている）。宛先(OHMYCMS_BUGREPORT_TO)と送信元(SMTP_FROM)は DB 化していないため
+ * 環境変数のまま。揃っていなければ null。空文字は未設定として扱う。
  */
-export function mailConfig(): MailConfig | null {
+export async function mailConfig(): Promise<MailConfig | null> {
   const pick = (name: string) => {
     const value = process.env[name]?.trim();
     return value ? value : undefined;
   };
 
+  const settings = await getSettings();
   const to = pick("OHMYCMS_BUGREPORT_TO");
-  const host = pick("SMTP_HOST");
-  const port = pick("SMTP_PORT");
-  const user = pick("SMTP_USER");
-  const password = pick("SMTP_PASSWORD");
+  const host = settings.smtp_host || undefined;
+  const port = settings.smtp_port || undefined;
+  const user = settings.smtp_user || undefined;
+  const password = await getSecretSetting("smtp_password");
   const from = pick("SMTP_FROM") ?? user;
 
   if (!to || !host || !port || !user || !password || !from) return null;
@@ -180,7 +184,7 @@ export async function submitBugReport(
   let mailStatus: MailStatus = "skipped";
   let mailError: string | null = null;
 
-  const config = mailConfig();
+  const config = await mailConfig();
   // 設定が揃っていないなら送信手段を用意すらしない（skipped のまま）。
   const send = config ? await resolveSender() : null;
   if (config && send) {

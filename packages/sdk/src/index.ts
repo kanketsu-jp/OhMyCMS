@@ -62,6 +62,9 @@ export type {
   Relation,
   RelationMeta,
   Role,
+  Settings,
+  SettingsKey,
+  SettingsSource,
   UploadInput,
   User,
 } from "./types.js";

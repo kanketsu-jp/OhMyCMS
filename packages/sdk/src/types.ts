@@ -33,6 +33,53 @@ export type HealthResult = {
   db: "connected";
 };
 
+export type SettingsSource = "database" | "environment" | "default";
+
+export type SettingsKey =
+  | "project_name"
+  | "project_logo"
+  | "project_color"
+  | "default_locale"
+  | "public_note"
+  | "tenant_name"
+  | "s3_endpoint"
+  | "s3_bucket"
+  | "s3_region"
+  | "s3_access_key_id"
+  | "s3_secret_access_key"
+  | "s3_force_path_style"
+  | "s3_key_prefix"
+  | "google_client_id"
+  | "google_client_secret"
+  | "smtp_host"
+  | "smtp_port"
+  | "smtp_user"
+  | "smtp_password";
+
+export type Settings = {
+  project_name: string;
+  project_logo: string | null;
+  project_color: string;
+  default_locale: string;
+  public_note: string;
+  tenant_name: string;
+  s3_endpoint: string;
+  s3_bucket: string;
+  s3_region: string;
+  s3_access_key_id_set: boolean;
+  s3_secret_access_key_set: boolean;
+  s3_force_path_style: string;
+  s3_key_prefix: string;
+  google_client_id: string;
+  google_client_secret_set: boolean;
+  smtp_host: string;
+  smtp_port: string;
+  smtp_user: string;
+  smtp_password_set: boolean;
+  sources: Record<SettingsKey, SettingsSource>;
+  updated_at: string | null;
+};
+
 /* ------------------------------------------------------------------ *
  * エージェントトークン（app/api/auth/agents/route.ts）
  * ------------------------------------------------------------------ */

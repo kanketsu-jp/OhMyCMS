@@ -81,6 +81,13 @@ const SETTINGS_ENTRIES: StaticEntry[] = [
   { labelKey: "settings_project_logo", href: "/admin/settings/general#settings-project_logo" },
   { labelKey: "settings_default_locale", href: "/admin/settings/general#settings-default_locale" },
   { labelKey: "settings_public_note", href: "/admin/settings/general#settings-public_note" },
+  { labelKey: "settings_s3_endpoint", href: "/admin/settings/storage#storage-s3_endpoint" },
+  { labelKey: "settings_s3_bucket", href: "/admin/settings/storage#storage-s3_bucket" },
+  { labelKey: "settings_s3_region", href: "/admin/settings/storage#storage-s3_region" },
+  { labelKey: "settings_s3_access_key_id", href: "/admin/settings/storage#storage-s3_access_key_id" },
+  { labelKey: "settings_s3_secret_access_key", href: "/admin/settings/storage#storage-s3_secret_access_key" },
+  { labelKey: "settings_s3_force_path_style", href: "/admin/settings/storage#storage-s3_force_path_style" },
+  { labelKey: "settings_s3_key_prefix", href: "/admin/settings/storage#storage-s3_key_prefix" },
 ];
 
 /** 管理画面そのもの。ナビに出ているものと揃える。 */
@@ -91,6 +98,7 @@ const PAGE_ENTRIES: StaticEntry[] = [
   { labelKey: "page_notifications", href: "/admin/notifications" },
   { labelKey: "page_reports", href: "/admin/reports" },
   { labelKey: "page_settings_general", href: "/admin/settings/general" },
+  { labelKey: "page_settings_storage", href: "/admin/settings/storage" },
   { labelKey: "page_settings_version", href: "/admin/settings/version" },
   { labelKey: "page_settings_roles", href: "/admin/settings/roles" },
   { labelKey: "page_settings_policies", href: "/admin/settings/policies" },

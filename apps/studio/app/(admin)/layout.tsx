@@ -28,6 +28,7 @@ const navItems = [
 // 🚨 `settings_*`（長い方）の辞書キーは消していない。他で使われている可能性があるため。
 const settingsItems = [
   { href: "/admin/settings/general", labelKey: "settings_child_general" },
+  { href: "/admin/settings/storage", labelKey: "settings_child_storage" },
   // 認証まわりなので general の次。ページは saml(pG) が f96973f でコミット済み
   // （🚨 一度、ページが git に入る前にリンクだけが入って「押すと 404」になった。
   //  リンク・文言・ページは**必ず同じコミットで**揃える）。

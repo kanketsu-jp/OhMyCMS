@@ -539,5 +539,37 @@ export function createServer(client: OhMyCmsClient): McpServer {
       }),
   );
 
+  server.registerTool(
+    "ohmycms_settings_get",
+    {
+      title: "設定を取得する",
+      description:
+        "全体設定を返す。settings:read が必要。秘密項目（アクセスキー等）は値を返さず、設定済みかどうかのみ返す。",
+      inputSchema: S.EMPTY_INPUT,
+      outputSchema: S.SETTINGS_OUTPUT,
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async () =>
+      run(async () => ({
+        settings: await client.settings.get(),
+      })),
+  );
+
+  server.registerTool(
+    "ohmycms_settings_update",
+    {
+      title: "設定を更新する",
+      description:
+        "全体設定を更新する。settings:write が必要。秘密項目（アクセスキー等）は保存できるが、レスポンスには値を返さない。",
+      inputSchema: S.SETTINGS_UPDATE_INPUT,
+      outputSchema: S.SETTINGS_OUTPUT,
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ patch }) =>
+      run(async () => ({
+        settings: await client.settings.update(patch),
+      })),
+  );
+
   return server;
 }

@@ -7,6 +7,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { ApiError } from "@/lib/schema/errors";
 import type { StorageDriver } from "./driver";
 
 type S3Config = {
@@ -41,6 +42,26 @@ function isUnsupportedOperation(error: unknown): boolean {
     status === 501 ||
     status === 405
   );
+}
+
+/**
+ * AWS SDK の例外を、秘密を含まない安全な ApiError へ変換する。
+ *
+ * 🚨 なぜ要るか: InvalidAccessKeyId 系のエラーはXMLエラー応答に問題のアクセスキーID自体
+ *    (AWSAccessKeyId 等)を含み、AWS SDK v3 の例外オブジェクトはそれを列挙可能プロパティ
+ *    として保持する。そのまま呼び出し元へ投げ直すと、最終的に console.error(..., error)
+ *    される箇所で Node の既定 inspect がその秘密ごとログへ出してしまう。
+ *
+ * ここで一度アプリ独自の ApiError へ変換し、SDK の元メッセージ・元オブジェクトを
+ * 呼び出し元へ渡さない。安全に残してよいのは name（エラーコード名。値を含まない識別子）
+ * だけとする。
+ */
+function toStorageError(error: unknown): ApiError {
+  const name =
+    error && typeof error === "object" && "name" in error && typeof error.name === "string"
+      ? error.name
+      : "UnknownError";
+  return new ApiError(502, "STORAGE_ERROR", `ストレージへの接続に失敗しました (${name})`);
 }
 
 async function bodyToBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
@@ -93,33 +114,46 @@ export function createS3Storage(config: S3Config): StorageDriver {
         );
         return;
       } catch (error) {
-        if (!isUnsupportedOperation(error)) throw error;
+        if (!isUnsupportedOperation(error)) throw toStorageError(error);
         // 🚨 「その操作が無い」以外の失敗（権限・通信）は握りつぶさない。
         //    ここで全部フォールバックすると、権限不足を「消えたつもり」にしてしまう。
         bulkDeleteSupported = false;
       }
     }
     for (const key of keys) {
-      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
+      try {
+        await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
+      } catch (error) {
+        throw toStorageError(error);
+      }
     }
   }
 
   return {
     name: "s3",
     async put(key, body, contentType) {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: config.bucket,
-          Key: withPrefix(key),
-          Body: await bodyToBuffer(body),
-          ContentType: contentType,
-        }),
-      );
+      try {
+        await client.send(
+          new PutObjectCommand({
+            Bucket: config.bucket,
+            Key: withPrefix(key),
+            Body: await bodyToBuffer(body),
+            ContentType: contentType,
+          }),
+        );
+      } catch (error) {
+        throw toStorageError(error);
+      }
     },
     async get(key) {
-      const result = await client.send(
-        new GetObjectCommand({ Bucket: config.bucket, Key: withPrefix(key) }),
-      );
+      let result;
+      try {
+        result = await client.send(
+          new GetObjectCommand({ Bucket: config.bucket, Key: withPrefix(key) }),
+        );
+      } catch (error) {
+        throw toStorageError(error);
+      }
       if (!result.Body) {
         throw new Error("S3 object body is empty");
       }
@@ -142,22 +176,31 @@ export function createS3Storage(config: S3Config): StorageDriver {
         if (metadata?.httpStatusCode === 404) {
           return null;
         }
-        throw error;
+        throw toStorageError(error);
       }
     },
     async delete(key) {
-      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: withPrefix(key) }));
+      try {
+        await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: withPrefix(key) }));
+      } catch (error) {
+        throw toStorageError(error);
+      }
     },
     async deletePrefix(prefix) {
       let continuationToken: string | undefined;
       do {
-        const listed = await client.send(
-          new ListObjectsV2Command({
-            Bucket: config.bucket,
-            Prefix: withPrefix(prefix),
-            ContinuationToken: continuationToken,
-          }),
-        );
+        let listed;
+        try {
+          listed = await client.send(
+            new ListObjectsV2Command({
+              Bucket: config.bucket,
+              Prefix: withPrefix(prefix),
+              ContinuationToken: continuationToken,
+            }),
+          );
+        } catch (error) {
+          throw toStorageError(error);
+        }
         const objects = listed.Contents?.map((object) => ({ Key: object.Key })).filter(
           (object): object is { Key: string } => Boolean(object.Key),
         );

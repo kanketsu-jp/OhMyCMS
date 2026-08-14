@@ -16,7 +16,14 @@ export function errorResponse(error: unknown): Response {
   // 例外文にはファイルパス・DB の接続先・内部の実装名が混ざる（AGENTS.md §3.7 と同じ考え方）。
   // ApiError は「こちらが意図して書いた文言」なので返してよいが、
   // 想定外の例外は**一般化した文言とコードだけ**を返し、詳細はサーバのログにとどめる。
-  console.error("[api] 未処理の例外:", error);
+  // 🚨 error オブジェクトをそのまま console.error(..., error) すると、Node の既定 inspect が
+  //    列挙可能プロパティ全部（AWS SDK の InvalidAccessKeyId 系例外が持つ AWSAccessKeyId 等）
+  //    までログへ出してしまう。想定外の例外の由来を追えれば十分なので、name + message
+  //    の文字列だけに絞る（オブジェクト全体の inspect をしない）。
+  console.error(
+    "[api] 未処理の例外:",
+    error instanceof Error ? `${error.name}: ${error.message}` : "unknown",
+  );
   return Response.json(
     {
       error: {

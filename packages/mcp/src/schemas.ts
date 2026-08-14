@@ -264,6 +264,20 @@ export const ROW_OUTPUT = {
   ...ERROR_OUTPUT,
 };
 
+export const SETTINGS_OUTPUT = {
+  settings: z.record(z.unknown()).optional().describe("設定。秘密項目は値ではなく *_set の真偽だけを含む"),
+  ...ERROR_OUTPUT,
+};
+
+export const SETTINGS_UPDATE_INPUT = {
+  patch: z
+    .record(z.unknown())
+    .describe(
+      "更新する設定キーと値。空文字または null で DB の値を解除する。" +
+        "秘密項目は保存されるが、レスポンスには値が返らない",
+    ),
+};
+
 export const ROLE_CREATE_INPUT = {
   name: z.string(),
   description: z.string().optional(),

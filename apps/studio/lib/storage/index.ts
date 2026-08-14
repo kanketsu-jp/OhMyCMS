@@ -1,9 +1,10 @@
 import type { StorageDriver } from "./driver";
 import { createLocalStorage } from "./local";
 import { createS3Storage } from "./s3";
+import { getSecretSetting, getSettings } from "@/lib/settings/service";
 
 /**
- * S3 互換ストレージの設定を環境変数から読む。
+ * S3 互換ストレージの設定を読む。DB が正、env は初期値。
  *
  * 対応する書き方は2つ。**どちらも同じ S3 互換クライアントに落ちる**:
  *
@@ -31,33 +32,60 @@ function readEnv(name: string): string | undefined {
   return value ? value : undefined;
 }
 
-function readS3Env(): S3Env | null {
-  const accessKeyId = readEnv("S3_ACCESS_KEY_ID") ?? readEnv("R2_ACCESS_KEY_ID");
+type S3Parts = {
+  endpoint?: string;
+  region?: string;
+  bucket?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  forcePathStyle: boolean;
+  keyPrefix: string;
+};
+
+async function readS3Parts(): Promise<S3Parts> {
+  const settings = await getSettings();
+  const accessKeyId = (await getSecretSetting("s3_access_key_id")) ?? readEnv("R2_ACCESS_KEY_ID");
   const secretAccessKey =
-    readEnv("S3_SECRET_ACCESS_KEY") ?? readEnv("R2_SECRET_ACCESS_KEY");
-  const bucket = readEnv("S3_BUCKET") ?? readEnv("R2_BUCKET");
+    (await getSecretSetting("s3_secret_access_key")) ?? readEnv("R2_SECRET_ACCESS_KEY");
+  const bucket = settings.s3_bucket || readEnv("R2_BUCKET");
 
   // エンドポイントは明示が最優先。無ければ R2 のアカウントIDから組み立てる（旧来の書き方）。
   const accountId = readEnv("R2_ACCOUNT_ID");
   const endpoint =
-    readEnv("S3_ENDPOINT") ??
+    settings.s3_endpoint ||
     (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined);
-
-  // どれか1つでも欠けたらローカルへフォールバックする（部分設定で中途半端に動かさない）。
-  if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) return null;
 
   return {
     endpoint,
-    // R2 は "auto"。AWS S3 と GCS は実在のリージョンが要る。既定は R2 に合わせる。
-    region: readEnv("S3_REGION") ?? "auto",
+    region: settings.s3_region || undefined,
     bucket,
     accessKeyId,
     secretAccessKey,
+    forcePathStyle: settings.s3_force_path_style === "true",
+    keyPrefix: settings.s3_key_prefix,
+  };
+}
+
+async function readS3Env(): Promise<S3Env | null> {
+  const parts = await readS3Parts();
+
+  // どれか1つでも欠けたらローカルへフォールバックする（部分設定で中途半端に動かさない）。
+  if (!parts.endpoint || !parts.bucket || !parts.accessKeyId || !parts.secretAccessKey) {
+    return null;
+  }
+
+  return {
+    endpoint: parts.endpoint,
+    // R2 は "auto"。AWS S3 と GCS は実在のリージョンが要る。既定は R2 に合わせる。
+    region: parts.region ?? "auto",
+    bucket: parts.bucket,
+    accessKeyId: parts.accessKeyId,
+    secretAccessKey: parts.secretAccessKey,
     // MinIO など、バケットをホスト名でなくパスで表す実装向け。
-    forcePathStyle: readEnv("S3_FORCE_PATH_STYLE") === "true",
+    forcePathStyle: parts.forcePathStyle,
     // 🚨 1つのバケットを複数環境で共有するときに衝突させないための接頭辞。
     //    **既定は空**。空のままなら従来のキーと完全に同じになる（移行不要）。
-    keyPrefix: readEnv("S3_KEY_PREFIX") ?? "",
+    keyPrefix: parts.keyPrefix,
   };
 }
 
@@ -71,31 +99,42 @@ function readS3Env(): S3Env | null {
  *
  * 返すのは**環境変数の名前だけ**。値は返さない（AGENTS.md §3.7）。
  */
-function missingS3Settings(): string[] {
+async function missingS3Settings(): Promise<string[]> {
+  const parts = await readS3Parts();
   const missing: string[] = [];
-  if (!readEnv("S3_ENDPOINT") && !readEnv("R2_ACCOUNT_ID")) missing.push("S3_ENDPOINT");
-  if (!readEnv("S3_BUCKET") && !readEnv("R2_BUCKET")) missing.push("S3_BUCKET");
-  if (!readEnv("S3_ACCESS_KEY_ID") && !readEnv("R2_ACCESS_KEY_ID")) missing.push("S3_ACCESS_KEY_ID");
-  if (!readEnv("S3_SECRET_ACCESS_KEY") && !readEnv("R2_SECRET_ACCESS_KEY")) {
+  if (!parts.endpoint) missing.push("S3_ENDPOINT");
+  if (!parts.bucket) missing.push("S3_BUCKET");
+  if (!parts.accessKeyId) missing.push("S3_ACCESS_KEY_ID");
+  if (!parts.secretAccessKey) {
     missing.push("S3_SECRET_ACCESS_KEY");
   }
   return missing;
 }
 
 /** S3 の設定が「1つでも書かれている」か（＝使うつもりがあったか）。 */
-function hasAnyS3Setting(): boolean {
-  return [
-    "S3_ENDPOINT",
-    "S3_BUCKET",
-    "S3_ACCESS_KEY_ID",
-    "S3_SECRET_ACCESS_KEY",
-    "S3_REGION",
-    "S3_KEY_PREFIX",
-    "R2_ACCOUNT_ID",
-    "R2_BUCKET",
-    "R2_ACCESS_KEY_ID",
-    "R2_SECRET_ACCESS_KEY",
-  ].some((name) => readEnv(name) !== undefined);
+async function hasAnyS3Setting(): Promise<boolean> {
+  const parts = await readS3Parts();
+  return Boolean(
+    parts.endpoint ||
+      parts.bucket ||
+      parts.accessKeyId ||
+      parts.secretAccessKey ||
+      parts.region ||
+      parts.keyPrefix ||
+      parts.forcePathStyle ||
+      [
+        "S3_ENDPOINT",
+        "S3_BUCKET",
+        "S3_ACCESS_KEY_ID",
+        "S3_SECRET_ACCESS_KEY",
+        "S3_REGION",
+        "S3_KEY_PREFIX",
+        "R2_ACCOUNT_ID",
+        "R2_BUCKET",
+        "R2_ACCESS_KEY_ID",
+        "R2_SECRET_ACCESS_KEY",
+      ].some((name) => readEnv(name) !== undefined),
+  );
 }
 
 export type StorageStatus = {
@@ -115,8 +154,8 @@ export type StorageStatus = {
  * 画面や診断に出すための、いまの保管先の状態。
  * 🚨 **アクセスキーは返さない**（伏せ字でも返さない）。設定画面へ出すのはここまで。
  */
-export function getStorageStatus(): StorageStatus {
-  const env = readS3Env();
+export async function getStorageStatus(): Promise<StorageStatus> {
+  const env = await readS3Env();
   if (env) {
     let endpointHost: string | null = null;
     try {
@@ -133,13 +172,13 @@ export function getStorageStatus(): StorageStatus {
       missing: [],
     };
   }
-  const misconfigured = hasAnyS3Setting();
+  const misconfigured = await hasAnyS3Setting();
   return {
     driver: "local",
     bucket: null,
     endpointHost: null,
     misconfigured,
-    missing: misconfigured ? missingS3Settings() : [],
+    missing: misconfigured ? await missingS3Settings() : [],
   };
 }
 
@@ -148,17 +187,18 @@ export function getStorageStatus(): StorageStatus {
 let warnedAboutPartialConfig = false;
 
 /** 今の設定で使う保管先。**書き込み先はこれ**。 */
-export function getStorage(): StorageDriver {
-  const env = readS3Env();
+export async function getStorage(): Promise<StorageDriver> {
+  const env = await readS3Env();
   if (env) return createS3Storage(env);
 
   // 🚨 「設定したつもりで空だった」をここで気づかせる。
   //    ただし**落とさない**（起動時に外部依存でアプリを止めない）。接続の確認は使うときまで待つ。
-  if (!warnedAboutPartialConfig && hasAnyS3Setting()) {
+  if (!warnedAboutPartialConfig && (await hasAnyS3Setting())) {
     warnedAboutPartialConfig = true;
+    const missing = await missingS3Settings();
     console.warn(
       "[storage] S3 の設定が途中までしか埋まっていないため、ローカルへ保存します。" +
-        `足りない環境変数: ${missingS3Settings().join(", ")}`,
+        `足りない環境変数: ${missing.join(", ")}`,
     );
   }
   return createLocalStorage();
@@ -177,10 +217,10 @@ export function getStorage(): StorageDriver {
  * 設定が外れていて解決できないときは **null を返す**。呼び出し側で「保管先が無い」と
  * はっきり失敗させること。今の設定で代わりに読むと、別の場所を見て 404 になり原因が消える。
  */
-export function getStorageByName(name: string): StorageDriver | null {
+export async function getStorageByName(name: string): Promise<StorageDriver | null> {
   if (name === "local") return createLocalStorage();
   if (name === "s3") {
-    const env = readS3Env();
+    const env = await readS3Env();
     return env ? createS3Storage(env) : null;
   }
   return null;

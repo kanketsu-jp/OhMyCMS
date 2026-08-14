@@ -394,8 +394,8 @@ function ensureStoredFile(row: FileRow): string {
  * これを見ずに今の設定で読むと、**ローカル運用のまま後から S3 を設定した瞬間に
  * 過去のファイルが全部 404 になる**（切り替えるまで誰も気づけない壊れ方）。
  */
-function storageForRow(row: FileRow): StorageDriver {
-  const storage = getStorageByName(row.storage);
+async function storageForRow(row: FileRow): Promise<StorageDriver> {
+  const storage = await getStorageByName(row.storage);
   if (!storage) {
     // 例: S3 に置いたファイルなのに S3 の設定が外れている。
     // 今の設定で代わりに読むと「別の場所を見て 404」になり、原因が分からなくなるので、
@@ -417,7 +417,7 @@ export async function uploadFile(actor: Actor | null, input: UploadFileInput): P
   const id = randomUUID();
   const filename = sanitizeFilename(input.filename);
   const key = `${id}/${filename}`;
-  const storage = getStorage();
+  const storage = await getStorage();
   const detected = await imageMetadata(input.body);
   const contentType = detected.type ?? inferContentType(filename, input.contentType);
   const userId = actorUserId(actor);
@@ -552,7 +552,7 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
   const key = ensureStoredFile(row);
   // 🚨 削除も**保存したときの保管先**へ。今の設定で消すと、切り替え前のファイルが
   //    消えずに残る（利用者は消したつもりでいる）。
-  const storage = storageForRow(row);
+  const storage = await storageForRow(row);
   if (storage.deletePrefix) {
     await storage.deletePrefix(`${id}/`);
   } else {
@@ -669,7 +669,7 @@ export async function getAsset(actor: Actor, id: string, input: TransformInput):
   // 🚨 変換キャッシュの読み書きも、元と**同じ保管先**で行う。
   //    今の設定で書くと「元は local・キャッシュは s3」というちぐはぐになり、
   //    head と get が別の場所を見る。
-  const storage = storageForRow(row);
+  const storage = await storageForRow(row);
 
   // 🚨 サイズの指定が無いときは、**アップロード時に作った圧縮版**を優先して返す。
   //    これが「配信を軽くする」の本体。指定があるときは元から変換する（品質を落とさないため）。

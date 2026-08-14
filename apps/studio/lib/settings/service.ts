@@ -23,6 +23,7 @@ import type { Knex } from "knex";
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db/knex";
 import { ApiError } from "@/lib/schema/errors";
+import { decryptSecret, encryptSecret } from "./secret-box";
 
 /** 設定テーブルは単一行。DB 側の CHECK 制約と揃えている。 */
 const SINGLE_ROW_ID = 1;
@@ -44,6 +45,15 @@ export const SETTINGS_DEFAULTS = {
   default_locale: "ja",
   public_note: "",
   tenant_name: "",
+  s3_endpoint: "",
+  s3_bucket: "",
+  s3_region: "",
+  s3_force_path_style: "false",
+  s3_key_prefix: "",
+  google_client_id: "",
+  smtp_host: "",
+  smtp_port: "",
+  smtp_user: "",
 } as const;
 
 export type Settings = {
@@ -53,6 +63,19 @@ export type Settings = {
   default_locale: string;
   public_note: string;
   tenant_name: string;
+  s3_endpoint: string;
+  s3_bucket: string;
+  s3_region: string;
+  s3_access_key_id_set: boolean;
+  s3_secret_access_key_set: boolean;
+  s3_force_path_style: string;
+  s3_key_prefix: string;
+  google_client_id: string;
+  google_client_secret_set: boolean;
+  smtp_host: string;
+  smtp_port: string;
+  smtp_user: string;
+  smtp_password_set: boolean;
   /** 各項目が「DB の値」なのか「環境変数・既定値」なのか。GUI が出所を出せるようにする。 */
   sources: Record<SettingsKey, SettingsSource>;
   updated_at: string | null;
@@ -66,7 +89,40 @@ export type SettingsKey =
   | "project_color"
   | "default_locale"
   | "public_note"
-  | "tenant_name";
+  | "tenant_name"
+  | "s3_endpoint"
+  | "s3_bucket"
+  | "s3_region"
+  | "s3_access_key_id"
+  | "s3_secret_access_key"
+  | "s3_force_path_style"
+  | "s3_key_prefix"
+  | "google_client_id"
+  | "google_client_secret"
+  | "smtp_host"
+  | "smtp_port"
+  | "smtp_user"
+  | "smtp_password";
+
+export type SecretSettingsKey =
+  | "s3_access_key_id"
+  | "s3_secret_access_key"
+  | "google_client_secret"
+  | "smtp_password";
+
+const SECRET_KEYS = new Set<SettingsKey>([
+  "s3_access_key_id",
+  "s3_secret_access_key",
+  "google_client_secret",
+  "smtp_password",
+]);
+
+const SECRET_ENV: Record<SecretSettingsKey, string> = {
+  s3_access_key_id: "S3_ACCESS_KEY_ID",
+  s3_secret_access_key: "S3_SECRET_ACCESS_KEY",
+  google_client_secret: "GOOGLE_CLIENT_SECRET",
+  smtp_password: "SMTP_PASSWORD",
+};
 
 /** GUI から書き換えられる項目。ここに無いキーは PATCH で無視する。 */
 const WRITABLE_KEYS: SettingsKey[] = [
@@ -76,6 +132,19 @@ const WRITABLE_KEYS: SettingsKey[] = [
   "default_locale",
   "public_note",
   "tenant_name",
+  "s3_endpoint",
+  "s3_bucket",
+  "s3_region",
+  "s3_access_key_id",
+  "s3_secret_access_key",
+  "s3_force_path_style",
+  "s3_key_prefix",
+  "google_client_id",
+  "google_client_secret",
+  "smtp_host",
+  "smtp_port",
+  "smtp_user",
+  "smtp_password",
 ];
 
 /** 環境変数から読む「初期値」。空文字は未設定として扱う（compose が空を渡してくるため）。 */
@@ -88,6 +157,19 @@ function fromEnvironment(): Partial<Record<SettingsKey, string>> {
     project_name: pick("OHMYCMS_PROJECT_NAME"),
     project_color: pick("OHMYCMS_PROJECT_COLOR"),
     default_locale: pick("OHMYCMS_DEFAULT_LOCALE"),
+    s3_endpoint: pick("S3_ENDPOINT"),
+    s3_bucket: pick("S3_BUCKET"),
+    s3_region: pick("S3_REGION"),
+    s3_access_key_id: pick("S3_ACCESS_KEY_ID"),
+    s3_secret_access_key: pick("S3_SECRET_ACCESS_KEY"),
+    s3_force_path_style: pick("S3_FORCE_PATH_STYLE"),
+    s3_key_prefix: pick("S3_KEY_PREFIX"),
+    google_client_id: pick("GOOGLE_CLIENT_ID"),
+    google_client_secret: pick("GOOGLE_CLIENT_SECRET"),
+    smtp_host: pick("SMTP_HOST"),
+    smtp_port: pick("SMTP_PORT"),
+    smtp_user: pick("SMTP_USER"),
+    smtp_password: pick("SMTP_PASSWORD"),
   };
 }
 
@@ -99,6 +181,19 @@ type SettingsRow = {
   default_locale: string | null;
   public_note: string | null;
   tenant_name: string | null;
+  s3_endpoint: string | null;
+  s3_bucket: string | null;
+  s3_region: string | null;
+  s3_access_key_id: string | null;
+  s3_secret_access_key: string | null;
+  s3_force_path_style: string | null;
+  s3_key_prefix: string | null;
+  google_client_id: string | null;
+  google_client_secret: string | null;
+  smtp_host: string | null;
+  smtp_port: string | null;
+  smtp_user: string | null;
+  smtp_password: string | null;
   updated_at: Date | string | null;
   /** オンボーディングが済んだ時刻。null なら未完了。 */
   onboarding_completed_at: Date | string | null;
@@ -134,12 +229,39 @@ export async function getSettings(): Promise<Settings> {
     if (fromEnv) return { value: fromEnv, source: "environment" };
     return { value: fallback, source: "default" };
   };
+  const resolveSecret = (
+    key: SecretSettingsKey,
+  ): { set: boolean; source: SettingsSource } => {
+    const fromDb = row?.[key as keyof SettingsRow];
+    if (typeof fromDb === "string" && fromDb.length > 0) {
+      return { set: true, source: "database" };
+    }
+    const fromEnv = environment[key];
+    if (fromEnv) return { set: true, source: "environment" };
+    return { set: false, source: "default" };
+  };
 
   const name = resolve("project_name", SETTINGS_DEFAULTS.project_name);
   const color = resolve("project_color", SETTINGS_DEFAULTS.project_color);
   const locale = resolve("default_locale", SETTINGS_DEFAULTS.default_locale);
   const note = resolve("public_note", SETTINGS_DEFAULTS.public_note);
   const tenant = resolve("tenant_name", SETTINGS_DEFAULTS.tenant_name);
+  const s3Endpoint = resolve("s3_endpoint", SETTINGS_DEFAULTS.s3_endpoint);
+  const s3Bucket = resolve("s3_bucket", SETTINGS_DEFAULTS.s3_bucket);
+  const s3Region = resolve("s3_region", SETTINGS_DEFAULTS.s3_region);
+  const s3AccessKeyId = resolveSecret("s3_access_key_id");
+  const s3SecretAccessKey = resolveSecret("s3_secret_access_key");
+  const s3ForcePathStyle = resolve(
+    "s3_force_path_style",
+    SETTINGS_DEFAULTS.s3_force_path_style,
+  );
+  const s3KeyPrefix = resolve("s3_key_prefix", SETTINGS_DEFAULTS.s3_key_prefix);
+  const googleClientId = resolve("google_client_id", SETTINGS_DEFAULTS.google_client_id);
+  const googleClientSecret = resolveSecret("google_client_secret");
+  const smtpHost = resolve("smtp_host", SETTINGS_DEFAULTS.smtp_host);
+  const smtpPort = resolve("smtp_port", SETTINGS_DEFAULTS.smtp_port);
+  const smtpUser = resolve("smtp_user", SETTINGS_DEFAULTS.smtp_user);
+  const smtpPassword = resolveSecret("smtp_password");
 
   return {
     project_name: name.value,
@@ -148,6 +270,19 @@ export async function getSettings(): Promise<Settings> {
     default_locale: locale.value,
     public_note: note.value,
     tenant_name: tenant.value,
+    s3_endpoint: s3Endpoint.value,
+    s3_bucket: s3Bucket.value,
+    s3_region: s3Region.value,
+    s3_access_key_id_set: s3AccessKeyId.set,
+    s3_secret_access_key_set: s3SecretAccessKey.set,
+    s3_force_path_style: s3ForcePathStyle.value,
+    s3_key_prefix: s3KeyPrefix.value,
+    google_client_id: googleClientId.value,
+    google_client_secret_set: googleClientSecret.set,
+    smtp_host: smtpHost.value,
+    smtp_port: smtpPort.value,
+    smtp_user: smtpUser.value,
+    smtp_password_set: smtpPassword.set,
     sources: {
       project_name: name.source,
       // ロゴは環境変数を持たない（ファイルIDなので DB にしか居ない）。
@@ -156,11 +291,38 @@ export async function getSettings(): Promise<Settings> {
       default_locale: locale.source,
       public_note: note.source,
       tenant_name: tenant.source,
+      s3_endpoint: s3Endpoint.source,
+      s3_bucket: s3Bucket.source,
+      s3_region: s3Region.source,
+      s3_access_key_id: s3AccessKeyId.source,
+      s3_secret_access_key: s3SecretAccessKey.source,
+      s3_force_path_style: s3ForcePathStyle.source,
+      s3_key_prefix: s3KeyPrefix.source,
+      google_client_id: googleClientId.source,
+      google_client_secret: googleClientSecret.source,
+      smtp_host: smtpHost.source,
+      smtp_port: smtpPort.source,
+      smtp_user: smtpUser.source,
+      smtp_password: smtpPassword.source,
     },
     updated_at: row?.updated_at
       ? new Date(row.updated_at).toISOString()
       : null,
   };
+}
+
+/**
+ * 秘密項目の平文をサーバ内部向けに取り出す。
+ * 戻り値は API レスポンスやログに絶対に出さないこと。
+ */
+export async function getSecretSetting(key: SecretSettingsKey): Promise<string | null> {
+  const row = await readRow();
+  const fromDb = row?.[key as keyof SettingsRow];
+  if (typeof fromDb === "string" && fromDb.length > 0) {
+    return decryptSecret(fromDb);
+  }
+  const fromEnv = process.env[SECRET_ENV[key]]?.trim();
+  return fromEnv && fromEnv.length > 0 ? fromEnv : null;
 }
 
 /** 保存できるロケール。i18n/config.ts の LOCALES と揃える。 */
@@ -199,6 +361,22 @@ function validate(input: Record<string, unknown>): Partial<Record<SettingsKey, s
     if (key === "project_color" && value && !/^#[0-9a-fA-F]{3,8}$/.test(value)) {
       throw new ApiError(400, "INVALID_COLOR", "project_color は #rrggbb 形式で指定してください");
     }
+    if (key === "s3_endpoint" && value) {
+      try {
+        new URL(value);
+      } catch {
+        throw new ApiError(400, "INVALID_FIELD", "s3_endpoint は URL 形式で指定してください");
+      }
+    }
+    if (key === "s3_force_path_style" && value && value !== "true" && value !== "false") {
+      throw new ApiError(400, "INVALID_FIELD", "s3_force_path_style は true / false で指定してください");
+    }
+    if (key === "smtp_port" && value) {
+      const port = Number(value);
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new ApiError(400, "INVALID_FIELD", "smtp_port は 1〜65535 の整数で指定してください");
+      }
+    }
     // 空文字は「消す」と同じ扱いにする（GUI の入力欄を空にしたら初期値へ戻る）。
     patch[key] = value.length > 0 ? value : null;
   }
@@ -222,8 +400,14 @@ export async function updateSettings(
     return getSettings();
   }
 
+  const encryptedPatch: Partial<Record<SettingsKey, string | null>> = {};
+  for (const [key, value] of Object.entries(patch) as [SettingsKey, string | null][]) {
+    encryptedPatch[key] =
+      value !== null && SECRET_KEYS.has(key) ? encryptSecret(value) : value;
+  }
+
   const existing = await readRow();
-  const payload = { ...patch, updated_at: new Date(), updated_by: updatedBy };
+  const payload = { ...encryptedPatch, updated_at: new Date(), updated_by: updatedBy };
 
   if (existing) {
     await db("ohmycms_settings").where({ id: SINGLE_ROW_ID }).update(payload);
