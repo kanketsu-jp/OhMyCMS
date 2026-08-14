@@ -191,14 +191,20 @@ function PanelBody({
   stack: PanelEntry[];
   inDialog?: boolean;
 }) {
-  const t = useT("panel");
   const tCommon = useT("common");
+  // 🚨 **`titleKey` は名前空間つきの完全なキー**（"reports.create_title"）なので、
+  //    名前空間を付けない翻訳関数で引く。`useT("panel")` で引くと `panel.` が二重に付き、
+  //    見出しに **"panel.reports.create_title" というキー文字列がそのまま出る**
+  //    （polish が実測して報告してくれた。押し込む側の部品がまだ無く、
+  //     深さ1しか描けなかったので、私のブラウザ検証では踏めなかった）。
+  //    兄弟の `page-info-panel.tsx` も同じ理由で名前空間なしを使っている。
+  const tKey = useT();
   const { close, pop, depth } = useRightPanel();
   const trail = usePageTrail(brand);
 
   const top = stack[stack.length - 1];
   // 深さ1の見出しは**そのページの名前**。パンくずと同じものを読むので食い違わない。
-  const title = top ? t(top.titleKey) : (trail[trail.length - 1]?.label ?? brand);
+  const title = top ? tKey(top.titleKey) : (trail[trail.length - 1]?.label ?? brand);
 
   const heading = (
     <span className="min-w-0 flex-1 truncate text-sm font-medium">{title}</span>
