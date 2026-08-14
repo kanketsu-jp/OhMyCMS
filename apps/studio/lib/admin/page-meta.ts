@@ -73,6 +73,12 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
     descriptionKey: "notifications.description",
   },
   "/admin/reports": { titleKey: "reports.title", descriptionKey: "reports.description" },
+  // `/admin/reports/manage` は `[id]` と区間数が同じだが、`pageMeta()` は
+  // **まず完全一致を見る**（`PAGE_META[pathname]`）ので `[id]` に吸われない。
+  // 🚨 並び順で守られているのではない。順序を入れ替えても解決先は変わらないことを実測した
+  //    （最初「先に置かないと吸われる」と書いたが、**それは誤り**だった）。
+  "/admin/reports/manage": { titleKey: "reports.nav_manage" },
+  "/admin/reports/[id]": { titleKey: "reports.title" },
 
   "/admin/settings/general": { titleKey: "settings.title", descriptionKey: "settings.description" },
   "/admin/settings/agents": { titleKey: "agents.title", descriptionKey: "agents.description" },

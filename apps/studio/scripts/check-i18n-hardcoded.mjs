@@ -124,6 +124,11 @@ function looksLikeUiEnglish(text) {
   // `useState<Foo>(null)` のようなジェネリクスは `>...<` に見えてしまう。
   // コード片に必ず現れる記号を含むものは JSX テキストではないと判断する。
   if (/[;(){}=]/.test(text)) return false;
+  // 🚨 型の交差（`A<X> &\n  Pick<Y, "z">`）も `>...<` に見える。
+  //    実例: shadcn の `components/ui/message-scroller.tsx` を入れた途端に落ちた（2026-08-15）。
+  //    **`&` を含むもの全部を除くと "Terms & Conditions" のような本物を見逃す**ので、
+  //    **`&` で始まるものだけ**にする（画面に出す文が `&` で始まることは無い）。
+  if (/^&[\s\w]/.test(text)) return false;
   const normalized = text.toLowerCase();
   if (ALLOWED_LITERALS.has(normalized)) return false;
   // 変数展開・式のみ、記号のみ、数値のみは対象外

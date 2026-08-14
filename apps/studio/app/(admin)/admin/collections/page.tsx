@@ -42,13 +42,19 @@ export default async function CollectionsPage({ searchParams }: Props) {
             （右サイドバー・Storybook・LLM がそこから読む）。
           🚨 パンくずと右サイドバーは **ui ペインが作る**。**それが入るまで、
              この画面にはページ名がどこにも出ない**（意図した中間状態）。 */}
-      <div className="flex justify-end">
-        <PageAction
-          href="/admin/collections/new"
-          label={t("new_button")}
-          icon={<Plus />}
-        />
-      </div>
+      {/* 🚨 **囲まない。** `PageAction` は PC も SP も portal で外（ヘッダー / 下部ナビ）へ出る
+          ので、ここに残る中身は無い。以前あった `<div className="flex justify-end">` は
+          **何も入っていないのに縦の余白だけ取っていた**（shell 583cf84 の申し送り）。 */}
+      <PageAction
+        href="/admin/collections/new"
+        label={t("new_button")}
+        icon={<Plus />}
+      />
+      {/* 🚨 **`params.error` を直接渡さないこと**（2026-08-15 の統合で一度そう書かれていた）。
+          あれは URL の自由文字列で、**アプリ本物のエラー枠の中に攻撃者の文章が出る**
+          （なりすまし表示。XSS ではないが、電話番号を出せばそのまま偽ページになる）。
+          `errorKeyFromQuery` の許可リストを通した `errorMessage` だけを渡す。
+          対応の無いコードは汎用文言へ落ちる（fail closed）。 */}
       <ErrorBanner message={errorMessage ?? (!result.ok ? result.message : null)} />
       {/* 🚨 **枠で囲まない**（堀池・2026-08-15）:
           > 「ボーダー＋Padding はいらない。親要素にすでに Padding があるのと、

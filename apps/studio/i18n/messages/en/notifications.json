@@ -20,5 +20,11 @@
   "relation_created": "Relation added.",
   "relation_deleted": "Relation deleted.",
   "collection_deleted": "Collection deleted.",
-  "mark_all_read": "Mark all as read"
+  "mark_all_read": "Mark all as read",
+  "message_bug_report_replied": "There is a reply on \"{title}\"",
+  "message_bug_report_resolved": "\"{title}\" was resolved",
+  "message_bug_report_reopened": "\"{title}\" was reopened",
+  "tab_personal": "For you",
+  "tab_system": "System",
+  "empty_system": "No system notices."
 }

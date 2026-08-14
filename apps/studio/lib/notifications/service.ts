@@ -21,7 +21,18 @@ export type Notification = {
   link: string | null;
   created_at: string;
   read_at: string | null;
+  category: NotificationCategory;
 };
+
+/**
+ * お知らせの区分。堀池さん（2026-08-15）:
+ * > 「お知らせページでは最初にタブで『**あなた宛**』『**システム関係**』があり、
+ * >   **あなた宛がデフォルト**。システム関係はアップデートのことなど。」
+ *
+ * personal = その人に向けて起きたこと（返信が来た・ポリシーが付いた 等）
+ * system   = 全員に同じことを知らせるもの（新しいバージョンが出た 等）
+ */
+export type NotificationCategory = "personal" | "system";
 
 type NotificationRow = {
   id: string;
@@ -31,6 +42,7 @@ type NotificationRow = {
   link: string | null;
   created_at: Date | string;
   read_at: Date | string | null;
+  category: NotificationCategory;
 };
 
 const MAX_LIMIT = 100;
@@ -48,6 +60,9 @@ function present(row: NotificationRow): Notification {
     link: row.link,
     created_at: toIso(row.created_at) as string,
     read_at: toIso(row.read_at),
+    // 🚨 列を足す前に作られた行は null になりうるので、既定へ寄せる
+    //    （タブのどちらにも出ない通知を作らない）。
+    category: row.category ?? "personal",
   };
 }
 
@@ -57,7 +72,11 @@ function present(row: NotificationRow): Notification {
  */
 export async function listNotifications(
   recipient: string,
-  { unreadOnly = false, limit = 50 }: { unreadOnly?: boolean; limit?: number } = {},
+  {
+    unreadOnly = false,
+    limit = 50,
+    category,
+  }: { unreadOnly?: boolean; limit?: number; category?: NotificationCategory } = {},
 ): Promise<{ data: Notification[]; unread: number }> {
   const capped = Math.min(Math.max(limit, 1), MAX_LIMIT);
 
@@ -66,6 +85,8 @@ export async function listNotifications(
     .orderBy("created_at", "desc")
     .limit(capped);
   if (unreadOnly) query.whereNull("read_at");
+  // 🚨 タブの絞り込みも **WHERE でやる**（取ってから捨てない）。
+  if (category) query.andWhere({ category });
 
   const rows = await query;
 
@@ -112,6 +133,8 @@ export async function createNotification(input: {
   messageKey: string;
   params?: Record<string, unknown>;
   link?: string | null;
+  /** 既定は personal。全員向けの告知だけ system にする */
+  category?: NotificationCategory;
 }): Promise<Notification> {
   // リンクはアプリ内の相対パスだけ許す（通知から外部サイトへ飛ばさない）。
   const link = input.link ?? null;
@@ -119,12 +142,14 @@ export async function createNotification(input: {
     throw new ApiError(400, "INVALID_LINK", "link はアプリ内の相対パスで指定してください");
   }
 
+  const category = input.category ?? "personal";
   const row = {
     id: randomUUID(),
     recipient: input.recipient,
     message_key: input.messageKey,
     message_params: input.params ? JSON.stringify(input.params) : null,
     link,
+    category,
   };
   await db("ohmycms_notifications").insert(row);
 
@@ -135,5 +160,22 @@ export async function createNotification(input: {
     link,
     created_at: new Date().toISOString(),
     read_at: null,
+    category,
   };
+}
+
+/**
+ * 自分宛を**まとめて既読にする**。
+ * 堀池さんのヘッダー案（アクションボタン）で、お知らせ一覧の主要操作にあたる。
+ *
+ * 🚨 `recipient` を必ず WHERE に入れる（他人の分を既読にしない）。
+ * @returns 既読にした件数。**0 件は「もともと未読が無かった」**で、失敗ではない
+ */
+export async function markAllRead(
+  recipient: string,
+  { category }: { category?: NotificationCategory } = {},
+): Promise<number> {
+  const query = db("ohmycms_notifications").where({ recipient }).whereNull("read_at");
+  if (category) query.andWhere({ category });
+  return query.update({ read_at: new Date() });
 }

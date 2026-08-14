@@ -97,16 +97,22 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             {tCollections("back_to_list")}
           </Link>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <PageAction
-            href={`/admin/collections/${encoded}/fields/new`}
-            label={tFields("add_title")}
-            icon={<Plus />}
-          />
-          <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post">
-            <Button type="submit" variant="destructive">{tCollections("delete_button")}</Button>
-          </form>
-        </div>
+        {/* 🚨 **囲まない**（`PageAction` は portal で外へ出るので、ここに中身は残らない）。
+            🚨 form は**残す**。`form="collection-delete-form"` が指す相手そのものなので、
+               消すと削除ボタンが黙って効かなくなる（中身は空でよい）。 */}
+        <PageAction
+          href={`/admin/collections/${encoded}/fields/new`}
+          label={tFields("add_title")}
+          icon={<Plus />}
+        />
+        <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post" />
+        <PageAction
+          form="collection-delete-form"
+          role="secondary"
+          destructive
+          label={tCollections("delete_button")}
+          icon={<Trash2 />}
+        />
       </div>
       <ErrorBanner
         message={

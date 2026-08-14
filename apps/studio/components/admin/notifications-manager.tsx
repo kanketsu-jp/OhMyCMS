@@ -3,9 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Undo2 } from "lucide-react";
+import { Check, CheckCheck, Undo2 } from "lucide-react";
+
+import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
+import { cn } from "@/lib/utils";
 
 type Notification = {
   id: string;
@@ -22,42 +27,69 @@ type Notification = {
  * 🚨 通知の**文言は辞書キーで保存されている**（DB に翻訳済みの文字列を入れない）。
  *    ここで辞書を引くので、言語を切り替えると過去の通知も切り替わる。
  *    辞書に無いキーが来たらキーをそのまま出す（画面が空白になるより追える）。
+ *
+ * 🚨 **1件ずつを枠で囲まない**（堀池さん「カードコンポーネントを多用するのはデザインスキルが低い」）。
+ *    並んでいるものの区切りは罫線 1 本で足りる。
  */
 export function NotificationsManager({
   notifications,
   unread,
+  category,
+  emptyLabel,
 }: {
   notifications: Notification[];
   unread: number;
+  category: "personal" | "system";
+  emptyLabel: string;
 }) {
   const t = useT("notifications");
   const format = useFormat();
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [unreadOnly, setUnreadOnly] = useState(false);
 
-  async function setRead(id: string, read: boolean) {
-    setError(null);
-    const response = await fetch(`/api/notifications/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ read }),
+  // 🚨 失敗は**起きて終わったこと**なのでトースト（司令塔 2026-08-15 の切り分け）。
+  //    以前ここにあった画面内の赤い帯は消した。
+  const setRead = useSubmitOnce(
+    async (id: string, read: boolean) => {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ read }),
+      });
+      if (!response.ok) {
+        toast.error(t("error_update_failed"));
+        return;
+      }
+      router.refresh();
+    },
+    // 🚨 行ごとの鍵。省くと 1 件を既読にしている間、他の行が押せなくなる。
+    (id) => id,
+  );
+
+  const markAll = useSubmitOnce(async () => {
+    const response = await fetch(`/api/notifications?category=${category}`, {
+      method: "POST",
     });
     if (!response.ok) {
-      setError(t("error_update_failed"));
+      toast.error(t("error_update_failed"));
       return;
     }
     router.refresh();
-  }
+  });
 
   const visible = unreadOnly ? notifications.filter((n) => !n.read_at) : notifications;
 
   return (
     <div className="space-y-4">
-      {error ? (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
+      {/* ページの主要アクション（`lib/admin/page-actions.ts` の /admin/notifications の定義）。
+          🚨 未読が 0 のときは出さない。押しても何も起きないボタンを常設しない。 */}
+      {unread > 0 ? (
+        <PageAction
+          label={t("mark_all_read")}
+          icon={<CheckCheck />}
+          onClick={() => void markAll.run()}
+          pending={markAll.pending}
+        />
       ) : null}
 
       <div className="flex items-center justify-between gap-3">
@@ -70,15 +102,16 @@ export function NotificationsManager({
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y">
           {visible.map((notification) => (
             <li
               key={notification.id}
-              className={`flex items-start justify-between gap-4 rounded-lg border px-3 py-2 ${
-                notification.read_at ? "opacity-60" : ""
-              }`}
+              className={cn(
+                "flex items-start justify-between gap-4 py-3",
+                notification.read_at && "text-muted-foreground",
+              )}
             >
               <div className="min-w-0 space-y-1">
                 <p className="text-sm">
@@ -91,6 +124,8 @@ export function NotificationsManager({
                 <p className="text-xs text-muted-foreground">
                   {format.dateTime(notification.created_at)}
                 </p>
+                {/* 堀池さん:「『不具合に返信がありました』などから
+                    **報告一覧のその報告チャットへ遷移**する」 */}
                 {notification.link ? (
                   <Link
                     href={notification.link}
@@ -104,7 +139,8 @@ export function NotificationsManager({
                 variant="ghost"
                 size="sm"
                 aria-label={notification.read_at ? t("mark_unread") : t("mark_read")}
-                onClick={() => setRead(notification.id, !notification.read_at)}
+                disabled={setRead.isPending(notification.id)}
+                onClick={() => void setRead.run(notification.id, !notification.read_at)}
               >
                 {notification.read_at ? <Undo2 /> : <Check />}
                 <span className="hidden md:inline">
