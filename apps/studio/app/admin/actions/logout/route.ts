@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiMessage } from "@/lib/admin/forms";
+import { apiErrorKey } from "@/lib/admin/forms";
 import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
   if (!response.ok && response.status !== 204) {
     const url = new URL("/admin", publicBaseUrl(request));
-    url.searchParams.set("error", await apiMessage(response));
+    url.searchParams.set("error", await apiErrorKey(response));
     return NextResponse.redirect(url, { status: 303 });
   }
 

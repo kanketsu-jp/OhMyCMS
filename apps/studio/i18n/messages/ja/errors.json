@@ -1,1 +1,15 @@
-{}
+{
+  "invalid_input": "入力の内容が正しくありません。",
+  "invalid_json": "JSON の書式が正しくありません。",
+  "field_required": "必要な項目が入力されていません。",
+  "related_collection_required": "関連するコレクションを選んでください。",
+  "kind_invalid": "種類の指定が正しくありません。",
+  "delete_target_required": "削除する対象が指定されていません。",
+  "permission_denied": "この操作を行う権限がありません。",
+  "not_found": "対象が見つかりませんでした。",
+  "invalid_body": "送信された内容を処理できませんでした。",
+  "invalid_field": "項目の指定が正しくありません。",
+  "conflict": "ほかの変更と競合したため保存できませんでした。",
+  "unexpected": "処理できませんでした。時間をおいてもう一度お試しください。",
+  "relation_partial_failure": "列は作成されましたが、リレーションの作成に失敗しました。"
+}

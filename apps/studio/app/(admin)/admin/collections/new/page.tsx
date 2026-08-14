@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { Label } from "@/components/ui/label";
 import { Surface } from "@/components/ui/surface";
+import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,10 @@ type Props = {
 
 export default async function NewCollectionPage({ searchParams }: Props) {
   const params = await searchParams;
+  // 🚨 URL の値は鍵としてしか受け取らない（許可リスト・fail closed）。i18n/error.ts 参照。
+  const tError = await getT("errors");
+  const errorKey = errorKeyFromQuery(params.error);
+  const errorMessage = errorKey ? tError(errorKey) : null;
   const t = await getT("collections");
 
   return (
@@ -35,7 +40,7 @@ export default async function NewCollectionPage({ searchParams }: Props) {
           {t("back_to_list")}
         </Link>
       </div>
-      <ErrorBanner message={params.error ?? null} />
+      <ErrorBanner message={errorMessage} />
       <Surface>
         <form id="collection-create-form" action="/admin/actions/collections" method="post" className="grid gap-4">
           <div className="space-y-1.5">

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { apiErrorKey, formString, redirectWithMessage } from "@/lib/admin/forms";
 import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   });
 
   if (!response.ok) {
-    return redirectWithMessage(request, "/admin/collections", "error", await apiMessage(response));
+    return redirectWithMessage(request, "/admin/collections", "error", await apiErrorKey(response));
   }
 
   return NextResponse.redirect(new URL(`/admin/collections/${collection}`, publicBaseUrl(request)), {

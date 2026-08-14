@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { apiErrorKey, formString, redirectWithMessage } from "@/lib/admin/forms";
 import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 import { getT } from "@/i18n/server";
 
@@ -18,7 +18,7 @@ export async function POST(request: Request, ctx: Context) {
   const t = await getT("relations");
 
   if (!manyCollection || !manyField) {
-    return redirectWithMessage(request, path, "error", t("error_delete_target_required"));
+    return redirectWithMessage(request, path, "error", "delete_target_required");
   }
 
   const response = await fetch(
@@ -34,7 +34,7 @@ export async function POST(request: Request, ctx: Context) {
   );
 
   if (!response.ok) {
-    return redirectWithMessage(request, path, "error", await apiMessage(response));
+    return redirectWithMessage(request, path, "error", await apiErrorKey(response));
   }
 
   const url = new URL(path, publicBaseUrl(request));

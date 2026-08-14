@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiMessage, formString, redirectWithMessage } from "@/lib/admin/forms";
+import { apiErrorKey, formString, redirectWithMessage } from "@/lib/admin/forms";
 import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 import { getT } from "@/i18n/server";
 
@@ -21,13 +21,13 @@ export async function POST(request: Request, ctx: Context) {
   const t = await getT("relations");
 
   if (kind !== "m2o" && kind !== "o2m") {
-    return redirectWithMessage(request, path, "error", t("error_invalid_kind"));
+    return redirectWithMessage(request, path, "error", "kind_invalid");
   }
   if (!relatedCollection) {
-    return redirectWithMessage(request, path, "error", t("error_related_collection_required"));
+    return redirectWithMessage(request, path, "error", "related_collection_required");
   }
   if (kind === "m2o" && !field) {
-    return redirectWithMessage(request, path, "error", t("error_field_required"));
+    return redirectWithMessage(request, path, "error", "field_required");
   }
   if (kind === "o2m" && (!relatedField || !oneField)) {
     return redirectWithMessage(
@@ -59,7 +59,7 @@ export async function POST(request: Request, ctx: Context) {
   const fieldCreated = fieldResponse.ok;
 
   if (fieldResponse.status !== 409 && !fieldResponse.ok) {
-    return redirectWithMessage(request, path, "error", await apiMessage(fieldResponse));
+    return redirectWithMessage(request, path, "error", await apiErrorKey(fieldResponse));
   }
 
   const relationBody = kind === "m2o"
@@ -86,14 +86,12 @@ export async function POST(request: Request, ctx: Context) {
   });
 
   if (!relationResponse.ok) {
-    const message = await apiMessage(relationResponse);
+    // 🚨 API の生文言を URL に載せない（任意文言のなりすましになる）。鍵だけを渡す。
     return redirectWithMessage(
       request,
       path,
       "error",
-      fieldCreated
-        ? t("error_create_failed_after_field", { message })
-        : message,
+      fieldCreated ? "relation_partial_failure" : await apiErrorKey(relationResponse),
     );
   }
 

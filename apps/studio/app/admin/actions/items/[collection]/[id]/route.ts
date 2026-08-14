@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiMessage, redirectWithMessage } from "@/lib/admin/forms";
+import { apiErrorKey, redirectWithMessage } from "@/lib/admin/forms";
 import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 import { getT } from "@/i18n/server";
 import type { Translator } from "@/i18n/translator";
@@ -76,7 +76,7 @@ export async function POST(request: Request, ctx: Context) {
     });
 
     if (!response.ok && response.status !== 204) {
-      return redirectWithMessage(request, `/admin/content/${encoded}`, "error", await apiMessage(response));
+      return redirectWithMessage(request, `/admin/content/${encoded}`, "error", await apiErrorKey(response));
     }
 
     const url = new URL(`/admin/content/${encoded}`, publicBaseUrl(request));
@@ -86,7 +86,7 @@ export async function POST(request: Request, ctx: Context) {
 
   const parsed = parseItemPayload(formData, t);
   if (parsed.error || !parsed.data) {
-    return redirectWithMessage(request, backPath, "error", parsed.error ?? t("error_invalid_input"));
+    return redirectWithMessage(request, backPath, "error", "invalid_input");
   }
 
   const response = await fetch(new URL(`/api/items/${encoded}/${encodedId}`, internalOrigin(request)), {
@@ -100,7 +100,7 @@ export async function POST(request: Request, ctx: Context) {
   });
 
   if (!response.ok) {
-    return redirectWithMessage(request, backPath, "error", await apiMessage(response));
+    return redirectWithMessage(request, backPath, "error", await apiErrorKey(response));
   }
 
   const url = new URL(backPath, publicBaseUrl(request));

@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
 import { RelationForm } from "@/components/admin/relation-form";
+import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
@@ -65,6 +66,10 @@ function relationRows(relations: RelationResult[], collection: string): Collecti
 
 export default async function CollectionDetailPage({ params, searchParams }: Props) {
   const query = await searchParams;
+  // 🚨 URL の値は鍵としてしか受け取らない（許可リスト・fail closed）。i18n/error.ts 参照。
+  const tError = await getT("errors");
+  const errorKey = errorKeyFromQuery(query.error);
+  const errorMessage = errorKey ? tError(errorKey) : null;
   const tCollections = await getT("collections");
   const tFields = await getT("fields");
   const tItems = await getT("items");
@@ -105,7 +110,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       </div>
       <ErrorBanner
         message={
-          query.error ??
+          errorMessage ??
           (!collectionResult.ok ? collectionResult.message : null) ??
           (!fieldsResult.ok ? fieldsResult.message : null) ??
           (!relationsResult.ok ? relationsResult.message : null)

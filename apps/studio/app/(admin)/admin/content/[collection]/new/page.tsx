@@ -3,6 +3,7 @@ import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ItemForm } from "@/components/admin/item-form";
+import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 
@@ -13,6 +14,10 @@ type Props = {
 
 export default async function NewItemPage({ params, searchParams }: Props) {
   const query = await searchParams;
+  // 🚨 URL の値は鍵としてしか受け取らない（許可リスト・fail closed）。i18n/error.ts 参照。
+  const tError = await getT("errors");
+  const errorKey = errorKeyFromQuery(query.error);
+  const errorMessage = errorKey ? tError(errorKey) : null;
   const t = await getT("items");
   const { collection } = await params;
   const encoded = encodeURIComponent(collection);
@@ -26,7 +31,7 @@ export default async function NewItemPage({ params, searchParams }: Props) {
           {t("back_to_list")}
         </Link>
       </div>
-      <ErrorBanner message={query.error ?? (!fieldsResult.ok ? fieldsResult.message : null)} />
+      <ErrorBanner message={errorMessage ?? (!fieldsResult.ok ? fieldsResult.message : null)} />
       <Surface>
         <SurfaceTitle>{collection}</SurfaceTitle>
         <ItemForm collection={collection} fields={fields} />

@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
 import { isFileField } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
@@ -45,6 +46,10 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const tFields = await getT("fields");
   const { collection } = await params;
   const query = await searchParams;
+  // 🚨 URL の値は鍵としてしか受け取らない（許可リスト・fail closed）。i18n/error.ts 参照。
+  const tError = await getT("errors");
+  const errorKey = errorKeyFromQuery(query.error);
+  const errorMessage = errorKey ? tError(errorKey) : null;
   const page = Math.max(1, Number(query.page ?? "1") || 1);
   const limit = 20;
   const offset = (page - 1) * limit;
@@ -107,7 +112,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
       </div>
       <ErrorBanner
         message={
-          query.error ??
+          errorMessage ??
           (!fieldsResult.ok ? fieldsResult.message : null) ??
           (!itemsResult.ok ? itemsResult.message : null)
         }

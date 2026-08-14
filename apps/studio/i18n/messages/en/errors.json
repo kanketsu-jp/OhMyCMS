@@ -1,1 +1,15 @@
-{}
+{
+  "invalid_input": "The input is not valid.",
+  "invalid_json": "The JSON format is not valid.",
+  "field_required": "A required field is missing.",
+  "related_collection_required": "Select a related collection.",
+  "kind_invalid": "The kind is not valid.",
+  "delete_target_required": "No delete target was specified.",
+  "permission_denied": "You do not have permission for this action.",
+  "not_found": "The target was not found.",
+  "invalid_body": "The submitted content could not be processed.",
+  "invalid_field": "The field is not valid.",
+  "conflict": "Could not save because of a conflicting change.",
+  "unexpected": "Could not complete the request. Please try again later.",
+  "relation_partial_failure": "The column was created, but the relation could not be created."
+}

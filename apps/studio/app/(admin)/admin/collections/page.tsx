@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
 import { Plus } from "lucide-react";
+import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -22,6 +23,10 @@ type Props = {
 
 export default async function CollectionsPage({ searchParams }: Props) {
   const params = await searchParams;
+  // 🚨 URL の値は鍵としてしか受け取らない（許可リスト・fail closed）。i18n/error.ts 参照。
+  const tError = await getT("errors");
+  const errorKey = errorKeyFromQuery(params.error);
+  const errorMessage = errorKey ? tError(errorKey) : null;
   const t = await getT("collections");
   const result = await apiFetch<CollectionResult[]>("/api/collections");
 
@@ -44,7 +49,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
           icon={<Plus />}
         />
       </div>
-      <ErrorBanner message={params.error ?? (!result.ok ? result.message : null)} />
+      <ErrorBanner message={errorMessage ?? (!result.ok ? result.message : null)} />
       {/* 🚨 **枠で囲まない**（堀池・2026-08-15）:
           > 「ボーダー＋Padding はいらない。親要素にすでに Padding があるのと、
           >   カードコンポーネントを多用するのはデザインスキルが低い。

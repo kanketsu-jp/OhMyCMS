@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiMessage, redirectWithMessage } from "@/lib/admin/forms";
+import { apiErrorKey, redirectWithMessage } from "@/lib/admin/forms";
 import { internalOrigin, publicBaseUrl } from "@/lib/auth/urls";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function POST(request: Request, ctx: Context) {
       request,
       `/admin/collections/${encodeURIComponent(collection)}`,
       "error",
-      await apiMessage(response),
+      await apiErrorKey(response),
     );
   }
 
