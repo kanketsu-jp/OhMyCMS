@@ -543,6 +543,27 @@ const PROBE = String.raw`(() => {
   // 🚨 読み上げ名の候補: **見えている文字を持たない操作部品**（アイコンだけのボタン等）。
   //    文字があるものは名前を持てているので、危ないのはここだけ。
   //    sel() は一意ではないので、**印を付けてから** CDP 側で引く。
+  // 🚨 **変えられない値が、入力欄に見えていないか**（堀池・2026-08-15）:
+  // > 「変更できない ID などはそもそも背景を Input タグと同じにしない。（背景なし）
+  // >   …背景が .bg-muted/60 なので、**編集できると思ってしまう**。
+  // >   **これは UIUX で絶対にやってはいけないこと。**」
+  // readOnly なのに塗りや罫線を持っていたら違反。**disabled は対象外**（別の意味なので）。
+  const editableLooking = [];
+  for (const el of document.querySelectorAll("input[readonly], textarea[readonly]")) {
+    if (!shown(el) || srOnly(el) || el.disabled) continue;
+    const cs = getComputedStyle(el);
+    const hasBg = !clear(cs.backgroundColor);
+    const hasBorder = ["Top", "Right", "Bottom", "Left"]
+      .some((d) => px(cs["border" + d + "Width"]) > 0 && !clear(cs["border" + d + "Color"]));
+    if (hasBg || hasBorder) {
+      editableLooking.push({
+        sel: sel(el),
+        bg: hasBg ? cs.backgroundColor : null,
+        border: hasBorder ? cs.borderTopColor : null,
+      });
+    }
+  }
+
   const nameless = [];
   {
     let n = 0;
@@ -579,6 +600,7 @@ const PROBE = String.raw`(() => {
     inlineButtonHeights: [...new Set(inlineButtons)].sort((a, b) => a - b),
     formPairs: formPairs.slice(0, 4),
     nameless,
+    editableLooking,
     inputHeights: [...new Set(inputs.map((b) => b.h))].sort((a, b) => a - b),
     // 🚨 iOS が勝手に拡大するのは **文字を打ち込む欄** の font-size が 16px 未満のとき（憲章 §7）。
     // チェックボックス・ラジオ・ファイル選択は拡大しないので除く（除かないと誤検出になる）。
@@ -861,6 +883,13 @@ for (const vp of VIEWPORTS) {
     //    🚨 `getAttribute("aria-labelledby")` を読むだけでは**参照先が実在するか分からない**
     //       （settings の htmlFor が存在しない id を指していた事故と同じ形）。
     //       ここでは**ブラウザが計算した結果**（AXNode.name）を採るので、宙に浮いた参照は空になる。
+    if (r.editableLooking && r.editableLooking.length) {
+      violations.push({
+        key, rule: "§3 変えられない値が入力欄に見えている",
+        detail: `${r.editableLooking.length} 箇所が readOnly なのに塗りか罫線を持っています（編集できると誤解させます）`,
+        worst: r.editableLooking.slice(0, 4),
+      });
+    }
     if (r.nameless && r.nameless.length) {
       const bad = [];
       for (const cand of r.nameless.slice(0, 40)) {
@@ -896,7 +925,10 @@ for (const vp of VIEWPORTS) {
     }
     if (r.overflowX > 0) violations.push({ key, rule: "§7 横あふれ", detail: `${r.overflowX}px はみ出している` });
     // 🚨 書体。日本語を持つ製品なので、CJK を持つ書体が先頭に来ていること。
-    if (!/Noto Sans JP|Noto Sans CJK|Hiragino|Yu Gothic|Meiryo|BIZ UD/i.test(r.fontFamily)) {
+    // 🚨 next/font が生成する名前は空白もハイフンも持たない（実測: `notoSansJP`）。
+    //    人が読む綴りだけを見ていると、**正しく当たっている書体を「指定なし」と報告する**
+    //    （2026-08-15 実測。12件目の誤検出）。区切りを問わずに見る。
+    if (!/noto[\s_-]*sans[\s_-]*(jp|cjk)|hiragino|yu[\s_-]*gothic|meiryo|biz[\s_-]*ud/i.test(r.fontFamily)) {
       violations.push({ key, rule: "書体", detail: `日本語向けの書体が指定されていません: ${r.fontFamily}` });
     }
     // 🚨 本文の幅。潰れの別角度からの検出（body / main が画面幅に対して極端に狭くないか）。

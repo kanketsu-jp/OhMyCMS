@@ -45,6 +45,7 @@ export function PasswordLoginForm() {
         </Label>
         <Input
           id="email"
+          variant="entry"
           type="email"
           placeholder={t("email_label")}
           value={email}
@@ -57,6 +58,7 @@ export function PasswordLoginForm() {
         </Label>
         <Input
           id="password"
+          variant="entry"
           type="password"
           placeholder={t("password_label")}
           value={password}
@@ -66,7 +68,8 @@ export function PasswordLoginForm() {
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" className="min-h-(--control-h) w-full md:min-h-0" disabled={submit.pending || pending}>
+      {/* 🚨 入口の画面なので `entry`（56px）。**操作が1つしかない画面に限る** */}
+      <Button type="submit" size="entry" disabled={submit.pending || pending}>
         {pending ? t("sign_in_pending") : t("sign_in")}
       </Button>
     </form>

@@ -160,7 +160,7 @@ export function MobileNav({ items, settings, settingsLabel, collections, content
               )}
             >
               <Icon className="size-5 shrink-0" />
-              <span className="max-w-full truncate text-[0.625rem] leading-none">{label}</span>
+              <span className="max-w-full truncate text-xs leading-none">{label}</span>
             </Link>
           ))}
         </div>

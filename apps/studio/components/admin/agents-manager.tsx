@@ -252,7 +252,12 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             </div>
           ) : null}
           {collections.length > 0 ? (
-            <ScrollFade direction="vertical" className="max-h-72 rounded-lg bg-muted/40">
+            <ScrollFade
+              direction="vertical"
+              // 🚨 塗りを持たせない。**面の中でこれを塗ると面が2段になる**（実測で深さ2）。
+              //    スクロールできることは scroll-fade が示すので、背景は要らない。
+              className="max-h-72 rounded-lg"
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -270,7 +275,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
                         const checked = capabilities.selection[row.collection]?.includes(action) ?? false;
                         return (
                           <TableCell key={action}>
-                            <label className="flex items-center gap-2 text-sm">
+                            <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
                               <input
                                 type="checkbox"
                                 checked={checked}
