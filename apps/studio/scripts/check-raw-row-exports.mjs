@@ -50,6 +50,12 @@ const TARGETS = [
 // 🚨 囮より前に置く（囮から呼ぶので、後ろだと初期化前になる）
 const GUARDED_TABLES = ["directus_files", "ohmycms_labels", "ohmycms_label_assignments"];
 
+function withoutComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+}
+
 /**
  * 外向きの関数の宣言を拾い、返り値の型を取り出す。
  * 返り値の型を**書いていない**場合は null を返す（それ自体が違反）。
@@ -90,9 +96,9 @@ function assertionsIn(rawSource, pub) {
   // 🚨 **コメントを先に外す。** 外さないと、この検査の由来を説明した文
   //    （`as PublicFileRow` と書け、という説明）自体を違反として数える。
   //    実際に一度そうなった（2026-08-15）。**行数は変えないよう空白で潰す。**
-  const source = rawSource
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+  // 🚨 **写しを書かない。** 同じ処理を2箇所に書くと、片方を壊しても囮が落ちない
+  //    （2026-08-16 実測: withoutComments を殺しても 1 本も ❌ にならなかった）。
+  const source = withoutComments(rawSource);
   const as = [...source.matchAll(new RegExp(`as\\s+${pub}\\b`, "g"))].map((m) => m.index);
   const angle = [...source.matchAll(new RegExp(`[^A-Za-z]<${pub}>`, "g"))].map((m) => m.index);
   const at = (i) => source.slice(0, i).split("\n").length;
@@ -183,9 +189,12 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
       ["R4: 山括弧の表明を足す", src.replace("export async function getFile(",
         "const zz = <PublicFileRow>({} as unknown);\n\nexport async function getFile("),
        (a) => a.angle.length > base.angle.length],
-      ["🚨 誤検知しないこと: コメントに as を書く", src.replace("export async function getFile(",
-        "// 説明: as PublicFileRow と書くと [R3] で数える\nexport async function getFile("),
-       (a) => a.as.length === base.as.length],
+      // 🚨 **期待を「base と同じ」にしない。** base も同じ関数を通るので、
+      //    コメント除去が壊れると **base も一緒に狂い、差が出ない**（2026-08-16 実測）。
+      //    **絶対値**（コメントだけの入力なら 0 件）で見る。
+      ["🚨 誤検知しないこと: コメントに as を書く（絶対値で見る）",
+        "// 説明: as PublicFileRow と書くと [R3] で数える\nconst zz = 1;",
+       (a) => a.as.length === 0],
     ];
     for (const [label, broken, want] of cases) {
       if (broken === src) { console.log(`  ❌ ${label}: 差し込めなかった（この囮は無効）`); ok = false; continue; }
@@ -273,11 +282,6 @@ for (const t of TARGETS) {
 // ── ルートがサービスを迂回していないか ────────────────────────────────
 
 /** コメントを外す（行数は保つ）。この検査自身の説明文を違反として数えないため。 */
-function withoutComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
-}
 
 /**
  * 🚨 **中身を受け取る形にしてある（パスを受け取らない）。**
