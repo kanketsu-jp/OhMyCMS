@@ -52,10 +52,6 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 //    削らないと、そのぶん増えても気づけない——この検査自身がそう書いている。
 const BASELINE = {
   "components/admin/agents-manager.tsx": 2,
-  "components/admin/policies-manager.tsx": 2,
-  "components/admin/policy-permissions-manager.tsx": 2,
-  "components/admin/roles-manager.tsx": 2,
-  "components/admin/users-policy-manager.tsx": 2,
 };
 
 /** 🚨 振る舞いで見る。識別子は見ない。 */
