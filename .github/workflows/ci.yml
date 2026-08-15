@@ -1,8 +1,20 @@
 name: CI
 
-# push では動かさない。まだリモートへ push しておらず、無駄な実行と課金を避けるため。
-# 必要になったら workflow_dispatch で手動実行できる。
+# 🚨 **2026-08-16 まで `push` が無く、CI は一度も走っていなかった**（実測: workflow run の総数 = 0。
+# workflow は state=active、Actions も enabled=true、同じ鍵で repo も commit も読めたので
+# 「見えていない 0」ではない）。元のコメントは「まだリモートへ push しておらず」だったが、
+# その前提はもう成り立っていない——押されており、`main` は本番へ自動デプロイされる。
+# PR を開かない運用なので `pull_request` は永久に発火せず、検査を守っているのは lefthook だけだった
+# （`--no-verify` で素通りできる／**手元にしか無いファイルへの依存は、手元では永遠に緑**）。
+#
+# 🚨 **`main` への push で走らせるのは「他人の環境で動くか」を見るため。**
+# CI は追跡されているファイルしか持たないので、未追跡ファイルへの依存はここでだけ落ちる。
+#
+# 🚨 **これはデプロイの門ではない。** Dokploy は GitHub Actions の結果を見ていないので、
+# ここが赤くても本番へは出る。止めたいなら別の仕組みが要る。
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -55,6 +67,17 @@ jobs:
     # 🚨 一覧をここに書かない。`lefthook.yml` が唯一の正のままにして、
     #    **足した検査が自動で CI にも載る**ようにする（二重管理にすると必ず片方が腐る）。
     # 実測（ローカル）: `bunx lefthook run pre-commit --all-files` → exit 0 / 5 秒 / 21 項目すべて ✔️
+    #
+    # 🚨 **この CI が見ていない範囲**（守り手を書く人は、穴も書く）:
+    #   1. **デプロイを止めない** … Dokploy は Actions の結果を見ていない。**赤くても本番へ出る**
+    #   2. **DB が要る検査は入っていない** … `verify:fixtures`（常設 fixture の生存確認）は
+    #      ここに無い。🚨 **入れても意味が無い**——常設 fixture は migrations が作らないので
+    #      （実測: `zz_probe_actions` / `zz_probe_dialog` / `acc_748015_pl` は migrations に **0 件**。
+    #      対照: `directus_fields` は 1 件）、**まっさらな CI の DB には最初から存在しない**。
+    #      入れると初日から赤くなる。**先に「fixture を migrations か seed で作る」を決める必要がある**
+    #   3. **ブラウザで見ていない** … 描画・読み上げ・押した手応えは別（`docker` ジョブは
+    #      `/api/health` が 200 になるところまで）
+    #   4. **`--no-verify` で押された commit も、ここでは走る**が、**押される前には誰も止めない**
     name: リポジトリの検査（lefthook）
     runs-on: ubuntu-latest
     steps:
@@ -65,6 +88,15 @@ jobs:
           bun-version: latest
 
       - run: bun install --frozen-lockfile
+
+      # 🚨 **これが無いと `packages-typecheck` が必ず落ちる**（2026-08-16 実測）。
+      #    手元には `packages/sdk/dist` が残っているので気づかないが、**新しい clone には無い**。
+      #    実測: clone して install しただけで lefthook を回すと exit 1
+      #      「🚨 packages/sdk/dist がありません。**この検査は何も測れていません**」
+      #    ビルドしてから回すと **exit 0 / 23 ジョブ**。
+      #    ＝ CI は「他人の環境」なので、手元にしか無いものへの依存はここで初めて出る。
+      - name: packages のビルド（dist が無いと型検査が測れない）
+        run: bun --filter './packages/*' build
 
       - name: pre-commit の検査を全ファイルへ
         run: bun x lefthook run pre-commit --all-files
