@@ -22,15 +22,24 @@
  *    それでも「完全一致」と出る（2026-08-15 実測。私自身がこの穴に落ちた）。
  */
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SOURCE = join(HERE, "..", "..", "..", "packages", "mcp", "src", "catalog.ts");
+const MCP_SRC = join(HERE, "..", "..", "..", "packages", "mcp", "src");
+const SOURCE = join(MCP_SRC, "catalog.ts");
 // 🚨 **独立した数え先**。目録と同じ書き方の思い込みを共有しないため、
-//    「実際に登録されているツール名」は server.ts から採る（下の理由を読むこと）。
-const SERVER = join(HERE, "..", "..", "..", "packages", "mcp", "src", "server.ts");
+//    「実際に登録されているツール名」は登録側から採る（下の理由を読むこと）。
+//
+// 🚨 **1 ファイルに決め打ちしない。** 以前は `server.ts` だけを読んでいた。
+//    今日 22 件すべてがそこに在ったので**壊れてはいなかった**が、
+//    **別のファイルに 1 つ足されたら、丸ごと見えないまま緑**になる
+//    （＝「入口が1つ抜けている」形。2026-08-15、二重送信の検査から HTTP の PUT が
+//    丸ごと抜けていた件と同じ）。**src の .ts を全部読む。**
+const SERVER_FILES = readdirSync(MCP_SRC)
+  .filter((f) => f.endsWith(".ts") && f !== "catalog.ts")
+  .map((f) => join(MCP_SRC, f));
 const COPY = join(HERE, "..", "lib", "mcp", "tool-catalog.json");
 const WRITE = process.argv.includes("--write");
 
@@ -111,7 +120,14 @@ function readOrStop(path, what) {
 }
 
 const source = readOrStop(SOURCE, "MCP の目録");
-const serverText = readOrStop(SERVER, "MCP の登録（server.ts）");
+
+// 🚨 **どのファイルを読んだかを出す。** 「登録 0 件」が「登録が無い」なのか
+//    「読む先を間違えた」なのかを、読んだ人が割れるようにするため。
+if (SERVER_FILES.length === 0) {
+  console.error(`🚨 ${MCP_SRC} に .ts がありません。**測れていません**`);
+  process.exit(1);
+}
+const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.split("/").pop()}）`)).join("\n");
 
 // 🚨 自己検査: 囮を仕込んで、**この実行で**検出できることを確かめる。
 //    「違反 0 件」が「異常が無い」なのか「見ていない」なのかを、毎回その場で割るため。
