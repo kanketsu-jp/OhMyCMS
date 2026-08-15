@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -74,6 +75,11 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
       setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_delete_failed")));
       return;
     }
+    // 🚨 **知らせてから移す。** ここは成功すると一覧へ飛ぶので、知らせが無いと
+    //    「消えたのか、ただ画面を離れたのか」が分からない
+    //    （消えたと分かるのは、一覧に無いのを自分で確かめたときだけ）。
+    // 🚨 ゴミ箱を入れるときは、この文言を「ゴミ箱へ移動しました」へ**書き換えるだけ**で済む。
+    toast.success(t("deleted"));
     router.push("/admin/files");
     router.refresh();
   });
