@@ -1,6 +1,9 @@
 {
   "account": "アカウント",
   "auth_error": "認証エラー",
+  "avatar_change": "アイコンを変える",
+  "avatar_dialog_title": "アイコンを選ぶ",
+  "avatar_error": "変更できませんでした",
   "breadcrumb_label": "現在の場所",
   "breadcrumb_parents": "上位のページ",
   "collections": "コレクション",

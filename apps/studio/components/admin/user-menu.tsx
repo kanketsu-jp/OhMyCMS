@@ -1,7 +1,9 @@
 "use client";
 
-import { Check, ChevronsUpDown, LogOut } from "lucide-react";
+import { useState } from "react";
+import { Check, ChevronsUpDown, LogOut, Smile } from "lucide-react";
 
+import { AvatarEmojiPicker } from "@/components/admin/avatar-emoji-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +61,10 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
   //    🚨 控えは辞書の固定文言であって、メールアドレス（`userLabel`）を代用しない
   //       （判断ボード 設問211。1行目＝名前・2行目＝メールという役割を保つ）。
   const name = userName ?? t("account");
+  // 🚨 面は1段まで（憲章 §3b）。メニューを開いたままダイアログを重ねない。
+  // Dialog は DropdownMenu の外に置き、メニュー側は state を立てるだけにする。
+  // DropdownMenuItem の onSelect は既定でメニューを閉じるので、Radix の挙動に任せている。
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   return (
     <div className="shrink-0 border-t px-2 py-2">
@@ -101,6 +107,13 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
           このリポジトリのサイドバーは畳めないので、再掲は重複でしかない。
         */}
         <DropdownMenuContent side="top" align="end">
+          {/* アイコン（アバターの絵文字）を変える。押すとメニューを閉じてダイアログを開く
+              （state を立てるだけ。ダイアログ本体はメニューの外・下で描画している）。 */}
+          <DropdownMenuItem onSelect={() => setAvatarPickerOpen(true)}>
+            <Smile />
+            {t("avatar_change")}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           {/*
             🚨 **言語も `DropdownMenuItem` にすること。素の button を置かない。**
             Base UI の Menu は **`Menu.Item` の子孫だけ**を ↑↓ の移動対象にしていた。
@@ -145,6 +158,12 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
           </form>
         </DropdownMenuContent>
       </DropdownMenu>
+      {/* 🚨 メニューの外。開いている間、メニューとダイアログが同時に面を持たないようにする。 */}
+      <AvatarEmojiPicker
+        current={userAvatarEmoji}
+        open={avatarPickerOpen}
+        onOpenChange={setAvatarPickerOpen}
+      />
     </div>
   );
 }
