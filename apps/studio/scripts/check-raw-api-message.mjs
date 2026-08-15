@@ -136,11 +136,18 @@ function collect() {
 console.log("■ 自己検査（囮を仕込んで、検出できる／できないことをその場で確かめる）");
 let selfTestFailed = false;
 
+// 🚨 0 だけを見るガードは「**ほとんど見ていない**」を通す（214 → 1 でも 0 ではない）。
+//    由来: 2026-08-16。自分で 0 ガードを入れたあと、その穴に気づいた。
+//    → **下限**を持つ。基準線（BASELINE）と同じ考え方を、走査数にも当てる。
+//    🚨 この数は 2026-08-16 の実測 214 の 7 割。**増えたら上げてよい。下げるときは理由を書く。**
+const 走査数の下限 = 150;
 const sources = collect();
+const 足りている = sources.length >= 走査数の下限;
 console.log(
-  `  ${sources.length > 0 ? "✅" : "❌"} 対象を拾えている  app/ components/ ${sources.length} ファイル`,
+  `  ${足りている ? "✅" : "❌"} 対象を拾えている  app/ components/ ${sources.length} ファイル` +
+    `（下限 ${走査数の下限}。🚨 0 ではなく**大きく減った**ことも落とす）`,
 );
-if (sources.length === 0) selfTestFailed = true;
+if (!足りている) selfTestFailed = true;
 
 // 🚨 **囮は scan() を直接呼ぶ＝実物より内側から入っている。**
 //    だから **走査対象を決める処理（collect / load）が死んでも、囮 1・2 は緑のまま**。

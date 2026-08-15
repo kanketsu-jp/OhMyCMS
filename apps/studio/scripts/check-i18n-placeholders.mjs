@@ -76,13 +76,21 @@ function scan(ja, en) {
 console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
 let selfTestFailed = false;
 
+// 🚨 0 だけを見るガードは「**ほとんど見ていない**」を通す（799 → 1 でも 0 ではない）。
+//    由来: 2026-08-16。自分で 0 ガードを入れたあと、その穴に気づいた。
+//    🚨 この数は 2026-08-16 の実測 799 の 7 割。**増えたら上げてよい。下げるときは理由を書く。**
+const 共通の下限 = 560;
 const ja = load("ja");
 const en = load("en");
 const 共通 = Object.keys(ja).filter((k) => k in en).length;
 
 // 🚨 0 件ガード。読めていないのか、違反が無いのかを分ける。
-console.log(`  ${共通 > 0 ? "✅" : "❌"} 対象を拾えている  ja ${Object.keys(ja).length} / en ${Object.keys(en).length} / 共通 ${共通} 件`);
-if (共通 === 0) selfTestFailed = true;
+const 足りている = 共通 >= 共通の下限;
+console.log(
+  `  ${足りている ? "✅" : "❌"} 対象を拾えている  ja ${Object.keys(ja).length} / en ${Object.keys(en).length} / 共通 ${共通} 件` +
+    `（下限 ${共通の下限}。🚨 0 ではなく**大きく減った**ことも落とす）`,
+);
+if (!足りている) selfTestFailed = true;
 
 // 🚨 **囮は scan() を直接呼ぶ＝実物より内側から入っている。**
 //    だから **走査対象を決める処理（collect / load）が死んでも、囮 1・2 は緑のまま**。
