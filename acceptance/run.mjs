@@ -45,6 +45,7 @@ import { check as check10 } from "./checks/10-mcp-verify.mjs";
 // 🚨 v0.9 の記録と**混ぜない**。`--v1` を付けたときだけ走り、そのときは V1 だけを走らせる。
 //    （開発ビルドと本番ビルドを別記録にしたのと同じ考え方・司令塔の指示）
 import { check as checkV1A } from "./checks/v1-a-saml.mjs";
+import { check as checkV1E } from "./checks/v1-e-first-run.mjs";
 import { check as checkV1B } from "./checks/v1-b-storage.mjs";
 import { checkTiptap as checkV1C, checkOtp as checkV1D } from "./checks/v1-cd-editor-otp.mjs";
 
@@ -288,6 +289,10 @@ async function main() {
     await runCheck(11, checkV1C, "V1-C Tiptap の WYSIWYG");
     await runCheck(12, checkV1D, "V1-D メール OTP");
     await runCheck(13, checkV1A, "V1-A SAML（SSO）");
+    // 🚨 初回起動は**共有環境では誰も到達できない**経路（/onboarding が 307 で飛ぶ）。
+    //    2026-08-15 に約10時間壊れて誰も踏まなかったので、毎回ここで踏む。
+    //    使い捨ての Postgres(:5437) と worktree(:3110) を自分で立てて落とす（共有は触らない）。
+    await runCheck(14, checkV1E, "V1-E 初回起動（新規インストールで初期設定を終えられる）");
   } else {
   await runCheck(1, check01, "docker compose up だけで起動する");
   await runCheck(2, check02, "環境変数だけで設定が完結する");
