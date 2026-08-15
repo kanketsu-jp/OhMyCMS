@@ -58,6 +58,11 @@ export function AvatarEmojiGrid({ current }: GridProps) {
           type="button"
           disabled={select.isPending(emoji)}
           onClick={() => void select.run(emoji)}
+          // タッチ端末には hover が無いので、hover: だけだとこの24個の絵文字ボタンは
+          // タップしても見た目が反応しない。`active:` を hover: と対で足すのはオーナー指示
+          // （2026-08-15・hover: には必ず active: を対にする）に従ったもの。
+          // 🚨 未検証: 実機でのタップ感触は誰も確認していない。確かめたのは生成後のCSSに
+          // `:active` + `bg-accent` の組が存在すること（Tailwindに握りつぶされていないこと）だけ。
           className="relative flex aspect-square items-center justify-center rounded-lg text-2xl hover:bg-accent active:bg-accent disabled:opacity-50"
         >
           {emoji}
