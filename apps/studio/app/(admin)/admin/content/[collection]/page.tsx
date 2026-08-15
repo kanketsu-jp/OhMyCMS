@@ -11,7 +11,7 @@ import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { DEFAULT_COLUMN_COUNT, DEFAULT_LIST_LIMIT, resolveColumns, resolveLimit } from "@/lib/admin/list-view";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Surface, SurfaceTitle } from "@/components/ui/surface";
+import { Surface } from "@/components/ui/surface";
 import {
   Table,
   TableBody,
@@ -147,7 +147,9 @@ export default async function ContentPage({ params, searchParams }: Props) {
           }
         />
         <Surface id={sectionAnchorId("items.list_title")}>
-          <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+        {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
+            見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
+            辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
           {itemsResult.ok ? (
             <>
               <Table>

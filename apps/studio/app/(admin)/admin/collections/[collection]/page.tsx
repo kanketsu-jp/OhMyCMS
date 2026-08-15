@@ -128,7 +128,9 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
         }
       />
       <Surface id={sectionAnchorId("fields.list_title")}>
-        <SurfaceTitle>{tFields("list_title")}</SurfaceTitle>
+        {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
+            見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
+            辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
         {fieldsResult.ok ? (
           <Table>
             <TableHeader>
@@ -163,7 +165,6 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
         </div>
       </Surface>
       <Surface id={sectionAnchorId("relations.list_title")}>
-        <SurfaceTitle>{tRelations("list_title")}</SurfaceTitle>
         {relationsResult.ok ? (
           collectionRelations.length > 0 ? (
             <Table>

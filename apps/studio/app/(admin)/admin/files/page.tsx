@@ -21,7 +21,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Surface, SurfaceTitle } from "@/components/ui/surface";
+import { Surface } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -163,7 +163,7 @@ export default async function FilesPage({ searchParams }: Props) {
               {breadcrumbs.length === 0 ? (
                 <BreadcrumbPage>{t("title")}</BreadcrumbPage>
               ) : (
-                <Link href="/admin/files" className="transition-colors hover:text-foreground">
+                <Link href="/admin/files" className="transition-colors hover:text-foreground active:text-foreground">
                   {t("title")}
                 </Link>
               )}
@@ -174,7 +174,7 @@ export default async function FilesPage({ searchParams }: Props) {
                 {index === breadcrumbs.length - 1 ? (
                   <BreadcrumbPage>{folder.name}</BreadcrumbPage>
                 ) : (
-                  <Link href={filesHref(folder.id)} className="transition-colors hover:text-foreground">
+                  <Link href={filesHref(folder.id)} className="transition-colors hover:text-foreground active:text-foreground">
                     {folder.name}
                   </Link>
                 )}
@@ -192,7 +192,9 @@ export default async function FilesPage({ searchParams }: Props) {
         <FilesDropUpload folder={currentFolderId}>
         <Surface>
           <div className="flex items-center justify-between gap-3">
-            <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+        {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
+            見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
+            辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
             <FilesViewSwitch view={view} gridHref={viewHref("grid")} tableHref={viewHref("table")} />
           </div>
           {/* 🚨 絞り込み中であることと、**解除の出口**を必ず出す。
