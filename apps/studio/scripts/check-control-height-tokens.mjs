@@ -56,16 +56,57 @@ function isComment(line) {
   return t.startsWith("//") || t.startsWith("*") || t.startsWith("/*") || t.startsWith("{/*");
 }
 
+/**
+ * 🚨 **「高さが素の数字」だけでは足りない。「操作部品か」まで見る**（2026-08-15）。
+ *
+ * 由来: 7 件を「直してください」と 5 ペインへ配ったあと、中身を見たら
+ * **本物は 1〜2 件**で、残りは **画像（ロゴのプレビュー）とヘッダ帯**だった。
+ * ```
+ * <img className="h-10 w-auto rounded">        ← 画像。--control-h-* の段は当たらない
+ * <header className="flex min-h-14 …">          ← ヘッダ帯。操作部品ではない
+ * <Input className="h-8 max-w-64">              ← これだけが本物
+ * ```
+ * `--control-h-*` は **押す・入力する部品**の高さの段であって、**画像や帯の寸法ではない**。
+ * 対象を絞らない検査は、**正しいコードを直させる**（憲章 §1「正解を違反と言う検査は死ぬ」）。
+ *
+ * 🚨 落とさずに **分けて出す**。画像・帯を黙って除外すると、
+ * 「本当は寄せたい帯」が出てきたときに気づけない。**落とすのは操作部品だけ**にして、
+ * それ以外は **参考**として件数と中身を出す。
+ */
+const CONTROL_TAGS = new Set([
+  "button", "input", "select", "textarea", "a", "label", "summary",
+  "Button", "Input", "Select", "SelectTrigger", "Textarea", "Link", "Toggle", "Switch",
+  "Checkbox", "RadioGroupItem", "SidebarMenuButton", "SidebarMenuSubButton", "CopyButton",
+  "PageAction", "TabsTrigger", "AccordionTrigger", "DropdownMenuTrigger", "PopoverTrigger",
+]);
+
+/**
+ * その行が属する JSX の開きタグ名を返す。
+ * 🚨 直前の `<Tag` を後ろ向きに探すだけの単純な方法（構文解析はしない）。
+ *    取り違えたときに**部品でないものを部品と読む**方向に倒れるので、
+ *    見つからなければ `不明` を返し、**参考側**（落とさない側）へ寄せる。
+ */
+function enclosingTag(lines, index) {
+  for (let i = index; i >= 0 && i > index - 12; i--) {
+    const m = [...lines[i].matchAll(/<([A-Za-z][\w.]*)/g)].pop();
+    if (m) return m[1];
+  }
+  return "不明";
+}
+
 function scan(sources) {
   const hits = [];
   for (const { file, text } of sources) {
-    text.split("\n").forEach((line, i) => {
+    const lines = text.split("\n");
+    lines.forEach((line, i) => {
       if (isComment(line)) return;
+      const tag = enclosingTag(lines, i);
+      const 部品 = CONTROL_TAGS.has(tag);
       for (const m of line.matchAll(PATTERN)) {
-        hits.push({ file, line: i + 1, cls: m[1], text: line.trim().slice(0, 90) });
+        hits.push({ file, line: i + 1, cls: m[1], tag, 部品, text: line.trim().slice(0, 90) });
       }
       for (const _m of line.matchAll(SPLIT_PATTERN)) {
-        hits.push({ file, line: i + 1, cls: "h-（文字列を組み立てている）", text: line.trim().slice(0, 90) });
+        hits.push({ file, line: i + 1, cls: "h-（文字列を組み立てている）", tag, 部品, text: line.trim().slice(0, 90) });
       }
     });
   }
@@ -109,6 +150,19 @@ const evade = scan([{ file: "d.tsx", text: `const c = "h-" + "8";` }]);
 console.log(`  ${evade.length >= 1 ? "✅" : "❌"} 囮4: 文字列を組み立てて迂回  → 検出 ${evade.length} 件`);
 if (evade.length < 1) selfTestFailed = true;
 
+// 🚨 分類そのものにも囮を置く（2026-08-15）。
+//    「部品か / 部品でないか」で落とす側を変えたので、**分類が壊れたら検査は静かに嘘をつく**
+//    （画像を部品と読めば正しいコードを直させ、部品を画像と読めば違反を見逃す）。
+//    両方向で確かめる。
+const 分類囮 = scan([
+  { file: "decoy-a.tsx", text: '<Input\n  className="h-8"\n/>' },
+  { file: "decoy-b.tsx", text: '<img\n  className="h-10 w-auto"\n/>' },
+]);
+const 囮部品 = 分類囮.filter((h) => h.部品).length;
+const 囮参考 = 分類囮.filter((h) => !h.部品).length;
+console.log(`  ${囮部品 === 1 && 囮参考 === 1 ? "✅" : "❌"} 囮5: <Input h-8> は部品 / <img h-10> は部品でない  → 部品 ${囮部品} 件・参考 ${囮参考} 件`);
+if (!(囮部品 === 1 && 囮参考 === 1)) selfTestFailed = true;
+
 console.log(`  ${files.length > 0 ? "✅" : "❌"} 対象を拾えている  ${files.length} ファイル`);
 if (files.length === 0) selfTestFailed = true;
 
@@ -119,14 +173,42 @@ if (selfTestFailed) {
 
 // ── 判定 ─────────────────────────────────────────────────────
 const hits = scan(sources);
-console.log(`\n■ 判定`);
-console.log(`  対象: ${files.length} ファイル（app/**, components/** の .tsx）`);
-console.log(`  素の高さ指定: ${hits.length} 箇所`);
+const 部品 = hits.filter((h) => h.部品);
+const 参考 = hits.filter((h) => !h.部品);
 
-if (hits.length === 0) process.exit(0);
+/**
+ * 🚨 **採取した状態を出す**（2026-08-15）。
+ * 行番号を「直してください」と配ったが、**共有ツリーは数分で動く**。
+ * 実際に `left-sidebar.tsx` が編集中で、配った直後に行がずれた
+ * （251 → 258／件数 7 → 6）。**HEAD と未コミットの有無を書かない一覧は、配れない。**
+ */
+let 採取 = "不明";
+try {
+  const { execFileSync } = await import("node:child_process");
+  const sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
+  const dirty = execFileSync("git", ["status", "--porcelain", "--", "apps/studio/app", "apps/studio/components"], {
+    encoding: "utf8", cwd: resolve(root, "../.."),
+  }).trim();
+  const n = dirty ? dirty.split("\n").length : 0;
+  採取 = `HEAD ${sha}` + (n ? ` 🚨 対象範囲に未コミット ${n} 件（**行番号は動きます**）` : "（対象範囲に未コミットなし）");
+} catch { 採取 = "不明（git を引けませんでした）"; }
+
+console.log(`\n■ 判定`);
+console.log(`  採取: ${採取}`);
+console.log(`  対象: ${files.length} ファイル（app/**, components/** の .tsx）`);
+console.log(`  素の高さ指定: ${hits.length} 箇所 ／ うち**操作部品** ${部品.length} 箇所 ／ 参考（部品でない）${参考.length} 箇所`);
+
+// 🚨 参考は**落とさないが、隠さない**。黙って除外すると、寄せたい帯が出ても気づけない。
+if (参考.length > 0) {
+  console.log(`\n  参考（操作部品ではないので落としません。画像・帯・器など）:`);
+  for (const h of 参考) console.log(`    ${h.file}:${h.line}  ${h.cls}  <${h.tag}>`);
+  console.log(`    🚨 この中に「本当は段へ寄せたいもの」が在れば、CONTROL_TAGS へタグ名を足してください。`);
+}
+
+if (部品.length === 0) process.exit(0);
 
 console.error(`\n🚨 操作部品の高さを素の数字で書いています。**トークンを動かしても追随しません。**`);
-for (const h of hits) console.error(`  ${h.file}:${h.line}  ${h.cls}\n      ${h.text}`);
+for (const h of 部品) console.error(`  ${h.file}:${h.line}  ${h.cls}  <${h.tag}>\n      ${h.text}`);
 console.error(
   "\n  直し方: `app/globals.css` の `--control-h-*` を Tailwind v4 の変数記法で引く" +
     "\n    例) h-(--control-h) md:h-(--control-h-pc)" +
