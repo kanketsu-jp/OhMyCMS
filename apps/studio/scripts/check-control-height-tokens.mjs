@@ -90,9 +90,18 @@ const CONTROL_TAGS = new Set([
  *    取り違えたときに**部品でないものを部品と読む**方向に倒れるので、
  *    見つからなければ `不明` を返し、**参考側**（落とさない側）へ寄せる。
  */
+/**
+ * JSX の開きタグ名を拾う正規表現。**本物と囮で同じものを使う**（2026-08-15）。
+ * 🚨 それまで囮6 が `<Tag[\s/>]` という**別の書き方**で照合していた。実測:
+ *    `enclosingTag` を殺しても **囮6 は ✅ のまま**（＝本物を見ていない＝写し）。
+ *    ずれる例: `<Input.Root>` は `<Input[\s/>]` に当たらないが、こちらは "Input.Root" を拾う。
+ */
+const TAG_RE = /<([A-Za-z][\w.]*)/g;
+
 function enclosingTag(lines, index) {
   for (let i = index; i >= 0 && i > index - 12; i--) {
-    const m = [...lines[i].matchAll(/<([A-Za-z][\w.]*)/g)].pop();
+    TAG_RE.lastIndex = 0;
+    const m = [...lines[i].matchAll(TAG_RE)].pop();
     if (m) return m[1];
   }
   return "不明";
@@ -168,9 +177,13 @@ if (evade.length < 1) selfTestFailed = true;
  * 🚨 だが**黙って隠さない**。綴り間違いは、この一覧に**見慣れない名前**として現れる。
  */
 const 全文 = sources.map((x) => x.text).join("\n");
-const 現れないタグ = [...CONTROL_TAGS].filter(
-  (t) => !new RegExp("<" + t + "[\\s/>]").test(全文),
-);
+// 🚨 **本物と同じ抽出（TAG_RE）でツリー内のタグ名を集める。** 別の正規表現を書かない。
+const ツリーのタグ = new Set();
+{
+  TAG_RE.lastIndex = 0;
+  for (const m of 全文.matchAll(TAG_RE)) ツリーのタグ.add(m[1]);
+}
+const 現れないタグ = [...CONTROL_TAGS].filter((t) => !ツリーのタグ.has(t));
 const 現れるタグ数 = CONTROL_TAGS.size - 現れないタグ.length;
 console.log(`  ${現れるタグ数 > 0 ? "✅" : "❌"} 囮6: CONTROL_TAGS の照合が生きている  → このツリーに現れる ${現れるタグ数}/${CONTROL_TAGS.size} 件`);
 if (現れるタグ数 === 0) selfTestFailed = true;
