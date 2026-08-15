@@ -154,17 +154,18 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
       {/* 🚨 このページの `<form>` は無い（ボタンの onClick で送っている）ので、
           ヘッダーへは `form=` ではなく `onClick` で出す（`page-actions.ts` の kind: "button"）。
           文字は状態で変わる: 行を選んでいなければ「追加」、選んでいれば「更新」。
-          🚨 コレクションが 1 つも無いときは出さない。押しても足せないため
-          （面の中のボタンは `disabled` で表せるが、ヘッダーの枠には disabled が無い）。 */}
-      {collection ? (
-        <PageAction
-          onClick={() => void save.run()}
-          pending={save.pending}
-          label={editing ? t("update_button") : t("add_button")}
-          icon={<Save />}
-          role="primary"
-        />
-      ) : null}
+          🚨 コレクションが 1 つも無いときは **`disabled`**。**隠さない**。
+          （最初は出し分けで隠していた。`PageAction` に `disabled` が無かったため。
+            `4d0a18c` で saml が足したので、憲章 §3c どおり「押せないが見える」に直した。
+            隠すと「この画面で何ができるか」自体が見えなくなる。） */}
+      <PageAction
+        onClick={() => void save.run()}
+        pending={save.pending}
+        disabled={!collection}
+        label={editing ? t("update_button") : t("add_button")}
+        icon={<Save />}
+        role="primary"
+      />
       {error ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}

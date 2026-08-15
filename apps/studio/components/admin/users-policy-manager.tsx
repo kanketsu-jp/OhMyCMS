@@ -114,10 +114,14 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
             ))}
           </select>
         </div>
+        {/* 🚨 選ぶものが無いなら押させない（憲章 §3c）。
+            select が空だと送信しても中身が無く、サーバへ無意味な要求が飛ぶ。
+            由来: `19e6f3c` でヘッダーへ移したとき、この判定を落としていた（saml が実測で検出）。 */}
         <PageAction
           form="user-policy-assign-form"
           role="primary"
           pending={assign.pending}
+          disabled={users.length === 0 || policies.length === 0}
           label={t("assign_button")}
           icon={<Plus />}
         />
