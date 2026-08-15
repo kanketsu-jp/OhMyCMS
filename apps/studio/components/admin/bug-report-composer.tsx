@@ -13,6 +13,7 @@ import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useLocale, useT } from "@/i18n/client";
+import { errorKeyFromApiCode } from "@/i18n/error";
 
 type Props = {
   /** 送り終わったら呼ぶ。右サイドバーなら 1 つ前へ戻す用 */
@@ -45,6 +46,7 @@ type Props = {
  */
 export function BugReportComposer({ onDone }: Props) {
   const t = useT("reports");
+  const tError = useT("errors");
   const locale = useLocale();
   const pathname = usePathname();
 
@@ -98,9 +100,13 @@ export function BugReportComposer({ onDone }: Props) {
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as
-        | { error?: { message?: string } }
+        | { error?: { code?: string } }
         | null;
-      toast.error(payload?.error?.message ?? t("error_submit_failed"));
+      // API の生文言をそのまま画面へ出さない。細工した応答で任意の文章を公式のエラー枠に出せるため。code を鍵へ写して辞書から出す。
+      const key = errorKeyFromApiCode(payload?.error?.code);
+      // 🚨 code が分からない（unexpected に落ちた）ときは、この画面固有の文言のほうが具体的。
+      //    分かるときは辞書の訳を出す。どちらの経路でも API の生文言は出さない。
+      toast.error(key === "unexpected" ? t("error_submit_failed") : tError(key));
       return;
     }
 
