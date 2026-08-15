@@ -55,6 +55,23 @@ ARG GIT_DIRTY=unknown
 ARG BUILD_TIME=unknown
 WORKDIR /app
 # dirty 判定には作業ツリーも必要なので、この一時ステージ内だけにソースと .git を置く。
+# dirty の内訳は /api/health に出さず、ビルドログへだけ出す。health は認証なしで読めるため、
+# ビルド機のファイル名一覧を公開面へ出さない。ログは押した人が見られ、出すのはパス名だけで内容は出さない。
+#
+# 🚨 **この旗が何を見ているかの実測（2026-08-15）。読む前に足さないこと。**
+#    本番の commit を clean clone した文脈でこのステージを実際にビルドして測った結果:
+#      🟢 綺麗なツリー                       → dirty=0
+#      🔴 追跡ファイルを1行書き換える          → dirty=1（内訳もログに出る）
+#      🟢 .gitignore に載るファイルを置く      → dirty=0
+#      🚨 **追跡ファイルを消す                → dirty=0（＝検出できない）**
+#    最後のが**既知の穴**。下の skip-worktree ループは
+#    「.dockerignore で文脈から外れた追跡ファイル」を吸収するためのものだが、
+#    **本当に消されたファイルとの区別が付かない**（文脈は元から「絞られた複製」なので、
+#    「無い」の理由がステージの中からは分からない）。
+#    → 消えたことまで見たいなら、**文脈から追跡ファイルを外すのをやめる**しかない
+#      （いま外れているのは .claude/** と .dockerignore と compose.yml で、実測 19 本）。
+#    ❌ 穴を埋めるつもりで skip-worktree を消さないこと。消すとその 19 本が全部 " D" で復活し、
+#      **綺麗なツリーでも常に dirty=1** になる（＝旗が常に立ち、誰も見なくなる）。
 COPY . .
 RUN set -eu; \
     if [ -e .git ]; then \
@@ -65,7 +82,14 @@ RUN set -eu; \
         git ls-files | while IFS= read -r tracked; do \
           if [ ! -e "$tracked" ]; then git update-index --skip-worktree -- "$tracked" 2>/dev/null || true; fi; \
         done; \
-        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then DETECTED_DIRTY=1; else DETECTED_DIRTY=0; fi; \
+        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then \
+          DETECTED_DIRTY=1; \
+          echo "=== gitinfo: dirty=1 の内訳（先頭50行） ==="; \
+          git status --porcelain 2>/dev/null | head -50; \
+          echo "=== gitinfo: 内訳ここまで ==="; \
+        else \
+          DETECTED_DIRTY=0; \
+        fi; \
       else \
         DETECTED_DIRTY=unknown; \
       fi; \
