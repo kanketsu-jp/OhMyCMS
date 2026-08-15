@@ -50,6 +50,26 @@
  *    読み込み前に評価して「要素が無い」＝**壊れていないのに赤**になる。
  *    → `goto()` は `Page.loadEventFired` を待つ（上限つき）。
  *
+ * 4. 🚨 **`elementFromPoint` は「前後」ではなく「触れるか」を測っている。**
+ *    この API は **`pointer-events: none` の要素を飛ばす**ので、
+ *    **「後ろにある」と「前にあるが触れない」が同じ結果になる。**
+ *    実例（2026-08-15・shell と toast が別々に踏んだ）: Radix の Dialog は開くと
+ *    `document.body` に `style="pointer-events: none"` を付ける。配下のトーストは
+ *    それを継承するので、`z-index` が上でも `elementFromPoint` はモーダル側を返す。
+ *    **「トーストがモーダルの後ろに出ている」と誤報しかけた。**
+ *
+ *    → **描画順を知りたいなら、当たり判定を一時的に戻して測り直す**:
+ *    ```js
+ *    const before = slotOf(document.elementFromPoint(x, y));   // そのまま
+ *    viewport.style.pointerEvents = "auto";
+ *    const after  = slotOf(document.elementFromPoint(x, y));   // 当たり判定を戻す
+ *    viewport.style.pointerEvents = "";
+ *    // before ≠ after なら、前後の問題ではなく**触れないという問題**
+ *    ```
+ *    🚨 そして **`pointer-events` と `aria-hidden` は別々に見る**。触れるようにしても
+ *    `aria-hidden="true"` が祖先に残っていれば、**読み上げには存在しない**ままになる
+ *    （通知としては届いていない）。**「見える」「押せる」「読み上げられる」は3つ別の質問。**
+ *
  * ## 🚨 測るときの心得（`~/.claude/rules/count-before-you-report.md`）
  * - **要素を名指しするときは `data-slot` で。** `aria-expanded` のような属性は複数の部品が
  *   持つ。実際に info ボタンを押したつもりで**パンくずのドロップダウンを押していて**、
