@@ -224,6 +224,30 @@ const probes = [
   },
 ];
 
+/**
+ * 🚨 **「検出されてはいけないもの」** の対照（司令塔 2026-08-16）。
+ * これまでの囮 6 つは**全部「検出される側」**だった。
+ * **逆方向が無いと、過検出は永久に捕まらない。**
+ * ここが ❌ になったら、**正しく書いてあるコードを違反と言っている**ということ。
+ */
+const negatives = [
+  {
+    name: "対照(-)1: コメントの中に validate({ と書く（実コードではない）",
+    service: serviceSource.replace(
+      "  const picked: Record<string, unknown> = {};",
+      "  // 以前は validate({ project_name: input.project_name }) と書いていた\n  const picked: Record<string, unknown> = {};",
+    ),
+    form: formSource,
+  },
+  {
+    name: "対照(-)2: 正しいまま、ループ変数の名前だけ変える（key → field）",
+    service: serviceSource
+      .replace("for (const key of ONBOARDING_INPUT_KEYS) {", "for (const field of ONBOARDING_INPUT_KEYS) {")
+      .replace("if (key in input) picked[key] = input[key];", "if (field in input) picked[field] = input[field];"),
+    form: formSource,
+  },
+];
+
 let selfCheckFailed = false;
 for (const probe of probes) {
   if (probe.service === serviceSource && probe.form === formSource) {
@@ -234,6 +258,19 @@ for (const probe of probes) {
   const hit = inspect(probe.service, probe.form).violations.some((v) => v.rule === probe.expect);
   console.log(`  ${hit ? "✅" : "❌"} ${probe.name}  → ${hit ? `検出（rule: ${probe.expect}）` : `🚨 検出できていません（期待 rule: ${probe.expect}）`}`);
   if (!hit) selfCheckFailed = true;
+}
+
+console.log("\n■ 対照(-)（検出されてはいけないもの。ここが ❌ なら過検出）");
+for (const n of negatives) {
+  if (n.service === serviceSource && n.form === formSource) {
+    console.log(`  ❌ ${n.name}  → **置換が当たっていません**（変えられていないので、この対照は何も言っていません）`);
+    selfCheckFailed = true;
+    continue;
+  }
+  const found = inspect(n.service, n.form).violations;
+  const ok = found.length === 0;
+  console.log(`  ${ok ? "✅" : "❌"} ${n.name}  → ${ok ? "検出 0 件（正しい）" : `🚨 **過検出** ${found.map((v) => v.rule).join(",")}`}`);
+  if (!ok) selfCheckFailed = true;
 }
 
 // ── 判定 ──
