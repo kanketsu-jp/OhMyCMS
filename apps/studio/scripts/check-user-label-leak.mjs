@@ -165,8 +165,18 @@ function findDestructuredRhs(source, identifier) {
  *      `const/let/var <識別子> = …;`（通常の代入）、または
  *      `const/let/var { email } = …;` / `const/let/var { email: <識別子> } = …;`
  *      （分割代入）があるか探す。
- *        - 見つかれば、その右辺（分割代入は `式.email` に合成した右辺）へ同じ判定（1・3）を
- *          当てる（passThroughRule = H）。
+ *        - 見つかれば、右辺（分割代入は `式.email` に合成した右辺）に生のメールが
+ *          直接入っていないかを見る（1 と同じ判定）。
+ *        - 🚨 **`displayUserLabel(` を通しているか（missingRule）は、通常の代入
+ *          （`viaDestructuring === false`）のときだけ見る。** 分割代入は「どの鍵から
+ *          取り出したか」が式に出るので、鍵が `email` なら↑で拾える。鍵が `email` でない
+ *          （`const { userLabel } = props;` のような、親から受けた prop の分割代入）なら、
+ *          値を作ったのは別の場所（引数の分割代入 `function X({ userLabel }) {...}` と
+ *          意味が同じ）で、そこを規則 A/B/F が見ている。ここで missingRule を出すと、
+ *          関数引数の分割代入（既存の免除）と、本体内の分割代入（同じ意味）とで
+ *          **書き方の違いだけで判定が割れる**（2026-08-16 実測: 台の worktree で
+ *          `const { userLabel } = props;` → `<UserMenu userLabel={userLabel} .../>` が
+ *          誤検出された。regular assignment の免除と揃えた）。
  *        - 見つからなければ、呼び出し元が別ファイル（関数引数など）にある正当な
  *          素通しとして扱い、違反にしない（既存の isPassThrough 設計を踏襲）。
  *   3. それ以外（式が複合的）で `displayUserLabel(` を通っていなければ違反（missingRule）
@@ -211,7 +221,11 @@ function checkLabelExpression(violations, file, source, expression, line, rules)
           rule: passThroughRule,
           detail: `素通しの識別子 '${expression}' の定義${originNote}に生のメールが直接入っている（${rhs}）`,
         });
-      } else if (!rhs.includes("displayUserLabel(")) {
+      } else if (!viaDestructuring && !rhs.includes("displayUserLabel(")) {
+        // 🚨 分割代入（viaDestructuring === true）はここに来ない。理由は上のJSDoc参照:
+        //    分割代入は鍵（プロパティ名）が式に出るので、鍵が email なら↑の /\.email\b/ で
+        //    拾える。鍵が email でなければ値を作ったのは別の場所で、そこを A/B/F が見ている。
+        //    通常の代入（`const 識別子 = 式;`）だけ、ここで displayUserLabel() 通過を要求する。
         violations.push({
           file,
           line,
@@ -478,8 +492,42 @@ function loadSources() {
   return sources;
 }
 
+/**
+ * 対照3（GREEN）と壊し方8（RED）が共有する、メモリ上だけのプローブファイル。
+ * **ディスクには絶対に書かない**（`BLIND_SPOT_PROBE_SOURCE` と同じやり方）。
+ *
+ * 由来: 2026-08-16。規則Hに findDestructuredRhs（同じファイルの分割代入も追う）を
+ * 足した直後、台（git worktree --detach）で次の形が過検出になった:
+ *   export function ZzProbe(props) {
+ *     const { userLabel } = props;               ← 本体で分割代入
+ *     return <UserMenu userName="x" userLabel={userLabel} ... />;
+ *   }
+ * これは `left-sidebar.tsx` の `function LeftSidebar({ userLabel, ... })`
+ * （**引数の分割代入**）と意味が同じで、既存の免除対象のはず。書き方が違う
+ * （本体内の分割代入）だけで判定が割れていた。checkLabelExpression の
+ * viaDestructuring 分岐（上のJSDoc・コード参照）で直した。
+ *
+ * `leak: true` を渡すと、`userLabel={userLabel}` を `userLabel={me.data.email}` に
+ * 変える。プローブファイルが実際に検査対象（sources の名簿）に載っていることを
+ * 確かめるための対照で、これが検出されなければ「対照3の検出0件」は
+ * 「見ていない0」（対象に入っていないだけ）かもしれない、という疑いを消せない。
+ */
+const ZZ_PROBE_FILE = "components/admin/zz-probe.tsx";
+function buildZzProbeSource({ leak }) {
+  const userLabelExpr = leak ? "me.data.email" : "userLabel";
+  return (
+    "// 診断専用のメモリ上の写し。ディスクには書かない（check-user-label-leak.mjs 対照3 / 壊し方8）。\n" +
+    "export function ZzProbe(props) {\n" +
+    "  const { userLabel } = props;\n" +
+    "  return (\n" +
+    `    <UserMenu userName="x" userLabel={${userLabelExpr}} userPicture={null} userAvatarEmoji={null} />\n` +
+    "  );\n" +
+    "}\n"
+  );
+}
+
 // ── 1) 自己検査: わざと壊して、赤くなることを確かめる ──────────────────────
-// 壊し方は**7通り**。1通りだけだと「たまたま落ちた」が混ざる。
+// 壊し方は**8通り**。1通りだけだと「たまたま落ちた」が混ざる。
 
 const selfTests = [
   {
@@ -595,6 +643,21 @@ const selfTests = [
       return { sources: { ...sources, [file]: after }, count };
     },
   },
+  {
+    // 🚨 対照3（GREEN）が「見ていない0」ではないことの確認。対照3で使うプローブと同じファイルを
+    //    足し、`userLabel={userLabel}`（免除されるべき素通し）を `userLabel={me.data.email}`
+    //    （生のメール）に変える。これが検出されないなら、対照3の検出0件は「対象に入っていない
+    //    だけ」の疑いが晴れない。**追加**であって置換ではないので、置換件数は「追加したファイル数」
+    //    として1で扱う（実際にやったことに合わせる。他の壊し方と違う操作である旨は actionLabel で示す）。
+    name: "壊し方8: 対照3のプローブ（zz-probe.tsx・メモリ上のみ）で userLabel={userLabel} を userLabel={me.data.email} に変える",
+    actionLabel: "追加",
+    apply(sources) {
+      return {
+        sources: { ...sources, [ZZ_PROBE_FILE]: buildZzProbeSource({ leak: true }) },
+        count: 1,
+      };
+    },
+  },
 ];
 
 function countOccurrences(haystack, needle) {
@@ -613,11 +676,12 @@ for (const test of selfTests) {
   const detected = count > 0 && violations.length > 0;
 
   const detectedRules = [...new Set(violations.map((v) => v.rule))].join(",") || "-";
+  const actionLabel = test.actionLabel || "置換";
   console.log(
-    `  ${detected ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${violations.length} 件（rule: ${detectedRules}）`,
+    `  ${detected ? "✅" : "❌"} ${test.name}  ${actionLabel} ${count} 件 → 検出 ${violations.length} 件（rule: ${detectedRules}）`,
   );
   if (count === 0) {
-    console.error("     ↑ 置換が 0 件。壊せていないので、赤くならないのは当然。検査の書き方が古い。");
+    console.error(`     ↑ ${actionLabel}が 0 件。壊せていないので、赤くならないのは当然。検査の書き方が古い。`);
   }
 
   if (!detected) selfTestFailed = true;
@@ -666,6 +730,25 @@ const greenTests = [
       return { sources: { ...sources, [file]: after }, count };
     },
   },
+  {
+    // 🚨 2026-08-16 追加。規則Hが同じファイルの分割代入も追うようになった直後、
+    //    `const { userLabel } = props;` → `<UserMenu ... userLabel={userLabel} .../>`
+    //    （本体内の分割代入で親から受けた prop を素通しにする形）が過検出になった実測を再現する。
+    //    これは left-sidebar.tsx の「引数の分割代入」（`function LeftSidebar({ userLabel, ... })`）と
+    //    意味が同じで、既存の免除対象のはず。**ファイルを1件追加する**変更なので「置換」ではない
+    //    （実際にやったことに合わせて actionLabel で「追加」と出す）。
+    //    このプローブが本当に検査対象の名簿（sources）に載っていることは、
+    //    上の自己検査（RED）「壊し方8」が同じファイルを leak: true で足して検出できることで確認する
+    //    （対照3が検出0件でも、そもそも対象に入っていない「見ていない0」ではないことの裏付け）。
+    name: "対照3: 本体内の分割代入で親から受けた prop を素通しにしても誤検出しない（const { userLabel } = props;）",
+    actionLabel: "追加",
+    apply(sources) {
+      return {
+        sources: { ...sources, [ZZ_PROBE_FILE]: buildZzProbeSource({ leak: false }) },
+        count: 1,
+      };
+    },
+  },
 ];
 
 let greenTestFailed = false;
@@ -675,10 +758,11 @@ for (const test of greenTests) {
   const { sources, count } = test.apply(original);
   const violations = findViolations(sources);
   const clean = count > 0 && violations.length === 0;
+  const actionLabel = test.actionLabel || "置換";
 
-  console.log(`  ${clean ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${violations.length} 件`);
+  console.log(`  ${clean ? "✅" : "❌"} ${test.name}  ${actionLabel} ${count} 件 → 検出 ${violations.length} 件`);
   if (count === 0) {
-    console.error("     ↑ 置換が 0 件。変更が当たっていないので、検出 0 件は何も確かめていない。");
+    console.error(`     ↑ ${actionLabel}が 0 件。変更が当たっていないので、検出 0 件は何も確かめていない。`);
   }
   if (!clean && violations.length > 0) {
     for (const v of violations) {
