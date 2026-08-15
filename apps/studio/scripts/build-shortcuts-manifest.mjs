@@ -108,11 +108,17 @@ const combos = [...table.matchAll(/^\s{2}([A-Za-z_$][\w$]*):\s*"([^"]+)",/gm)]
 //    行で探さず、**ファイル全体を 1 つの文字列として**見る。
 const sources = globSync("{app,components}/**/*.{ts,tsx}", { cwd: root })
   .map((rel) => resolve(root, rel));
-const registrar = new Map(); // id → 登録している部品のパス
+// 🚨 **登録元は 1 つとは限らない。全部持つ。**
+//    最初は `if (!registrar.has(id))` で**最初の 1 つだけ**を採っていて、
+//    `submit` の登録元が 2 つ（bug-report-composer / report-thread）あることを落としていた。
+//    ＝ **「1 つ見つけたら終わり」は、数を 1 に潰す。**（実測 2026-08-16）
+const registrar = new Map(); // id → 登録している部品のパス（複数）
 for (const file of sources) {
   const body = stripComments(readFileSync(file, "utf8"));
   for (const m of body.matchAll(/useShortcut\(\s*SHORTCUTS\.([A-Za-z_$][\w$]*)/g)) {
-    if (!registrar.has(m[1])) registrar.set(m[1], file);
+    const list = registrar.get(m[1]) ?? [];
+    if (!list.includes(file)) list.push(file);
+    registrar.set(m[1], list);
   }
 }
 
@@ -150,7 +156,8 @@ for (const locale of ["ja", "en"]) {
 
 // ── ⑥ 組み立て ───────────────────────────────────────────────────────
 const manifest = combos.map(({ id, key }) => {
-  const file = registrar.get(id) ?? null;
+  const registrars = registrar.get(id) ?? [];
+  const file = registrars[0] ?? null;
   let scope = "unknown";
   let scopeWhy = "登録している部品が見つかりません（useShortcut を名前で探しています）";
   if (file) {
@@ -158,7 +165,7 @@ const manifest = combos.map(({ id, key }) => {
       // 🚨 辿り着けるかではなく、**宣言があるルート**で決める（上のコメント参照）
       scope = submitRoutes.length > 0 ? submitRoutes.map((r) => `page:${r}`) : "unknown";
       scopeWhy = `PAGE_ACTIONS に「主要かつ submit」を宣言しているルート ${submitRoutes.length} 件`;
-    } else if (layoutReach.has(file)) {
+    } else if (registrars.some((f) => layoutReach.has(f))) {
       scope = "global";
       scopeWhy = "app/(admin)/layout.tsx から import で辿り着ける";
     } else {
@@ -178,7 +185,7 @@ const manifest = combos.map(({ id, key }) => {
     label_key: labelKey,
     _why: scopeWhy,
     _label_exists: { ja: key2 in dict.ja, en: key2 in dict.en },
-    _registrar: file ? file.replace(`${root}/`, "") : null,
+    _registrar: registrars.map((f) => f.replace(`${root}/`, "")),
   };
 });
 
@@ -229,7 +236,8 @@ for (const m of manifest) {
   log(`  ${m.action.padEnd(20)} ${m.key.padEnd(18)} ${String(scopeText).padEnd(12)} ${m._why}`);
   // 🚨 **拾った実物（どの部品が登録しているか）を必ず出す**（司令塔 2026-08-16）。
   //    これが無いと、"global" が何を根拠に出た値か、読んだ人が確かめられない。
-  log(`      登録元 ${m._registrar ?? "（見つからない）"}`);
+  log(`      登録元 ${m._registrar.length > 0 ? m._registrar.join(" / ") : "（見つからない）"}`
+    + (m._registrar.length > 1 ? "  🚨 **2 つ以上ある**（どちらが描かれているかで効き方が変わる）" : ""));
   if (Array.isArray(m.scope)) for (const s of m.scope.slice(0, 3)) log(`      例 ${s}`);
 }
 
