@@ -24,19 +24,15 @@ import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db/knex";
 import { ApiError } from "@/lib/schema/errors";
 import { decryptSecret, encryptSecret } from "./secret-box";
+import { LOCAL_ADMIN_EMAIL } from "./local-admin";
 
 /** 設定テーブルは単一行。DB 側の CHECK 制約と揃えている。 */
 const SINGLE_ROW_ID = 1;
 
-/**
- * ローカル管理者の内部用メールアドレス。
- *
- * 🚨 なぜメールがあるか: メールを使わない方針だが、`directus_sessions.user` は NOT NULL、
- *    `directus_users.email` も NOT NULL + unique という DB 制約があるため、
- *    セッションの持ち主として内部専用の固定ユーザーを1人だけ持つ。
- *    **利用者には一切見せない**（画面にもAPIレスポンスにも出さない）。
- */
-export const LOCAL_ADMIN_EMAIL = "local-admin@localhost";
+// LOCAL_ADMIN_EMAIL は葉モジュール `./local-admin` が定義元（クライアント側から
+// import されても DB 層を引きずらないため）。ここでは今までどおり外へも re-export する
+// （呼び出し側を1箇所も変えないため。定義自体は移していない）。
+export { LOCAL_ADMIN_EMAIL };
 
 /** 既定値。環境変数も DB も無いときはこれで動く。 */
 export const SETTINGS_DEFAULTS = {

@@ -1,6 +1,6 @@
 import type { MeResult } from "@/lib/admin/api";
 import type { Locale } from "@/i18n/config";
-import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/service";
+import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/local-admin";
 import { isSamlPlaceholderEmail } from "@/lib/auth/saml/placeholder-email";
 
 // アバターに何も無いときの既定の絵文字。
