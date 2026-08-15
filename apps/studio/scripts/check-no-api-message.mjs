@@ -113,6 +113,37 @@ console.log(`\n■ 判定`);
 console.log(`  対象: ${files.length} ファイル（app/**, components/** の .ts/.tsx）`);
 console.log(`  違反: ${hits.length} 件`);
 
+/**
+ * 🚨 **規則ごとの内訳を出す。0 の規則も必ず出す**（2026-08-15）。
+ *
+ * この検査は 2 つの規則を持っていて、**片方は 0 件のまま**になる:
+ *   「画面側からの呼び出し」… apiMessage() は削除済みなので、**誰も呼んでいないのが正常**。
+ *                              この規則は**復活したら鳴る番人**であって、死んでいるのではない。
+ *
+ * 内訳を出さないと「違反 10 件」としか見えず、**10 件が全部どちらの規則か分からない**。
+ * そして 0 の規則は、次の人に「使われていないから消そう」と読まれる。
+ *
+ * 🚨 **0 には 3 種類ある**（knowledge/decisions/checks-must-declare-blind-spots.md）:
+ *   異常が無い 0 ／ 見ていない 0 ／ **まだ出番が来ていない 0**。
+ *   この規則の 0 は 3 つめ。**対象は 213 ファイル見ている**（上の行が根拠）ので、
+ *   「見ていない 0」ではない。**消す理由にならない。**
+ */
+const RULES = [
+  { name: "画面側からの呼び出し", note: "apiMessage() は削除済み。**復活したら鳴る番人**なので 0 が正常" },
+  { name: "API の生文言をそのまま返している（別名の写経）", note: "" },
+];
+for (const rule of RULES) {
+  const n = hits.filter((h) => h.rule === rule.name).length;
+  const tail = n === 0 ? `  ← まだ出番が来ていない 0（対象は見ている）${rule.note ? " / " + rule.note : ""}` : "";
+  console.log(`    ${String(n).padStart(3)} 件  ${rule.name}${tail}`);
+}
+// 🚨 内訳の合計が違反数と合わないなら、**どの規則にも属さない違反**がある（種別を付け忘れた）。
+const counted = RULES.reduce((sum, rule) => sum + hits.filter((h) => h.rule === rule.name).length, 0);
+if (counted !== hits.length) {
+  console.error(`\n🚨 内訳 ${counted} 件 ≠ 違反 ${hits.length} 件。**種別の付いていない違反があります**（この検査の欠陥）。`);
+  process.exit(1);
+}
+
 if (hits.length === 0) process.exit(0);
 
 console.error(`\n🚨 画面側から \`${NEEDLE}\` を呼んでいます。**API の生文言は画面へ出さないこと。**`);
