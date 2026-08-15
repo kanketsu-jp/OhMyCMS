@@ -598,6 +598,32 @@ class Session {
       );
     }
 
+    // 🚨 幅も見る。**hover / pointer が合っていても、レイアウトは PC のことがある。**
+    //    `<meta name="viewport">` を持たないページは、モバイル指定でも
+    //    **レイアウト用の幅が 980px になる**（ブラウザの既定）。
+    //    実測（2026-08-16・同じページを meta 有無だけ変えて比較）:
+    //      🟢 meta 有り → sp 幅390  matchMedia("(min-width: 768px)") = **false**
+    //      🔴 meta 無し → sp 幅980  matchMedia("(min-width: 768px)") = **true**
+    //    ＝ 🚨 **hover:none / pointer:coarse なのに、Tailwind の `md:` が効く**。
+    //       **実機には存在しない状態**なので、ここで測ったものは SP の話になりません。
+    //    hover の穴（幅だけ 390 にして「SP で測った」）と同じ形が、幅の側にも在りました。
+    //    🟢 このリポジトリの画面は Next.js が meta を出すので影響しません
+    //       （実測: /login の HTML に `<meta name="viewport" …>` 1 件）。
+    //       落ちるのは、手で書いた検証用ページ・`data:` URL の側です。
+    const wantWidth = mobile ? 390 : 1280;
+    if (state.width !== wantWidth) {
+      throw new Error(
+        `asDevice("${kind}") は幅 ${wantWidth} を指定しましたが、ページは幅 ${state.width} です` +
+          `（hover / pointer は切り替わっています: ${JSON.stringify(state)}）。` +
+          "🚨 **レイアウトだけ別の端末になっています。** " +
+          (state.width === 980
+            ? "980 は `<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">` が" +
+              "無いページの既定値です。検証用のページなら、その meta を足してください。"
+            : "ページ側が幅を変えている可能性があります（zoom / initial-scale など）。") +
+          " この状態の測定は、端末の話としては使えません。",
+      );
+    }
+
     return Object.assign(
       Object.create({
         toString() {
