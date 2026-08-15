@@ -59,5 +59,8 @@
   "column_type": "Type",
   "column_size": "Size",
   "column_uploaded": "Added",
-  "row_folder": "Folder"
+  "row_folder": "Folder",
+  "menu_open_detail": "Open details",
+  "menu_delete": "Delete",
+  "deleted": "Deleted"
 }

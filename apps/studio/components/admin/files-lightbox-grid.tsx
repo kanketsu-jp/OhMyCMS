@@ -6,6 +6,7 @@ import { FileIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
+import { FileTileMenu } from "@/components/admin/file-tile-menu";
 import { ImageLightbox } from "@/components/admin/image-lightbox";
 import { useT } from "@/i18n/client";
 
@@ -77,8 +78,8 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
 
         if (isImage(file)) {
           return (
+            <FileTileMenu key={file.id} fileId={file.id}>
             <button
-              key={file.id}
               {...dragProps}
               type="button"
               className="min-w-0 rounded-md p-3 text-left transition-colors hover:bg-muted"
@@ -99,12 +100,13 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
               <p className="mt-3 truncate text-sm font-medium">{label}</p>
               <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
             </button>
+            </FileTileMenu>
           );
         }
 
         return (
+          <FileTileMenu key={file.id} fileId={file.id}>
           <Link
-            key={file.id}
             {...dragProps}
             href={`/admin/files/${file.id}`}
             className="min-w-0 rounded-md p-3 hover:bg-muted"
@@ -118,6 +120,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
             <p className="mt-3 truncate text-sm font-medium">{label}</p>
             <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
           </Link>
+          </FileTileMenu>
         );
       })}
       <ImageLightbox images={images} index={index} open={open} onClose={() => setOpen(false)} />

@@ -59,5 +59,8 @@
   "column_type": "種類",
   "column_size": "サイズ",
   "column_uploaded": "追加日時",
-  "row_folder": "フォルダ"
+  "row_folder": "フォルダ",
+  "menu_open_detail": "詳細をひらく",
+  "menu_delete": "削除",
+  "deleted": "削除しました"
 }
