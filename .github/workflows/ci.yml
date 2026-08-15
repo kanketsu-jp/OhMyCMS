@@ -193,12 +193,17 @@ jobs:
         # マルチアーキの manifest は作らない。デプロイ先は VPS(Dokploy) の amd64 だけで、
         # multi-arch にすると QEMU ビルドで所要時間が数倍になる割に、得るものが
         # ローカル Mac(arm64) の利便性しかない。ローカルは compose が自前でネイティブに建てる。
+        # 🚨 **`--build-arg GIT_DIRTY=0` を渡さない。**
+        # 渡すと「汚れていない」と**宣言している**だけで、**このツリーについて何も測っていない**。
+        # Dockerfile の gitinfo ステージは文脈の中で `git status --porcelain` を回して自分で判定し、
+        # 判定できたときは外から来た値を**必ず上書きする**ので、渡す意味も無い。
+        # 判定できなかったときは `unknown` が出る——**それが正しい**（`0` は嘘、`unknown` は「見ていない」）。
+        # 検査: apps/studio/scripts/check-build-info-guards.mjs（このファイルが GIT_DIRTY を渡していないこと）
         run: |
           docker buildx build \
             --platform linux/amd64 \
             -f docker/Dockerfile \
             --build-arg GIT_SHA=${{ github.sha }} \
-            --build-arg GIT_DIRTY=0 \
             -t ohmycms-studio:${{ github.sha }} \
             --load .
 

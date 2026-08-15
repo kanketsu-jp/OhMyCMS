@@ -17,7 +17,9 @@
  * 🚨 **この検査が見ていない範囲**（守り手を書く人は、穴も書く。2026-08-15・schema が追記）:
  *   1. **時点** … 走るのは**コミット時の作業ツリー**。ビルドが使うのは**押された commit**。
  *      `--no-verify` や、フックが動かない経路で押されたら**一度も見ません**。
- *      （CI かビルドの中でも回せば消えるずれ。**まだ回していません**）
+ *      → **2026-08-15 に CI の `checks` ジョブを足したので、押された commit でも走ります**
+ *        （`.github/workflows/ci.yml`）。**ただし Dokploy のビルドでは走りません**——
+ *        そこは今も見ていません。
  *   2. **中身の正しさ** … 見ているのは「その文字列が実コードに在るか」だけ。
  *      🚨 **条件を反転させても通ります**（例: `if ! git check-ignore …` にする）。
  *      **在る/無いは見るが、意味は見ていません。**
@@ -25,6 +27,10 @@
  *      **押した後の `/api/health` でしか分かりません**。
  *   4. **`.dockerignore` の他の行** … 必要な行が在ることは見ますが、
  *      🚨 **後から広いパターン（`*` など）を足して全部除外しても通ります。**
+ *   5. **読んでいるファイル** … `.dockerignore` / `docker/Dockerfile` / `.github/workflows/ci.yml` の**3 本だけ**。
+ *      🚨 `compose.yml` / `compose.dokploy.yml` / `.env.example` も `GIT_DIRTY` に触れますが、**見ていません**
+ *      （2026-08-15、「dirty に触れるのに検査が読んでいないファイル」を数えて分かったこと。
+ *      ci.yml だけ塞ぎ、**残り 3 本は開いたまま**）。
  *
  * 使い方: `node scripts/check-build-info-guards.mjs`（違反があれば exit 1）
  */
@@ -53,6 +59,10 @@ function read(relative) {
 
 const dockerignore = read(".dockerignore");
 const dockerfile = read("docker/Dockerfile");
+// 🚨 **dirty に触るのに、この検査が読んでいなかったファイル**（2026-08-15・schema が「入口の抜け」を数えて発見）。
+//    検査は `.dockerignore` と `docker/Dockerfile` しか読んでおらず、
+//    **CI が `--build-arg GIT_DIRTY=0` で旗を宣言していた**のを一度も見ていなかった。
+const ci = read(".github/workflows/ci.yml");
 
 /**
  * 🚨 **コメントを実コードとして数えない。**
@@ -72,6 +82,14 @@ const 実コード = dockerfile.text
   .join("\n");
 
 const 行 = dockerignore.text.split("\n").map((l) => l.trim());
+
+// 🚨 YAML も**同じ切り方**でコメントを落とす（コメントに `GIT_DIRTY` と書いただけで違反にしない）。
+//    対象行 `--build-arg GIT_SHA=${{ github.sha }}` に `#` は無いので、切っても消えない
+//    （消えたら対照が落ちて検査ごと失敗するので、黙って通ることはない）。
+const CI実コード = ci.text
+  .split("\n")
+  .map((line) => line.split("#")[0])
+  .join("\n");
 
 // 🚨 **出どころは人に書かせず、計器に言わせる**（貼り付ける人が毎回書く形は、忙しいときに落ちる）
 const head = (() => {
@@ -152,6 +170,19 @@ const checks = [
     対照: /gitinfo:/.test(実コード),
     対照の説明: "gitinfo のログ出力",
     壊れると: "旗が立った理由が誰にも分からなくなる（今朝の状態へ戻る）",
+  },
+  {
+    名前: "CI が dirty を「宣言」していない（GIT_DIRTY を渡していない）",
+    由来: "実測（2026-08-15。ci.yml が `--build-arg GIT_DIRTY=0` を渡しており、"
+      + "この検査は ci.yml を一度も読んでいなかった）",
+    // 🚨 これは**唯一の否定形の検査**。「在ること」ではなく「**無いこと**」を見る。
+    //    否定形は**探し方が壊れていても合格に見える**ので、対照（在るものが在ると出る）が特に効く。
+    ある: !/--build-arg\s+GIT_DIRTY/.test(CI実コード),
+    原因: () => "ci.yml が `--build-arg GIT_DIRTY=...` を渡しています"
+      + "（この値はビルドしたツリーについて何も測っていません）",
+    対照: /--build-arg\s+GIT_SHA/.test(CI実コード),
+    対照の説明: "ci.yml の `--build-arg GIT_SHA`（同じ読み方で必ず見つかるもの。これが落ちたら ci.yml を読めていない）",
+    壊れると: "CI が焼いたイメージの dirty が、測った値でなく**宣言した値**になる（旗が意味を失う）",
   },
 ];
 
