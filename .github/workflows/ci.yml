@@ -240,7 +240,11 @@ jobs:
     #    実測（2026-08-16）では **CI 開始の 27 秒後・終了の 6 分前**に本番が焼き上がっていた。
     #    赤くても出る。**止めたいなら別の仕組みが要る**（ユーザー判断待ち）。
     #
-    # 🚨 **未検証**: このジョブは**まだ一度も CI で走っていない**。
+    # 🚨 **【訂正 2026-08-16】「未検証」と書いていたが、走らせても中身が空だった。**
+    #    CI 上の実測: 最初の 4 回は **9〜13 秒 / `results: []` / `achieved: true` / exit 0**
+    #    ＝ **1 件も走らずに緑**。`--v1` が要ることに気づいていなかった（下の run を参照）。
+    #    いまは `--v1` を付け、**results が空なら失敗**にしてある。
+    # 🚨 元の注記: このジョブは**まだ一度も CI で走っていない**。
     #    v1-e は使い捨ての `postgres:17` を `docker run` で立て、`git worktree` を作り、
     #    `bun install` → `migrate` → `next dev` まで通す。**手元では動かしていない**
     #    （使い捨てとはいえ Docker とポートは全ペインで共有しているため）。
@@ -261,7 +265,21 @@ jobs:
       - run: bun install --frozen-lockfile
 
       - name: V1-E だけ実行（id 14）
-        run: bun run acceptance --only 14 --json
+        # 🚨 **`--v1` が要る**（2026-08-16 実測）。`runCheck(14, checkV1E, …)` は
+        #    `acceptance/run.mjs` の **`if (args.v1) { … }` の中**に在るので、
+        #    `--only 14` だけでは**到達しない**。
+        #    最初の 4 回の run はそれで **9〜13 秒 / results: [] / achieved: true / exit 0** だった
+        #    ＝ 🚨 **何も走っていないのに緑**。私が緑の嘘を作っていた。
+        #    （id が在ることは確かめたが、**そこへ届くか**を確かめていなかった）
+        run: bun run acceptance --v1 --only 14 --json | tee /tmp/v1e.json
+
+      # 🚨 **空の結果を緑にしない。** 上のような取り違えは必ずまた起きるので、
+      #    「1 件も走らなかった」を**失敗として扱う**（空の期待は、どんな検査でも通る）。
+      - name: 本当に 1 件走ったか（空なら失敗）
+        run: |
+          n=$(python3 -c "import json,sys; print(len(json.load(open('/tmp/v1e.json')).get('results') or []))")
+          echo "走った検査 = $n 件"
+          [ "$n" -ge 1 ] || { echo "::error::受入が 1 件も走っていません（results が空です）"; exit 1; }
 
   image:
     name: デプロイ用 amd64 イメージを焼く
