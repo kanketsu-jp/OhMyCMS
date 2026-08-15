@@ -55,6 +55,15 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /** 判定に使う実物。壊すときもこの写しを差し替える。 */
 const GUARD_FILE = "lib/admin/user-label.ts";
 
+/**
+ * 自己検査・対照検査・見ていない範囲の実演が壊す対象として名指しで参照する実物。
+ * 列挙（glob）でこれらが1本も拾えていないと、各テストの `apply()` が
+ * `sources[file]`（undefined）を `countOccurrences` に渡してしまい、
+ * 「壊せなかった」ではなく素の TypeError で落ちる（原因が読み取れない）。
+ * `loadSources()` 直後にこの一覧の存在を確認し、無ければ診断を出して打ち切る。
+ */
+const REQUIRED_FILES = [GUARD_FILE, "app/(admin)/layout.tsx", "components/admin/left-sidebar.tsx"];
+
 function read(file) {
   return readFileSync(resolve(root, file), "utf8");
 }
@@ -397,12 +406,20 @@ function checkUserMenuVisibility(sources) {
  *      または `const { email } = …` / `const { email: 識別子 } = …`（分割代入）が
  *      あればその右辺まで追っているか（無ければこれまでどおり、呼び出し元が別ファイルに
  *      ある正当な素通しとして扱う）
+ *
+ * 戻り値は `{ violations, scannedFiles }`。`scannedFiles` は GUARD_FILE を除いて
+ * 実際に規則 A/B/F を当てた本数（「候補」＝ Object.keys(sources).length とは別物）。
  */
 function findViolations(sources) {
   const violations = [];
+  // 🚨 「候補」ではなく「実際に規則 A/B/F を当てた本数」。GUARD_FILE はここで continue
+  //    するので数えない。呼び出し側で `候補 - 1` のように計算しない（この関数の中に
+  //    ふるいが増えた日に、外側の計算が嘘になるのを防ぐため。ここで実測する）。
+  let scannedFiles = 0;
 
   for (const [file, source] of Object.entries(sources)) {
     if (file === GUARD_FILE) continue;
+    scannedFiles += 1;
 
     // A/B: `userLabel={...}`（JSX 属性として直接渡している式）
     for (const m of source.matchAll(/userLabel=\{([^}]*)\}/g)) {
@@ -487,16 +504,20 @@ function findViolations(sources) {
   // G: UserMenu の呼び出し側から見える形で渡っているか
   violations.push(...checkUserMenuVisibility(sources));
 
-  return violations;
+  return { violations, scannedFiles };
 }
 
-/** 実物を読み込む。 */
+/**
+ * 実物を読み込む。glob が何本拾ったか（`globFileCount`）を呼び出し側へ返す
+ * （0 本のとき「違反が無い」ではなく「見ていない」と区別して診断するため）。
+ */
 function loadSources() {
-  const files = globSync("{app,components}/**/*.{ts,tsx}", { cwd: root }).sort();
+  const globPattern = "{app,components}/**/*.{ts,tsx}";
+  const files = globSync(globPattern, { cwd: root }).sort();
   const sources = {};
   for (const file of files) sources[file] = read(file);
   sources[GUARD_FILE] = read(GUARD_FILE);
-  return sources;
+  return { sources, globPattern, globFileCount: files.length };
 }
 
 /**
@@ -535,6 +556,15 @@ function buildZzProbeSource({ leak }) {
 
 // ── 1) 自己検査: わざと壊して、赤くなることを確かめる ──────────────────────
 // 壊し方は**8通り**。1通りだけだと「たまたま落ちた」が混ざる。
+//
+// 🚨 この節（壊し方1〜8）・対照検査（対照1〜3）・見ていない範囲の実演（①〜⑤）は、
+//    いずれも読み込み済みの `original` を差し替えてから findViolations(sources) を
+//    呼ぶだけで、**ファイルの列挙（glob）そのものはこの囮を通っていない**。
+//    列挙が死んでいる（0 本しか拾えていない）状態は、これらの囮では検出できない。
+//    その代わり `loadSources()` の直後（この節より前）で列挙本数と、
+//    自己検査・実演が使う実物（REQUIRED_FILES）の存在を確認しており、0 本または欠落なら
+//    診断を出して exit 1 で打ち切っている（司令塔 2026-08-16 の①への回答）。
+//    **したがって「列挙の門が死んだまま緑」にはならない。**
 
 const selfTests = [
   {
@@ -672,13 +702,40 @@ function countOccurrences(haystack, needle) {
   return haystack.split(needle).length - 1;
 }
 
-const original = loadSources();
+const { sources: original, globPattern, globFileCount } = loadSources();
+
+// 🚨 ここではまだ何も「違反」を判定しない。判定できる状態にあるかどうかだけを見る。
+//    列挙（glob）が 0 本、または自己検査・実演が使う実物（REQUIRED_FILES）が読み込めて
+//    いないなら、以降の判定は「違反が無い」ではなく「見ていない」なので、
+//    スタックトレースではなく日本語の診断を出して打ち切る
+//    （司令塔 2026-08-16②への回答: 以前は countOccurrences の中で undefined.split が
+//    TypeError になり、原因（列挙が0本）に辿り着けなかった）。
+if (globFileCount === 0) {
+  console.error("■ 列挙の診断");
+  console.error("  この検査は 1 本も走査していません。「違反が無い」ではなく「見ていない」です。");
+  console.error(`  glob パターン: ${globPattern}`);
+  console.error(`  root: ${root}`);
+  process.exit(1);
+}
+
+const missingRequiredFiles = REQUIRED_FILES.filter((file) => original[file] === undefined);
+if (missingRequiredFiles.length > 0) {
+  console.error("■ 列挙の診断");
+  console.error(
+    "  自己検査・実演が使う実物が見つかりませんでした。「違反が無い」ではなく「見ていない」です。",
+  );
+  console.error(`  見つからなかったファイル: ${missingRequiredFiles.join(", ")}`);
+  console.error(`  glob パターン: ${globPattern}`);
+  console.error(`  root: ${root}`);
+  process.exit(1);
+}
+
 let selfTestFailed = false;
 
 console.log("■ 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）");
 for (const test of selfTests) {
   const { sources, count } = test.apply(original);
-  const violations = findViolations(sources);
+  const { violations } = findViolations(sources);
   // 🚨 置換が 0 件なら、壊せていない。「赤くならなかった」ではなく「壊れていない」が正しい。
   const detected = count > 0 && violations.length > 0;
 
@@ -763,7 +820,7 @@ let greenTestFailed = false;
 console.log("\n■ 対照検査（壊していない変更で誤検出しないことを確かめる）");
 for (const test of greenTests) {
   const { sources, count } = test.apply(original);
-  const violations = findViolations(sources);
+  const { violations } = findViolations(sources);
   const clean = count > 0 && violations.length === 0;
   const actionLabel = test.actionLabel || "置換";
 
@@ -897,7 +954,7 @@ for (const probe of blindSpotProbes) {
     continue;
   }
 
-  const probeViolations = findViolations(sources);
+  const { violations: probeViolations } = findViolations(sources);
   const detected = probeViolations.length > 0;
   const detectedRules = [...new Set(probeViolations.map((v) => v.rule))].join(",") || "-";
 
@@ -950,10 +1007,14 @@ if (blindSpotRegression) {
 }
 
 // ── 2) 本番の判定 ─────────────────────────────────────────────────────
-const violations = findViolations(original);
+const { violations, scannedFiles } = findViolations(original);
 
 console.log(`\n■ 判定`);
-console.log(`  対象: ${Object.keys(original).length} ファイル（app/**, components/** ＋ ${GUARD_FILE}）`);
+const candidateFiles = Object.keys(original).length;
+console.log(
+  `  対象: 候補 ${candidateFiles} 本（app/**, components/** ＋ ${GUARD_FILE}）/ 走査 ${scannedFiles} 本`,
+);
+console.log(`        （${GUARD_FILE} は規則 A/B/F/G の対象外。規則 C/D/E で別に見る）`);
 console.log(`  違反: ${violations.length} 件`);
 
 if (violations.length > 0) {
