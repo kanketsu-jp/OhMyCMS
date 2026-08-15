@@ -137,10 +137,34 @@ for (const rule of RULES) {
   const tail = n === 0 ? `  ← まだ出番が来ていない 0（対象は見ている）${rule.note ? " / " + rule.note : ""}` : "";
   console.log(`    ${String(n).padStart(3)} 件  ${rule.name}${tail}`);
 }
-// 🚨 内訳の合計が違反数と合わないなら、**どの規則にも属さない違反**がある（種別を付け忘れた）。
+/**
+ * 🚨 内訳が実態と合わない形は **2 つあり、原因が違う**（2026-08-15・polish の実測を受けて分けた）。
+ *
+ *   合計 < 違反   … どの規則にも属さない違反がある（**種別を付け忘れた**）
+ *   合計 > 違反   … 同じ違反を複数の規則が数えている（**規則名が重複している**）
+ *
+ * 🚨 **どちらも「内訳が合わない」で落ちるが、直す場所が違う。**
+ *    最初は両方を「種別を付け忘れた」と報告していた。実測（規則名を重複させた RED）で
+ *    **20 件 ≠ 10 件と正しく落ちたのに、原因の説明だけが嘘**だった。
+ *    ＝ **捕まえたことと、正しく名指しできることは別。**
+ *
+ * polish の版（`check-surface-nesting`）は表示を `why` で畳む作りなので、
+ * **重複しても合計・行数とも一致してしまい、この突き合わせでは捕まらない**。
+ * こちらは規則ごとに filter する作りなので二重計上になり、合計で捕まる。
+ * **同じ「内訳の嘘」でも、検査の作りによって捕まる経路が違う。**
+ */
+const names = RULES.map((rule) => rule.name);
+const duplicated = names.filter((name, i) => names.indexOf(name) !== i);
 const counted = RULES.reduce((sum, rule) => sum + hits.filter((h) => h.rule === rule.name).length, 0);
-if (counted !== hits.length) {
-  console.error(`\n🚨 内訳 ${counted} 件 ≠ 違反 ${hits.length} 件。**種別の付いていない違反があります**（この検査の欠陥）。`);
+if (duplicated.length > 0 || counted !== hits.length) {
+  const cause =
+    duplicated.length > 0
+      ? `**規則名が重複しています**: ${[...new Set(duplicated)].join(" / ")}（同じ違反を複数の規則が数えます）`
+      : counted < hits.length
+        ? "**種別の付いていない違反があります**（scan が付ける rule と RULES の名前が食い違っている）"
+        : "**同じ違反が複数の規則に数えられています**";
+  console.error(`\n🚨 内訳 ${counted} 件 ／ 違反 ${hits.length} 件 ／ 規則 ${RULES.length} 件。${cause}`);
+  console.error("   この検査自身の欠陥です。**判定結果は信用できません**（数が合わない内訳は、0 の意味も嘘になります）。");
   process.exit(1);
 }
 

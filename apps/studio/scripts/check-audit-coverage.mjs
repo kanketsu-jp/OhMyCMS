@@ -95,6 +95,18 @@ if (routes.length === 0) selfTestFailed = true;
 console.log(`  ${crawled && crawled.length > 0 ? "✅" : "❌"} 巡回一覧を読めている  ${crawled ? crawled.length : 0} 件`);
 if (!crawled || crawled.length === 0) selfTestFailed = true;
 
+/**
+ * 🚨 除外の path が重複していないか（2026-08-15・polish の「内訳が畳まれる」形をここへ当てた）。
+ * `excludedPaths` は Set なので**重複しても黙って 1 つに潰れる**が、
+ * 表示は `EXCLUDED.length` を使うので **「除外 3 件」と出て実際は 2 件**になる。
+ * ＝ **数と実態がずれるのに、どこも赤くならない。**
+ * 実測でこの形が出たわけではない（いまは重複なし）。**出る前に塞ぐ**。
+ */
+const excludedNames = EXCLUDED.map((e) => e.path);
+const dupExcluded = [...new Set(excludedNames.filter((n, i) => excludedNames.indexOf(n) !== i))];
+console.log(`  ${dupExcluded.length === 0 ? "✅" : "❌"} 除外の path が一意  ${EXCLUDED.length} 件${dupExcluded.length ? "（重複: " + dupExcluded.join(" / ") + "）" : ""}`);
+if (dupExcluded.length > 0) selfTestFailed = true;
+
 // 囮: 実在しないページを巡回一覧に混ぜたら「巡回に在るが実在しない」として出るか。
 const decoyMissing = ["/admin/zz-not-a-page"].filter(
   (p) => !routes.some((r) => r.path === p) && !EXCLUDED.some((e) => e.path === p),
