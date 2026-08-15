@@ -55,6 +55,20 @@ const TITLE = "V1-E 初回起動（新規インストールで初期設定を終
 const PORT = 3110; // knowledge/decisions/port-allocation.md:56「worktree の開発サーバ 1 本目」
 const DB_PORT = 5437; // 共有の 5436 とは別
 const CONTAINER = "ohmycms-acc-first-run";
+/**
+ * 🚨 **この検査は破壊的な UPDATE / DELETE を実行する。**
+ * 守っているものを1行で言えるようにする（司令塔 2026-08-15「注意書きは守りではない」）:
+ *
+ * **守り: `docker run` が返した ID にしか話しかけない。**
+ * 名前（`CONTAINER`）は**表示のためだけ**に使う。ID は**この実行で作ったコンテナにしか存在しない**ので、
+ * 既にある共有 DB（`ohmycms-db` / :5436）へは**構造的に届かない**。
+ *
+ * 🚨 **以前は「名前が違うから安全」だった**——それは注意書きであって守りではない。
+ * 定数を1つ書き換えれば、共有設定へ `update ohmycms_settings set setup_password = null` が飛ぶ。
+ * **2026-08-15 に人間が手で同じことをして、堀池さんのログインを壊している。**
+ * ⚠️ **この守りの RED は未発火**（形で塞いだだけで、破られた実例はまだ無い）。
+ */
+let createdId = null;
 const REPO = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
 const WORKTREE = `${REPO}-acc-first-run`;
 const SETUP_PASSWORD = "pass132"; // OHMYCMS_SETUP_PASSWORD 未設定時の既定
@@ -75,7 +89,14 @@ async function portBusy(port) {
 }
 
 async function psql(sql) {
-  const r = await run("docker", ["exec", CONTAINER, "psql", "-U", "cms", "-d", "cms", "-At", "-c", sql]);
+  // 🚨 ID が無いなら**何もしない**。名前で代用しない（それが以前の穴だった）。
+  if (!createdId) {
+    throw new Error(
+      "この実行で作ったコンテナの ID がありません。**共有 DB へ話しかけないため、ここで止めます**。" +
+        `（SQL: ${sql.slice(0, 60)}…）`,
+    );
+  }
+  const r = await run("docker", ["exec", createdId, "psql", "-U", "cms", "-d", "cms", "-At", "-c", sql]);
   return r.code === 0 ? r.stdout.trim() : `ERR:${r.code}:${r.stderr.trim().slice(0, 200)}`;
 }
 
@@ -99,7 +120,10 @@ async function teardown(details) {
   const target = pid.stdout.trim();
   if (target) await run("kill", ["-TERM", target]);
   await sleep(2000);
-  const rm = await run("docker", ["rm", "-f", CONTAINER]);
+  // 片付けも ID で。作っていないなら何も消さない（他人のコンテナを消さないため）。
+  const rm = createdId
+    ? await run("docker", ["rm", "-f", createdId])
+    : { code: 0, stdout: "", stderr: "(この実行では作っていないので、何も消していません)" };
   const wt = await run("git", ["-C", REPO, "worktree", "remove", "--force", WORKTREE]);
   // 🚨 「落とした」を 000 だけで言わない。共有が無事であることも並べる。
   const gone = !(await portBusy(PORT));
@@ -156,7 +180,8 @@ export async function check(context) {
       "-e", "POSTGRES_USER=cms", "-e", "POSTGRES_PASSWORD=cms", "-e", "POSTGRES_DB=cms",
       "-p", `${DB_PORT}:5432`, "postgres:17",
     ]);
-    if (up.code !== 0) {
+    createdId = up.stdout.trim().split("\n").pop() ?? null;
+    if (up.code !== 0 || !createdId) {
       return result({
         id: ID, title: TITLE, status: STATUS.BLOCKED,
         reason: `使い捨て Postgres を起動できませんでした（exit ${up.code}）`,
@@ -164,7 +189,7 @@ export async function check(context) {
       });
     }
     for (let i = 0; i < 60; i++) {
-      const ready = await run("docker", ["exec", CONTAINER, "pg_isready", "-U", "cms"]);
+      const ready = await run("docker", ["exec", createdId, "pg_isready", "-U", "cms"]);
       if (ready.code === 0) break;
       await sleep(1000);
     }
