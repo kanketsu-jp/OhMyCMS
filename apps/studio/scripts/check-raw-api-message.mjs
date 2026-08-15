@@ -91,12 +91,26 @@ function commentMask(lines) {
  */
 function scan(sources) {
   const counts = {};
+  /** 🚨 コメントの中に在って**意図的に除外した**もの。「見ていない」と区別するために数える。 */
+  const 除外 = [];
+  /** 🚨 拾った行の実物。**数だけ見ていると書き方の揺れに気づけない**（`?.` を落とした事故）。 */
+  const 生の行 = [];
   for (const { file, text } of sources) {
-    const lines = commentMask(text.split("\n"));
-    const n = lines.filter((l) => RE.test(l)).length;
+    const raw = text.split("\n");
+    const lines = commentMask(raw);
+    let n = 0;
+    lines.forEach((l, i) => {
+      if (!RE.test(l)) {
+        // マスク後は消えたが、元の行には在った → コメントで落とした
+        if (RE.test(raw[i])) 除外.push(`${file}:${i + 1}  ${raw[i].trim().slice(0, 70)}`);
+        return;
+      }
+      n += 1;
+      生の行.push(`${file}:${i + 1}  ${l.trim().slice(0, 78)}`);
+    });
     if (n > 0) counts[file] = n;
   }
-  return counts;
+  return { counts, 除外, 生の行 };
 }
 
 function collect() {
@@ -130,7 +144,7 @@ const 検出すべき = [
   ["添字で書く", `return payload["error"].message;`],
   ["🚨 名前を変えて逃げる（この検査の主目的）", `function zzRenamed(p){ return p.error.message }`],
 ];
-const 素通り = 検出すべき.filter(([, t]) => Object.keys(scan([{ file: "決め打ち.tsx", text: t }])).length === 0);
+const 素通り = 検出すべき.filter(([, t]) => Object.keys(scan([{ file: "決め打ち.tsx", text: t }]).counts).length === 0);
 console.log(
   `  ${素通り.length === 0 ? "✅" : "❌"} 囮1: 検出すべき ${検出すべき.length} 通り  → 素通り ${素通り.length} 件` +
     (素通り.length ? `（${素通り.map(([n]) => n).join(" / ")}）` : ""),
@@ -146,7 +160,7 @@ const 検出してはいけない = [
   ["辞書を引いている", `setError(t("error_save_failed"));`],
   ["error という名前だが message を読んでいない", `if (payload.error.code === "X") return;`],
 ];
-const 誤検出 = 検出してはいけない.filter(([, t]) => Object.keys(scan([{ file: "決め打ち.tsx", text: t }])).length > 0);
+const 誤検出 = 検出してはいけない.filter(([, t]) => Object.keys(scan([{ file: "決め打ち.tsx", text: t }]).counts).length > 0);
 console.log(
   `  ${誤検出.length === 0 ? "✅" : "❌"} 囮2: 検出してはいけない ${検出してはいけない.length} 通り  → 誤検出 ${誤検出.length} 件` +
     (誤検出.length ? `（${誤検出.map(([n]) => n).join(" / ")}）` : ""),
@@ -159,7 +173,7 @@ if (selfTestFailed) {
 }
 
 // ── 判定 ─────────────────────────────────────────────────────
-const found = scan(sources);
+const { counts: found, 除外, 生の行 } = scan(sources);
 const files = new Set([...Object.keys(found), ...Object.keys(BASELINE)]);
 const 増えた = [];
 const 減った = [];
@@ -175,6 +189,18 @@ const 基準 = Object.values(BASELINE).reduce((a, b) => a + b, 0);
 console.log(`\n■ 判定（🚨 減らす検査ではなく「増やさない」検査。基準線は 2026-08-16 の実測）`);
 console.log(`  いま ${合計} 件 / ${Object.keys(found).length} ファイル   基準線 ${基準} 件 / ${Object.keys(BASELINE).length} ファイル`);
 console.log(`  🚨 この検査は「その message が画面に描かれるか」までは見ていない（先頭の JSDoc）`);
+
+// 🚨 「見ていない 0」と「除外した 0」を分ける。**除外は理由とセットで出す。**
+console.log(`  除外: コメントの中に在って落としたもの ${除外.length} 件${除外.length ? "" : "（＝コメントで隠れている違反は無い）"}`);
+for (const l of 除外) console.log(`    - ${l}`);
+
+// 🚨 **数だけ見ていると、書き方の揺れに気づけない。**
+// 実例（2026-08-16）: `error.message` だけで探した人が `error?.message` の 2 件を落とし、
+// 「12 ではなく 10」と訂正して、それが 2 人を経由して配られた。**生の行を見れば `?.` は目に入る。**
+if (生の行.length > 0) {
+  console.log(`  拾った行の実物（先頭 3 本。🚨 書き方の揺れは数でなく行で見る）:`);
+  for (const l of 生の行.slice(0, 3)) console.log(`    ${l}`);
+}
 
 if (減った.length > 0) {
   console.log(`\n✅ 減っています（${減った.length} ファイル）:`);
