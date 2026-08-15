@@ -73,6 +73,16 @@ if (bodySrc) {
     if (c === "}" || c === ")" || c === "]") { depth -= 1; afterSeparator = false; continue; }
     if (depth !== 1) continue;
     if (c === ",") { afterSeparator = true; continue; }
+    // 🚨 **spread は静的に中身を読めない。** 読めないものを黙って 0 件として通すと、
+    //    `...{ sessionToken: document.cookie }` と書くだけでこの検査を迂回できる
+    //    （2026-08-15 実測: 迂回すると exit 0 のまま通っていた）。
+    if (c === "." && bodySrc.slice(i, i + 3) === "...") {
+      problems.push(
+        "解析できません: 送信 body に spread（...）があります。" +
+          "中身を静的に読めないので、鍵が増えていても検出できません（べた書きにしてください）",
+      );
+      i += 2; afterSeparator = false; continue;
+    }
     if (/\s/.test(c)) continue;
     if (!afterSeparator) continue;
     const m = bodySrc.slice(i).match(/^([A-Za-z_$][\w$]*)\s*[:,}\n]/);
