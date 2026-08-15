@@ -37,6 +37,19 @@
  *
  * ＝ **この検査が緑でも、初期設定が通るとは限りません。** 止められるのは
  * **「画面が送らない鍵を、API が必須にしてしまう」形の退行だけ**です。
+ *
+ * ## 🚨 規則ごとの「出どころ」（司令塔 2026-08-15「実際に起きたと起きうるを分けて書く」）
+ *
+ * **次の人が優先度を判断できるように、実際に踏んだものと、先回りで塞いだものを分ける。**
+ *
+ *   `literal-to-validate`   🔥 **実際に起きた**（2026-08-15 `7b923d9`。約10時間、初期設定が終えられなかった）
+ *   `no-omit-guard`         🔥 同上の直しを守るもの
+ *   `validate-requires-all` ⚠️ **穴は実測、事象は未発生**——呼び出し側を変えずに `validate()` の
+ *                              1 行を壊したら**この検査が緑のままだった**ことを確認して塞いだ。
+ *                              **実際にそう壊された事実はまだ無い**
+ *   `validate-not-found`    ⚠️ 先回り（上と対）
+ *   `not-found`             ⚠️ 先回り（「何も見ていない緑」を防ぐため）
+ *   `form-missing-key`      ⚠️ 先回り（送信の本文が空になる形は、まだ起きていない）
  */
 
 import { readFileSync } from "node:fs";
@@ -100,7 +113,7 @@ function inspect(serviceSource, formSource) {
   // 🚨 対象を切り出せないときは「違反 0」ではなく**失敗**にする。
   //    切り出せていないまま緑を返すと「何も見ていない緑」になる。
   if (!body || body.trim().length === 0) {
-    violations.push({ rule: "not-found", message: `${SERVICE} の completeOnboardingWithAdmin を切り出せませんでした（関数名が変わった可能性）` });
+    violations.push({ rule: "not-found", message: `${SERVICE} の中に `+"`export async function completeOnboardingWithAdmin(`"+` が見つかりませんでした。🚨 **原因は1つに決まりません**——名前が変わった / 関数が消えた / 別ファイルへ移った / この検査の探し方が古い、のどれかです。**まず ${SERVICE} を開いて、関数が在るかを目で見てください**` });
     return { violations, bodyChars: 0 };
   }
 
@@ -122,7 +135,7 @@ function inspect(serviceSource, formSource) {
   const rawValidate = validateBodyOf(serviceSource);
   const validateBody = rawValidate === null ? null : stripComments(rawValidate);
   if (!validateBody || validateBody.trim().length === 0) {
-    violations.push({ rule: "validate-not-found", message: "validate() を切り出せませんでした（関数名が変わった可能性）" });
+    violations.push({ rule: "validate-not-found", message: "同ファイルの中に `function validate(` が見つかりませんでした。🚨 **原因は1つに決まりません**——名前が変わった / 消えた / 別ファイルへ移った / この検査の探し方が古い。**まず該当ファイルを開いて目で見てください**" });
   } else if (!/if\s*\(\s*!\s*\(\s*\w+\s+in\s+input\s*\)\s*\)/.test(validateBody)) {
     violations.push({
       rule: "validate-requires-all",
@@ -133,7 +146,7 @@ function inspect(serviceSource, formSource) {
   // 画面が必ず送る鍵。これが消えたら、そもそも保存できない。
   for (const key of ["new_password", "default_locale"]) {
     if (!stripComments(formSource).includes(`${key}:`)) {
-      violations.push({ rule: "form-missing-key", message: `${FORM} が ${key} を送っていません` });
+      violations.push({ rule: "form-missing-key", message: `${FORM} の中に `+"`${key}:`"+` という文字列がありません。🚨 **「送っていない」と断定はできません**——動的に組み立てている / 別ファイルへ移した、でも同じ結果になります。**送信の本文を目で確かめてください**` });
     }
   }
 
