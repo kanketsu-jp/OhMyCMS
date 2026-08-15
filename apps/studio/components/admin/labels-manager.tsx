@@ -218,7 +218,12 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
                       value={editing.name}
                       aria-label={t("name_label")}
                       onChange={(event) => setEditing({ id: label.id, name: event.target.value })}
-                      className="h-8 max-w-64"
+                      /* 🚨 高さを書かない。`Input` は `min-h-(--control-h)`（SP 44px /
+                         PC 36px）を持つので、**`h-8` のような小さい値は下限で潰れて何も起きない**。
+                         2026-08-15 実測: `h-8` 有り 44px / 無し 44px / `h-14` にすると 56px
+                         （＝書けば効くが、下限より小さい値だけが無視される）。
+                         **書いた人が「効いた」と思い込むだけなので、置かない。** */
+                      className="max-w-64"
                     />
                     <Button
                       size="sm"
