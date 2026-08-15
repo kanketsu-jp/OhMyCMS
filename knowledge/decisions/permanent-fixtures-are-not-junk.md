@@ -73,11 +73,11 @@ grep -rn "<その名前>" knowledge/ docs/ apps/studio/scripts/
 
 ## いま常設にしているもの
 
-| 名前 | なぜ消さないか | 根拠 |
-|---|---|---|
-| `zz_probe_actions` | **行のあるコレクションが 1 つも無いと、行が要る検査が「測れなかった」になる。** 一度これが消え、その形の 500 が誰にも再現できない時間帯があった | [checks-must-declare-blind-spots](./checks-must-declare-blind-spots.md) |
-| `acc_748015_pl` | 受入ハーネスが既定値として使っている（`--richtext-collection` の既定） | `apps/studio/scripts/audit-surface-depth.mjs` |
-| `zz_probe_dialog` | **ファイル型のフィールドを持つコレクションが 1 つも無いと、ファイル選択ダイアログに到達できない。** 開かないと mount されないので、検査は「違反 0 件」を返し続ける。実際 2026-08-15 まで §1 面の入れ子（pc）と §6 scroll-fade（sp）の 2 件が誰にも見えていなかった | `apps/studio/components/admin/file-picker.tsx` / 実測 `audit-surface-depth.mjs --paths /admin/content/zz_probe_dialog/new --click '[data-file-picker-trigger]'` |
+| 名前 | なぜ消さないか | 根拠 | 記録日 | 状態 | 決める人 | 何を決めるのか |
+|---|---|---|---|---|---|---|
+| `zz_probe_actions` | **行のあるコレクションが 1 つも無いと、行が要る検査が「測れなかった」になる。** 一度これが消え、その形の 500 が誰にも再現できない時間帯があった | [checks-must-declare-blind-spots](./checks-must-declare-blind-spots.md) | 2026-08-15 | **決定済み** | — | （決定済み。常設のまま） |
+| `acc_748015_pl` | 受入ハーネスが既定値として使っている（`--richtext-collection` の既定） | `apps/studio/scripts/audit-surface-depth.mjs` | 2026-08-15 | 🚨 **未決** | 司令塔（w4A:p1P） | **受入ハーネスの既定値を、常設と決めた `zz_probe_actions` に寄せるか**。寄せられるなら、この行は消せる（**2 本を常設にしておく必要は無いかもしれない**） |
+| `zz_probe_dialog` | **ファイル型のフィールドを持つコレクションが 1 つも無いと、ファイル選択ダイアログに到達できない。** 開かないと mount されないので、検査は「違反 0 件」を返し続ける。実際 2026-08-15 まで §1 面の入れ子（pc）と §6 scroll-fade（sp）の 2 件が誰にも見えていなかった | `apps/studio/components/admin/file-picker.tsx` / 実測 `audit-surface-depth.mjs --paths /admin/content/zz_probe_dialog/new --click '[data-file-picker-trigger]'` | 2026-08-15 | 🚨 **未記入** | storage（w4A:p1V） | 🚨 **この行を足した人が埋めること。** 私（toast）は記録日も決める人も知らないので、**推測で埋めませんでした**（下の名乗りに「storage が名乗った」とあるので、決める人だけ仮に置いています） |
 
 🚨 **この表に足すのは、常設にすると決めた人の仕事。** 足さずに常設にすると、
 **次の掃除で消える**（今回まさにそうなりかけた）。
