@@ -503,9 +503,21 @@ const unclassified = [...unguarded, ...guarded, ...pending].filter((h) => !KNOWN
 
 console.log(`防御済み: ${guarded.length} 件 / 未防御: ${unguarded.length} 件 / 移行待ち: ${pending.length} 件`);
 
+// 🚨 このセクションは毎回 exit 0 のまま8件を出し続けていた（決める人も状態も無い）。
+// PENDING（移行待ち）リストで既に直した「未決のまま緑」と同じ問題——司令塔承認の上で
+// 同じメタデータの型をこちらにも付ける（2026-08-16）。
+//
+// 🚨 owner（誰が決めるか）は推測しない。今日この監査対象で直近コミットから
+// 持ち主を推測して5回取り違えたので（count-before-you-report.md）、ここは
+// ファイルごとではなく**セクション全体のヘッダ**として「未確定（名乗り待ち）」を置く
+// （対象ファイルが複数ペインにまたがるため、ファイル単位で持ち主を決め打ちできない）。
 if (suspects.length > 0) {
   console.warn("\n■ 行ごとの操作で keyOf を忘れている疑い（引数つきで呼んでいるのに isPending を使っていない）");
   console.warn("  行ごとの削除で鍵を共有すると、1行を消している間に他の行が押せなくなります。");
+  console.warn("  記録: 2026-08-16（この監査で確認した日。元の記録日は不明）");
+  console.warn("  状態: 未決");
+  console.warn("  決める人: 未確定（名乗り待ち） — 該当ファイルの持ち主が名乗るまで空");
+  console.warn("  何を決めるか: 行ごとの鍵（NAME.isPending(引数)）が要るかどうか。要らないなら、要らない理由を1行その場に書く");
   for (const s of suspects) console.warn(`  ${s.file}  ${s.name}`);
 }
 
@@ -624,12 +636,32 @@ const selfTests = [
     // ここでは形を逆にし、`method: "POST"` を行コメントの中に差し込んで
     // 「検出 0 件（＝コメントは実装として数えない）」を期待値にする。
     // expectZero を立てることで、下のループは「壊した後に検出が増えないこと」を確認する。
+    //
+    // 🚨 なぜ pairedPositive が要るか（2026-08-16 追加。実測して発覚）:
+    // 「検出 0 件のはず」という expect-zero だけの自己検査は、**分類器(classifyMethodValue)が
+    // 死んで何も検出しなくなった状態**でも満たされてしまう——死んだ検出器は何も検出しないので、
+    // 「0件のはず」というテストにとっては常に正解に見える。実測: classifyMethodValue を
+    // 常に isMutation:false を返すよう壊すと、壊し方1・3・4（「検出されるべき」の自己検査）は
+    // 正しく ❌ になったのに、壊し方5だけは検出0件のまま ✅ で残った（分類器の死を隠す）。
+    // 対策として、同じ内容を**コメントではなく実コードとして**差し込んだ対照（壊し方1と同形）を
+    // 同時に走らせ、そちらは1件検出されることを要求する。両方そろって初めて
+    // 「コメントだから無視できた」と言える。対照が無いと「分類器が死んでいるだけ」と
+    // 区別がつかない（count-before-you-report.md の「expect-zero は死んだ検出器でも満たされる」
+    // という教訓そのもの）。
     name: '壊し方5(逆方向): コメントの中の method: "POST" を差し込む→検出 0 件のはず',
     expectZero: true,
     apply(base) {
       const count = countOccurrences(base, NEEDLE);
       const after = base.replaceAll(NEEDLE, `      // method: "POST",\n${NEEDLE}`);
       return { after, count };
+    },
+    pairedPositive: {
+      // 壊し方1と同形（コメントを外しただけ）。分類器が生きていれば必ず1件検出される対照。
+      apply(base) {
+        const count = countOccurrences(base, NEEDLE);
+        const after = base.replaceAll(NEEDLE, `      method: "POST",\n${NEEDLE}`);
+        return { after, count };
+      },
     },
   },
 ];
@@ -642,9 +674,24 @@ for (const test of selfTests) {
   // expectZero が立っている自己検査（壊し方5）は「検出されないこと」を期待値にする。
   // それ以外（壊し方1〜4）は従来どおり「置換した件数と同じだけ検出されること」を期待する。
   const expected = test.expectZero ? 0 : count;
-  const ok = count > 0 && detected === expected;
+  let ok = count > 0 && detected === expected;
 
-  console.log(`  ${ok ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${detected} 件（期待 ${expected} 件）`);
+  // 🚨 pairedPositive がある場合（壊し方5）は、expect-zero 側の結果だけでは ok にしない。
+  // 「検出0件」は分類器が死んでいても満たされる（expect-zero は死んだ検出器でも通ってしまう。
+  // 上のコメント参照）ので、同じ内容を実コードとして差し込んだ対照（1件検出されるはず）も
+  // 必ず両方成立させる。片方だけ表示すると「どちらの半分が落ちたか」が読み取れないため、
+  // 出力行に両半分の結果を並べる。
+  let pairedSuffix = "";
+  if (test.pairedPositive) {
+    const { after: pAfter, count: pCount } = test.pairedPositive.apply(BASELINE);
+    const pDetected = findMutationLines(pAfter).length - baselineDetections;
+    const pExpected = pCount; // 実コードなので置換件数と同じだけ検出されるはず（死んだ検出器なら0のまま外れる）
+    const pOk = pCount > 0 && pDetected === pExpected;
+    ok = ok && pOk;
+    pairedSuffix = `  ｜ 対照(実コードなら検出されるはず): 置換 ${pCount} 件 → 検出 ${pDetected} 件（期待 ${pExpected} 件）${pOk ? "✅" : "❌"}`;
+  }
+
+  console.log(`  ${ok ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${detected} 件（期待 ${expected} 件）${pairedSuffix}`);
   if (count === 0) {
     console.error("     ↑ 置換が 0 件。壊せていないので、この結果は何も確かめていない。");
   }
@@ -678,14 +725,29 @@ console.log("\n■ 自己検査（keyOf 忘れ疑いの検出・コメント対�
   const after = KEYOF_BASELINE.replaceAll(KEYOF_NEEDLE, `    // remove.isPending(id);\n${KEYOF_NEEDLE}`);
   const detected = findKeyOfSuspects(after).length - keyofBaselineDetections;
   const expected = 0; // コメント内の isPending は防御として数えないので、追加前後で検出件数は不変
-  const ok = count > 0 && keyofBaselineDetections === 1 && detected === expected;
 
-  console.log(`  ${ok ? "✅" : "❌"} ${name}  ベースライン ${keyofBaselineDetections} 件 → 追加後の差分 ${detected} 件（期待 ${expected} 件）`);
+  // 🚨 なぜ2つの半分を両方見るか（2026-08-16 追加。壊し方5と同じ理由）:
+  // 「追加前後で検出件数が変わらない」という expect-zero の主張だけでは、
+  // findKeyOfSuspects そのものが死んで**常に何も検出しなくなった**場合でも満たされてしまう
+  // （0件 → 0件で「変わらない」に一致するため）。それを見抜くには、
+  // 「そもそも素の状態（isPending が一切無い）で1件疑いが出るか」という対照（半分B）が要る。
+  // 半分Bが無いまま「差分0件」だけを見ていると、「コメントだから無視できた」のか
+  // 「検出器が死んでいるだけ」なのかが区別できない。
+  const halfSuppressionOk = detected === expected; // 半分A: コメント化した isPending が疑いを黙って消していないか
+  const halfDetectorAliveOk = keyofBaselineDetections === 1; // 半分B: 素の状態で検出器が本当に1件拾えているか（死んでいないか）
+  const ok = count > 0 && halfDetectorAliveOk && halfSuppressionOk;
+
+  console.log(
+    `  ${ok ? "✅" : "❌"} ${name}` +
+      `  ベースライン ${keyofBaselineDetections} 件 → 追加後の差分 ${detected} 件（期待 ${expected} 件）` +
+      `  ｜ 半分A(抑制されていないか): ${halfSuppressionOk ? "✅" : "❌"}` +
+      `  ｜ 半分B(対照・検出器が生きているか): ベースライン検出 ${keyofBaselineDetections} 件（期待 1 件） ${halfDetectorAliveOk ? "✅" : "❌"}`,
+  );
   if (count === 0) {
     console.error("     ↑ 置換が 0 件。壊せていないので、この結果は何も確かめていない。");
   }
-  if (keyofBaselineDetections !== 1) {
-    console.error(`     ↑ ベースライン自体が1件検出のはずが ${keyofBaselineDetections} 件だった。ベースラインが壊れている。`);
+  if (!halfDetectorAliveOk) {
+    console.error(`     ↑ ベースライン自体が1件検出のはずが ${keyofBaselineDetections} 件だった。検出器(findKeyOfSuspects)が死んでいる可能性。`);
   }
   if (!ok) selfTestFailed = true;
 }
