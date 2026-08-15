@@ -43,7 +43,14 @@ export function PageTabs({ tabs }: { tabs: PageTab[] }) {
         <Link
           key={tab.href}
           href={tab.href}
-          aria-current={tab.current ? "page" : undefined}
+          // 🚨 `"page"` にしない。**同じ画面で「現在のページ」が 3 つ名乗る**ため
+          //    （実測 2026-08-16・/admin/notifications の PC で 3 件:
+          //     左サイドバー＝どの区画に居るか / パンくず＝いまのページの名前 / ここ）。
+          //    `"page"` は**一連のページの中の現在のページ**を指す語で、
+          //    タブは URL が変わっても**利用者には「同じページの別の見え方」**なので `"true"`。
+          //    社内の前例も `"true"`（`files-view-switch` / `locale-switcher`）。
+          //    ⚠️ **実際の読み上げソフトでは確かめていない**（司令塔の判断・2026-08-16）。
+          aria-current={tab.current ? "true" : undefined}
           className={cn(
             "-mb-px border-b-2 px-3 py-2 text-sm",
             tab.current
