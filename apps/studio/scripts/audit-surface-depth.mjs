@@ -643,15 +643,38 @@ const PROBE = String.raw`(() => {
   // 実測すると **箱は全部 44px で揃っていた**。違ったのは align-items（1つだけ flex-start）で、
   // **文字が箱の上に張り付いていた**。私の検査は高さしか見ていないので**何も報告しなかった**。
   // 測り方は base2 の提案（Range で「文字が実際に占めている矩形」を取る）。
+  // 🚨 2026-08-16 修正: **absolute / fixed の子を範囲から外す。**
+  //    selectNodeContents(el) は子要素を全部含むので、**箱の隅に浮いている印**
+  //    （現在地のチェック印・バッジ・ドット）が入り、**文字がずれていなくても中心が動く**。
+  //    実例: /admin/profile の絵文字ピッカー。現在地のボタンだけ <Check absolute top-0.5>
+  //    を持ち、**off が -18.9（他は -0.5）** → 「行の揃い」で **違反 2 件を誤報**していた。
+  //    🟢 絵文字自体は 24 個とも同じ位置に在った（top 114 / h 111.5 を実測）。
+  //    ＝ **align-items の指定漏れではなく、私の測り方の問題だった。**
+  //    🚨 緩めていない: **文字が箱の上に張り付く**本物のずれは、これでも出る（RED で確認済み）。
   const textOffset = (el) => {
     const r = el.getBoundingClientRect();
     if (r.height === 0) return null;
     const range = document.createRange();
-    range.selectNodeContents(el);
-    const tr = range.getBoundingClientRect();
+    let top = Infinity;
+    let bottom = -Infinity;
+    for (const n of el.childNodes) {
+      if (n.nodeType === 3) {
+        if (!n.textContent.trim()) continue;
+      } else if (n.nodeType === 1) {
+        const pos = getComputedStyle(n).position;
+        if (pos === "absolute" || pos === "fixed") continue;   // 🚨 浮いている印は文字ではない
+      } else {
+        continue;
+      }
+      range.selectNodeContents(n);
+      const tr = range.getBoundingClientRect();
+      if (tr.height === 0) continue;
+      top = Math.min(top, tr.top);
+      bottom = Math.max(bottom, tr.bottom);
+    }
     range.detach?.();
-    if (tr.height === 0) return null;
-    return (tr.top + tr.bottom) / 2 - (r.top + r.bottom) / 2;   // 箱の中心と文字の中心のずれ
+    if (top === Infinity) return null;
+    return (top + bottom) / 2 - (r.top + r.bottom) / 2;   // 箱の中心と文字の中心のずれ
   };
   const misaligned = [];
   const seenParents = new Set();
