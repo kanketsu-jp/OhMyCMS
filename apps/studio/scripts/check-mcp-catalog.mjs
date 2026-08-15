@@ -17,6 +17,18 @@
  *   node scripts/check-mcp-catalog.mjs          検査（ずれていたら exit 1）
  *   node scripts/check-mcp-catalog.mjs --write   写しを作り直す
  *
+ * ## 🚨 この検査が見ていない形（**見逃す入力を自分で作って通した**・2026-08-16）
+ * ```
+ * ❌ 名前を変数で組み立てて登録する   server.registerTool(n, {})
+ *    → 🚨 **見逃します**（実測）。落とすには構文解析が要る
+ * ❌ 文字列リテラルの中の registerTool("ohmycms_…")（同上）
+ * ```
+ * 塞いだ形（**どれも見逃していたものを、作って確かめてから塞いだ**）:
+ *   単一引用符で登録 / `src` の下の階層に置く / 目録の鍵を引用符で書く /
+ *   目録の文言をテンプレートリテラルで書く
+ * 🟢 対照(+) 素直な登録は拾う（＝検出器が動いていることを毎回確認）
+ * 🚨 実演の道具: `scratchpad/miss-probe.mjs`（共有ツリーは 1 バイトも触りません）
+ *
  * 🚨 抽出は**行またぎの文字列連結に対応**していること。
  *    `grep -oE 'description: "[^"]*"'` のような素朴な形は **22 本中 7 本しか拾えず**、
  *    それでも「完全一致」と出る（2026-08-15 実測。私自身がこの穴に落ちた）。
@@ -37,9 +49,19 @@ const SOURCE = join(MCP_SRC, "catalog.ts");
 //    **別のファイルに 1 つ足されたら、丸ごと見えないまま緑**になる
 //    （＝「入口が1つ抜けている」形。2026-08-15、二重送信の検査から HTTP の PUT が
 //    丸ごと抜けていた件と同じ）。**src の .ts を全部読む。**
-const SERVER_FILES = readdirSync(MCP_SRC)
-  .filter((f) => f.endsWith(".ts") && f !== "catalog.ts")
-  .map((f) => join(MCP_SRC, f));
+// 🚨 **再帰する。** `readdirSync` は下の階層を見ないので、
+//    `src/sub/extra.ts` に登録を書かれると**丸ごと見えないまま緑**になる
+//    （2026-08-16、見逃す入力を自分で作って確認）。
+function collectTs(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...collectTs(p));
+    else if (entry.name.endsWith(".ts") && p !== SOURCE) out.push(p);
+  }
+  return out;
+}
+const SERVER_FILES = collectTs(MCP_SRC);
 const COPY = join(HERE, "..", "lib", "mcp", "tool-catalog.json");
 const WRITE = process.argv.includes("--write");
 
@@ -55,7 +77,7 @@ function parseCatalog(source) {
   // 🚨 **字下げの幅を決め打ちしない。** 2026-08-15 に実測したところ、
   //    4 スペースで書くだけで抽出から漏れ、**同じ思い込みで数えていた守りも一緒に漏れて**
   //    「22 本一致」と緑になった（＝検査を迂回できた）。
-  const re = /^[ \t]+(ohmycms_[a-z_]+):\s*\{([\s\S]*?)^[ \t]+\},/gm;
+  const re = /^[ \t]+["']?(ohmycms_[a-z_]+)["']?:\s*\{([\s\S]*?)^[ \t]+\},/gm;
   for (const m of source.matchAll(re)) {
     const [, name, body] = m;
     const title = body.match(/\btitle:\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)/);
@@ -100,7 +122,7 @@ function stripComments(source) {
  */
 function findViolations(sourceText, serverText) {
   const found = parseCatalog(sourceText);
-  const declaredCount = (sourceText.match(/^[ \t]+ohmycms_[a-z_]+:/gm) ?? []).length;
+  const declaredCount = (sourceText.match(/^[ \t]+["']?ohmycms_[a-z_]+["']?:/gm) ?? []).length;
   const out = [];
   if (found.length === 0 || found.length !== declaredCount) {
     out.push({ rule: "抽出できていない", detail: `宣言 ${declaredCount} 件 / 抽出 ${found.length} 件` });
@@ -109,7 +131,7 @@ function findViolations(sourceText, serverText) {
   for (const t of found.filter((x) => !x.title || !x.description)) {
     out.push({ rule: "文言を取れない", detail: t.name });
   }
-  const names = [...stripComments(serverText).matchAll(/registerTool\(\s*"(ohmycms_[a-z_]+)"/g)].map((m) => m[1]);
+  const names = [...stripComments(serverText).matchAll(/registerTool\(\s*["'](ohmycms_[a-z_]+)["']/g)].map((m) => m[1]);
   if (names.length === 0) {
     out.push({ rule: "登録を読めない", detail: "server.ts から 0 件" });
     return { tools: found, violations: out };
