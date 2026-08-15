@@ -1,71 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import localFont from "next/font/local";
 import { I18nProvider } from "@/i18n/client";
 import { Toaster } from "@/components/ui/toast";
 import { QueryNoticeToast } from "@/components/ui/query-notice-toast";
 import { getLocale, getT } from "@/i18n/server";
 import { messagesFor } from "@/i18n/messages";
 import { projectName } from "@/lib/settings/project-name";
+import { fontVariables } from "./fonts";
 import "./globals.css";
-
-// 🚨 英数字と日本語を「同じ設計の兄弟」で混植する。
-// Geist は英字専用で、日本語は OS のフォールバックに落ちる（= 環境ごとに字面が変わる）。
-// 並び順は **英数字を先、日本語を後**。ブラウザは前から字を探すので、英数字が Noto Sans で出る。
-const notoSans = localFont({
-  src: [
-    {
-      path: "./fonts/noto-sans-latin-400-normal.woff2",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "./fonts/noto-sans-latin-500-normal.woff2",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "./fonts/noto-sans-latin-700-normal.woff2",
-      weight: "700",
-      style: "normal",
-    },
-  ],
-  variable: "--font-sans-latin",
-  display: "swap",
-});
-
-const notoSansJP = localFont({
-  src: [
-    {
-      path: "./fonts/noto-sans-jp-japanese-400-normal.woff2",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "./fonts/noto-sans-jp-japanese-500-normal.woff2",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "./fonts/noto-sans-jp-japanese-700-normal.woff2",
-      weight: "700",
-      style: "normal",
-    },
-  ],
-  variable: "--font-sans-jp",
-  display: "swap",
-});
-
-const geistMono = localFont({
-  src: [
-    {
-      path: "./fonts/geist-mono-latin-400-normal.woff2",
-      weight: "400",
-      style: "normal",
-    },
-  ],
-  variable: "--font-geist-mono",
-});
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT("common");
@@ -91,7 +33,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${notoSans.variable} ${notoSansJP.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fontVariables} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <I18nProvider locale={locale} messages={messages}>

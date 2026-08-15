@@ -1631,7 +1631,10 @@ for (const vp of VIEWPORTS) {
         log(`     測定 ${m.selector}: ${m.count} 件（DOM一致 ${m.totalMatches} 件）`);
         for (const item of m.items) {
           const textBox = item.textBox
-            ? `文字 top=${item.textBox.top}px h=${item.textBox.height}px`
+            // 🚨 幅も出す（2026-08-15）。**書体が本当に使われているか**は、
+            //    font-family の名前では確かめられない（next/font はハッシュ名になる）。
+            //    **同じ文字列・同じ font-size の実寸**を並べれば、同じ書体かどうかが分かる。
+            ? `文字 top=${item.textBox.top}px h=${item.textBox.height}px w=${item.textBox.width}px`
             : "文字 なし";
           const space = item.space
             ? `余白 上=${item.space.top}px 下=${item.space.bottom}px 左=${item.space.left}px`
@@ -1715,6 +1718,20 @@ for (const vp of VIEWPORTS) {
     // 🚨 next/font が生成する名前は空白もハイフンも持たない（実測: `notoSansJP`）。
     //    人が読む綴りだけを見ていると、**正しく当たっている書体を「指定なし」と報告する**
     //    （2026-08-15 実測。12件目の誤検出）。区切りを問わずに見る。
+    //
+    // 🚨 **この規則は名前で判定するので、Storybook（:3104）では使えない。**
+    //    Vite 側の next/font はファミリ名を**ハッシュ**にする（実測: `font-5e5773, font-6d3a45, …`）。
+    //    綴りが残らないので、**正しく当たっていても「指定なし」と報告する**。
+    //    しきい値 40 と同じ形——**較正した場所（アプリ）と使う場所（部品カタログ）が違う**。
+    //
+    //    🚨 **名前で判定できないなら、実寸で判定する。** 同じ要素の A/B で書体の変化は出る
+    //    （2026-08-15 実測・Storybook の書体を直した前後、同じ story の同じ要素）:
+    //      和文 h2「コレクション」 文字の高さ 18px → **22px**
+    //      欧文まじり p            文字の高さ 17px → **19px** / 幅 302.8px → **305.5px**
+    //    ⚠ **和文の幅は使えない**（全角なのでどの書体でも 1em ちょうど。実測 96px で変化なし）。
+    //
+    //    ここを緩めて「ハッシュ名も合格」にしないこと。**緩めると、アプリ側で
+    //    書体が外れたときに鳴らなくなる**（守りたいのはアプリの方）。
     if (!/noto[\s_-]*sans[\s_-]*(jp|cjk)|hiragino|yu[\s_-]*gothic|meiryo|biz[\s_-]*ud/i.test(r.fontFamily)) {
       violations.push({ key, rule: "書体", detail: `日本語向けの書体が指定されていません: ${r.fontFamily}` });
     }
