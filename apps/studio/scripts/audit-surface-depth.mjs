@@ -404,7 +404,14 @@ const PROBE = String.raw`(() => {
       .filter((e) => { const r = e.getBoundingClientRect(); return r.height > 0 && r.width < e.parentElement?.getBoundingClientRect().width * 0.9; })
       .map((e) => Math.round(e.getBoundingClientRect().height));
     const is = [...form.querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea")]
-      .filter((e) => e.getBoundingClientRect().height > 0)
+      // 🚨 1px の隠し入力と比べない（2026-08-15 実測の誤検出）。
+      //    ファイル選択のダイアログを開いて測ったら button 36 / input 1 が出た。
+      //    type=file は sr-only で 1px に潰して置くのが定石なので、
+      //    正しい実装を「ボタンが入力より高い」と報告していた。
+      //    しきい値 4px は上の「隠し要素の判定」と同じ値に揃えてある（別々の数字を作らない）。
+      //    🚨 この関数はブラウザへ送るテンプレートリテラルの中なので、
+      //       コメントにもバッククォートを書かないこと（文字列が途中で終わって構文エラーになる）。
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.height > 4 && r.width > 4; })
       .map((e) => Math.round(e.getBoundingClientRect().height));
     if (!bs.length || !is.length) continue;
     const b = Math.max(...bs), i = Math.max(...is);
