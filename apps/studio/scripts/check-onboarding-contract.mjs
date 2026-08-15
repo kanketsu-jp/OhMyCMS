@@ -419,6 +419,7 @@ console.log("\n■ 🚨 見逃す入力（**わざと作った本物の退行**�
 const misses = [
   {
     name: "① `validate({` を書かずに literal を混ぜる（Object.assign 経由）",
+    declaredBlind: true,  // ヘッダの「見ていない範囲」に載せているか
     why: "`tenant_name` が常に在ることになり、画面が送らなくても必須になる",
     service: serviceSource.replace(
       "  const patch = validate(picked);",
@@ -428,6 +429,7 @@ const misses = [
   },
   {
     name: "② 門番の形は残すが、意味を反転させる（`!` を足して undefined を入れる）",
+    declaredBlind: false,  // ヘッダの「見ていない範囲」に載せているか
     // 🚨 これは**作ったときの予想が外れた 1 本**。「`key in input` の字が在るから鳴らない」と思って
     //    作ったが、実測では **拾えた**（`no-omit-guard` の正規表現は `if (` の直後が `\w+` なので、
     //    `if (!(key in input))` には当たらない＝**不在として正しく鳴る**）。
@@ -441,6 +443,7 @@ const misses = [
   },
   {
     name: "③ 受け取る鍵の一覧に、画面が送らない鍵を足す",
+    declaredBlind: true,  // ヘッダの「見ていない範囲」に載せているか
     why: "`ONBOARDING_INPUT_KEYS` は誰とも突き合わせていない。足すだけで必須が増える",
     service: serviceSource.replace(
       'export const ONBOARDING_INPUT_KEYS = [',
@@ -450,6 +453,7 @@ const misses = [
   },
   {
     name: "④ validate() の門番を、必須の判定より後ろへ動かす（文字列は残る）",
+    declaredBlind: true,  // ヘッダの「見ていない範囲」に載せているか
     why: "`if (!(key in input)) continue;` が在るので `validate-requires-all` は鳴らないが、届く前に必須で落ちる",
     service: serviceSource.replace(
       "    if (!(key in input)) continue;",
@@ -459,6 +463,7 @@ const misses = [
   },
   {
     name: "⑤ 画面と API で鍵の名前がずれる（画面 `default_locale` / API `defaultLocale`）",
+    declaredBlind: true,  // ヘッダの「見ていない範囲」に載せているか
     why: "`form-missing-key` は画面側に文字列が在るかしか見ない。**API 側の綴りは見ていない**",
     service: serviceSource.replace(/"default_locale"/g, '"defaultLocale"'),
     form: formSource,
@@ -471,6 +476,7 @@ const missControl = {
   form: formSource,
 };
 let missed = 0;
+const stale = [];
 for (const m of misses) {
   if (m.service === serviceSource && m.form === formSource) {
     console.log(`  ❌ ${m.name}  → **作れていません**（置換が当たっていないので、この 1 本は何も言っていません）`);
@@ -480,9 +486,13 @@ for (const m of misses) {
   const found = inspect(m.service, m.form).violations;
   if (found.length > 0) {
     console.log(`  ✅ ${m.name}  → 拾えた（${found.map((v) => v.rule).join(",")}）`);
+    // 🚨 ヘッダに「見ていない」と書いてあるのに拾えるようになった ＝ **記述のほうが古い**
+    if (m.declaredBlind) stale.push(`「${m.name}」は**拾えるようになりました**（ヘッダは「見ていない」のまま）`);
   } else {
     console.log(`  🚨 ${m.name}  → **見ていません**（${m.why}）`);
     missed += 1;
+    // 🚨 逆向き。ヘッダに載せていない形を見逃している ＝ **記述が足りていない**
+    if (!m.declaredBlind) stale.push(`「${m.name}」を**見逃しています**（ヘッダに載っていません）`);
   }
 }
 {
@@ -494,6 +504,18 @@ for (const m of misses) {
 console.log(`  ＝ 作った ${misses.length} 本のうち、**見ていない形 ${missed} 本**`);
 // 🚨 見逃しは**失敗にしない**。ここを赤にすると、門が常に赤になって回避される。
 //    「見ていない」と**言えている**ことが目的なので、判定ではなく記録として出す。
+//
+// 🚨🚨 **ただし「書いただけ」と「鳴る」は別**（2026-08-16・polish が段差を見つけ、
+//    design が先に形にした）。**見ていない範囲の記述は、直した人が居ても古いまま残る。**
+//    → **ヘッダの記述と、いま実際に拾えるかが食い違ったら落とす。**
+//       ①拾えるようになったのに「見ていない」と書いたまま ②載せていない形を見逃している
+//    どちらも **記述のほうが嘘になった**状態なので、書き直しを求める。
+if (stale.length > 0) {
+  console.log("\n🚨 **ファイル冒頭の「見ていない範囲」が、いまの実装と食い違っています**:");
+  for (const s of stale) console.log(`    ・${s}`);
+  console.log("  → **冒頭の一覧を書き直してください**（拾えるようになった行は消す／見逃す行は足す）。");
+  selfCheckFailed = true;
+}
 
 // ── 判定 ──
 const { violations, bodyChars } = inspect(serviceSource, formSource);
