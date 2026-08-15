@@ -1081,7 +1081,18 @@ async function discoverDynamicPaths(cdp) {
     }
   }
 
-  return { byList, hrefs: uniqueHrefs, found, missing };
+  // 🚨 **`missing` は 2 つの意味を混ぜていた**（2026-08-15 司令塔の指摘で分けた）。
+  //    ① 一覧を巡回したのに href が 1 件も取れなかった
+  //       → **発見の段そのものが壊れている**。巡回が成立していないので **失敗**（exit 1）
+  //    ② href は取れたが、そのパターンに一致するものが無かった
+  //       → **失敗ではない**。データがまだ無い（`/admin/content/<c>/<id>`）か、
+  //         そもそも一覧から辿れない（`/admin/collections/<c>/fields/new`）だけ。
+  //         ここで落とすと**恒常的に落ち続け、全ペインが止まる**
+  //         （polish がページ送りで同じ判断をしている）。
+  //    🚨 ただし②も**黙らない**。末尾の集計へ「測っていない」として出す。
+  //       印字だけして終了コードに届かなかったのが、この欠陥の元の姿だった。
+  const crawlFailed = uniqueHrefs.length === 0;
+  return { byList, hrefs: uniqueHrefs, found, missing, crawlFailed };
 }
 
 /**
@@ -1646,7 +1657,25 @@ if (AS_JSON) {
   if (fixtures?.pagedMissing) {
     console.log(`測っていない: ページ送りのある一覧（${fixtures.pagedMissingWhy}）`);
   }
+  // 🚨 発見できなかった動的ルートも、同じ場所に同じ書式で出す（design 2026-08-15）。
+  //    以前はここへ出しておらず、途中のログの 🚨見つからず だけだったので誰にも読まれなかった。
+  if (discovery?.missing?.length) {
+    const names = discovery.missing.map((m) => m.label).join(" / ");
+    console.log(`測っていない: 動的ルート ${discovery.missing.length} 種類（実データが無いか、一覧から辿れない）— ${names}`);
+  }
   if (!SESSION) console.log("⚠ --session を渡していないので、ログインが要るページは /login へ飛んでいる可能性があります。");
+  // 🚨 **巡回が成立していない実行を「違反なし」で通さない。**
+  //    一覧を開いたのに href が 1 件も取れないのは、データが無いのではなく**発見の段の故障**。
+  //    ここを塞がないと「巡回対象が 0 件だった」と「巡回して違反が 0 件だった」が
+  //    同じ出力・同じ終了コードになる（2026-08-15。この監査自身に開いていた「見ていない 0」）。
+  //    `--paths` を明示したときは発見の段を走らせないので、この判定も走らない。
+  if (discovery?.crawlFailed) {
+    console.error("\n🚨 動的ルートの発見が成立していません: 一覧を巡回しましたが href が 1 件も取れませんでした。");
+    console.error(`   検索元: ${discovery.byList.map((b) => b.path).join(" / ")}`);
+    console.error("   この実行の「違反なし」は **静的なページについてだけ** の結果です。");
+    console.error("   ログイン状態（--session）と、一覧ページが 200 を返すことを先に確かめてください。");
+    process.exit(1);
+  }
   if (notMeasured) {
     console.error(`\n🚨 測れませんでした: ${notMeasured.why}`);
     console.error("   この実行の「違反なし」は **データが空のときの結果** でしかありません。");
