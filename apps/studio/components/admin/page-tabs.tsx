@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { HeaderTabs } from "@/components/admin/header-tabs";
 import { cn } from "@/lib/utils";
 
 export type PageTab = {
@@ -21,13 +22,22 @@ export type PageTab = {
  *    - サーバ側で必要なぶんだけ取れる（全部取ってから隠す形にしない）
  *    - ページ本体をサーバ側のままにできる
  *
- * 🚨 置き場所について: 堀池さんの指示は「**ヘッダーの直下**」。ヘッダーは shell が持つので、
- *    枠（差し込み口）が用意されたらそこへ移す。**それまではページの先頭に出す**
- *    （出さないと未解決/解決済みを切り替える手段が無くなるため）。
+ * 🚨 置き場所: 堀池さんの指示は「**ヘッダーの直下**」。2026-08-15 に `HeaderTabs` で繋いだ。
+ *    ページ側は今までどおり `<PageTabs>` を置くだけでよく、**行き先はここが決める**
+ *    （3 つのページに同じ包み方を書かせない。書かせると、次に足す人が忘れる）。
+ *
+ *    🚨 それまでは「置き場所は在るのに誰も繋いでいない」状態だった——
+ *    `HeaderTabs` を import しているファイルは**自分自身のみ（0 件）**で、
+ *    🟢 対照: 同じ探し方で `PageTabs` は 3 件。**部品が在ることは、使われていることではない。**
+ *
+ * 🚨 罫線は**ここが持つ**（design 判定・2026-08-15）。`layout.tsx` の帯には持たせない。
+ *    下の `-mb-px border-b-2` が**この `border-b` に重ねる**形なので、ここから外すと
+ *    選択中の下線が土台を失って浮く。**存在と線が同じ条件で出入りする**のが安全。
  */
 export function PageTabs({ tabs }: { tabs: PageTab[] }) {
   return (
-    // 罫線 1 本で下と区切る。面（背景・枠）は作らない。
+    <HeaderTabs>
+    {/* 罫線 1 本で下と区切る。面（背景・枠）は作らない。 */}
     <nav className="flex gap-1 border-b">
       {tabs.map((tab) => (
         <Link
@@ -45,5 +55,6 @@ export function PageTabs({ tabs }: { tabs: PageTab[] }) {
         </Link>
       ))}
     </nav>
+    </HeaderTabs>
   );
 }

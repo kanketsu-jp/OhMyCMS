@@ -227,7 +227,7 @@ export default async function AdminLayout({
         <div
           id="header-tabs"
           data-slot="header-tabs"
-          className="flex items-center gap-2 px-4 not-empty:border-b not-empty:py-2 md:px-6"
+          className="flex items-center gap-2 px-4 not-empty:py-2 md:px-6"
         />
         {/* 🚨 SP は下部の固定ナビに隠れるぶんの余白を本体側で持つ。
             ナビ側で持つと、safe-area の余白と二重になる。 */}
