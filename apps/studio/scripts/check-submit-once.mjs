@@ -820,12 +820,51 @@ if (selfTestFailed) {
   console.error("\n🚨 自己検査に失敗した。**この検査の結果は信用できない**（緑でも意味を持たない）。");
 }
 
+// ── 死角の見張り（`checks-must-declare-blind-spots.md`）──
+// 🚨 冒頭の「見ていないもの」は、2026-08-16 に実演して確かめた。
+//    しかしその記述は**検出器を広げた瞬間に古くなる**。古くなったことに誰も気づかない。
+//    → 見逃すはずの形を毎回通し、**拾えるようになったら鳴らす**（記述を直せ、と言う）。
+//    🟢 対照（拾うはずの形）も一緒に通す。検出器が死んだときは、そちらが鳴る。
+//
+// 🚨 **この見張りの RED は、片側しか測れていない（2026-08-16・unverified）**:
+//    🟢 測れた … 検出器を殺すと「拾うはず」の 2 件が ❌ になる（＝対照側は鳴る）
+//    🚨 測れていない … **検出器を広げたとき「見逃すはず」が ❌ になるか**。
+//       3 回試して 3 回とも**壊し方のほうが壊れた**（2 回は挿入コードの構文エラー、
+//       1 回は置換が当たったのに狙った振る舞いが変わらなかった）。
+//       🚨 **「鳴るはず」は設計上の期待であって、実測ではない。**
+//       壊し方を思いついた人は、測って、この行を消してください。
+const BLIND_SPOTS = [
+  ["<form action={fn}> で送る", '<form action={save}><button>x</button></form>', true],
+  ["axios で送る", 'await axios.post("/api/x", body);', true],
+  ["sendBeacon で送る", 'navigator.sendBeacon("/api/x", body);', true],
+  ["Server Action を直に呼ぶ", "await setLocaleAction(formData);", true],
+  ["XMLHttpRequest で送る", 'const x = new XMLHttpRequest(); x.open("POST", "/api/x"); x.send(body);', true],
+  // 🚨 これは「見ていないもの」に**書いていない**形。拾えることを毎回示す（記述が広すぎないことの担保）
+  ["同一ファイルの変数経由", 'const opts = { method: "POST" }; await fetch("/api/x", opts);', false],
+  ["🟢 対照: fetch + method", 'await fetch("/api/x", { method: "POST" });', false],
+];
+const blindBase = findMutationLines(BASELINE).length;
+let blindDrift = false;
+console.log("\n■ 死角の見張り（見逃すはずの形が、拾えるようになっていないか）");
+for (const [name, code, shouldMiss] of BLIND_SPOTS) {
+  const got = findMutationLines(`${BASELINE}\n${code}`).length - blindBase;
+  const ok = shouldMiss ? got === 0 : got > 0;
+  if (!ok) blindDrift = true;
+  console.log(`  ${ok ? "✅" : "❌"} ${shouldMiss ? "見逃すはず" : "拾うはず  "} ${name}（検出 ${got} 件）`);
+}
+if (blindDrift) {
+  console.error("\n🚨 死角の記述が実装と食い違っている。");
+  console.error("  ・「見逃すはず」が拾えるようになった → **冒頭の「見ていないもの」から外す**");
+  console.error("  ・「拾うはず」が拾えなくなった → **検出器が壊れている**（死角の話ではない）");
+}
+
 process.exit(
   unguarded.length === 0 &&
     !selfTestFailed &&
     staleExceptions.length === 0 &&
     unclassified.length === 0 &&
-    !pendingExceeded
+    !pendingExceeded &&
+    !blindDrift
     ? 0
     : 1,
 );
