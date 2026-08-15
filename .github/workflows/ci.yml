@@ -122,6 +122,15 @@ jobs:
       - name: lint
         run: bun run lint
 
+      # 🚨 **型チェックより先に置く**（2026-08-16・CI の初回で落ちて分かった）。
+      #    `@ohmycms/sdk` の `types` は `./dist/index.d.ts` を指しており、
+      #    **dist は .gitignore なので clone 直後には存在しない**。
+      #    実測: この順序が逆だと CI で `TS2307: Cannot find module '@ohmycms/sdk'`（以下 20 件が芋づる）。
+      #    🚨 **手元では dist が残っているので、順序が逆でも通る。手元で確かめても意味がない。**
+      #    同じ原因を `checks` ジョブでは先に直していたのに、ここに当て忘れていた。
+      - name: packages のビルド（型チェックより先。dist が無いと型が生まれない）
+        run: bun --filter './packages/*' build
+
       - name: 型チェック
         # 🚨 bun の --filter は pnpm と違い exec を受け付けない
         #    （"No packages matched the filter" になる。lefthook で実際に踏んだ）。
@@ -136,12 +145,6 @@ jobs:
         #      bun --filter './packages/*' typecheck → exit 2（気づける）
         #    SDK/CLI/MCP が壊れても CI が緑になる状態だった（sdk が発見・infra が再実測）。
         run: bun --filter './packages/*' typecheck
-
-      - name: packages のビルド
-        # dist は .gitignore なので clone 直後は必ず存在しない。
-        # 「ビルドが通ること」自体を検査する（受入ハーネスも判定前に必ずビルドする）。
-        # sdk → cli/mcp の依存順は bun が守る。
-        run: bun --filter './packages/*' build
 
       - name: build
         # lib/db/knex.ts が module 直下で DATABASE_URL を読むため、
@@ -170,10 +173,17 @@ jobs:
           cp .env.example .env
           docker compose up -d --build
 
+      # 🚨 **3101 を叩く。3000 ではない**（2026-08-16・CI の初回で落ちて分かった）。
+      #    実測: CI のログに `curl: (7) Failed to connect to localhost port 3000` が 15 回連続。
+      #    🟢 `knowledge/decisions/port-allocation.md`「Studio（本番 / Docker）= 3101」
+      #      「3000 は Next.js の既定なので避ける」（堀池さんの指示が根拠として引用済み）
+      #    🟢 `compose.yml` も `${STUDIO_PORT:-3101}:${STUDIO_PORT:-3101}` で、
+      #      コメントに「3101:3000 では /api/health と /login は 200 だが **/admin は 500**」とある。
+      #    ＝ **CI だけが決定文書とも compose とも食い違っていた。**
       - name: /api/health が 200 になるまで待つ
         run: |
           for i in $(seq 1 60); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:3000/api/health || true)
+            code=$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:3101/api/health || true)
             echo "試行 $i: $code"
             [ "$code" = "200" ] && exit 0
             sleep 5
