@@ -328,10 +328,43 @@ class Session {
     });
   }
 
+  /**
+   * 🚨 **CDP がエラーを返したら投げる**（2026-08-15 に足した）。
+   *
+   * それまでは `msg.error` を**一切見ずに resolve** していた。
+   * ＝ `setViewport` / `setEmulatedMedia` / `setTouchEmulationEnabled` / `setCookie` /
+   * `Page.navigate` は、**失敗しても成功と同じ顔**で返っていた（`eval()` だけが `res.error` を見ていた）。
+   *
+   * 実際に起きた形:
+   *   `setTouchEmulationEnabled({ enabled: false, maxTouchPoints: 0 })`
+   *   → `-32602 Touch points must be between 1 and 16` で**拒否される**
+   *   → **触る端末の設定が解除されないまま**、幅だけ PC に戻る
+   *   → `matchMedia('(hover: hover)')` が **false のまま**なのに、
+   *     測っている人は「幅 1280 だから PC で測れている」と読む。**見た目の数字では気づけない。**
+   *
+   * 🚨 **失敗を成功と同じ顔で通す計器は、何も測っていないのと同じ**（今日の規律）。
+   *
+   * 入れる前に実測: 普通の流れ（setCookie ×2 → setViewport ×2 → goto ×2 → eval → where）で
+   * 送る CDP は **16 回・error は 0 件**（🟢 対照: わざと壊した 1 回は検出できた）。
+   * ＝ **既存の使い方は 1 件も落ちない。**
+   */
   send(method, params = {}) {
     const id = ++this.id;
     this.ws.send(JSON.stringify({ id, method, params }));
-    return new Promise((resolve) => this.pending.set(id, resolve));
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, (msg) => {
+        if (msg?.error) {
+          // 🚨 params も出す。「どの呼び方が拒否されたか」が無いと、直せない
+          //    （`{enabled:false}` と `{enabled:false, maxTouchPoints:0}` は見た目がほぼ同じ）。
+          reject(new Error(
+            `CDP が拒否しました: ${method} → ${msg.error.code} ${msg.error.message}`
+            + ` / 送った引数: ${JSON.stringify(params)}`,
+          ));
+          return;
+        }
+        resolve(msg);
+      });
+    });
   }
 
   /**
