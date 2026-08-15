@@ -100,10 +100,21 @@ function isComment(line) {
  * 🚨 **全文に当てる**（行ごとではない）。行ごとだと、改行が入った瞬間に見えなくなる。
  *    行番号は一致位置から数える。
  */
-function scan(files) {
+/**
+ * 🚨 **囮が「本物」を呼べるように、テキストを受け取る形にした**（2026-08-15）。
+ *
+ * それまで `scan(files)` がパスを受け取ってディスクから読んでいたので、
+ * **囮は判定ロジックを書き写す**しかなかった。実測した結果:
+ * ```
+ * scan() の本体を殺して何も返さないようにする
+ *   → 囮 5 本すべて **✅ のまま** ／ 違反 22 → **0 件** ／ **exit 0**
+ *   ＝ **壊れた検査が、門を素通りする**
+ * ```
+ * **囮が写しだと、本物が壊れても囮は気づかない。** 呼ぶ形に変えた。
+ */
+function scan(sources) {
   const hits = [];
-  for (const file of files) {
-    const src = readFileSync(resolve(root, file), "utf8");
+  for (const { file, text: src } of sources) {
     const lines = src.split("\n");
     const マスク = commentMask(lines);
     /** 文字位置 → 行番号（1 始まり）。 */
@@ -148,57 +159,45 @@ const scanned = files.length > 0;
 console.log(`  ${scanned ? "✅" : "❌"} 対象を拾えている  ${files.length} ファイル`);
 if (!scanned) selfTestFailed = true;
 
+// 🚨 ここから下の囮は、**すべて本物の scan() を呼ぶ**（判定ロジックを書き写さない）。
+//    写しだと、scan() が壊れても囮は ✅ のまま通る（2026-08-15 に実測して確認した）。
+const 囮 = (text) => scan([{ file: "decoy.tsx", text }]);
+
 // (2) 実コードの呼び出しを検出できるか。
-const decoyReal = scan.call(null, []).length === 0;
-const hitReal = [{ f: "decoy.tsx", src: `const m = await apiMessage(res);` }]
-  .filter(({ src }) => src.includes(NEEDLE) && !isComment(src)).length === 1;
-console.log(`  ${hitReal && decoyReal ? "✅" : "❌"} 囮1: 実コードの呼び出し  → 検出 ${hitReal ? 1 : 0} 件`);
-if (!hitReal) selfTestFailed = true;
+const hitReal = 囮("const m = await apiMessage(res);").length;
+console.log(`  ${hitReal === 1 ? "✅" : "❌"} 囮1: 実コードの呼び出し  → 検出 ${hitReal} 件`);
+if (hitReal !== 1) selfTestFailed = true;
 
 // (3) 🚨 コメントを誤検出しないか。ここを見落とすと、経緯のコメントが書けなくなる。
-const commentSamples = [" * かつて apiMessage() があった", "// apiMessage は使わない", "/* apiMessage */"];
-const falsePositives = commentSamples.filter((s) => s.includes(NEEDLE) && !isComment(s)).length;
+const falsePositives = 囮([" * かつて apiMessage() があった", "// apiMessage は使わない", "/* apiMessage */"].join("\n")).length;
 console.log(`  ${falsePositives === 0 ? "✅" : "❌"} 囮2: コメントの言及  → 誤検出 ${falsePositives} 件`);
 if (falsePositives !== 0) selfTestFailed = true;
 
-// 🚨 囮2b: **ブロックコメントの継続行**（バッククォート始まりで、どの記号にも当たらない）。
-//    行頭判定だけだと、ここが実コードとして残る（2026-08-15 に hover の計器で実際に踏んだ形）。
-const ブロック = [
+// 🚨 囮2b: **ブロックコメントの継続行**（記号で始まらないので、行頭判定では残る）。
+const 継続行の誤検出 = 囮([
   "/**",
   " * かつて apiMessage() があった",
-  "   `payload.error.message` をそのまま返していた",   // 🚨 記号で始まらない継続行
-  "   return payload.error.message;",                   // 🚨 コメントの中の実コード風
+  "   `payload.error.message` をそのまま返していた",
+  "   return payload.error.message;",
   " */",
-  "const real = 1;",
-];
-const マスク = commentMask(ブロック);
-const 継続行の誤検出 = ブロック.filter((_, i) => !マスク[i]).length - 1; // 最後の実コード 1 行は正しい
+].join("\n")).length;
 console.log(`  ${継続行の誤検出 === 0 ? "✅" : "❌"} 囮2b: ブロックコメントの継続行  → 誤検出 ${継続行の誤検出} 件`);
 if (継続行の誤検出 !== 0) selfTestFailed = true;
 
-// 🚨 囮3: 別名の写経。実際に 9 本生きていた形（2026-08-15）。
-/**
- * 🚨 囮3 は **整形を変えた形も含めて**測る（2026-08-15）。
- *    元は 1 行の形だけを試していたので、**守りが整形に乗っていること自体が見えなかった**。
- *    ここに並べた 5 通りが、実際に 4 通り素通りしていた形。
- */
+// 🚨 囮3: 生文言を返す 5 通り。**整形が変わっても捕まえられるか**（元は 1 行の形だけ試していた）。
 const shapeVariants = [
-  ["1 行（いまの 10 件）", "  return payload.error.message;"],
+  ["1 行", "  return payload.error.message;"],
   ["改行が入る", "  return payload\n    .error.message;"],
   ["分割代入", "  const { message } = payload.error;\n  return message;"],
   ["変数に入れてから返す", "  const m = payload.error.message;\n  return m;"],
   ["三項の中", "  return ok ? fallback : payload.error.message;"],
 ];
-const shapeMissed = shapeVariants.filter(
-  ([, src]) => !SHAPE_PATTERNS.some((p) => { p.re.lastIndex = 0; return p.re.test(src); }),
-);
+const shapeMissed = shapeVariants.filter(([, src]) => 囮(src).length === 0);
 console.log(`  ${shapeMissed.length === 0 ? "✅" : "❌"} 囮3: 生文言を返す ${shapeVariants.length} 通り  → 素通り ${shapeMissed.length} 件${shapeMissed.length ? "（" + shapeMissed.map(([n]) => n).join(" / ") + "）" : ""}`);
 if (shapeMissed.length !== 0) selfTestFailed = true;
 
-// 誤検出しないこと（辞書経由・code を見る形）。
-// 🚨 過検出しないこと。**全文に当てる形にしたので、ここが前より効く**（範囲が広がった分だけ誤検出も増えうる）。
-const shapeNear = ["  return t(errorKey);", "  return payload.error.code;", "  const { code } = payload.error;"]
-  .filter((l) => SHAPE_PATTERNS.some((p) => { p.re.lastIndex = 0; return p.re.test(l); })).length;
+// 囮4: 誤検出しないこと（辞書経由・code を見る形）。
+const shapeNear = 囮(["  return t(errorKey);", "  return payload.error.code;", "  const { code } = payload.error;"].join("\n")).length;
 console.log(`  ${shapeNear === 0 ? "✅" : "❌"} 囮4: 辞書経由 / code を見る形  → 誤検出 ${shapeNear} 件`);
 if (shapeNear !== 0) selfTestFailed = true;
 
@@ -208,7 +207,7 @@ if (selfTestFailed) {
 }
 
 // ── 判定 ─────────────────────────────────────────────────────
-const hits = scan(files);
+const hits = scan(files.map((f) => ({ file: f, text: readFileSync(resolve(root, f), "utf8") })));
 console.log(`\n■ 判定`);
 console.log(`  対象: ${files.length} ファイル（app/**, components/** の .ts/.tsx）`);
 console.log(`  違反: ${hits.length} 件`);
