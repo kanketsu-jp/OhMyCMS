@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { FileDropzone } from "@/components/admin/file-dropzone";
 import { NativeSelect, Textarea } from "@/components/ui/textarea";
 import { useFormat, useT } from "@/i18n/client";
+import { errorKeyFromApiCode } from "@/i18n/error";
 import { LOCALES } from "@/i18n/config";
 
 /** lib/settings/service.ts の Settings と同じ形。 */
@@ -38,6 +39,7 @@ type Settings = {
 export function SettingsManager({ settings }: { settings: Settings }) {
   const t = useT("settings");
   const tCommon = useT("common");
+  const tError = useT("errors");
   const format = useFormat();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -90,14 +92,23 @@ export function SettingsManager({ settings }: { settings: Settings }) {
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as
-        | { error?: { code?: string; message?: string } }
+        | { error?: { code?: string } }
         | null;
       const code = payload?.error?.code;
-      // 辞書にある code は辞書で、無ければサーバの message へフォールバックする。
+      // 🚨 **API の生文言を画面へ出さない**（2026-08-15 に是正）。
+      //    それまで最後の分岐が `payload?.error?.message ?? …` で、
+      //    **サーバが返した文章をそのまま画面へ出していた**。
+      //    これは i18n の話ではなく**なりすまし**の経路——
+      //    細工した応答で、任意の文章を「アプリが出した公式のエラー」として出せる。
+      //    `apiMessage()` を消したのと同じ理由（`lib/admin/forms.ts` の JSDoc）。
+      //    見張り: `scripts/check-no-api-message.mjs`
+      const key = errorKeyFromApiCode(code);
       if (response.status === 403) setError(t("error_forbidden"));
       else if (code === "INVALID_COLOR") setError(t("error_invalid_color"));
       else if (code === "INVALID_LOCALE") setError(t("error_invalid_locale"));
-      else setError(payload?.error?.message ?? t("error_save_failed"));
+      // 🚨 code が分からない（unexpected に落ちた）ときは、この画面固有の文言のほうが具体的。
+      //    分かるときは辞書の訳を出す。どちらの経路でも API の生文言は出さない。
+      else setError(key === "unexpected" ? t("error_save_failed") : tError(key));
       return;
     }
 
