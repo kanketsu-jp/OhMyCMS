@@ -13,6 +13,7 @@
 import { isSecureRequest, sessionCookieHeader } from "@/lib/auth/cookies";
 import { checkAllowlist, recordAllowlistCheck } from "@/lib/auth/saml/allowlist";
 import { getSamlConfig } from "@/lib/auth/saml/config";
+import { applyGrantAll } from "@/lib/auth/saml/grant-all";
 import { safeRelativePath } from "@/lib/auth/urls";
 import { acsUrl, metadataUrl } from "@/lib/auth/saml/urls";
 import { upsertSamlUser, verifySamlResponse } from "@/lib/auth/saml/verify";
@@ -66,6 +67,11 @@ export async function POST(request: Request) {
     //    管理者は直らない方にも足し続けることになる。
     const check = await checkAllowlist(identity.email);
     await recordAllowlistCheck(user.id, check);
+
+    // 🚨 「全員権限付与」（`docs/design/sso-user-provisioning.md` §2.1）。
+    //    ON なら許可リストの結果とは関係なく付与する(一覧を迂回する運用のための機能なので、
+    //    ここで一覧の可否を条件にすると存在意義が無くなる)。OFF / ポリシー未設定なら何もしない。
+    await applyGrantAll(user.id);
 
     const session = await issueSession(user.id, request, "saml");
 

@@ -87,6 +87,13 @@ export type SamlConfig = {
   spEntityId: string | null;
   attributes: SamlAttributeMap;
   updatedAt: string | null;
+  /**
+   * 「全員権限付与」（`docs/design/sso-user-provisioning.md` §2.1）。
+   * true なら許可リストを見ず、来た人全員に `grantAllPolicy` を付ける。
+   */
+  grantAllEnabled: boolean;
+  /** 付与する `directus_policies` の id。🚨 role ではない（`directus_roles` は0行）。 */
+  grantAllPolicy: string | null;
 };
 
 /** 設定が「SAML を実際に動かせる状態」か。**enabled とは別**（有効にしても項目が欠けていれば動かせない）。 */
@@ -111,6 +118,8 @@ type SamlConfigRow = {
   attribute_last_name: string | null;
   attribute_groups: string | null;
   updated_at: Date | string | null;
+  grant_all_enabled: boolean;
+  grant_all_policy: string | null;
 };
 
 /** 設定欄は 1 行 1 属性名でも、カンマ区切りでも受ける（利用者に形を覚えさせない）。 */
@@ -130,6 +139,8 @@ export const EMPTY_SAML_CONFIG: SamlConfig = {
   spEntityId: null,
   attributes: { email: [], firstName: [], lastName: [], groups: [] },
   updatedAt: null,
+  grantAllEnabled: false,
+  grantAllPolicy: null,
 };
 
 export async function getSamlConfig(): Promise<SamlConfig> {
@@ -152,6 +163,8 @@ export async function getSamlConfig(): Promise<SamlConfig> {
       groups: splitAttributeNames(row.attribute_groups),
     },
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+    grantAllEnabled: Boolean(row.grant_all_enabled),
+    grantAllPolicy: row.grant_all_policy,
   };
 }
 
@@ -232,6 +245,8 @@ export type SamlConfigInput = {
   idpCertificates?: string[] | null;
   spEntityId?: string | null;
   attributes?: Partial<SamlAttributeMap>;
+  grantAllEnabled?: boolean;
+  grantAllPolicy?: string | null;
 };
 
 /** URL は http/https のみ許す（`javascript:` などを IdP の入口にしない）。 */
@@ -268,6 +283,8 @@ export async function updateSamlConfig(
       : null;
   }
   if (input.spEntityId !== undefined) patch.sp_entity_id = input.spEntityId?.trim() || null;
+  if (input.grantAllEnabled !== undefined) patch.grant_all_enabled = Boolean(input.grantAllEnabled);
+  if (input.grantAllPolicy !== undefined) patch.grant_all_policy = input.grantAllPolicy?.trim() || null;
 
   if (input.attributes) {
     const join = (list: string[] | undefined) =>
@@ -313,7 +330,15 @@ export async function updateSamlConfig(
   return getSamlConfig();
 }
 
-/** 上の検査のために、DB の列名から `SamlConfig` の形へ寄せる（一部だけで足りる）。 */
+/**
+ * 上の検査（`isSamlUsable`）のために、DB の列名から `SamlConfig` の形へ寄せる（一部だけで足りる）。
+ *
+ * 🚨 `grant_all_enabled` / `grant_all_policy` はここに写さない。
+ *    `isSamlUsable` は `enabled` / `idpEntityId` / `idpSsoUrl` / `idpCertificates` しか見ておらず
+ *    （上の定義を実際に読んで確認済み）、「全員権限付与」は SAML そのものが動かせるかとは無関係
+ *    （許可リストを迂回して権限を配る側の設定であって、SSO の疎通条件ではない）。
+ *    この関数の役割は「検査に要る列だけ写す」なので、判定に使わない列は増やさない。
+ */
 function toConfigShape(patch: Record<string, unknown>): Partial<SamlConfig> {
   const shaped: Partial<SamlConfig> = {};
   // 🚨 `enabled` を写し忘れないこと。ここが抜けていると「書いたあとの姿」に

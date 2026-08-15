@@ -65,6 +65,11 @@ export async function PATCH(request: Request) {
     if (Array.isArray(body.idp_certificates)) {
       patch.idpCertificates = body.idp_certificates.map((c) => String(c)).filter(Boolean);
     }
+    // 「全員権限付与」（`docs/design/sso-user-provisioning.md` §2.1）。既存の `attributes` と同じ写し方。
+    if (body.grant_all_enabled !== undefined) patch.grantAllEnabled = Boolean(body.grant_all_enabled);
+    if (body.grant_all_policy !== undefined) {
+      patch.grantAllPolicy = body.grant_all_policy === null ? null : String(body.grant_all_policy);
+    }
 
     const attributes = body.attributes;
     if (attributes && typeof attributes === "object") {
