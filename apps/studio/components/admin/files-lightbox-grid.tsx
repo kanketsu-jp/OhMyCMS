@@ -82,6 +82,13 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
             <button
               {...dragProps}
               type="button"
+              /* 🚨 `hover:` には必ず `active:` を対で置く（堀池さん指示・2026-08-15）。
+                 **タッチの端末には hover がありません**（実測: sp で
+                 `matchMedia("(hover: hover)")` → false / `(pointer: coarse)` → true）。
+                 つまり **SP では active が唯一の手応え**になります。
+                 🚨 だから **hover と同じ濃さにしない**——`/80` と一段濃くしてある。
+                 同じ濃さだと、押しても「触れただけ」と見分けが付きません。
+                 🚨 **SP の実機で押した手応えは、まだ測っていません**（本来の目的はそこ）。 */
               className="min-w-0 rounded-md p-3 text-left transition-colors hover:bg-muted active:bg-muted/80"
               onClick={() => openImage(file)}
             >
