@@ -61,6 +61,21 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-shortcuts.mjs
 
+    # 面の入れ子（knowledge/decisions/no-nested-surfaces.md「面は1段まで」）。
+    # 🚨 2026-08-15 まで**書いてあるだけで一度も走っていなかった**。lefthook にも CI にも
+    #    載っておらず、「面の入れ子は検査されている」と信じる根拠にだけなっていた。
+    #    載せる直前に実測したら**違反 1 件**（`form-draft.tsx` の復元帯・polish のもの）が出た。
+    #    ＝ **走っていない検査は、緑でも赤でもなく「何も言っていない」。**
+    surface-nesting:
+      root: "apps/studio"
+      run: node scripts/check-surface-nesting.mjs
+
+    # 二重送信の門（hooks/use-submit-once.ts）が外れていないか。
+    # 🚨 これも同じく未接続だった。載せた時点で緑（未防御 0・移行待ち 4 件は担当が別）。
+    submit-once:
+      root: "apps/studio"
+      run: node scripts/check-submit-once.mjs
+
     # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
     knowledge:
       run: bash .lefthook/rokf-doctor.sh
