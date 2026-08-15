@@ -86,10 +86,17 @@ export function PageInfoPanel() {
               {sections.map((key) => {
                 const id = sectionAnchorId(key);
                 const row = "flex min-h-(--control-h) items-center rounded-md px-2 text-sm text-muted-foreground md:min-h-(--control-h-pc)";
+                // 🚨 `hover:` を書いたら必ず `active:` も書く（堀池 2026-08-15・全画面の規約）。
+                //    タッチの端末には hover が無いので、hover だけだと
+                //    **SP では押しても何も変わらない＝押した手応えが消える**。
+                //    出典: https://zenn.dev/holykzm/articles/tailwind-tips-1
                 return (
                   <li key={key}>
                     {anchors.has(id) ? (
-                      <a href={`#${id}`} className={`${row} hover:bg-muted hover:text-foreground`}>
+                      <a
+                        href={`#${id}`}
+                        className={`${row} hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground`}
+                      >
                         {tKey(key)}
                       </a>
                     ) : (
