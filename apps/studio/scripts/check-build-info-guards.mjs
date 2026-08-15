@@ -30,6 +30,7 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -72,6 +73,16 @@ const 実コード = dockerfile.text
 
 const 行 = dockerignore.text.split("\n").map((l) => l.trim());
 
+// 🚨 **出どころは人に書かせず、計器に言わせる**（貼り付ける人が毎回書く形は、忙しいときに落ちる）
+const head = (() => {
+  try {
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: REPO, encoding: "utf8" }).trim();
+  } catch {
+    return "(git が引けない)";
+  }
+})();
+console.log(`採取: HEAD ${head} / ${new Date().toISOString()}`);
+
 console.log(
   `対象: .dockerignore ${dockerignore.bytes} バイト（コメントでない行 ${行.filter((l) => l && !l.startsWith("#")).length}）`
   + ` / docker/Dockerfile ${dockerfile.bytes} バイト（コメントでない行 ${実コード.split("\n").filter((l) => l.trim()).length}）`,
@@ -80,9 +91,15 @@ console.log(
 const checks = [
   {
     名前: "compose.dokploy.yml をビルド文脈から外している",
+    由来: "実測（2026-08-15 に本番で dirty=1 が飽和していた原因そのもの）",
     // 🚨 行が在るだけでは足りない。`!compose.dokploy.yml` で**打ち消せる**ので、
     //    打ち消しが無いことまで見る（.dockerignore は後勝ちの否定パターンを持つ）。
     ある: 行.includes("compose.dokploy.yml") && !行.some((l) => l === "!compose.dokploy.yml"),
+    // 🚨 **原因を名指しする。** 「行が無い」と「打ち消されている」を同じ文言にすると、
+    //    読んだ人が**在る行を探しに行く**（今日の「捕まえたことと、正しく名指しできることは別」）。
+    原因: () => (行.includes("compose.dokploy.yml")
+      ? "行は在りますが `!compose.dokploy.yml` で打ち消されています"
+      : "行そのものがありません"),
     // 「在るものが在ると出る」対照。これが false なら**探し方が壊れている**
     対照: 行.includes("compose.yml"),
     対照の説明: "compose.yml の行（同じ探し方で必ず見つかるもの）",
@@ -90,6 +107,7 @@ const checks = [
   },
   {
     名前: "gitinfo が skip-worktree で「文脈から外れた追跡ファイル」を吸収している",
+    由来: "実測（消すと綺麗なツリーでも 19 本が \" D\" で復活することを docker build で確認）",
     ある: /update-index\s+--skip-worktree/.test(実コード),
     対照: /FROM base AS gitinfo/.test(実コード),
     対照の説明: "gitinfo ステージの宣言（同じ読み方で必ず見つかるもの）",
@@ -97,6 +115,7 @@ const checks = [
   },
   {
     名前: "gitinfo が「除外されたから無い」と「本当に消された」を区別している",
+    由来: "実測（追跡ファイルを消しても dirty=0 だった穴。docker build で RED→GREEN 済み）",
     // 🚨 skip-worktree を **無条件に**掛けると、**本当に消された追跡ファイルまで吸収**して
     //    dirty が 0 のままになる（2026-08-15 実測。docker build で再現済み）。
     //    `git check-ignore --no-index` で .dockerignore に当たるものだけを吸収する。
@@ -107,6 +126,7 @@ const checks = [
   },
   {
     名前: ".dockerignore を文脈に残している（区別の材料）",
+    由来: "先回り（この行を外すと上の区別ができなくなる。**実測で出た形ではない**）",
     // 自分自身を外すと、ビルドの中で「なぜ無いのか」を判定する材料が消える
     ある: !行.some((l) => l === ".dockerignore"),
     対照: 行.includes("compose.yml"),
@@ -115,6 +135,7 @@ const checks = [
   },
   {
     名前: "gitinfo が git status で dirty を判定している",
+    由来: "先回り（判定そのものが消える形。**実測で出た形ではない**）",
     ある: /git status --porcelain/.test(実コード),
     対照: /DETECTED_DIRTY/.test(実コード),
     対照の説明: "DETECTED_DIRTY の宣言",
@@ -122,6 +143,7 @@ const checks = [
   },
   {
     名前: "dirty=1 のとき、内訳と出どころをビルドログへ出している",
+    由来: "先回り（原因が追えなくなる形。**実測で出た形ではない**）",
     ある: /dirty の出どころ/.test(実コード),
     対照: /gitinfo:/.test(実コード),
     対照の説明: "gitinfo のログ出力",
@@ -143,7 +165,9 @@ for (const c of checks) {
     console.log(`  ✅ ${c.名前}`);
   } else {
     console.error(`  ✖ ${c.名前}`);
+    if (c.原因) console.error(`     何が起きているか: ${c.原因()}`);
     console.error(`     壊れると: ${c.壊れると}`);
+    console.error(`     この検査の由来: ${c.由来}`);
     違反 += 1;
   }
 }
