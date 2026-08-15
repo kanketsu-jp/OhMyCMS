@@ -111,7 +111,9 @@ function PanelDisplayControls({
         setState({
           status: "ready",
           collection,
-          fields: fields.filter((field) => Boolean(field.schema)),
+          // 🚨 hidden の列は「表示する列」の候補にも出さない（一覧側と同じ規則）。
+          //    出すと、内部用の `<field>_plain` を利用者が表へ足せてしまう。
+          fields: fields.filter((field) => Boolean(field.schema) && !field.meta?.hidden),
         });
       })
       .catch((error: unknown) => {

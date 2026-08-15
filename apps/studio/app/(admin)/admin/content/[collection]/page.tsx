@@ -83,7 +83,11 @@ export default async function ContentPage({ params, searchParams }: Props) {
   ]);
 
   const fields = fieldsResult.ok
-    ? fieldsResult.data.filter((field) => Boolean(field.schema))
+    // 🚨 hidden の列を一覧に出さない。本文の検索用の相方（`<field>_plain`）が
+    //    表の列として出ていた（2026-08-15 実測: 列見出しが body / **body_plain** / id / 操作）。
+    //    中身は本文から導出される内部用の列なので、書き手にも読み手にも見せない。
+    //    `item-form.tsx` は同じ規則を持っていたが、一覧側だけ抜けていた。
+    ? fieldsResult.data.filter((field) => Boolean(field.schema) && !field.meta?.hidden)
     : [];
   const columns = resolveColumns(query.cols, fields);
   const pk = primaryKey(fields);
