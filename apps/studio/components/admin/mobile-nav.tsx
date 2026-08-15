@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BellIcon,
   DatabaseIcon,
   FolderTree,
   MenuIcon,
@@ -14,7 +13,6 @@ import { GlobalSearchButton } from "@/components/admin/global-search";
 import { NavLinks, type NavGroup, type NavLink } from "@/components/admin/nav-links";
 import { UserMenu } from "@/components/admin/user-menu";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -22,7 +20,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useT } from "@/i18n/client";
+import { useFormat, useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -48,6 +46,8 @@ type Props = {
   userPicture: string | null;
   /** アバターに出す絵文字。画像が無いときの控え。常に何か入っている */
   userAvatarEmoji: string;
+  /** SP のメニューボタンに出す、自分宛の未読通知数 */
+  personalUnreadNotifications: number;
 };
 
 /**
@@ -59,11 +59,8 @@ type Props = {
  *   🚨 受入ハーネスの基準3 は PC 幅で測るので、**PASS のまま見逃される**類の穴。
  *
  * 形は堀池さんの指示（憲章 §7）:
- *   左端＝メニュー / 中央＝よく行く行き先 / 右端＝そのページの主要アクション。
- *
- * 🚨 **中央は4つ。5つにしない**（design が計算・2026-08-14）。
- *   固定分（メニュー44 + Divider 9 + 主要アクション44 + 左右 padding16）を引くと、
- *   320px の端末で残り 207px。**5つだと 41px で 44px を割る**。4つなら 51px。
+ *   左端＝メニュー / 残り＝よく行く行き先2つ + そのページの主要アクション。
+ *   メニュー 44px を固定し、残り3つを等分する。
  *
  * 🚨 **ラベルを見せる。** 以前は `sr-only` でアイコンだけだった。
  *   堀池さんが繰り返す「**使うのは非技術者**」に対して、アイコンだけでは通じない。
@@ -89,26 +86,36 @@ export function MobileNav({
   userLabel,
   userPicture,
   userAvatarEmoji,
+  personalUnreadNotifications,
 }: Props) {
   const t = useT("nav");
+  const format = useFormat();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  // 🚨 中央は**3つ**。フォルダと通知はメニューから辿れるので落とす（design ⑫。⑨ の「4つ」の訂正）。
+  // 🚨 中央は**2つ**。フォルダはメニューから辿れるので落とす（design ⑫。⑨ の「4つ」の訂正）。
   // 右端に split button（「編集 │ ▾」）が入ると **96px 前後**になり、アイコン1つ（44px）より 52px 広い。
   //   右が 44px なら 320px で 4個→51px（入る）
   //   右が 96px なら 320px で **4個→38px** で 44px を割る / 3個なら 51px
   // ⑨ の「4つ」は**右がアイコン1つ前提の計算**だった。
+  // 🚨 2026-08-15 の堀池さんの指示で、SP フッターから通知を意図的に外した。退行ではない。
+  // 原文:「SPのフッターは『お知らせ』を削除してアクションボタンにちゃんと場所を使う。」
+  // 通知への導線はドロワーの中に在るので経路は切れていない。
+  // 同じ日に一度「SP から通知が消えている」が退行として報告され戻されたため、この経緯を残す。
   const quick = [
     { href: "/admin/collections", label: t("collections"), icon: DatabaseIcon },
     // 🚨 画像だけでなく PDF もテキストも入る**保管場所**なので、画像のアイコンにしない。
     // 堀池さん（原文）:「/admin/files のアイコンは、**folder-tree** をつかう」
     { href: "/admin/files", label: t("files"), icon: FolderTree },
-    { href: "/admin/notifications", label: t("notifications"), icon: BellIcon },
   ];
 
   // /admin は /admin/collections へ転送されるので、ここに「ホーム」は無い（⑰）
   const isCurrent = (href: string) => pathname.startsWith(href);
+  const unreadBadge = personalUnreadNotifications > 99 ? "99+" : format.number(personalUnreadNotifications);
+  const menuLabel =
+    personalUnreadNotifications > 0
+      ? t("menu_open_unread_notifications", { count: personalUnreadNotifications })
+      : t("menu_open");
 
   return (
     <nav
@@ -121,8 +128,16 @@ export function MobileNav({
         {/* 左端: サイドメニューを開く */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={t("menu_open")}>
+            <Button variant="ghost" size="icon" aria-label={menuLabel} className="relative">
               <MenuIcon />
+              {personalUnreadNotifications > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -top-1 -right-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs leading-none text-primary-foreground"
+                >
+                  {unreadBadge}
+                </span>
+              ) : null}
             </Button>
           </SheetTrigger>
           {/* 🚨 縦の flex にして、**中身だけ**をスクロールさせる。
@@ -209,10 +224,7 @@ export function MobileNav({
           </SheetContent>
         </Sheet>
 
-        {/* 🚨 1本の線は面ではない（囲む罫線＝4辺のときだけ面）。深さは増えない */}
-        <Separator orientation="vertical" className="my-1" />
-
-        {/* 中央: よく行く行き先。**アイコンの下に文字**を出す（アイコンだけでは通じない） */}
+        {/* メニュー 44px 以外の残りを、行き先2つとアクション枠の3つで等分する。 */}
         <div className="flex min-w-0 flex-1 items-stretch gap-0.5">
           {quick.map(({ href, label, icon: Icon }) => (
             <Link
@@ -232,20 +244,19 @@ export function MobileNav({
               <span className="max-w-full truncate text-xs leading-none">{label}</span>
             </Link>
           ))}
+          {/*
+            3つ目: そのページの主要アクション。
+            🚨 中身は**ページごとに違う**ので、器だけ置いて portal の行き先にする。
+            埋めるのは各ページの仕事（**まだ 1 枚も埋めていない**）。
+            🚨 空でも幅を確保し続けること。埋めた瞬間に中央のナビがずれる
+            （design ⑨-⑤ の申し送り。上の 44px の計算にもこの枠が入っている）。
+          */}
+          <div
+            id="mobile-primary-action"
+            data-slot="mobile-primary-action"
+            className="flex min-w-0 flex-1 items-center justify-center"
+          />
         </div>
-
-        {/*
-          右端: そのページの主要アクション。
-          🚨 中身は**ページごとに違う**ので、器だけ置いて portal の行き先にする。
-          埋めるのは各ページの仕事（**まだ 1 枚も埋めていない**）。
-          🚨 空でも幅を確保し続けること。埋めた瞬間に中央のナビがずれる
-          （design ⑨-⑤ の申し送り。上の 44px の計算にもこの枠が入っている）。
-        */}
-        <div
-          id="mobile-primary-action"
-          data-slot="mobile-primary-action"
-          className="flex size-(--control-h) shrink-0 items-center justify-center"
-        />
       </div>
     </nav>
   );

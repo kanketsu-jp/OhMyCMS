@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
 import { displayUserAvatarEmoji, displayUserLabel, displayUserName, displayUserPicture } from "@/lib/admin/user-label";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
+import { BugReportNav } from "@/components/admin/bug-report-nav";
 import { GlobalSearchProvider } from "@/components/admin/global-search";
 import { HeaderBack } from "@/components/admin/header-back";
 import { MobileNav } from "@/components/admin/mobile-nav";
@@ -96,13 +96,21 @@ export default async function AdminLayout({
   const collections = me.ok
     ? await apiFetch<{ collection: string }[]>("/api/collections?names=true")
     : null;
+  const personalNotifications = me.ok
+    ? await apiFetch<{ data: unknown[]; unread: number }>("/api/notifications?category=personal&limit=1")
+    : null;
+  const personalUnreadNotifications =
+    personalNotifications?.ok && Number.isFinite(personalNotifications.data.unread)
+      ? Math.max(0, personalNotifications.data.unread)
+      : 0;
+  const mobileNavBadgeProps = { personalUnreadNotifications };
 
   // 左サイドバー下部の「不具合報告」。
-  // 🚨 **いまは一覧への行き先だけ。** 堀池の指示は「報告する」「報告一覧 / 報告管理」の
-  //    アコーディオンだが、`/admin/reports/manage` のページと「報告する」を開く部品は
-  //    polish(p14) が別の worktree で作っていて **main にまだ無い**。
-  //    先にリンクだけ足すと**押した先が 404 になる**（このファイルの sso の行に同じ申し送りがある）。
-  //    → polish の commit が main に入ったら、ここをアコーディオンへ差し替える。
+  // 🚨 **2026-08-15 にアコーディオン化した。** 以前の申し送りは「`/admin/reports/manage` と
+  //    『報告する』の部品が polish(p14) の worktree にあって main にまだ無いので、リンクを
+  //    足すと 404 になる」だったが、実測（HEAD 96b12cc）で `app/(admin)/admin/reports/manage/page.tsx`
+  //    と `components/admin/bug-report-trigger.tsx` はどちらも main に揃っていた。
+  //    → 揃ったので `BugReportNav`（「報告する」「報告一覧」「報告管理」のアコーディオン）へ差し替えた。
   // 🚨 **組は1度だけ組み立てて、PC と SP の両方へ同じものを渡す。**
   //    2箇所に書くと、片方だけ直したときに PC と SP で行き先が食い違う
   //    （`nav-links.tsx` に同じ理由の申し送りがある）。
@@ -121,13 +129,24 @@ export default async function AdminLayout({
     },
   ];
 
+  // 「報告管理」を出すかどうか。`/api/reports` の GET が `can_manage` を返す
+  // （`app/api/reports/route.ts:78` の `ok({ data, can_manage: manager })`）。
+  // 🚨 `me.ok` が偽のときは呼ばない（`collections` が `me.ok ? ... : null` としているのと同じ）。
+  // 🚨 取れなかったら **false に倒す**（出さない側へ倒す）。**UI で隠すのは権限制御ではない**——
+  //    本体の防御は API 側の 403（`route.ts:59`）。ここは見た目の話。
+  const reportsMeta = me.ok
+    ? await apiFetch<{ can_manage: boolean }>("/api/reports?limit=1")
+    : null;
+  const canManageReports = reportsMeta?.ok ? reportsMeta.data.can_manage === true : false;
+
   const reportsNav = (
-    <Link
-      href="/admin/reports"
-      className="flex h-(--control-h) items-center truncate rounded-md px-3 text-sm text-muted-foreground md:h-(--control-h-pc)"
-    >
-      {t("reports")}
-    </Link>
+    <BugReportNav
+      labelReport={t("report_create")}
+      labelList={t("report_list")}
+      labelManage={t("report_manage")}
+      groupLabel={t("reports")}
+      canManage={canManageReports}
+    />
   );
   const sidebarCookie = (await cookies()).get("sidebar_state")?.value;
   const leftSidebarDefaultOpen = sidebarCookie !== "false";
@@ -237,6 +256,8 @@ export default async function AdminLayout({
           外すと SP から /admin/files などへ辿り着けなくなる（実測で確認済み）。
           ラベルはここで辞書を引いて渡す（部品側で引き直さない）。 */}
       <MobileNav
+        // SP メニューボタンのバッジ専用。ナビの行き先データではないので PC サイドバーへは渡さない。
+        {...mobileNavBadgeProps}
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
         groups={navGroups}
         bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}

@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  * - `onClick` … その場で何かする（すべて既読にする・報告を開く 等）
  */
 type Props = {
-  /** PC で出す文字。SP はアイコンだけなので `aria-label` にも使う */
+  /** PC/SP で出す文字 */
   label: string;
   /** アイコン */
   icon: ReactNode;
@@ -118,7 +118,7 @@ export function PageAction({
     { whileTyping: true },
   );
 
-  // PC: 文字つき。SP: アイコンだけ（行の中の操作と同じで、文脈は画面が持っている）
+  // PC: ヘッダー右。SP: 下部ナビの3つ目の領域。どちらも文字を見せる。
   const pc = renderAction({
     href,
     form,
@@ -174,8 +174,9 @@ function renderAction({
   order?: string;
   compact: boolean;
 }) {
-  const size = compact ? "icon" : "sm";
-  const text = compact ? null : label;
+  const size = "sm";
+  const text = <span className={cn(compact && "min-w-0 truncate")}>{label}</span>;
+  const compactClassName = compact ? "w-full min-w-0 overflow-hidden px-1" : undefined;
 
   if (href) {
     // 🚨 リンクに `loading` は無い（押した先で画面が変わるだけなので二重送信が起きない）。
@@ -184,8 +185,7 @@ function renderAction({
     return (
       <Link
         href={href}
-        aria-label={compact ? label : undefined}
-        className={cn(buttonVariants({ variant, size }), order)}
+        className={cn(buttonVariants({ variant, size }), order, compactClassName)}
       >
         {icon}
         {text}
@@ -204,8 +204,7 @@ function renderAction({
       size={size}
       loading={pending}
       disabled={disabled}
-      aria-label={compact ? label : undefined}
-      className={order}
+      className={cn(order, compactClassName)}
     >
       {icon}
       {text}
