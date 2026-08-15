@@ -23,9 +23,18 @@ export const SAML_PLACEHOLDER_EMAIL_DOMAIN = "saml.invalid";
 /**
  * 利用者 ID から合成アドレスを作る。
  *
- * 🚨 **IdP の識別子（NameID）は入れない**（守り手: 引数が `userId` の1つだけで、
- *    NameID を渡す口が無い）。入れると**画面へ出たときに IdP 側の識別子が漏れる**。
- *    誰かを特定したいときは `directus_users.external_identifier` 列を見る。
+ * 🚨 **IdP の識別子（NameID）は入れないこと**（入れると**画面へ出たときに IdP 側の
+ *    識別子が漏れる**。誰かを特定したいときは `directus_users.external_identifier` 列を見る）。
+ *
+ * 🚨 **守り手: 無い。呼ぶ側が守る約束です。**
+ *    以前ここには「引数が `userId` の1つだけで、NameID を渡す口が無い」と書いていたが、
+ *    **2026-08-15 に実測して嘘だと分かった**——`userId` も `nameId` も `string` なので、
+ *    `samlPlaceholderEmail(identity.nameId)` は**型検査を素通りする**
+ *    （probe を `lib/` 内に置き、①わざと型エラーを入れてファイル名が tsc に出ることを確かめてから
+ *      ②実際に書いて exit 0 / 該当エラー 0 件、を確認）。
+ *    ＝ **守りは「引数の名前」で成立していた。名前は守り手ではない。**
+ *    型で塞ぐなら branded type が要る（`randomUUID()` の戻りにも型が要るので波及が大きい）。
+ *    **塞ぐまでは、ここに「守られている」と書かない。**
  */
 export function samlPlaceholderEmail(userId: string): string {
   return `${userId}@${SAML_PLACEHOLDER_EMAIL_DOMAIN}`;

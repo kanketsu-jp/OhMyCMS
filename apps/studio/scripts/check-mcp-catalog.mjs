@@ -93,8 +93,25 @@ function findViolations(sourceText, serverText) {
   return { tools: found, violations: out };
 }
 
-const source = readFileSync(SOURCE, "utf8");
-const serverText = readFileSync(SERVER, "utf8");
+/**
+ * 🚨 読めなかったときに、**自分の言葉で**落とす。
+ *    素の `readFileSync` は例外の生スタックを出すだけで、読んだ人には
+ *    **「検査が壊れた」のか「対象が無い」のか分からない**（2026-08-15 実測）。
+ *    どちらも exit は非 0 なので、**終了コードでは区別できない**。
+ */
+function readOrStop(path, what) {
+  try {
+    return readFileSync(path, "utf8");
+  } catch (error) {
+    console.error(`🚨 ${what}を読めませんでした: ${path}`);
+    console.error(`   ${error.code === "ENOENT" ? "ファイルがありません（移動・改名された可能性）" : String(error.message)}`);
+    console.error("   → **この検査は「違反なし」ではなく「測れていません」です。**");
+    process.exit(1);
+  }
+}
+
+const source = readOrStop(SOURCE, "MCP の目録");
+const serverText = readOrStop(SERVER, "MCP の登録（server.ts）");
 
 // 🚨 自己検査: 囮を仕込んで、**この実行で**検出できることを確かめる。
 //    「違反 0 件」が「異常が無い」なのか「見ていない」なのかを、毎回その場で割るため。
@@ -145,7 +162,7 @@ if (!existsSync(COPY)) {
   process.exit(1);
 }
 
-const current = readFileSync(COPY, "utf8");
+const current = readOrStop(COPY, "Studio 側の写し");
 if (current === rendered) {
   console.log(`ツール ${tools.length} 本 — 正（packages/mcp/src/catalog.ts）と写しが一致`);
   process.exit(0);
