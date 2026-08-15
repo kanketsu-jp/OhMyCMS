@@ -804,6 +804,31 @@ export async function deleteField(
       throw new ApiError(404, "COLLECTION_NOT_FOUND", "コレクションが見つかりません");
     }
 
+    const existingMeta = await trx<FieldMeta>("directus_fields")
+      .select("interface")
+      .where({ collection, field })
+      .first();
+
+    // 逆向き: 本文の検索用列だけを消すと、本文は残っているのに横断検索から消える。
+    // 画面上は壊れて見えないため、相方は本文フィールドの削除にだけ連動させる。
+    const suffix = "_plain";
+    if (field.endsWith(suffix)) {
+      const owner = field.slice(0, -suffix.length);
+      if (owner !== "") {
+        const ownerMeta = await trx<FieldMeta>("directus_fields")
+          .select("interface")
+          .where({ collection, field: owner })
+          .first();
+        if (ownerMeta?.interface === "richtext") {
+          throw new ApiError(
+            409,
+            "PLAIN_COLUMN_RESERVED",
+            `${field} は本文フィールド ${owner} の検索用に予約されています。本文フィールドを削除すると一緒に削除されます`,
+          );
+        }
+      }
+    }
+
     const hasColumn = await columnExists(trx, collection, field);
     const deleted = await trx("directus_fields").where({ collection, field }).delete();
     await trx("directus_relations")
@@ -813,6 +838,15 @@ export async function deleteField(
 
     if (!hasColumn && deleted === 0) {
       throw new ApiError(404, "FIELD_NOT_FOUND", "フィールドが見つかりません");
+    }
+    if (existingMeta?.interface === "richtext") {
+      const plain = plainColumnName(field);
+      assertSafeIdentifier(plain);
+      const hasPlainColumn = await columnExists(trx, collection, plain);
+      await trx("directus_fields").where({ collection, field: plain }).delete();
+      if (hasPlainColumn) {
+        await trx.raw("ALTER TABLE ?? DROP COLUMN ??", [collection, plain]);
+      }
     }
     if (hasColumn) {
       await trx.raw("ALTER TABLE ?? DROP COLUMN ??", [collection, field]);
