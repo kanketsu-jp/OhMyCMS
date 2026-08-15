@@ -19,6 +19,17 @@
  * 🚨 **これは競合を解かない。** 同時に2人が読んで書けば、後の人が勝つ。
  *    いまは「ログイン時に自分の行を更新する」だけなので実害が無いが、
  *    **列を jsonb にして `||` で混ぜるのが本来**（migration が要るので、今日はやらない）。
+ *
+ * 🚨 **その「本来」の道に、静かに落ちる穴が1つある。**（auth の指摘で気づき、私が再現した）
+ *    `jsonb` へ移すときは **`coalesce(auth_data::jsonb, '{}'::jsonb)` が要る。**
+ *    実測（2026-08-16・開発 DB と Postgres の実挙動）:
+ *      `null::jsonb || '{"b":2}'::jsonb`                       → **NULL**
+ *      `coalesce(null::jsonb,'{}'::jsonb) || '{"b":2}'::jsonb` → `{"b": 2}`
+ *      🟢 対照 `'{"a":1}'::jsonb || '{"b":2}'::jsonb`          → `{"a": 1, "b": 2}`
+ *    そして `auth_data` が **NULL の利用者が 2 人居る**（`admin@ohmycms.local` /
+ *    `local-admin@localhost`）。🟢 対照: NULL でない側は 268 人。
+ *    ＝ **coalesce を忘れると、その2人だけ書くたびに NULL のまま**になる。
+ *    🚨 **受入では赤くならない**（`saml-tester@example.com` は `auth_data` を持っているため）。
  */
 export function asJsonObject(value: unknown): Record<string, unknown> {
   if (typeof value === "string") {
