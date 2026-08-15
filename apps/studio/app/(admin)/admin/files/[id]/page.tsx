@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileDetailManager } from "@/components/admin/file-detail-manager";
+import { FileLabelsEditor, type LabelRow } from "@/components/admin/file-labels-editor";
 import { FilePreviewLightbox } from "@/components/admin/file-preview-lightbox";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
@@ -36,9 +37,13 @@ export default async function FileDetailPage({ params }: Props) {
   const t = await getT("files");
   const format = await getFormat();
   const { id } = await params;
-  const [fileResult, foldersResult] = await Promise.all([
+  const [fileResult, foldersResult, labelsResult, attachedResult] = await Promise.all([
     apiFetch<{ data: FileRow }>(`/api/files/${id}`),
     apiFetch<{ data: FolderRow[] }>("/api/folders"),
+    // 🚨 選べるラベルと、いま付いているラベルは**別の口**。片方だけだと
+    //    「付いていない選択肢」を出せない（＝外すことしかできない画面になる）。
+    apiFetch<{ data: LabelRow[] }>("/api/labels"),
+    apiFetch<{ data: LabelRow[] }>(`/api/files/${id}/labels`),
   ]);
 
   const file = fileResult.ok ? fileResult.data.data : null;
@@ -100,6 +105,11 @@ export default async function FileDetailPage({ params }: Props) {
           <Surface>
             <SurfaceTitle>{t("metadata_title")}</SurfaceTitle>
             <FileDetailManager file={file} folders={foldersResult.ok ? foldersResult.data.data : []} />
+            <FileLabelsEditor
+              fileId={file.id}
+              all={labelsResult.ok ? labelsResult.data.data : []}
+              attached={attachedResult.ok ? attachedResult.data.data : []}
+            />
           </Surface>
         </div>
       ) : null}

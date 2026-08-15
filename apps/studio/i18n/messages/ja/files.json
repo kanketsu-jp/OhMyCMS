@@ -74,5 +74,8 @@
   "drive_import_failed": "取り込めませんでした",
   "drive_source_missing": "ドライブ上でファイルが見つかりません",
   "drive_list_failed": "一覧を取得できませんでした",
-  "drive_disconnected": "ドライブへの接続が切れています。繋ぎ直してください"
+  "drive_disconnected": "ドライブへの接続が切れています。繋ぎ直してください",
+  "labels_heading": "ラベル",
+  "labels_saved": "ラベルを更新しました",
+  "labels_save_failed": "ラベルを更新できませんでした"
 }

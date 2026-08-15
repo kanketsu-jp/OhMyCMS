@@ -74,5 +74,8 @@
   "drive_import_failed": "Could not import",
   "drive_source_missing": "The file was not found in Drive",
   "drive_list_failed": "Could not load the list",
-  "drive_disconnected": "The Drive connection expired. Please reconnect"
+  "drive_disconnected": "The Drive connection expired. Please reconnect",
+  "labels_heading": "Labels",
+  "labels_saved": "Labels updated",
+  "labels_save_failed": "Could not update labels"
 }
