@@ -95,13 +95,26 @@ function validateBodyOf(source) {
 }
 
 /**
- * コメントを落とす。
- * 🚨 これが無いと、**説明文が実コードとして規則を満たしてしまう**。
+ * コメントと文字列リテラルを落とす。**規則は実コードだけに当てる。**
+ *
+ * 🚨 コメントを落とす理由: これが無いと**説明文が実コードとして規則を満たす**。
  *    自己検査の囮2 で実際に起きた——`key in input` と書いた解説コメントが、
  *    実装を消したあとも規則を満たし続けていた。
+ *
+ * 🚨 文字列リテラルも落とす理由（2026-08-16 実測・「まだ出番が来ていない過検出」）:
+ *    `const note = "validate({ … }) の形には戻さないこと";` のように
+ *    **この規則を文字列で説明した瞬間、その説明自体が違反として拾われた**（実測 exit=1）。
+ *    **いま 0 件だから気づいていなかっただけ**で、**誰かが書いた瞬間に赤くなる**形だった。
+ *    ＝ **経緯を残せと言いながら、その経緯を罰する**検査になっていた。
  */
 function stripComments(source) {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*\/\/.*$/gm, "")
+    // 🚨 文字列・テンプレートリテラルの**中身**を消す（引用符は残して構文を壊さない）
+    .replace(/"[^"\n]*"/g, '""')
+    .replace(/'[^'\n]*'/g, "''")
+    .replace(/`[^`]*`/g, "``");
 }
 
 /** 判定本体。壊した文字列でも呼べるように、ソースを引数で受ける。 */
@@ -236,6 +249,14 @@ const negatives = [
     service: serviceSource.replace(
       "  const picked: Record<string, unknown> = {};",
       "  // 以前は validate({ project_name: input.project_name }) と書いていた\n  const picked: Record<string, unknown> = {};",
+    ),
+    form: formSource,
+  },
+  {
+    name: "対照(-)3: 文字列リテラルの中に validate({ と書く（この規則を文字列で説明した形）",
+    service: serviceSource.replace(
+      "  const picked: Record<string, unknown> = {};",
+      '  const zzNote = "validate({ project_name }) の形には戻さないこと";\n  const picked: Record<string, unknown> = {};',
     ),
     form: formSource,
   },
