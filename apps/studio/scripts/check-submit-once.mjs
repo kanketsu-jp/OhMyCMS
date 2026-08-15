@@ -127,7 +127,13 @@ const SNIPPET_HORIZON = 300;
 function classifyMethodValue(value) {
   const quoted = /^(['"])((?:\\.|(?!\1).)*)\1/.exec(value);
   if (quoted) {
-    const isMutation = /^(?:POST|PATCH|DELETE)$/.test(quoted[2]);
+    // 🚨 PUT が抜けていた（2026-08-15 発覚）。POST/PATCH/DELETE だけを変更系として拾っていたため、
+    // components/admin/file-labels-editor.tsx と components/admin/folder-labels-menu.tsx の
+    // `method: "PUT"`（/api/files/{id}/labels・/api/folders/{id}/labels）が「リテラルだが変更系ではない」
+    // として素通りしていた。この2件は既に useSubmitOnce で守られていたので実害は無かったが、
+    // 検査自体はPUTを一度も見ていなかった＝ガード無しのPUTが増えても検出できない状態だった。
+    // 変更系の4動詞は POST / PUT / PATCH / DELETE。
+    const isMutation = /^(?:POST|PUT|PATCH|DELETE)$/.test(quoted[2]);
     return isMutation ? { isMutation: true, reason: REASON.LITERAL } : { isMutation: false, reason: null };
   }
   return { isMutation: true, reason: REASON.UNREADABLE };
@@ -388,6 +394,16 @@ const selfTests = [
     apply(base) {
       const count = countOccurrences(base, NEEDLE);
       const after = base.replaceAll(NEEDLE, `      method:\n        "POST",\n${NEEDLE}`);
+      return { after, count };
+    },
+  },
+  {
+    // 🚨 PUT が抜けていたのを直した回帰防止（2026-08-15 追加）。壊し方1〜3 は元々 POST しか
+    // 差し込んでいなかったため、PUT を見落としていても自己検査は全部 ✅ のままだった。
+    name: '壊し方4: PUT（method: "PUT"）を差し込む',
+    apply(base) {
+      const count = countOccurrences(base, NEEDLE);
+      const after = base.replaceAll(NEEDLE, `      method: "PUT",\n${NEEDLE}`);
       return { after, count };
     },
   },
