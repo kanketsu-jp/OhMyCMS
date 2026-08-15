@@ -103,6 +103,7 @@ const files = globSync("{app,components}/**/*.tsx", { cwd: root }).sort();
 
 const hits = [];
 const allowed = [];
+let scannedFiles = 0;
 
 /**
  * 1 行を見て、面のクラスが在れば entry を返す（許容判定つき）。
@@ -144,6 +145,7 @@ for (const file of files) {
   //    stripComments は**行数を保つ**ので、報告する行番号はずれない。
   const source = stripComments(readFileSync(resolve(root, file), "utf8"));
   if (!rendersInsideSurface(file, source)) continue;
+  scannedFiles += 1;
 
   source.split("\n").forEach((line, i) => {
     const found = scanLine(file, line, i + 1);
@@ -267,7 +269,19 @@ for (const file of files) {
   }
 }
 
-console.log(`対象: 面の中で描かれる ${files.length} 本を走査`);
+// 🚨 **「走査した」と「候補だった」を分ける。**
+//    ここは `files.length`（glob の件数）を出していて、**門（rendersInsideSurface）で
+//    落ちたぶんも数に入っていた**。実測（2026-08-16）: 門を常に false にした写しでも
+//    **「133 本を走査」と出たまま exit 0**——**1 本も見ていないのに緑**だった。
+//    🚨 囮は `scanLine` を直接呼ぶので**門を通らない**（＝ 囮では、この壊れ方を捕まえられない）。
+//    ＝ **囮が実物と同じ入口から入っていない**（司令塔 2026-08-16）。
+//    数で塞ぐ: **門を通った本数が 0 なら落とす**（「異常が無い 0」ではなく「見ていない 0」）。
+console.log(`対象: 候補 ${files.length} 本 / **面の中で描かれると判定して走査したのは ${scannedFiles} 本**`);
+if (scannedFiles === 0) {
+  console.error("\n🚨 走査したファイルが 0 本です。**この検査は何も見ていません**（違反が無いのではない）。");
+  console.error("   `rendersInsideSurface` の判定か、走査の範囲が壊れています。");
+  process.exit(1);
+}
 // 🚨 **内訳を出す。** 件数だけだと、8 行目の例外が足されて違反を飲み込み始めても
 //    「許容した面: N 件」が増えるだけで、**緑のまま気づけない**。
 //    どの例外が何件効いたかを毎回出せば、増えたものが目に入る。
