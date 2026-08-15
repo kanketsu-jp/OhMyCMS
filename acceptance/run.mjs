@@ -39,6 +39,7 @@ import { check5, check6 } from "./checks/05-06-mcp.mjs";
 import { check as check07 } from "./checks/07-i18n.mjs";
 import { check as check08 } from "./checks/08-row-permission.mjs";
 import { check as check09 } from "./checks/09-svg-attachment.mjs";
+import { check as check10 } from "./checks/10-mcp-verify.mjs";
 
 // ── V1 の受入基準（実装より先に書いてある）──
 // 🚨 v0.9 の記録と**混ぜない**。`--v1` を付けたときだけ走り、そのときは V1 だけを走らせる。
@@ -297,6 +298,7 @@ async function main() {
   await runCheck(7, check07, "UI が日本語・英語に切り替わる / ハードコード無し");
   await runCheck(8, check08, "他人の行に直打ち → 403/404");
   await runCheck(9, check09, "SVG/HTML が attachment で配信される");
+  await runCheck(10, check10, "MCP の全ツールを実プロトコルで叩く");
   }
 
   results.sort((a, b) => a.id - b.id);
