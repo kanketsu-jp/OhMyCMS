@@ -82,6 +82,7 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   "/admin/files": { titleKey: "files.title", sectionKeys: ["files.list_title"] },
   "/admin/files/new": { titleKey: "files.upload_title" },
   "/admin/files/new-folder": { titleKey: "folders.title" },
+  "/admin/labels": { titleKey: "labels.title", descriptionKey: "labels.description" },
   "/admin/files/[id]": { titleKey: "files.detail_fallback_title", titleFromData: true },
 
   "/admin/notifications": {

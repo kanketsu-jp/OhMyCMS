@@ -24,6 +24,7 @@ import enDrafts from "./messages/en/drafts.json";
 import enErrors from "./messages/en/errors.json";
 import enFields from "./messages/en/fields.json";
 import enFiles from "./messages/en/files.json";
+import enLabels from "./messages/en/labels.json";
 import enFolders from "./messages/en/folders.json";
 import enItems from "./messages/en/items.json";
 import enLicense from "./messages/en/license.json";
@@ -52,6 +53,7 @@ import jaDrafts from "./messages/ja/drafts.json";
 import jaErrors from "./messages/ja/errors.json";
 import jaFields from "./messages/ja/fields.json";
 import jaFiles from "./messages/ja/files.json";
+import jaLabels from "./messages/ja/labels.json";
 import jaFolders from "./messages/ja/folders.json";
 import jaItems from "./messages/ja/items.json";
 import jaLicense from "./messages/ja/license.json";
@@ -82,6 +84,7 @@ export const NAMESPACES = [
   "errors",
   "fields",
   "files",
+  "labels",
   "folders",
   "items",
   "license",
@@ -113,6 +116,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     errors: jaErrors,
     fields: jaFields,
     files: jaFiles,
+    labels: jaLabels,
     folders: jaFolders,
     items: jaItems,
     license: jaLicense,
@@ -142,6 +146,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     errors: enErrors,
     fields: enFields,
     files: enFiles,
+    labels: enLabels,
     folders: enFolders,
     items: enItems,
     license: enLicense,
