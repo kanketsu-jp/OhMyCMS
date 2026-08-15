@@ -5,6 +5,7 @@ import { Check, Lock, Tag } from "lucide-react";
 
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
+import { labelDisplayName } from "@/components/admin/label-display-name";
 import { useT } from "@/i18n/client";
 
 type LabelRow = {
@@ -12,6 +13,7 @@ type LabelRow = {
   name: string;
   color: string | null;
   is_system: boolean;
+  system_key: string | null;
 };
 
 /**
@@ -26,6 +28,8 @@ type LabelRow = {
  */
 export function FolderLabelsMenu({ folderId }: { folderId: string }) {
   const t = useT("files");
+  // 🚨 システムラベルの表示名だけは `labels` の辞書から出す（この画面の名前空間とは別）
+  const tl = useT("labels");
   const [all, setAll] = useState<LabelRow[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -95,7 +99,7 @@ export function FolderLabelsMenu({ folderId }: { folderId: string }) {
             className="flex items-center gap-2 text-left text-sm hover:underline"
           >
             {on ? <Check className="size-3.5" /> : <Tag className="size-3.5 opacity-50" />}
-            <span className="truncate">{label.name}</span>
+            <span className="truncate">{labelDisplayName(tl, label)}</span>
             {label.is_system ? <Lock className="size-3 opacity-60" /> : null}
           </button>
         );

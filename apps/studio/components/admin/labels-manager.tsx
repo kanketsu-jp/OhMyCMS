@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
+import { labelDisplayName } from "@/components/admin/label-display-name";
 import { useT } from "@/i18n/client";
 
 export type LabelRow = {
@@ -14,6 +15,8 @@ export type LabelRow = {
   name: string;
   color: string | null;
   is_system: boolean;
+  /** 種まきしたシステムラベルの識別子。利用者が作ったものは null */
+  system_key: string | null;
 };
 
 /**
@@ -175,7 +178,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
 
   const remove = useSubmitOnce(async (label: LabelRow) => {
     // 🚨 消すと、付いているファイル・フォルダからも外れる。取り返せないので必ず尋ねる。
-    if (!window.confirm(t("delete_confirm", { name: label.name }))) return;
+    if (!window.confirm(t("delete_confirm", { name: labelDisplayName(t, label) }))) return;
     const response = await send(`/api/labels/${label.id}`, { method: "DELETE" });
     if (!response) return;
     if (!response.ok) {
@@ -221,7 +224,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
                   </>
                 ) : (
                   <>
-                    <span className="min-w-0 flex-1 truncate text-sm">{label.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{labelDisplayName(t, label)}</span>
                     {label.is_system ? (
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Lock className="size-3" />
@@ -246,13 +249,19 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
                         </option>
                       ))}
                     </select>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditing({ id: label.id, name: label.name })}
-                    >
-                      {t("rename")}
-                    </Button>
+                    {/* 🚨 システムラベルの名前は**辞書から出している**（英語では英語で出る）。
+                        変えられるようにすると、**変えた名前が画面に出ない**——
+                        辞書の側が勝つので、直したつもりが反映されない形になる。
+                        色は変えられる（表示に辞書は関係しないため）。 */}
+                    {label.is_system ? null : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditing({ id: label.id, name: label.name })}
+                      >
+                        {t("rename")}
+                      </Button>
+                    )}
                     {/* 🚨 システムラベルには削除を**出さない**。押せて 403 が返るより、
                         最初から無い方が分かる（消せないことは上の錠前で伝えている） */}
                     {label.is_system ? null : (

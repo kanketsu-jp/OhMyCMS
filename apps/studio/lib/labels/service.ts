@@ -44,7 +44,12 @@ type LabelRow = {
 
 /**
  * 画面と SDK へ返す形。
- * 🚨 `system_key` は**返さない**。機械が内部で引くための鍵で、利用者には意味がない。
+ * 🚨 **`system_key` は返す（2026-08-15 に反転した。経緯を残す）。**
+ *    もとは「機械が内部で引くための鍵で、利用者には意味がない」として返していなかった。
+ *    **反転した理由**: システムラベルの名前は**この CMS が種まきした日本語のリテラル**で、
+ *    英語で見ている人にも日本語のまま出ていた（`--locale en` で実測）。
+ *    画面側が「これはどのシステムラベルか」を知らないと辞書を引けないので、鍵を返す。
+ *    🚨 **秘密ではない**（どのラベルがどの用途か、は画面に出している情報と同じ）。
  *    **守り手: `toPublic`（このファイルの下、4項目だけを組み立てて返す）。**
  *    外へ出る経路は `listLabels` / `readLabelsForTarget` / `createLabel` / `updateLabel` の
  *    4つで、**すべて `toPublic` を通る**（2026-08-15 に return を全部並べて確認）。
@@ -62,6 +67,8 @@ declare const publicLabelBrand: unique symbol;
 
 export type PublicLabel = {
   readonly [publicLabelBrand]: true;
+  /** 種まきしたシステムラベルの識別子（`imported` など）。利用者が作ったものは null */
+  system_key: string | null;
   id: string;
   name: string;
   color: string | null;
@@ -89,6 +96,7 @@ function toPublic(row: LabelRow): PublicLabel {
     name: row.name,
     color: row.color,
     is_system: row.is_system,
+    system_key: row.system_key,
   } as PublicLabel;
 }
 

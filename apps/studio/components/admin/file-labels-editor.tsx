@@ -7,6 +7,7 @@ import { Check, Lock, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
+import { labelDisplayName } from "@/components/admin/label-display-name";
 import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ export type LabelRow = {
   name: string;
   color: string | null;
   is_system: boolean;
+  system_key: string | null;
 };
 
 /**
@@ -38,6 +40,8 @@ export function FileLabelsEditor({
   attached: LabelRow[];
 }) {
   const t = useT("files");
+  // 🚨 システムラベルの表示名だけは `labels` の辞書から出す（この画面の名前空間とは別）
+  const tl = useT("labels");
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(attached.map((label) => label.id)),
@@ -89,7 +93,7 @@ export function FileLabelsEditor({
               className={cn(on ? "" : "text-muted-foreground")}
             >
               {on ? <Check /> : <Tag />}
-              {label.name}
+              {labelDisplayName(tl, label)}
               {/* 🚨 消せないラベルであることを示す。**外せない**という意味ではない。 */}
               {label.is_system ? <Lock className="opacity-60" /> : null}
             </Button>
