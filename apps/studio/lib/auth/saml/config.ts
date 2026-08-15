@@ -96,8 +96,48 @@ export type SamlConfig = {
   grantAllPolicy: string | null;
 };
 
-/** 設定が「SAML を実際に動かせる状態」か。**enabled とは別**（有効にしても項目が欠けていれば動かせない）。 */
-export function isSamlUsable(config: SamlConfig): boolean {
+/**
+ * 判定（`isSamlUsable`）が見る項目と、その DB 列名・読み取り方。**この表 1 つが正**。
+ *
+ * 🚨 **守り**: 判定に使う項目を増やすときは、ここに 1 行足す。
+ *    `isSamlUsable` の引数は `GuardedConfig`（＝この表の鍵だけ）なので、
+ *    **表に無い項目を判定で読むと tsc が落ちる**。逆に表へ足せば `toConfigShape` が
+ *    自動で写すので、**片方に足してもう片方に足し忘れる**ことが起きない。
+ *
+ *    以前は判定と写しが別々に書いてあり、「`enabled` を写し忘れないこと」という
+ *    **注意書きだけ**で保っていた。実際に写し漏れて **守りが素通りした**（2026-08-15）。
+ *    注意書きは次に書くときには忘れているので、形にした。
+ */
+const GUARD_FIELDS = {
+  enabled: { column: "enabled", read: (v: unknown) => v as boolean },
+  idpEntityId: { column: "idp_entity_id", read: (v: unknown) => v as string | null },
+  idpSsoUrl: { column: "idp_sso_url", read: (v: unknown) => v as string | null },
+  idpCertificates: {
+    column: "idp_certificates",
+    read: (v: unknown) => (typeof v === "string" ? (JSON.parse(v) as string[]) : []),
+  },
+  // 🚨 `Partial<Record<keyof SamlConfig, …>>`。**鍵は `SamlConfig` に在るものだけ**を許し、
+  //    かつ**全部を並べることは要求しない**（判定に使うのは一部なので）。
+  //    `Record<keyof SamlConfig, …>` にすると全項目を並べる羽目になる（実測 TS1360）。
+  //
+  // 🚨 `column` は `string` ではなく **`keyof SamlConfigRow`**。
+  //    `string` のままだと **列名の打ち間違いが型で落ちない**（実測: `idp_sso_url` を
+  //    `idp_ssourl` に変えても tsc は 0 件。＝ 黙って「その列は送られてこなかった」
+  //    ことになり、判定が素通りする）。DB の行の型に縛って塞いだ。
+} as const satisfies Partial<
+  Record<keyof SamlConfig, { column: keyof SamlConfigRow; read: (v: unknown) => unknown }>
+>;
+
+/** 判定が読んでよい範囲。**これ以外を `isSamlUsable` で読むと型で落ちる。** */
+type GuardedConfig = Pick<SamlConfig, keyof typeof GUARD_FIELDS>;
+
+/**
+ * 設定が「SAML を実際に動かせる状態」か。**enabled とは別**（有効にしても項目が欠けていれば動かせない）。
+ *
+ * 🚨 引数は `SamlConfig` ではなく `GuardedConfig`。**わざと狭めてある**（上の表を参照）。
+ *    呼び出し側は `SamlConfig` をそのまま渡せる（構造的部分型なので）。
+ */
+export function isSamlUsable(config: GuardedConfig): boolean {
   return Boolean(
     config.enabled &&
       config.idpEntityId &&
@@ -371,26 +411,22 @@ export async function updateSamlConfig(
 }
 
 /**
- * 上の検査（`isSamlUsable`）のために、DB の列名から `SamlConfig` の形へ寄せる（一部だけで足りる）。
+ * 上の検査（`isSamlUsable`）のために、DB の列名から `SamlConfig` の形へ寄せる。
  *
- * 🚨 `grant_all_enabled` / `grant_all_policy` はここに写さない。
- *    `isSamlUsable` は `enabled` / `idpEntityId` / `idpSsoUrl` / `idpCertificates` しか見ておらず
- *    （上の定義を実際に読んで確認済み）、「全員権限付与」は SAML そのものが動かせるかとは無関係
+ * 🚨 **写す項目を、ここに並べない。`GUARD_FIELDS` を回す。**
+ *    並べると、判定に足したのに写し忘れる（実際に踏んだ）。表を回せば漏れようがない。
+ *
+ * 🚨 `grant_all_enabled` / `grant_all_policy` は `GUARD_FIELDS` に**入っていない**ので写らない。
+ *    「全員権限付与」は SAML そのものが動かせるかとは無関係
  *    （許可リストを迂回して権限を配る側の設定であって、SSO の疎通条件ではない）。
- *    この関数の役割は「検査に要る列だけ写す」なので、判定に使わない列は増やさない。
+ *    ＝ 方針がコメントではなく**表の中身**として表れている。
  */
-function toConfigShape(patch: Record<string, unknown>): Partial<SamlConfig> {
-  const shaped: Partial<SamlConfig> = {};
-  // 🚨 `enabled` を写し忘れないこと。ここが抜けていると「書いたあとの姿」に
-  //    **これから有効にしようとしている事実**が乗らず、上の判定が素通りする。
-  if ("enabled" in patch) shaped.enabled = patch.enabled as boolean;
-  if ("idp_entity_id" in patch) shaped.idpEntityId = patch.idp_entity_id as string | null;
-  if ("idp_sso_url" in patch) shaped.idpSsoUrl = patch.idp_sso_url as string | null;
-  if ("idp_certificates" in patch) {
-    const raw = patch.idp_certificates;
-    shaped.idpCertificates = typeof raw === "string" ? (JSON.parse(raw) as string[]) : [];
+function toConfigShape(patch: Record<string, unknown>): Partial<GuardedConfig> {
+  const shaped: Record<string, unknown> = {};
+  for (const [field, spec] of Object.entries(GUARD_FIELDS)) {
+    if (spec.column in patch) shaped[field] = spec.read(patch[spec.column]);
   }
-  return shaped;
+  return shaped as Partial<GuardedConfig>;
 }
 
 /** base64 本体を PEM に戻す。署名検証ライブラリが PEM を要求するため。 */
