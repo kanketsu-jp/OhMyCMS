@@ -111,6 +111,16 @@ if (missing.length === 0 && stale.length === 0) process.exit(0);
 if (missing.length > 0) {
   console.error(`\n🚨 実在するのに巡回していないページ: ${missing.length} 件`);
   console.error("   **開けるのに一度も測っていない**＝この監査の「違反なし」は、その分だけ嘘です。");
+  // 🚨 この検査は staged ではなく**ディスクを見る**（globSync）。
+  //    ＝ **コミットしていない一時ファイルでも落ちる＝全員のコミットが止まる**。
+  //    2026-08-15 実測: 未追跡の page.tsx を 1 枚置いただけで exit 1 になった。
+  //    実際に design が zz-tree-probe / zz-wrap-probe を app/ 配下へ置いており、
+  //    **消し忘れていたら全員を止めていた**（司令塔が「門が止まる形」の 3 件目として記録）。
+  console.error(
+    "\n   🚨 心当たりが「検証用に置いた一時ページ」なら、**消してください**。" +
+      "\n      この検査は staged ではなくディスクを見るので、**コミットしていなくても落ちます**。" +
+      "\n      一時ファイルはリポジトリの外（scratchpad）へ置くこと。",
+  );
   for (const r of missing) console.error(`  ${r.path}   (${r.file})`);
   console.error(
     "\n  直し方: `scripts/audit-surface-depth.mjs` の DEFAULT_PATHS へ足す。" +
