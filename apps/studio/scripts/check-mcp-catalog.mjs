@@ -218,8 +218,22 @@ const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.sp
   const registered = registeredNames(serverText).length;
   console.log(
     `■ 走査 … 候補 ${candidates} 本 / 読んだ .ts ${SERVER_FILES.length} 本` +
-      `（正の catalog.ts は除く） / 見つけた登録 ${registered} 件`,
+      `（読めた文字数 ${serverText.length}・正の catalog.ts は除く） / 見つけた登録 ${registered} 件`,
   );
+
+  // 🚨 **本数だけでは「1 文字も読めていない」が隠れる**（司令塔 2026-08-16 / polish）。
+  //    polish の写しは「395 ファイルを走査」と出しながら 1 文字も読めておらず、
+  //    しかも**在りもしない違反を 14 件**出して、読んだ人を探しに行かせた。
+  //    → 文字数を併記し、0 なら**自分が壊れている**ほうを先に言う。
+  // 🚨 **`length === 0` では捕まりません。** 読み込みが死んだ形は、繋ぎの改行だけが残る
+  //    （空文字を 4 本 join すると **3 文字**になる。2026-08-16 に自分の実演で踏んだ）。
+  //    ＝ ここも「0 しか見ない」形だった。**中身が無いこと**で見る。
+  if (serverText.trim().length === 0) {
+    console.error("🚨 ファイルは見つかったのに、**中身を読めていません**。");
+    console.error(`   読んだつもりのファイル: ${SERVER_FILES.map((f) => f.split("/").pop()).join(", ")}`);
+    console.error("   → 違反を探す前に、**読み込みが壊れていないか**を疑ってください。");
+    process.exit(1);
+  }
   // 🚨 **ここは 0 しか見ていません**（「0 ガードは 0 しか見ない」・司令塔 2026-08-16 / design）。
   //    件数の基準線（前回より大きく減ったら鳴らす）は**わざと足していません**。理由:
   //    この検査の本体が **目録と登録の突き合わせ**なので、走査が減れば減った分が
