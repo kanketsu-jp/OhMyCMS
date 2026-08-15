@@ -8,6 +8,7 @@ import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
+import { DEFAULT_COLUMN_COUNT, DEFAULT_LIST_LIMIT, resolveColumns, resolveLimit } from "@/lib/admin/list-view";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
@@ -27,7 +28,7 @@ type ItemsPayload = {
 
 type Props = {
   params: Promise<{ collection: string }>;
-  searchParams: Promise<{ page?: string; error?: string; notice?: string }>;
+  searchParams: Promise<{ page?: string; error?: string; notice?: string; cols?: string; limit?: string }>;
 };
 
 /**
@@ -42,6 +43,26 @@ function primaryKey(fields: FieldResult[]): string {
   return fields.find((field) => field.schema?.is_primary_key)?.field ?? "id";
 }
 
+function pageHref(
+  encoded: string,
+  page: number,
+  columns: FieldResult[],
+  limit: number,
+  fields: FieldResult[],
+): string {
+  const query = new URLSearchParams({ page: String(page) });
+  const defaultColumns = fields.slice(0, DEFAULT_COLUMN_COUNT).map((field) => field.field);
+  const selectedColumns = columns.map((field) => field.field);
+  if (
+    selectedColumns.length !== defaultColumns.length ||
+    selectedColumns.some((field, index) => field !== defaultColumns[index])
+  ) {
+    query.set("cols", selectedColumns.join(","));
+  }
+  if (limit !== DEFAULT_LIST_LIMIT) query.set("limit", String(limit));
+  return `/admin/content/${encoded}?${query.toString()}`;
+}
+
 export default async function ContentPage({ params, searchParams }: Props) {
   const t = await getT("items");
   const tFields = await getT("fields");
@@ -52,7 +73,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const errorKey = errorKeyFromQuery(query.error);
   const errorMessage = errorKey ? tError(errorKey) : null;
   const page = Math.max(1, Number(query.page ?? "1") || 1);
-  const limit = 20;
+  const limit = resolveLimit(query.limit);
   const offset = (page - 1) * limit;
   const encoded = encodeURIComponent(collection);
   const [fieldsResult, itemsResult] = await Promise.all([
@@ -63,7 +84,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const fields = fieldsResult.ok
     ? fieldsResult.data.filter((field) => Boolean(field.schema))
     : [];
-  const columns = fields.slice(0, 8);
+  const columns = resolveColumns(query.cols, fields);
   const pk = primaryKey(fields);
   const total = itemsResult.ok ? itemsResult.data.meta?.filter_count ?? itemsResult.data.data.length : 0;
   const pageCount = Math.max(1, Math.ceil(total / limit));
@@ -169,13 +190,13 @@ export default async function ContentPage({ params, searchParams }: Props) {
                 <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
                 <div className="flex gap-2">
                   <Link
-                    href={`/admin/content/${encoded}?page=${Math.max(1, page - 1)}`}
+                    href={pageHref(encoded, Math.max(1, page - 1), columns, limit, fields)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
                   >
                     {t("prev_page")}
                   </Link>
                   <Link
-                    href={`/admin/content/${encoded}?page=${Math.min(pageCount, page + 1)}`}
+                    href={pageHref(encoded, Math.min(pageCount, page + 1), columns, limit, fields)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
                   >
                     {t("next_page")}

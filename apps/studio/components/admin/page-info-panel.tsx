@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { sectionAnchorId } from "@/components/admin/page-sections";
+import { PanelDisplay } from "@/components/admin/panel-display";
 import { useT } from "@/i18n/client";
 import { pageMeta } from "@/lib/admin/page-meta";
 
@@ -97,12 +98,9 @@ export function PageInfoPanel() {
         </AccordionItem>
       ) : null}
 
-      {/* ③ 表示・切り替え（列の数・データテーブル/カレンダー/カンバン）。
-          TODO: 中身は別担当。Directus を参考にする、と原典にある。 */}
-      <AccordionItem value="display">
-        <AccordionTrigger>{t("display")}</AccordionTrigger>
-        <AccordionContent className="text-muted-foreground">{t("todo")}</AccordionContent>
-      </AccordionItem>
+      {/* ③ 表示・切り替え。中身は `components/admin/panel-display.tsx`。
+          🚨 **一覧ページ以外では `null` を返す**ので、ここに枠は残らない（①概要と同じ規律）。 */}
+      <PanelDisplay />
 
       {/* ④ API・MCP。
           TODO: 原典は「**OpenAPI から抽出できるならそうする**」＝ここに手で書かない。
