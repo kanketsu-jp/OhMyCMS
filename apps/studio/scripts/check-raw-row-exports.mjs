@@ -47,6 +47,9 @@ const TARGETS = [
   { file: "lib/labels/service.ts", raw: "LabelRow", pub: "PublicLabel" },
 ];
 
+// 🚨 囮より前に置く（囮から呼ぶので、後ろだと初期化前になる）
+const GUARDED_TABLES = ["directus_files", "ohmycms_labels", "ohmycms_label_assignments"];
+
 /**
  * 外向きの関数の宣言を拾い、返り値の型を取り出す。
  * 返り値の型を**書いていない**場合は null を返す（それ自体が違反）。
@@ -192,6 +195,30 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
     }
   }
 
+
+  // 🚨 R5 / R6 の囮。**本物の `directTableUsesIn` を呼ぶ**（写しを書かない）。
+  {
+    const cases = [
+      ["R5: ルートが直接読む",
+        'const zz = db("directus_files");',
+        (u) => u.length === 1 && !u[0].allowed && !u[0].malformed],
+      ["R6: 承認の形が足りない",
+        'const zz = db("directus_files"); // 直接読む理由: 件数を数えるため',
+        (u) => u.length === 1 && u[0].malformed === true],
+      ["🟢 4項目そろえば通る",
+        'const zz = db("directus_files"); // 直接読む理由: 件数 / 記録 2026-08-16 / 決める人: 司令塔 / 未決',
+        (u) => u.length === 1 && u[0].allowed === true && u[0].state === "未決"],
+      ["🚨 誤検知しないこと: コメントで名前に触れるだけ",
+        '// directus_files はサービス経由で扱う',
+        (u) => u.length === 0],
+    ];
+    for (const [label, src, want] of cases) {
+      const got = want(directTableUsesIn(src));
+      console.log(`  ${got ? "✅" : "❌"} ${label}`);
+      if (!got) ok = false;
+    }
+  }
+
   if (!ok) {
     console.log("\n🚨 自己検査が通らなかった。この検査の結果は信用できない。");
     process.exit(2);
@@ -244,7 +271,6 @@ for (const t of TARGETS) {
   total += bad.length;
 }
 // ── ルートがサービスを迂回していないか ────────────────────────────────
-const GUARDED_TABLES = ["directus_files", "ohmycms_labels", "ohmycms_label_assignments"];
 
 /** コメントを外す（行数は保つ）。この検査自身の説明文を違反として数えないため。 */
 function withoutComments(src) {
@@ -253,8 +279,14 @@ function withoutComments(src) {
     .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
 }
 
-function directTableUses(file) {
-  const raw = readFileSync(file, "utf8");
+/**
+ * 🚨 **中身を受け取る形にしてある（パスを受け取らない）。**
+ *    パスを取ってディスクを読む形だと、**囮が判定を書き写すしかなくなる**——
+ *    写しは、本物が壊れても動くので、囮として役に立たない
+ *    （司令塔・2026-08-16。他の担当が実測で踏んだ形）。
+ *    🚨 **囮が写しになったら、本物の形を直す合図**。
+ */
+function directTableUsesIn(raw) {
   const lines = raw.split("\n");
   const clean = withoutComments(raw).split("\n");
   const found = [];
@@ -286,7 +318,7 @@ function directTableUses(file) {
   let allowed = 0;
   let undecided = 0;
   for (const f of routes) {
-    for (const u of directTableUses(f)) {
+    for (const u of directTableUsesIn(readFileSync(f, "utf8"))) {
       if (u.allowed) {
         allowed++;
         // 🚨 **未決のものは毎回出す。** 黙って緑が続くと、決める人が居ることを誰も思い出さない。
