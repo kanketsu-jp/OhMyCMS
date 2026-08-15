@@ -52,5 +52,12 @@
   "drop_here": "Drop here to upload",
   "drop_uploading": "Uploading…",
   "drop_uploaded": "Uploaded {count} file(s)",
-  "drop_failed": "Could not upload {count} file(s)"
+  "drop_failed": "Could not upload {count} file(s)",
+  "view_grid": "Card view",
+  "view_table": "Table view",
+  "column_name": "Name",
+  "column_type": "Type",
+  "column_size": "Size",
+  "column_uploaded": "Added",
+  "row_folder": "Folder"
 }

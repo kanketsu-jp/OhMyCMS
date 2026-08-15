@@ -52,5 +52,12 @@
   "drop_here": "ここに放すとアップロードします",
   "drop_uploading": "アップロードしています…",
   "drop_uploaded": "{count} 件アップロードしました",
-  "drop_failed": "{count} 件アップロードできませんでした"
+  "drop_failed": "{count} 件アップロードできませんでした",
+  "view_grid": "カードで表示",
+  "view_table": "表で表示",
+  "column_name": "名前",
+  "column_type": "種類",
+  "column_size": "サイズ",
+  "column_uploaded": "追加日時",
+  "row_folder": "フォルダ"
 }

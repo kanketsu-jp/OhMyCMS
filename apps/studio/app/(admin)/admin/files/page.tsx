@@ -3,6 +3,8 @@ import { FolderPlus, Upload } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FilesDropUpload } from "@/components/admin/files-drop-upload";
 import { FilesLightboxGrid } from "@/components/admin/files-lightbox-grid";
+import { FilesTable } from "@/components/admin/files-table";
+import { FilesViewSwitch } from "@/components/admin/files-view-switch";
 import { FolderGrid } from "@/components/admin/folder-grid";
 import { ListPagination } from "@/components/admin/list-pagination";
 import { PageAction } from "@/components/admin/page-action";
@@ -24,7 +26,7 @@ import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type Props = {
-  searchParams: Promise<{ folder?: string; page?: string }>;
+  searchParams: Promise<{ folder?: string; page?: string; view?: string }>;
 };
 
 type FileRow = {
@@ -72,6 +74,26 @@ export default async function FilesPage({ searchParams }: Props) {
   const page = currentPage(query.page);
   const currentFolderId = query.folder && query.folder !== "root" ? query.folder : null;
   const currentLocation = currentFolderId ?? "root";
+  /**
+   * 見え方は URL に持つ（`?view=table`）。
+   * 🚨 **知らない値は既定へ落とす。エラーにしない。** クエリは手で編集されるし、
+   *    古いブックマークからも来る。**見え方が壊れているだけで、中身は見せられる**。
+   *    （API 側は逆に厳格。`/api/files?limit=99999` は 400 のままにしてある）
+   */
+  const view: "grid" | "table" = query.view === "table" ? "table" : "grid";
+  /** 他のクエリ（フォルダ・ページ）を保ったまま見え方だけ差し替える。 */
+  const viewHref = (target: "grid" | "table"): string => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (key === "view" || value === undefined) continue;
+      for (const one of Array.isArray(value) ? value : [value]) {
+        if (one !== "") params.append(key, one);
+      }
+    }
+    if (target === "table") params.set("view", "table");
+    const search = params.toString();
+    return search ? `/admin/files?${search}` : "/admin/files";
+  };
 
   // 🚨 全件は取らない（憲章 §4）。1件だけ多く取って「次があるか」を判定し、描くときに切り落とす。
   // COUNT(*) は撃たない。総件数はこの画面では使わない。
@@ -146,8 +168,14 @@ export default async function FilesPage({ searchParams }: Props) {
         {/* 🚨 一覧そのものを受け皿にする。ここへ放り込むと、いま開いているフォルダに入る。 */}
         <FilesDropUpload folder={currentFolderId}>
         <Surface>
-          <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+          <div className="flex items-center justify-between gap-3">
+            <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+            <FilesViewSwitch view={view} gridHref={viewHref("grid")} tableHref={viewHref("table")} />
+          </div>
           {filesResult.ok || foldersResult.ok ? (
+            view === "table" ? (
+              <FilesTable folders={childFolders} files={files} />
+            ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
               <FilesLightboxGrid files={files} />
@@ -155,6 +183,7 @@ export default async function FilesPage({ searchParams }: Props) {
                 <p className="col-span-full text-sm text-muted-foreground">{t("empty_folder")}</p>
               ) : null}
             </div>
+            )
           ) : null}
           {filesResult.ok ? (
             <ListPagination
