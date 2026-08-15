@@ -116,6 +116,19 @@ function reachableFrom(entryFile) {
   return seen;
 }
 
+/**
+ * 1 ファイルぶんのソースから、`<PageAction>` の呼び出し数と `form=` の id を取り出す。
+ * 🚨 **囮も本番もこの関数を通す。** 囮の中に同じ正規表現を書き写すと、
+ *    本物が壊れても囮は ✅ のままになる（司令塔 2026-08-15）。
+ */
+function callSitesIn(body) {
+  const hits = body.match(/<PageAction\b/g);
+  return {
+    calls: hits ? hits.length : 0,
+    forms: [...body.matchAll(/form=["{]"?([\w-]+)"?/g)].map((m) => m[1]),
+  };
+}
+
 const problems = [];
 let inspectedRoutes = 0;
 let inspectedFiles = 0;
@@ -138,11 +151,10 @@ for (const { route, entries, forms } of declarations) {
     // 🚨 **コメントを実装として数えない**（2026-08-15 実測）。
     //    `form="collection-delete-form"` を**コメントが供給**していて、
     //    実装行を消しても検査が緑のままだった（メモリ上で再現済み）。
-    const body = stripComments(readFileSync(file, "utf8"));
-    const hits = body.match(/<PageAction\b/g);
-    if (!hits) continue;
-    calls += hits.length;
-    for (const m of body.matchAll(/form=["{]"?([\w-]+)"?/g)) formsSeen.add(m[1]);
+    const found = callSitesIn(stripComments(readFileSync(file, "utf8")));
+    if (found.calls === 0 && found.forms.length === 0) continue;
+    calls += found.calls;
+    for (const id of found.forms) formsSeen.add(id);
   }
   foundCallSites += calls;
 
@@ -180,6 +192,29 @@ for (const { route, entries, forms } of declarations) {
     if (!formsSeen.has(form)) {
       problems.push(`${route} … form="${form}" を宣言しているが、その id を渡す呼び出しが無い`);
     }
+  }
+}
+
+// ── 自己検査（囮。**本物の関数をそのまま呼ぶ**。両方向 + 空振り確認）──────────
+{
+  const real = '  <PageAction kind="submit" form="zz-decoy-form" />';
+  const inComment = `  // 使用例: ${real.trim()}`;
+  const positive = callSitesIn(real);
+  const negative = callSitesIn(stripComments(inComment));
+  const negativeRaw = callSitesIn(inComment);
+  const okCalls = positive.calls === 1;
+  const okForms = positive.forms.includes("zz-decoy-form");
+  const okNegative = negative.calls === 0 && !negative.forms.includes("zz-decoy-form")
+    && negativeRaw.calls === 1;
+  console.log("自己検査（囮）:");
+  console.log(`  ${okCalls ? "✅" : "🚨"} 囮(+/呼び出し): <PageAction …> → ${positive.calls} 件（期待 1）`);
+  console.log(`  ${okForms ? "✅" : "🚨"} 囮(+/form の id): zz-decoy-form → ${okForms ? "拾えた" : "拾えず"}`);
+  console.log(`  ${okNegative ? "✅" : "🚨"} 囮(-): **コメントの中**の同じ行 → ` +
+    `${negative.calls === 0 ? "拾わない" : "🚨 拾ってしまう"}` +
+    `（🟢 潰さなければ ${negativeRaw.calls === 1 ? "拾う＝空振りではない" : "🚨 拾わない＝囮が効いていない"}）`);
+  if (!okCalls || !okForms || !okNegative) {
+    console.error("\n🚨 自己検査に失敗しました。**この検査の結果は信用できません**。");
+    process.exit(1);
   }
 }
 

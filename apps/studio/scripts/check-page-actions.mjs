@@ -112,10 +112,37 @@ if (sources.length === 0) problems.push("[空振り] 走査対象のソースが
   console.log(`  見る範囲: lib/admin/page-actions.ts・lib/admin/page-meta.ts と ${sources.length} 本の .ts/.tsx`);
 }
 
+/**
+ * その id を持つ `<form>` が、渡したソースの中に在るか。
+ * 🚨 **囮も本番もこの関数を通す**（囮に同じ正規表現を書き写すと、本物が壊れても囮は ✅ のまま）。
+ */
+function hasFormWithId(source, id) {
+  return new RegExp(`<form[^>]*\\bid="${id}"`).test(source);
+}
+
+// ── 自己検査（囮。両方向 + 空振り確認）──────────────────────────────
+{
+  const real = '<form id="zz-decoy-form" method="post">';
+  const inComment = `  // 使用例: ${real}`;
+  const okPositive = hasFormWithId(real, "zz-decoy-form");
+  const okOther = !hasFormWithId('<div id="zz-decoy-form">', "zz-decoy-form"); // form 以外は数えない
+  const negative = hasFormWithId(stripComments(inComment), "zz-decoy-form");
+  const negativeRaw = hasFormWithId(inComment, "zz-decoy-form");
+  const okNegative = !negative && negativeRaw;
+  console.log("自己検査（囮）:");
+  console.log(`  ${okPositive ? "✅" : "🚨"} 囮(+): <form id="zz-decoy-form"> → ${okPositive ? "検出" : "検出できず"}`);
+  console.log(`  ${okOther ? "✅" : "🚨"} 囮(-/別のタグ): <div id="zz-decoy-form"> → ${okOther ? "拾わない" : "🚨 拾ってしまう"}`);
+  console.log(`  ${okNegative ? "✅" : "🚨"} 囮(-/コメント): **コメントの中**の同じ行 → ` +
+    `${negative ? "🚨 拾ってしまう" : "拾わない"}` +
+    `（🟢 潰さなければ ${negativeRaw ? "拾う＝空振りではない" : "🚨 拾わない＝囮が効いていない"}）`);
+  if (!okPositive || !okOther || !okNegative) {
+    console.error("\n🚨 自己検査に失敗しました。**この検査の結果は信用できません**。");
+    process.exit(1);
+  }
+}
+
 for (const id of new Set(formIds)) {
-  // <form の直後から、最初の > までの間に id="<id>" があること
-  const re = new RegExp(`<form[^>]*\\bid="${id}"`);
-  if (!re.test(code)) {
+  if (!hasFormWithId(code, id)) {
     problems.push(`[form] id "${id}" を持つ <form> が無い（ヘッダーの送信ボタンが黙って効かなくなる）`);
   }
 }
