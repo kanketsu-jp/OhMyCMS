@@ -165,6 +165,33 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
   const n3 = violationsIn(good, "FileRow").length;
   console.log(`  ${n3 === base ? "✅" : "❌"} ケース: 正しい形（Promise<PublicFileRow>）→ 違反 ${n3} 件（増えないのが正しい）`);
   if (n3 !== base) ok = false;
+
+  // 🚨 **囮は規則ごとに要る。** ここまでは R1/R2（`violationsIn`）しか見ていなかった。
+  //    「検査単位で落ちるか」では、**写しの囮・見ていない囮**を見つけられない
+  //    （司令塔・2026-08-16。他の担当が実測: 別の囮が落としてくれるので気づけない）。
+  //    🚨 **どれも本物の関数を呼ぶ**（写しを書かない）。
+  {
+    const src = readFileSync("lib/files/service.ts", "utf8");
+    const base = assertionsIn(src, "PublicFileRow");
+    const cases = [
+      ["R3: as を1つ増やす", src.replace("export async function getFile(",
+        "const zz = {} as unknown as PublicFileRow;\n\nexport async function getFile("),
+       (a) => a.as.length > base.as.length],
+      ["R4: 山括弧の表明を足す", src.replace("export async function getFile(",
+        "const zz = <PublicFileRow>({} as unknown);\n\nexport async function getFile("),
+       (a) => a.angle.length > base.angle.length],
+      ["🚨 誤検知しないこと: コメントに as を書く", src.replace("export async function getFile(",
+        "// 説明: as PublicFileRow と書くと [R3] で数える\nexport async function getFile("),
+       (a) => a.as.length === base.as.length],
+    ];
+    for (const [label, broken, want] of cases) {
+      if (broken === src) { console.log(`  ❌ ${label}: 差し込めなかった（この囮は無効）`); ok = false; continue; }
+      const got = want(assertionsIn(broken, "PublicFileRow"));
+      console.log(`  ${got ? "✅" : "❌"} ${label}`);
+      if (!got) ok = false;
+    }
+  }
+
   if (!ok) {
     console.log("\n🚨 自己検査が通らなかった。この検査の結果は信用できない。");
     process.exit(2);
