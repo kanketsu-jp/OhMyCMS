@@ -28,15 +28,19 @@ pre-commit:
       glob: "*.{ts,tsx}"
       run: bun x tsc --noEmit
 
-    # i18n（AGENTS.md §3.8 の CRITICAL）。3本まとめて 0.15 秒未満（2026-08-14 実測）なので
-    # pre-commit の「速いものだけ」方針に収まる。全体を見る検査（keys/usage は辞書集合の一致を
-    # 見るため staged_files に絞れない）なので glob は付けず毎回走らせる。
+    # i18n（AGENTS.md §3.8 の CRITICAL）。4本まとめて 0.14〜0.23 秒（2026-08-16 実測・3 回）なので
+    # pre-commit の「速いものだけ」方針に収まる（4 本目を足して +0.02〜0.11 秒）。
+    # 全体を見る検査（keys/usage/placeholders は辞書集合の一致を見るため staged_files に絞れない）
+    # なので glob は付けず毎回走らせる。
     #   hardcoded … 日本語・英語のハードコード（素の grep でなく専用検査。誤検出と英語見逃しを防ぐ）
     #   keys      … ja / en のキー集合一致
     #   usage     … コードが呼ぶキーと辞書の突き合わせ（両方向）
+    #   placeholders … 🚨 **キーが揃っていても中身が食い違う**のを見る（{name} の不一致・空）
+    #      🚨 この検査は「訳の意味が同じか」は**見ていない**（先頭の JSDoc に明記）。
+    #         設問290 で ja / en を直すときは、**人が両方を読むこと**
     i18n:
       root: "apps/studio"
-      run: node scripts/check-i18n-hardcoded.mjs && node scripts/check-i18n-keys.mjs && node scripts/check-i18n-usage.mjs
+      run: node scripts/check-i18n-hardcoded.mjs && node scripts/check-i18n-keys.mjs && node scripts/check-i18n-usage.mjs && node scripts/check-i18n-placeholders.mjs
 
     # 内部専用の固定ユーザー（local-admin@localhost）が画面のラベルへ届かないこと。
     # 一度実際に左サイドバーへ出た（2026-08-15）。**直しただけだと必ず戻る**ので検査で留める。
