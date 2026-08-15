@@ -50,8 +50,10 @@ export function BugReportNav({ labelReport, labelList, labelManage, groupLabel, 
           className="flex h-(--control-h) items-center rounded-md px-3 py-0 text-sm text-muted-foreground md:h-(--control-h-pc)"
           onClick={(event) => {
             // 🚨 **SP のドロワーが、アコーディオンを開いた瞬間に閉じてしまう問題への対処。**
-            // `mobile-nav.tsx:200` は `<div onClick={() => setOpen(false)}>{reports}</div>` で
+            // `mobile-nav.tsx` が `<div onClick={() => setOpen(false)}>{reports}</div>` で
             // この部品（＝ここ全体）をまとめて包んでおり、**中のどこを押してもドロワーが閉じる**。
+            // 🚨 行番号で書かない（一度 200 行目と書いたら、その日のうちに 215 行目へ動いた）。
+            //    探すなら `mobile-nav.tsx` の中の `{reports}` を包んでいる `onClick`。
             // 中身が Link 1本だった頃はそれで正しかったが、アコーディオンにすると
             // 見出しを押して開こうとした瞬間にドロワーごと閉じ、②③（一覧・管理）へ
             // 永遠に辿り着けなくなる。だから**見出し（Trigger）の click だけ**バブルを止める。
