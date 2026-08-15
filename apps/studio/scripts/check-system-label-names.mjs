@@ -39,8 +39,22 @@ const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "
 console.log(`採取: HEAD ${head} / cwd ${process.cwd()}`);
 console.log(`  見る範囲: ${MIGRATION} の system_key と、${COMPONENT} の分岐と、ja/en の辞書`);
 
-const seeded = [...new Set([...readFileSync(MIGRATION, "utf8").matchAll(/system_key:\s*"(\w+)"/g)].map((m) => m[1]))];
-const cases = [...new Set([...readFileSync(COMPONENT, "utf8").matchAll(/case "(\w+)":/g)].map((m) => m[1]))];
+/**
+ * 🚨 **コメントを外してから数える。** 外さないと:
+ *   - JSDoc の使用例に書いた `case "..."` を**実装として数える**（実測で 3 → 4 件になった）
+ *   - 実装の `case` を**コメントアウトして殺しても「不足なし」**になる
+ *     （＝ 英語の画面に日本語が戻るのに、検査は緑）
+ * どちらも 2026-08-15 に自分の計器で落として確認した。
+ * 🚨 **行数は保つ**（潰さないと、報告した行番号が別の場所を指す）。
+ */
+function withoutComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+}
+
+const seeded = [...new Set([...withoutComments(readFileSync(MIGRATION, "utf8")).matchAll(/system_key:\s*"(\w+)"/g)].map((m) => m[1]))];
+const cases = [...new Set([...withoutComments(readFileSync(COMPONENT, "utf8")).matchAll(/case "(\w+)":/g)].map((m) => m[1]))];
 const dictOf = (f) => Object.keys(JSON.parse(readFileSync(f, "utf8")));
 
 // 🚨 規則 G: 対象を1件も拾えていないのに緑、を防ぐ
