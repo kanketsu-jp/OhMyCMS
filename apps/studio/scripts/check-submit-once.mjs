@@ -136,6 +136,29 @@ function reasonLabel(reason) {
 }
 
 const files = globSync("{app,components}/**/*.tsx", { cwd: root }).sort();
+
+// 🚨 ゼロ件ガード（count-before-you-report.md の要求）:
+// この検査の「自己検査（壊し方1〜3）」は**検出ルールが正しいか**しか証明しない。
+// 「そもそも1件でも読んだか」は別の話で、これまでは無保証だった——PENDING が非空だった
+// おかげで、下の腐敗検査（file は実在するのに該当検出が0件）が副作用として拾い、
+// 偶然 exit 1 にしていただけ。PENDING が空になった日（移行待ちの2件が解消した日）には
+// その偶然の防御も消え、glob が0件しか拾えなくても（例: 誤った cwd から実行された）
+// 「防御済み: 0 / 未防御: 0 / 移行待ち: 0」で GREEN になってしまう。
+// 「何も読んでいない」と「異常が無い」は見た目が同じなので、ここで明示的に区別する。
+if (files.length === 0) {
+  console.error("🚨 何も読んでいません（*.tsx が 0 件ヒット）。この検査は何も検証していません。");
+  console.error(`  検索に使った root: ${root}`);
+  console.error(`  glob パターン: {app,components}/**/*.tsx`);
+  // 🚨 実行時のプロセス cwd（process.cwd()）はここでは無関係。root は import.meta.url から
+  //   このスクリプト自身の場所を基準に導出しており（32-33行目）、プロセスをどこから起動しても
+  //   変わらない。実測済み（リポジトリ直下からと /tmp からで exit 0・件数とも完全に同一）なので、
+  //   「apps/studio 直下で実行してください」のような cwd 由来のアドバイスを再び足さないこと。
+  console.error("  考えられる原因: root から見て app/ または components/ が想定の場所に無い");
+  console.error("  （例: このスクリプトが apps/studio/scripts/ の外へ移動・コピーされた、");
+  console.error("  app/ や components/ がリネーム・削除された、globSync の挙動が変わった）。");
+  process.exit(1);
+}
+
 const unguarded = [];
 const guarded = [];
 const suspects = [];
