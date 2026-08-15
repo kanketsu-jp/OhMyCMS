@@ -53,7 +53,31 @@ export function FileTileMenu({
            タイルの中に押せるものが2つになり、長押しの対象が曖昧になる。
       */}
       <DropdownMenuTrigger asChild>
-        <div {...menu.handlers} className="contents">
+        <div
+          {...menu.handlers}
+          /**
+           * 🚨 **既定の長押しを止めるのは、掴む対象（このタイル）だけ**にする。
+           *    一覧全体に掛けると、次のものを一緒に殺す:
+           *      `touch-action: none`  → **一覧がスクロールできなくなる**
+           *      `user-select: none`   → **ファイル名がコピーできなくなる**
+           *    ここでは**タイルの中の文字が選ばれない**ところまでにとどめる。
+           *
+           * 🚨 `-webkit-touch-callout: none` は **iOS 専用**（Android には効かない）。
+           *    「画像を長押しで保存」の既定メニューを止めるのが目的で、
+           *    **Android 側は `contextmenu` の抑止で対応している**（フック側）。
+           *
+           * 🚨 **`touch-action` はここに書かない。** この要素は `display: contents` で
+           *    **ボックスを作らない**ので、**継承しない性質の `touch-action` は効かない**
+           *    （書いても何も起きないのに、書いた人は効いたつもりになる）。
+           *    `user-select` と `-webkit-touch-callout` は**継承する**ので、子のタイルに伝わる。
+           *    `contents` を外せば `touch-action` も書けるが、**グリッドの並びが崩れる**
+           *    （タイルは grid の直接の子である必要がある）ので、そちらは取らない。
+           *
+           * 🚨 **実機で確かめるまで「効いた」と書かない。** headless では
+           *    iOS Safari の callout は再現できない。
+           */
+          className="contents select-none [-webkit-touch-callout:none]"
+        >
           {children}
         </div>
       </DropdownMenuTrigger>
