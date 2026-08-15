@@ -50,10 +50,26 @@ const EXCLUDED = [
 /** app/(admin) 配下の page.tsx から実在するルートを作る。`[param]` を含むものは別扱い。 */
 function routesFromDisk() {
   const files = globSync("app/(admin)/**/page.tsx", { cwd: root });
-  return files.map((f) => {
-    const p = "/" + f.replace(/^app\/\(admin\)\//, "").replace(/\/page\.tsx$/, "");
-    return { file: f, path: p === "/" ? "/" : p, dynamic: p.includes("[") };
-  });
+  return files
+    // 🚨 **ディスクの page.tsx と、実際に URL になるものは違う**（2026-08-15・storage の指摘した形:
+    //    「守りが見ている値と、実装が使う値は同じか」）。Next.js は次を URL にしない:
+    //      _foo/  … アンダースコアで始まる区画（private folder）
+    //      (foo)/ … 丸括弧の区画（route group。パスに現れない）
+    //    実測: app/(admin)/admin/zz-x/_private/page.tsx を置くと**巡回漏れとして誤検出**した。
+    //    ＝ この検査は「ファイルが在る」を見ていて、「URL が在る」を見ていなかった。
+    .filter((f) => !f.split("/").some((seg) => seg.startsWith("_")))
+    .map((f) => {
+      const p =
+        "/" +
+        f
+          .replace(/^app\/\(admin\)\//, "")
+          .replace(/\/page\.tsx$/, "")
+          // route group は URL に現れない
+          .split("/")
+          .filter((seg) => !(seg.startsWith("(") && seg.endsWith(")")))
+          .join("/");
+      return { file: f, path: p === "/" ? "/" : p, dynamic: p.includes("[") };
+    });
 }
 
 /** 監査の DEFAULT_PATHS を読む（import すると Chrome を起動してしまうので、テキストで抜く）。 */
