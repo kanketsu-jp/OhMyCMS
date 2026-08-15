@@ -10,6 +10,7 @@
   "collection_label": "コレクション",
   "create_button": "作成",
   "delete_button": "削除",
+  "deleted": "削除しました",
   "description": "権限ルールをまとめるポリシーを管理します。",
   "description_label": "説明",
   "detail_description": "permission行の collection / action / fields / 行フィルタを編集します。",
@@ -31,6 +32,7 @@
   "no_description": "説明なし",
   "no_filter": "行フィルタなし",
   "no_permissions": "permission行はまだありません。",
+  "permission_deleted": "権限を削除しました",
   "permission_rows_title": "permission行",
   "title": "ポリシー",
   "update_button": "更新"

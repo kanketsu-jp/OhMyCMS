@@ -6,6 +6,7 @@ import { Plus, UserMinus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -86,6 +87,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
       setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_remove_failed")));
       return;
     }
+    toast.success(t("assignment_removed"));
     router.refresh();
   }, (id) => id);
 

@@ -1,6 +1,7 @@
 {
   "create_button": "作成",
   "delete_button": "削除",
+  "deleted": "削除しました",
   "description": "ロール階層と親ロールを管理します。",
   "description_label": "説明",
   "error_create_failed": "作成できません",

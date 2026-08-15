@@ -1,6 +1,7 @@
 {
   "create_button": "Create",
   "delete_button": "Delete",
+  "deleted": "Deleted",
   "description": "Manage the role hierarchy and parent roles.",
   "description_label": "Description",
   "error_create_failed": "Failed to create",

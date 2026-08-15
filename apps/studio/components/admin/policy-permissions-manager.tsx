@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -141,6 +142,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
       setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_delete_failed")));
       return;
     }
+    toast.success(t("permission_deleted"));
     router.refresh();
   }, (id) => String(id));
 

@@ -1,6 +1,7 @@
 {
   "assign_button": "割り当て",
   "assignment_card_title": "ポリシー割り当て",
+  "assignment_removed": "割り当てを削除しました",
   "description": "ユーザーへのポリシー割り当てを管理します。",
   "empty": "ポリシー割り当てはまだありません。",
   "error_assign_failed": "割り当てできません",

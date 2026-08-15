@@ -1,6 +1,7 @@
 {
   "assign_button": "Assign",
   "assignment_card_title": "Policy Assignments",
+  "assignment_removed": "Assignment removed",
   "description": "Manage policy assignments for users.",
   "empty": "No policy assignments yet.",
   "error_assign_failed": "Failed to assign",

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 
 export type RoleRow = {
@@ -66,6 +67,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
       setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_remove_failed")));
       return;
     }
+    toast.success(t("deleted"));
     router.refresh();
   }, (id) => id);
 

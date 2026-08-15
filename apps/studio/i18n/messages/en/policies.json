@@ -10,6 +10,7 @@
   "collection_label": "Collection",
   "create_button": "Create",
   "delete_button": "Delete",
+  "deleted": "Deleted",
   "description": "Manage policies that group permission rules.",
   "description_label": "Description",
   "detail_description": "Edit the permission row's collection / action / fields / row filter.",
@@ -31,6 +32,7 @@
   "no_description": "No description",
   "no_filter": "No row filter",
   "no_permissions": "No permission rows yet.",
+  "permission_deleted": "Permission deleted",
   "permission_rows_title": "Permission rows",
   "title": "Policies",
   "update_button": "Update"

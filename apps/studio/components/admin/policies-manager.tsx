@@ -9,6 +9,7 @@ import { PageAction } from "@/components/admin/page-action";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
@@ -70,6 +71,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
       setError(messageFrom(payload, response.status === 403 ? t("error_forbidden") : t("error_delete_failed")));
       return;
     }
+    toast.success(t("deleted"));
     router.refresh();
   }, (id) => id);
 
