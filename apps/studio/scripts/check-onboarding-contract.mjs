@@ -10,11 +10,15 @@
  * **共有環境では誰もこの画面に到達できない**（Storybook の story は API に届かない）。
  * ＝ **「見ていない 0」の環境版。** 人が踏めない経路なので、機械で見るしかない。
  *
- * 見るもの（2 つ）:
+ * 見るもの（4 つ）:
  *   A. `completeOnboardingWithAdmin` が `validate()` に**オブジェクトリテラルを渡していない**こと
  *      🚨 これが事故の正体。`validate()` は `key in input` で省略を判定するので、
  *         リテラルに並べた瞬間、**送られてこなかった鍵も「在る（undefined）」になり全部必須**になる。
- *   B. 省略された鍵を落とす処理（`key in input`）が在ること
+ *   B. 呼び出し側に、省略された鍵を落とす処理（`key in input`）が在ること
+ *   C. 🚨 **`validate()` 自身が「送られてこなかった鍵を飛ばす」処理を持っていること**
+ *      （C を足した理由は `validateBodyOf` の説明を読むこと。**A と B だけだと、
+ *        呼び出し側が正しいまま `validate()` が変わって、緑のまま壊れる**）
+ *   D. 画面が `new_password` / `default_locale` を送っていること
  *
  *   node scripts/check-onboarding-contract.mjs
  *
@@ -58,6 +62,26 @@ function bodyOf(source) {
 }
 
 /**
+ * `validate()` の本体を切り出す。
+ *
+ * 🚨 **なぜ呼び出し側だけでは足りないか（司令塔 2026-08-15「3段目: その守りは副作用で成立していないか」）。**
+ * 当初この検査は `completeOnboardingWithAdmin`（呼び出し側）しか見ていなかった。
+ * だが「送られてこなかった鍵を飛ばす」という**性質そのものは `validate()` の中に在る**
+ * （`if (!(key in input)) continue;`）。
+ * **実測**: 呼び出し側を一切変えずに `validate()` のこの行だけを壊したところ、
+ * **この検査は exit 0（緑）のまま**だった。＝ **私の守りは validate() の実装に乗っていた。**
+ * → **乗っている先も見る。**
+ */
+function validateBodyOf(source) {
+  const m = /function\s+validate\s*\(/.exec(source);
+  if (!m) return null;
+  const rest = source.slice(m.index + 1);
+  // 次のトップレベル宣言まで
+  const next = rest.search(/\n(?:export\s+)?(?:async\s+)?function\s|\nexport\s+(?:const|type)\s/);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
+/**
  * コメントを落とす。
  * 🚨 これが無いと、**説明文が実コードとして規則を満たしてしまう**。
  *    自己検査の囮2 で実際に起きた——`key in input` と書いた解説コメントが、
@@ -91,6 +115,18 @@ function inspect(serviceSource, formSource) {
     violations.push({
       rule: "no-omit-guard",
       message: "省略された鍵を落とす処理（`key in input`）が見当たりません。画面が聞くのをやめた項目が、そのまま必須になります",
+    });
+  }
+
+  // 🚨 乗っている先（validate）も見る。ここが変わると、呼び出し側が正しくても全部必須になる。
+  const rawValidate = validateBodyOf(serviceSource);
+  const validateBody = rawValidate === null ? null : stripComments(rawValidate);
+  if (!validateBody || validateBody.trim().length === 0) {
+    violations.push({ rule: "validate-not-found", message: "validate() を切り出せませんでした（関数名が変わった可能性）" });
+  } else if (!/if\s*\(\s*!\s*\(\s*\w+\s+in\s+input\s*\)\s*\)/.test(validateBody)) {
+    violations.push({
+      rule: "validate-requires-all",
+      message: "validate() が「送られてこなかった鍵を飛ばす」処理を持っていません。呼び出し側が正しくても、**全部の鍵が必須**になります（2026-08-15 の退行と同じ結果）",
     });
   }
 
@@ -154,6 +190,18 @@ const probes = [
     service: serviceSource,
     form: formSource.replace(/new_password:/, "new_password_renamed:"),
     expect: "form-missing-key",
+  },
+  {
+    name: "囮5: validate() の「省略された鍵を飛ばす」処理を壊す（呼び出し側はそのまま）",
+    service: serviceSource.replace("    if (!(key in input)) continue;", "    // (壊した)"),
+    form: formSource,
+    expect: "validate-requires-all",
+  },
+  {
+    name: "囮6: validate() の名前を変えて、切り出せなくする",
+    service: serviceSource.replace("function validate(input:", "function validateX(input:"),
+    form: formSource,
+    expect: "validate-not-found",
   },
   {
     name: "囮4: 関数名を変えて、切り出せなくする（＝何も見ていない緑を防ぐ）",
