@@ -40,8 +40,20 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
   // 🚨 アップロードも「変更を送る」操作なので useSubmitOnce を通す。
   //    `logoUploading`（useState）では防げない——**setState は非同期**で、
   //    再レンダーが走る前に2回目が通る（憲章 §5b）。
-  //    🚨 finally を外さないこと。早期 return があると inFlight が残り、
-  //    **二度とアップロードできなくなる**（前任が実測で踏んでいる）。
+  //    守り手: scripts/check-submit-once.mjs（通していないと落ちる）
+  //
+  // 🚨 **finally を外さないこと。ただし理由は inFlight ではない。**
+  //    以前ここには「早期 return があると inFlight が残り、二度とアップロードできなくなる」と
+  //    書いてあったが、**2026-08-15 の実測で成立しなかった**。
+  //    下の `submit` は早期 return があり、呼び出し側に finally が無い経路だが、
+  //    **3 回押して 3 回とも走った**（門は残らない）。
+  //    inFlight を開けているのは**フックの側**（hooks/use-submit-once.ts:68-75 の try/finally）で、
+  //    呼び出し側が何をしても通る。＝ **inFlight の守り手は、ここではなくフックにある。**
+  //
+  //    この finally が守っているのは `logoUploading` のほう。戻し損ねると
+  //    送信ボタン（「はじめる」）の `disabled={logoUploading}` が立ったままになり、
+  //    **アップロードが失敗したあと「はじめる」が二度と押せず、初期設定を終えられない**。
+  //    🚨 こちらには守り手が無い（検査で見ていない）。外すときは自分で確かめること。
   const uploadLogo = useSubmitOnce(async (files: File[]) => {
     const file = files[0];
     if (!file) return;
@@ -166,8 +178,17 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
           <p className="text-xs text-muted-foreground">{t("step_password_progress")}</p>
           <div className="flex flex-col gap-2">
             <Label htmlFor="new-password">{t("new_password_label")}</Label>
-            {/* `--control-h-entry` qualifies here because this step has exactly one operation,
-                matching globals.css:100: entry screens are only for screens with one control. */}
+            {/* 入口サイズ（--control-h-entry）を使う段。規約は globals.css:96-97
+                （「入口の画面＝操作が1つだけの画面」専用）。
+                🚨 以前ここは globals.css:100 を指していたが、**100 行目は別の話**
+                （--control-h-xs＝言語切替 24px の例外）。2026-08-15 の実測で判明。
+                🚨 **未決**: 規約の語が割れている。globals.css:96 と input.tsx:17 は「操作が1つ」、
+                ここは "one operation" と "one control" を同じ文で使っていた。
+                この段を実測すると form 内の操作できる要素は **3 個**
+                （パスワード欄 / 表示切替 / 次へ）。「操作」なら1、「control」なら3。
+                記録 2026-08-15 ／ 決める人: design・司令塔 ／
+                何を決めるか: 数える単位を「操作」と「control」のどちらにするか。
+                （測ったのは onboard。判定はしていない） */}
             <InputGroup className="h-(--control-h-entry) md:h-(--control-h-entry)">
               <InputGroupInput
                 id="new-password"
