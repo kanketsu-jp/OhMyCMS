@@ -446,7 +446,14 @@ const PROBE = String.raw`(() => {
       //    しきい値 4px は上の「隠し要素の判定」と同じ値に揃えてある（別々の数字を作らない）。
       //    🚨 この関数はブラウザへ送るテンプレートリテラルの中なので、
       //       コメントにもバッククォートを書かないこと（文字列が途中で終わって構文エラーになる）。
-      .filter((e) => { const r = e.getBoundingClientRect(); return r.height > 4 && r.width > 4; })
+      // 🚨 **1px に揃えた**（2026-08-15）。元は 4px だったが、**この木では一度も仕事をしていなかった**。
+      //    由来: 1px の sr-only なファイル入力がボタン高さと比較されて誤検出したので絞りを入れた。
+      //    ところが**その 1px は「> 1」で既に落ちる**。4 は「極小の装飾も落とす」という
+      //    **測っていない見込み**で置いた数字だった。
+      //    実測（25 ページ × 2 幅 = 50 回・押せる要素 1520 個）: **短辺が (1, 4] の要素は 0 件**。
+      //    ＝ 1px と 4px で選ばれる要素が 1 つも変わらない。**発火しない条件を守りとして数えない。**
+      //    文字を拾う側（可視判定）と同じ 1px に揃えて、**閾値を 1 つにした**。
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.height > 1 && r.width > 1; })
       .map((e) => Math.round(e.getBoundingClientRect().height));
     if (!bs.length || !is.length) continue;
     const b = Math.max(...bs), i = Math.max(...is);
@@ -1493,10 +1500,49 @@ for (const vp of VIEWPORTS) {
       let nth = 1;
       const atMatch = step.match(/\s+@(\d+)$/);
       if (atMatch) { nth = Number(atMatch[1]); step = step.slice(0, atMatch.index).trim(); }
+      // 🚨 **「押した」は「効いた」ではない**（2026-08-15・design の実例）。
+      //    `type=submit` のボタンで required の欄が空だと、**ブラウザの検証が送信を止め**、
+      //    ハンドラまで届かない。**止められたことは DOM に残らない**（検証の吹き出しは
+      //    要素にならない）ので、「押した要素: BUTTON:発行」だけを見た人は「効いた」と読む。
+      //    ここも同じ形だった: **押した直後に 800ms 寝て、そのまま測っていた。**
+      //    開いていない画面を「開いた前提」で測れば、当然 **違反 0 件**になる（＝見ていない 0）。
+      //    → **押す前と後を指紋で比べ、1つも変わっていなければ測定を無効にする。**
+      const snapshot = async () => (await cdp.send("Runtime.evaluate", {
+        expression: `(() => ({
+          nodes: document.querySelectorAll("*").length,
+          open: document.querySelectorAll('[data-state="open"]').length,
+          layer: document.querySelectorAll('[role="dialog"],[role="menu"],[data-slot$="-content"]').length,
+          where: location.pathname + location.search,
+          // 🚨 **焦点も「効いた」に数える。** これが無いと、--keys の前段で
+          //    「欄に焦点を当てるだけ」の --click を**無効判定で殺してしまう**
+          //    （測定を守るつもりの門が、正しい測定を止める側に回る）。
+          focus: (() => { const a = document.activeElement;
+            return a ? a.tagName + ":" + (a.getAttribute("data-slot") || a.getAttribute("type") || "") : "none"; })(),
+        }))()`,
+        returnByValue: true,
+      })).result.value;
+      const beforeClick = await snapshot();
       const clicked = await cdp.send("Runtime.evaluate", {
         expression: `(() => {
           const all = [...document.querySelectorAll(${JSON.stringify(step)})];
-          const shown = all.filter((e) => e.checkVisibility() && e.getBoundingClientRect().width > 0);
+          // 🚨 **閾値は「何のために見ているか」で決める**（司令塔 2026-08-15）。
+          //    ここは **押す相手を選ぶ**ので **4px 以下を落とす**（文字を拾うだけなら 1px）。
+          //    checkVisibility() は display / visibility / content-visibility は見るが、
+          //    **clip-path で潰した要素は「見えている」と答える**（実測: Tailwind v4 の
+          //    sr-only は clip: rect(...) ではなく **clip-path: inset(50%)**）。
+          // 🚨 クラス名では除かない（sr-only という語は見ない）。算出値だけで決める。
+          // 🚨 この中でバックスラッシュを書かない。テンプレートリテラルに食われる
+          //    （実測: 正規表現の \\s が s に潰れて Unterminated group で落ちた）。
+          const clipped = (st) => {
+            const cp = (st.clipPath || "").split(" ").join("");
+            if (cp.includes("inset(50%") || cp.includes("circle(0")) return true;
+            return (st.clip || "").split(" ").join("").startsWith("rect(0px,0px");
+          };
+          const shown = all.filter((e) => {
+            const r = e.getBoundingClientRect();
+            // 🚨 ここも 1px へ揃えた（上と同じ実測。(1,4] の要素は 0 件だった）。
+            return e.checkVisibility() && r.width > 1 && r.height > 1 && !clipped(getComputedStyle(e));
+          });
           const el = shown[${nth} - 1];
           // 🚨 **押すと書き込むものは押さない**（2026-08-15）。
           //    --click は本物のクリック（pointerdown/up + click）を送るので、
@@ -1554,6 +1600,26 @@ for (const vp of VIEWPORTS) {
         break;
       }
       await sleep(800); // 開くアニメーションの待ち
+      const afterClick = await snapshot();
+      const moved = ["nodes", "open", "layer", "where", "focus"]
+        .filter((k) => beforeClick[k] !== afterClick[k]);
+      if (moved.length === 0) {
+        log(`     🚨 押しましたが、**画面は 1 つも変わっていません**` +
+          `（要素 ${afterClick.nodes} / open ${afterClick.open} / 重ね ${afterClick.layer}` +
+          ` / 焦点 ${afterClick.focus} / ${afterClick.where}）`);
+        violations.push({
+          key,
+          rule: "測定不能",
+          detail: `--click は要素に当たりましたが、**押す前と押した後の画面が同じ**です（${step}）。` +
+            ` ブラウザの検証で送信が止まった / disabled / ハンドラが付いていない、などが考えられます。` +
+            ` 開いた前提で測った結果は信用できないので、**この画面幅の測定を無効にしました**` +
+            `（「違反 0 件」ではありません）。`,
+        });
+        clickFailed = true;
+        break;
+      }
+      // 🟢 対照(+): 何がどう動いたかを必ず出す。これが出ていない実行は「押しただけ」。
+      log(`     🟢 効いた: ${moved.map((k) => `${k} ${beforeClick[k]}→${afterClick[k]}`).join(" / ")}`);
     }
     if (clickFailed) continue;
 
@@ -1888,6 +1954,13 @@ if (AS_JSON) {
   if (notMeasured) process.exit(1);
 } else {
   console.log(`\n対象: ${PATHS.length} ページ × ${VIEWPORTS.length} 画面幅 = ${PATHS.length * VIEWPORTS.length} 回測定（${BASE}）`);
+  // 🚨 **解除したことは、必ず冒頭に出す。**
+  //    以前は「押した瞬間」にだけ出していたので、`--allow-write` を渡しても
+  //    **クリックが 1 度も起きなければ出力に何も残らなかった**（＝ログを読む人が
+  //    「許可した実行だ」と分からない）。守りを外した記録は、外したかどうかで出す。
+  if (ALLOW_WRITE) {
+    console.log("🚨 --allow-write が指定されています。**書き込みガードを外した実行です**（送信ボタンを押してしまう可能性があります）。");
+  }
   /**
    * 🚨 **数だけを貼り付けても意味を持たないので、出どころを同じブロックに出す**
    *    （司令塔 2026-08-15。schema が「面 16px/16px」をページ名なしで渡し、
