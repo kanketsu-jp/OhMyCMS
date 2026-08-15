@@ -28,6 +28,26 @@ export const HEALTH_OUTPUT = {
   status: z.string().optional(),
   db: z.string().optional(),
   url: z.string().optional().describe("接続先。トークンは含まない"),
+  /**
+   * 動いている版。`/api/health` が `fd53fdd`（2026-08-14）で返すようになった。
+   *
+   * 🚨 **ここに足さないと `ohmycms_health` が丸ごと失敗する。** 出力スキーマは
+   *    `additionalProperties: false` として効くので、**API が返す鍵が1つ増えるだけで**
+   *    `-32602 Structured content does not match the tool's output schema` になる。
+   *    実際に 2026-08-14 22:03 から 2026-08-15 まで、このツールは壊れたままだった
+   *    （`scripts/verify.mjs` が最初のツール呼び出しで落ちる状態）。
+   *
+   * 🚨 **`/api/health` の返り値を変える人へ**: ここも一緒に直すこと。
+   *    片方だけ変えると、型検査もビルドも緑のまま MCP だけが壊れる。
+   */
+  version: z
+    .object({
+      commit: z.string().optional(),
+      dirty: z.string().optional(),
+      builtAt: z.string().optional(),
+    })
+    .optional()
+    .describe("動いている版。値が取れない環境では unknown が入る"),
   ...ERROR_OUTPUT,
 };
 
