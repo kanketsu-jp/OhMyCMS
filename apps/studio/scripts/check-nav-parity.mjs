@@ -385,6 +385,25 @@ const greenTests = [
 ];
 
 const original = loadSources();
+// 🚨 **外側（読み込み）が死んだら、生のスタックで落ちていた**（2026-08-16 実測）。
+//    exit は 1 なので黙って通ることは無いが、**読んだ人には理由が分からない**。
+//    司令塔 2026-08-16「候補と、実際に走査した数を分けて出す。走査 0 なら落とす」。
+//    🚨 ここで**読めた件数**を先に出し、対象が無ければ**読める文で**落とす。
+{
+  const 読めた = Object.keys(original).length;
+  console.log(`読み込み: ${読めた} ファイル（判定に要るのは ${LAYOUT_FILE}）`);
+  if (原本が無い(original)) {
+    console.error(
+      `🚨 ${LAYOUT_FILE} を読めていません（読み込み ${読めた} ファイル）。\n` +
+        `   **この検査は何も見ていません。** 緑でも意味を持ちません。\n` +
+        `   考えられる原因: 走らせた場所が違う（apps/studio から走らせる）／ファイルが移動した。`,
+    );
+    process.exit(1);
+  }
+}
+function 原本が無い(sources) {
+  return typeof sources?.[LAYOUT_FILE] !== "string" || sources[LAYOUT_FILE].length === 0;
+}
 
 function main() {
   assertExceptionsAreDesignDecisions();
