@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
+import { errorKeyFromApiCode, FALLBACK_ERROR_KEY } from "@/i18n/error";
 
 /**
  * SSO（SAML）の設定。
@@ -45,8 +46,25 @@ type EntryMode = "metadata" | "manual";
 
 export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   const t = useT("sso");
+  const tError = useT("errors");
   const format = useFormat();
   const router = useRouter();
+
+  /**
+   * 上で個別に拾えなかったエラーを、**辞書の文言**にする。
+   *
+   * 🚨 **サーバが返した文（`error.message`）を画面に出さない。**
+   *    これは文言の話ではなく**なりすまし**の経路で、細工したリンクで任意の文章を
+   *    アプリ公式のエラー枠に出せてしまう（司令塔 2026-08-15）。
+   *    `AGENTS.md §3.8`「UI に文言を直接書かない」とは別の理由で、同じ結論になる。
+   *
+   * 🚨 表に載っていないコードは `unexpected`（「予期しないエラー」）ではなく
+   *    **この画面の `error_save_failed`** に落とす。保存の途中なので、そちらが正確。
+   */
+  const fallbackMessage = (code: string | undefined) => {
+    const key = errorKeyFromApiCode(code);
+    return key === FALLBACK_ERROR_KEY ? t("error_save_failed") : tError(key);
+  };
 
   const [mode, setMode] = useState<EntryMode>(settings.idpSsoUrl ? "manual" : "metadata");
   const [metadataXml, setMetadataXml] = useState("");
@@ -110,7 +128,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
       else if (code === "INVALID_METADATA") setError(t("error_invalid_metadata"));
       else if (code === "INVALID_CERTIFICATE") setError(t("error_invalid_certificate"));
       else if (code === "INVALID_URL") setError(t("error_invalid_url"));
-      else setError(payload?.error?.message ?? t("error_save_failed"));
+      else setError(fallbackMessage(code));
       return;
     }
 
