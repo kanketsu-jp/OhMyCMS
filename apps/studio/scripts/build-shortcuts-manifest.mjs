@@ -202,6 +202,22 @@ const find = (id) => manifest.find((m) => m.action === id);
 // ④ 導出が 0 件なら失敗（空の一覧を「全部 global」と読ませない）
 if (manifest.length === 0) problems.push("ショートカットを 1 つも読めませんでした（SHORTCUTS の書き方が変わった？）");
 
+// 🚨 **増えた瞬間に穴が空く形にしない**（司令塔 2026-08-16）。
+//    284 の原文は「なるべく多くのショートカットを用意する」＝ **増えるのが前提**。
+//    増えたのに `scope` を導出できないものが出たら、**その場で落とす**。
+//    （出すだけだと、増えた人は「unknown が 1 件」を読み飛ばす。**鳴らないと直らない**）
+// 🚨 これは「書いただけ」ではなく「鳴る」形。
+const noScope = manifest.filter((m) => m.scope === "unknown");
+if (noScope.length > 0) {
+  problems.push(
+    `🚨 **scope を導出できないショートカットが ${noScope.length} 件あります**` +
+      `（${noScope.map((m) => m.action).join(" / ")}）。` +
+      "**\"global\" に倒さず、落としています。** " +
+      "`useShortcut(SHORTCUTS.<id>` を呼ぶ場所が見つからないか、" +
+      "**別名で包まれていて名前で探せません**（この導出は `useShortcut(` を名前で探しています）",
+  );
+}
+
 // ① 既知の 1 つ: save は「編集する画面」にしか出ないはず
 const save = find("save");
 const saveOk = save && Array.isArray(save.scope) && save.scope.length > 0
