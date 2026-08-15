@@ -65,9 +65,11 @@ const ALLOW = [
 ];
 
 function allowedFor(file, line) {
-  for (const rule of ALLOW) {
-    if (rule.file && rule.file.test(file)) return rule;
-    if (rule.pattern && rule.pattern.test(line)) return rule;
+  // 🚨 **どの規則が効いたか（添字）まで返す。** why（文字列）で後から突き合わせると、
+  //    同じ why を持つ規則が潰れて別の規則の決定が表示される（2026-08-15 実測）。
+  for (const [index, rule] of ALLOW.entries()) {
+    if (rule.file && rule.file.test(file)) return { rule, index };
+    if (rule.pattern && rule.pattern.test(line)) return { rule, index };
   }
   return null;
 }
@@ -108,7 +110,7 @@ for (const file of files) {
       if (!re.test(cls)) continue;
       const why = allowedFor(file, line);
       const entry = { file, line: i + 1, kind: name, snippet: cls.slice(0, 70) };
-      if (why) allowed.push({ ...entry, why: why.why, decided: why.decided });
+      if (why) allowed.push({ ...entry, why: why.rule.why, decided: why.rule.decided, ruleIndex: why.index });
       else hits.push(entry);
       break;
     }
@@ -120,34 +122,36 @@ console.log(`対象: 面の中で描かれる ${files.length} 本を走査`);
 //    「許容した面: N 件」が増えるだけで、**緑のまま気づけない**。
 //    どの例外が何件効いたかを毎回出せば、増えたものが目に入る。
 console.log(`許容した面: ${allowed.length} 件`);
-const byRule = new Map();
-for (const a of allowed) byRule.set(a.why, (byRule.get(a.why) ?? 0) + 1);
-for (const [why, count] of [...byRule].sort((a, b) => b[1] - a[1])) {
-  const rule = ALLOW.find((r) => r.why === why);
-  console.log(`    ${String(count).padStart(3)} 件  ${why}  [${rule?.decided ?? "🚨 決定の記録が無い"}]`);
+// 🚨 **内訳は規則の「識別子」で数える。文字列（why）で数えない。**
+//    design の指摘（2026-08-15）: 内訳そのものが嘘をつく。私の版でこう出た——
+//    2 行に同じ `why` を書いたら **6 規則が 5 行に潰れ**、15 件が 1 行にまとまり、
+//    **表示された `decided:` は先に一致した方のもの**になった（＝別の規則の決定が表示される）。
+//    → 規則の**添字**で数え、**行数と合計の両方**を突き合わせて、合わなければ落とす。
+const byIndex = new Map();
+for (const a of allowed) byIndex.set(a.ruleIndex, (byIndex.get(a.ruleIndex) ?? 0) + 1);
+const rows = ALLOW.map((rule, index) => ({ rule, index, count: byIndex.get(index) ?? 0 }));
+for (const { rule, count } of rows.filter((r) => r.count > 0).sort((a, b) => b.count - a.count)) {
+  console.log(`    ${String(count).padStart(3)} 件  ${rule.why}  [${rule.decided ?? "🚨 決定の記録が無い"}]`);
 }
 // 🚨 一度も効かなかった例外も出す。**ただし「死んだ行」ではない。**
 //    例外は「違反になりかけたもの」にしか効かないので、**候補が出ていなければ 0 件が健全**。
 //    実測（design・2026-08-15）: 候補 133 件の中に components/ui/dialog.tsx も入っており、
 //    **対象は見ている**。0 件は「見ていない」ではなく「要る場面がまだ出ていない」。
 //    🚨 **消さないこと。** 消すと、次に候補が出たとき**正解が違反として落ちる**（憲章 §1）。
-const unused = ALLOW.filter((rule) => !byRule.has(rule.why));
+const unused = rows.filter((r) => r.count === 0);
 if (unused.length > 0) {
   console.log(`  （下の ${unused.length} 行は 0 件＝**この例外が要る場面がまだ出ていない**。対象は見ている。消さないこと）`);
-  for (const rule of unused) {
+  for (const { rule } of unused) {
     console.log(`      0 件  ${rule.why}  [${rule.decided ?? "🚨 決定の記録が無い"}]`);
   }
 }
-console.log(`🚨 面の中の生の面: ${hits.length} 件`);
-
-if (hits.length > 0) {
-  console.error("\n■ 面の中に生の面クラスがあります（knowledge/decisions/no-nested-surfaces.md §2-1）");
-  console.error("  Surface が持つ器の中で、さらに罫線・背景・影を持つと面が2段になります。");
-  console.error("  区切りたいだけなら <SurfaceDivider> を使ってください。\n");
-  for (const h of hits) {
-    console.error(`  ${h.file}:${h.line}  [${h.kind}]`);
-    console.error(`      ${h.snippet}`);
-  }
+// 🚨 内訳が実態と合っているか。**合計と行数の両方**を見る。
+//    片方だけだと、規則が潰れても合計は合ってしまう（今回の実測がまさにそれ）。
+const sum = rows.reduce((n, r) => n + r.count, 0);
+const duplicated = new Set(ALLOW.map((r) => r.why)).size !== ALLOW.length;
+if (sum !== allowed.length || rows.length !== ALLOW.length || duplicated) {
+  console.error(`\n🚨 内訳が実態と合いません（合計 ${sum} / 許容 ${allowed.length} ／ 行 ${rows.length} / 規則 ${ALLOW.length}${duplicated ? " ／ **why が重複**" : ""}）。`);
+  console.error("   この内訳は信用できません（規則が潰れているか、種別の付いていない許容があります）。");
   process.exit(1);
 }
-console.log("違反なし。");
+
