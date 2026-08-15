@@ -13,6 +13,12 @@ type FileRow = {
   filename_download: string;
   title: string | null;
   type: string | null;
+  /**
+   * 🚨 拡大に要る。**無いと拡大が黙って効かない**（`image-lightbox.tsx` の注意書き参照）。
+   * 画像でないものや、読めなかった画像では null。
+   */
+  width: number | null;
+  height: number | null;
 };
 
 function isImage(file: FileRow): boolean {
@@ -33,6 +39,8 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
       imageFiles.map((file) => ({
         src: `/api/assets/${file.id}`,
         alt: file.title ?? file.filename_download,
+        // 🚨 null のときは渡さない（0 を渡すと「0px の画像」として扱われる）。
+        ...(file.width && file.height ? { width: file.width, height: file.height } : {}),
       })),
     [imageFiles],
   );

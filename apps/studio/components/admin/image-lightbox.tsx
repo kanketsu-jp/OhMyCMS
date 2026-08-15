@@ -7,8 +7,16 @@ import "yet-another-react-lightbox/styles.css";
 import { useT } from "@/i18n/client";
 
 type ImageLightboxProps = {
-  /** 送り先の全画像。押した1枚だけでなく、その画面に出ている画像を全部渡す */
-  images: { src: string; alt: string }[];
+  /**
+   * 送り先の全画像。押した1枚だけでなく、その画面に出ている画像を全部渡す。
+   *
+   * 🚨 **width / height を必ず渡すこと。** 渡さないと **拡大が黙って効かない**
+   *    （ボタンは出るが、最大倍率が 1 と評価されるので何も起きない。エラーも出ない）。
+   *    先行事例（liff-agency-documents）が同じ所で止まっていた。
+   *    寸法は `directus_files` に入っている（アップロード時に保存済み。EXIF の向きも反映済み）。
+   *    分からないときだけ省略してよい（その画像は拡大できない、と分かった上で）。
+   */
+  images: { src: string; alt: string; width?: number; height?: number }[];
   /** 最初に見せる画像の位置。0 始まり */
   index: number;
   /** 開いているか */
