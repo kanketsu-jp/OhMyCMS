@@ -21,7 +21,7 @@
  * 使い方: node scripts/check-system-label-names.mjs   （cwd は apps/studio）
  * 終了コード: 不足があれば 1 ／ 検査自体が壊れていれば 2
  */
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const MIGRATION = "lib/db/migrations/20260815010000_create_labels_and_folder_color.ts";
@@ -59,16 +59,27 @@ function withoutComments(src) {
 //    → 注記で済ませずに塞ぐ。**種まきしているファイルを数え、決め打ち以外が出たら落とす。**
 //    🚨 引用符の種類を問わない形で探す（`"` だけを見ていると、`'` で書かれた瞬間に見えない）。
 {
-  // 🚨 **`git ls-files` を使わない**（2026-08-16 実測）。台の上で RED を測ったら
-  //    **落ちなかった**——追加した migration が**未追跡**で、`git ls-files` に出なかったため。
-  //    種まきは「まだコミットしていない新しい migration」で入ってくるほうが普通なので、
-  //    **ディスクをそのまま読む**。（`.next` などの写しは、この 1 ディレクトリには入らない）
+  // 🚨 **`git ls-files`（＝ git の索引）で列挙する。ディスクを直読みしない。**
+  //
+  //    一度ディスク直読みへ変えた（同じ 2026-08-16）。理由は「台で RED が出なかったから」
+  //    ——追加した migration が未追跡で `git ls-files` に出なかった。
+  //    🚨 **その判断を取り消した。** 別の検査で同じ穴を測ったときに、
+  //    **代償のほうが大きい**と分かったため:
+  //    ```
+  //    ディスク直読み … 誰かの**書きかけの migration** が、**全員のコミットを止める**
+  //                     （この検査は staged でなく作業ツリーを見るので、
+  //                       他のペインが自分のファイルをコミットしただけで赤くなる）
+  //    索引で列挙     … 書きかけは見えないが、**コミットする時には staged ＝ 索引に入る**
+  //                     ＝ **止めたい瞬間には、ちゃんと見える**
+  //    ```
+  //    🚨 **RED が出なかったのは穴ではなく、正しい振る舞いだった。**
+  //    台で RED を測るときは `git add` してから測ること（実測済み）。
   const dir = "lib/db/migrations";
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".ts"))
-    .map((f) => `${dir}/${f}`);
+  const files = execFileSync("git", ["ls-files", dir], { encoding: "utf8" })
+    .split("\n")
+    .filter((f) => f.endsWith(".ts"));
   const seeding = files.filter((f) => /system_key\s*:/.test(withoutComments(readFileSync(f, "utf8"))));
-  console.log(`  種まきしている migration: ${seeding.length} 本 / 全 ${files.length} 本`);
+  console.log(`  種まきしている migration: ${seeding.length} 本 / 全 ${files.length} 本（🚨 母集合は git の索引。書きかけの未追跡ファイルは見ていません）`);
   // 🚨 対象を 1 本も読めていないなら、この検査は走っていないのと同じ。
   if (files.length === 0) {
     console.error("🚨 [S0] migration を 1 本も拾えていません。走っていないのと同じです");
@@ -145,6 +156,16 @@ for (const d of DICTS) {
     );
     if (当たり) 拾えるようになった += 1;
   }
+  // 🚨 **対照を先に見る。** 上の「見逃す」は、抽出そのものが動いていなければ
+  //    「見逃した」ではなく「何も測っていない」になる（polish の形・2026-08-16）。
+  //    🚨 **順番が要る**: 一度これを「拾えるようになった」の判定より後ろに置いていて、
+  //    **記述が古くなったときに対照を見ないまま落ちる**形になっていた。
+  const 対照 = 抽出(`{ system_key: "imported" }`).length;
+  console.log(`     ${対照 > 0 ? "🟢" : "❌"} 対照(+) 素直な形は拾う → ${対照} 件`);
+  if (対照 === 0) {
+    console.error("🚨 [S0] 対照が拾えていません。抽出が壊れています");
+    process.exit(2);
+  }
   // 🚨 **記述が古くなったら、検査自身が言う**（design の形・2026-08-16）。
   //    拾えるようになったのに「見逃す」と書いたままだと、
   //    次の人が**在る守りを無いものとして扱う**。
@@ -153,13 +174,6 @@ for (const d of DICTS) {
   if (拾えるようになった > 0) {
     console.error(`     🚨 ${拾えるようになった} 件が拾えるようになりました。**この一覧からその行を消してください**`);
     process.exit(1);
-  }
-  // 🚨 対照が無いと、上の「見逃す」は「抽出そのものが動いていない」と区別が付かない。
-  const 対照 = 抽出(`{ system_key: "imported" }`).length;
-  console.log(`     ${対照 > 0 ? "🟢" : "❌"} 対照(+) 素直な形は拾う → ${対照} 件`);
-  if (対照 === 0) {
-    console.error("🚨 [S0] 対照が拾えていません。抽出が壊れています");
-    process.exit(2);
   }
 }
 
