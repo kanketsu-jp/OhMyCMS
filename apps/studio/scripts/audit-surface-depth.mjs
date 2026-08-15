@@ -76,6 +76,18 @@ const DUMP = process.argv.includes("--dump");
  * 常設の規則にはしない（`--eval` の結果は違反にならない。人が読む用）。
  */
 const EVAL = arg("eval", "");
+/**
+ * 🚨 **書き込みガードの、明示の解除口**（2026-08-15）。
+ *
+ * `--click` は送信ボタンに当たると `WRITE_GUARD` で止まる（共有 DB を書き換えないため）。
+ * それでも押す必要がある場面はある（例: トークンを発行しないと描画されない画面を測る）。
+ *
+ * 🚨 **黙って抜けられる形にしない。** 抜けるなら:
+ *   ① `--allow-write` を**明示**したときだけ
+ *   ② **抜けたことを出力に必ず出す**（ログを読んだ人が「許可した実行だ」と分かる）
+ * 守りを消すのではなく、**許可の記録が残る形**にしている。
+ */
+const ALLOW_WRITE = process.argv.includes("--allow-write");
 // 🚨 --file <パス> … 隠れている <input type="file"> に実際のファイルを載せてから測る。
 //    由来: 2026-08-14。FileDropzone は**選んだあとだけ** `Attachment` を描き、
 //    その Attachment は `rounded-xl border bg-card` = **面**。
@@ -1458,7 +1470,7 @@ for (const vp of VIEWPORTS) {
             const inForm = !!el.closest("form");
             const label = (el.textContent || "").trim().slice(0, 20);
             if (t === "submit" || (inForm && el.tagName === "BUTTON" && t !== "button")) {
-              return "WRITE_GUARD(" + (el.tagName + ":" + label) + ")";
+              if (!${ALLOW_WRITE}) return "WRITE_GUARD(" + (el.tagName + ":" + label) + ")";
             }
           }
           if (!el) return all.length ? "HIDDEN_ONLY(" + all.length + "/見えている " + shown.length + ")" : "NOT_FOUND";
@@ -1478,6 +1490,8 @@ for (const vp of VIEWPORTS) {
         continue;
       }
       log(`     押した要素: ${v}`);
+      // 🚨 許可して押したことを、必ず出力に残す（黙って書き込まない）。
+      if (ALLOW_WRITE) log(`     🚨 --allow-write が指定されています。**書き込みガードを外して押しました。**`);
       if (String(v).startsWith("WRITE_GUARD")) {
         log(`     押した要素: （🚨 押していません: ${v}）`);
         violations.push({
@@ -1616,7 +1630,10 @@ for (const vp of VIEWPORTS) {
 
     if (EVAL) {
       const evaluated = await cdp.send("Runtime.evaluate", {
-        expression: `(() => { try { return JSON.stringify(${EVAL}); } catch (e) { return "🚨 " + String(e); } })()`,
+        // 🚨 Promise を返す式も測れるようにする（2026-08-15）。
+        //    押した直後の描画のように「待たないと出ないもの」は、
+        //    同期の式では**押す前の状態を測って「無い」と報告**してしまう（実際にやった）。
+        expression: `(() => { try { return Promise.resolve(${EVAL}).then((v) => JSON.stringify(v)); } catch (e) { return "🚨 " + String(e); } })()`,
         returnByValue: true,
         awaitPromise: true,
       });
