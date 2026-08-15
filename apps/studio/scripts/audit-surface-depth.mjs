@@ -10,7 +10,7 @@
  *
  *   さらに静的検査は次を見られない:
  *     ・Tailwind のクラスが最終的にどの色に解決されたか（bg-muted/40 が親と同じ色なら面ではない）
- *     ・ボタンと入力の**実 px**（憲章 §3「ボタンは入力より低い」）
+ *     ・ボタンと入力の**実 px**（憲章 §3「同じ行に並ぶ操作は高さを揃える」）
  *     ・SP でナビが1つも表示されていないこと（憲章 §7）
  *     ・スクロールが実際に発生しているか（憲章 §6 の scroll-fade の対象かどうか）
  *
@@ -386,7 +386,9 @@ const PROBE = String.raw`(() => {
   };
   const withTarget = (els) =>
     els.map((el) => ({ ...toItem(el), h: Math.round(targetHeight(el) * 10) / 10 }));
-  // 🚨 「ボタンは入力より低い」は**同じフォームの中**の話。
+  // 🚨 「ボタンが入力より高くならないこと」は**同じフォームの中**の話。
+  //    2026-08-15 に憲章 §3 が反転したため。旧: ボタンは入力より低い。
+  //    新規律では同じ高さは正しいので、button > input のときだけ違反にする。
   //    ページ全体の最大同士を比べると、別の場所にある lg のボタンと別の入力が比較され、
   //    **正しい実装を違反と報告する**（2026-08-14 実測。トークンは正しく分離されていた）。
   //    → **同じ form の中だけで比べる。** これも「代理を測らない」の一例。
@@ -400,13 +402,13 @@ const PROBE = String.raw`(() => {
       .map((e) => Math.round(e.getBoundingClientRect().height));
     if (!bs.length || !is.length) continue;
     const b = Math.max(...bs), i = Math.max(...is);
-    if (b >= i) formPairs.push({ button: b, input: i, sel: sel(form) });
+    if (b > i) formPairs.push({ button: b, input: i, sel: sel(form) });
   }
 
   const buttonsT = withTarget(buttonEls);
   const inputsT = withTarget(inputEls);
 
-  // 🚨 「ボタンは入力より低い」は**ページ内フォームのボタン**の話（憲章 §3 の表）。
+  // 🚨 「ボタンが入力より高くならないこと」は**ページ内フォームのボタン**の話（憲章 §3 の表）。
   //    「モーダル / SP の主要アクション」は**全幅・pill で大きくする**のが正解なので、比較から外す。
   //    外さないと、正しく作られたログイン画面の 44px ボタンが違反として出る（実測で踏んだ）。
   const isFullWidth = (el) => {
@@ -707,7 +709,7 @@ const PROBE = String.raw`(() => {
     //   24px … WCAG 2.2 SC 2.5.8 Target Size (Minimum) Level AA。「at least 24 by 24 CSS pixels」
     //          → これを割るのは**違反**（間隔の例外はあるが、既定では満たすべき）
     //   44px … WCAG 2.1 SC 2.5.5 Target Size (Enhanced) Level AAA。「at least 44 by 44 CSS pixels」
-    //          → SP の主要アクションはここを狙う。全部に課すと「ボタンは入力より低い」と両立しないので、
+    //          → SP の主要アクションはここを狙う。全部に課すと PC のインライン高さ規律と両立しないので、
     //            **違反にはせず参考値として数える**
     tapTargetsUnder24: [...buttonsT, ...inputsT].filter((x) => x.h < 24).map((x) => ({ h: x.h, fs: x.fs, sel: x.sel, html: x.html })),
     tapTargetsUnder44: [...buttonsT, ...inputsT].filter((x) => x.h < 44).map((x) => ({ h: x.h, fs: x.fs, sel: x.sel, html: x.html })),
@@ -1356,7 +1358,7 @@ for (const vp of VIEWPORTS) {
       if (r.formPairs.length > 0) {
         violations.push({
           key, rule: "§3 ボタンの高さ",
-          detail: `${r.formPairs.length} 件のフォームで、ボタンが入力以上の高さです（ボタンは入力より低いこと。全幅の主要アクションは対象外）`,
+          detail: `${r.formPairs.length} 件のフォームで、ボタンが入力より高いです（ボタンが入力より高くならないこと。同じ高さは正しい。全幅の主要アクションは対象外）`,
           worst: r.formPairs.slice(0, 2),
         });
       }

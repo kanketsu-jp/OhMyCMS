@@ -33,10 +33,11 @@ function Input({
       data-slot="input"
       data-inside-surface={insideSurface ? "true" : undefined}
       className={cn(
-        // 高さは --control-h-*（app/globals.css）だけが決める。SP は指のために 44px。
+        // 高さの下限は --control-h-*（app/globals.css）だけが決める。SP は指のために 44px。
+        // いまの1行入力では下限と同じ見た目になる。min-h は将来2行相当の内容で切れないための下限。
         variant === "entry"
-          ? "h-(--control-h-entry) px-4"
-          : "h-(--control-h) md:h-(--control-h-pc-field)",
+          ? "min-h-(--control-h-entry) px-4"
+          : "min-h-(--control-h) md:min-h-(--control-h-pc-field)",
         "w-full min-w-0 rounded-lg bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-(--control-h-xs) file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-muted-foreground aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm",
         insideSurface
           // 面の中: 罫線を持たず背景で区別する
