@@ -61,6 +61,12 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
    * 🚨 表に載っていないコードは `unexpected`（「予期しないエラー」）ではなく
    *    **この画面の `error_save_failed`** に落とす。保存の途中なので、そちらが正確。
    */
+  //
+  // 🚨 `check-i18n-usage` はここも「動的な鍵」として疑い一覧に出す（`tError(key)`）。
+  //    **行ごとの鍵は要りません。** `errorKeyFromApiCode` の戻り値は `ErrorKey`
+  //    ＝ `ERROR_KEYS`（14 個）の union なので、**型が値域を閉じています**。
+  //    実測 2026-08-16: **14 個とも ja / en の両方に在る**。
+  //    ＝ 鍵を増やすときは `ERROR_KEYS` を通るので、`check-i18n-keys` が ja/en 差を捕まえます。
   const fallbackMessage = (code: string | undefined) => {
     const key = errorKeyFromApiCode(code);
     return key === FALLBACK_ERROR_KEY ? t("error_save_failed") : tError(key);
@@ -136,6 +142,17 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
     router.refresh();
   });
 
+  /**
+   * 🚨 `check-i18n-usage` は、ここを「**動的な鍵**」として疑い一覧に出す（`t(labelKey)`）。
+   *    **行ごとの鍵は要りません。** 理由:
+   *    呼び出し元は **4 箇所すべて文字列リテラル**で、鍵は 6 個に固定されている
+   *    （`attribute_email_label` / `attribute_email_help` / `attribute_first_name_label` /
+   *      `attribute_last_name_label` / `attribute_groups_label` / `attribute_groups_help`）。
+   *    実測 2026-08-16: **6 個とも ja / en の両方に在る**。
+   *    🔴 対照(−) 実在しない鍵を混ぜると「欠け」として出るので、この確認は空振りではない。
+   *    🚨 **呼び出し元を増やすときは、その鍵が ja/en 両方に在ることを確かめること**
+   *    （この関数は `t()` に素の文字列を渡すので、`check-i18n-keys` では守られません）。
+   */
   const attributeField = (
     key: keyof typeof attributes,
     labelKey: string,
@@ -241,6 +258,9 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
                 checked={mode === value}
                 onChange={() => setMode(value)}
               />
+              {/* 🚨 `check-i18n-usage` の疑い一覧に出るが、**行ごとの鍵は要りません**。
+                  三項の両辺とも**この行に書いてあるリテラル**で、鍵は 2 個しかありません。
+                  実測 2026-08-16: `entry_metadata` / `entry_manual` とも ja / en の両方に在る。 */}
               {t(value === "metadata" ? "entry_metadata" : "entry_manual")}
             </label>
           ))}
