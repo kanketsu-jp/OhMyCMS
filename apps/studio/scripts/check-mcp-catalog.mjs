@@ -62,43 +62,75 @@ function parseCatalog(source) {
   return tools;
 }
 
+/**
+ * 目録と登録のずれを返す。**ファイルを読まない**ので、囮の文字列をそのまま渡せる。
+ * 🚨 判定を関数にしてあるのは、**毎回その場で「検出できること」を確かめる**ため
+ *    （この家の check-shortcuts / check-user-label-leak と同じ作法。10/23 本が採用している）。
+ */
+function findViolations(sourceText, serverText) {
+  const found = parseCatalog(sourceText);
+  const declaredCount = (sourceText.match(/^[ \t]+ohmycms_[a-z_]+:/gm) ?? []).length;
+  const out = [];
+  if (found.length === 0 || found.length !== declaredCount) {
+    out.push({ rule: "抽出できていない", detail: `宣言 ${declaredCount} 件 / 抽出 ${found.length} 件` });
+    return { tools: found, violations: out };
+  }
+  for (const t of found.filter((x) => !x.title || !x.description)) {
+    out.push({ rule: "文言を取れない", detail: t.name });
+  }
+  const names = [...serverText.matchAll(/registerTool\(\s*"(ohmycms_[a-z_]+)"/g)].map((m) => m[1]);
+  if (names.length === 0) {
+    out.push({ rule: "登録を読めない", detail: "server.ts から 0 件" });
+    return { tools: found, violations: out };
+  }
+  const inCatalog = new Set(found.map((t) => t.name));
+  for (const n of names.filter((n) => !inCatalog.has(n))) {
+    out.push({ rule: "登録が目録に無い", detail: `${n}（画面には出ません）` });
+  }
+  for (const n of found.map((t) => t.name).filter((n) => !names.includes(n))) {
+    out.push({ rule: "目録が登録に無い", detail: `${n}（使えません）` });
+  }
+  return { tools: found, violations: out };
+}
+
 const source = readFileSync(SOURCE, "utf8");
-const tools = parseCatalog(source);
+const serverText = readFileSync(SERVER, "utf8");
 
-// 🚨 「0 件」は情報を持たない。**拾えていないのか、無いのか**をここで割る。
-const declared = (source.match(/^[ \t]+ohmycms_[a-z_]+:/gm) ?? []).length;
-if (tools.length === 0 || tools.length !== declared) {
-  console.error(
-    `🚨 目録を読み取れていません（宣言 ${declared} 件 / 抽出 ${tools.length} 件）。\n` +
-      `   ${SOURCE} の書き方が変わった可能性があります。抽出の正規表現を直してください。`,
-  );
-  process.exit(1);
+// 🚨 自己検査: 囮を仕込んで、**この実行で**検出できることを確かめる。
+//    「違反 0 件」が「異常が無い」なのか「見ていない」なのかを、毎回その場で割るため。
+if (!WRITE) {
+  const probes = [
+    ["囮1: 登録だけ足す（目録を通さない）", source,
+      serverText + '\n  server.registerTool(\n    "ohmycms_zz_probe",\n', "登録が目録に無い"],
+    ["囮2: 目録の字下げを変えて足す", source.replace(/\n\} as const/, '\n    ohmycms_zz_indent: {\n      title: "x",\n      description: "y",\n      annotations: { readOnlyHint: true },\n    },\n} as const'),
+      serverText, "目録が登録に無い"],
+    // 🚨 字下げを前提にしない。2026-08-15、`^ {2}ohmycms_` で書いていたら、
+    //    **4 スペースで足された項目だけ生き残って囮が成立しなくなった**
+    //    （＝本体で直したのと同じ思い込みを、囮の側に残していた）。
+    ["囮3: 目録を丸ごと読めなくする", source.replaceAll("ohmycms_", "zzz_"), serverText, "抽出できていない"],
+  ];
+  let alive = 0;
+  console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
+  for (const [name, src, srv, wantRule] of probes) {
+    const hit = findViolations(src, srv).violations.some((v) => v.rule === wantRule);
+    console.log(`  ${hit ? "✅" : "🚨"} ${name}  → ${hit ? `検出（${wantRule}）` : "**検出できない**"}`);
+    if (hit) alive++;
+  }
+  if (alive !== probes.length) {
+    console.error(`🚨 自己検査に失敗しました（${alive}/${probes.length}）。この検査は信用できません。`);
+    process.exit(1);
+  }
 }
-const missing = tools.filter((t) => !t.title || !t.description);
-if (missing.length > 0) {
-  console.error(`🚨 title か description を取れなかったツール: ${missing.map((t) => t.name).join(", ")}`);
+
+const { tools, violations } = findViolations(source, serverText);
+if (violations.length > 0) {
+  console.error("\n🚨 MCP のツール目録に問題があります。");
+  // 🚨 **何で赤くなったかを出す**。「赤い」と「狙ったものを捕まえた」は別なので、
+  //    rule を書かないと、別の理由で落ちたのを検出だと読んでしまう。
+  for (const v of violations) console.error(`  [${v.rule}] ${v.detail}`);
   process.exit(1);
 }
 
-// 🚨 **目録を通さずに登録する迂回**を塞ぐ。2026-08-15 実測: server.ts に直接
-//    `registerTool("ohmycms_zz", {…inline…})` と書くと、目録も写しも 22 本のままで
-//    **検査は緑**だった（＝画面には永久に出ないツールが増える）。
-//    server.ts は**別のファイル・別の書き方**なので、目録側の思い込みを共有しない。
-const registered = [...readFileSync(SERVER, "utf8").matchAll(/registerTool\(\s*"(ohmycms_[a-z_]+)"/g)]
-  .map((m) => m[1]);
-if (registered.length === 0) {
-  console.error(`🚨 server.ts から登録を1件も読み取れていません（${SERVER}）。書き方が変わった可能性があります。`);
-  process.exit(1);
-}
-const catalogNames = new Set(tools.map((t) => t.name));
-const onlyServer = registered.filter((n) => !catalogNames.has(n));
-const onlyCatalog = tools.map((t) => t.name).filter((n) => !registered.includes(n));
-if (onlyServer.length > 0 || onlyCatalog.length > 0) {
-  console.error("🚨 目録と、実際に登録されているツールがずれています。");
-  for (const n of onlyServer) console.error(`  + ${n}（server.ts で登録しているが目録に無い＝画面には出ません）`);
-  for (const n of onlyCatalog) console.error(`  - ${n}（目録にあるが登録されていない＝使えません）`);
-  process.exit(1);
-}
 
 const rendered = JSON.stringify(tools, null, 2) + "\n";
 
