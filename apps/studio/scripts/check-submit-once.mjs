@@ -68,6 +68,21 @@ const PENDING = [
 ];
 
 /**
+ * PENDING に許す件数の上限（ラチェット）。
+ *
+ * 🚨 なぜ要るか: 直前のコメント（「減らすためのリストであり、増やすためのものではない」）は
+ * 何も強制していなかった。違反を直す代わりにここへ1件足しても検査は黙って green のままで、
+ * それは注意書きであって防御ではない。この定数に「今 PENDING に何件あるか」を実測してそのまま
+ * 書く（自動導出しない）。PENDING.length がこれを超えたら検査を FAIL にする。上限を上げたい人は
+ * この行を意図的に書き換える必要があり、その変更は差分としてレビューに必ず出る＝黙っては増やせない。
+ *
+ * 下げるのは自由で、むしろ推奨。PENDING が減ったら、このリテラルも一緒に下げること
+ * （下の「PENDING の上限」検査が、下げ忘れをその都度促す）。ラチェットは締め続けないと
+ * 意味を持たない——上限だけ置いて誰も下げなければ、それもまた「言うだけ」に戻ってしまう。
+ */
+const MAX_PENDING = 2;
+
+/**
  * classifyMethodValue が返す reason の正本。値は必ずここにだけ書く。
  *
  * 🚨 なぜ要るか（2026-08-15 追加）: この定数を作る前は "literal" / "unreadable" という
@@ -244,6 +259,24 @@ for (const entry of PENDING) {
   }
 }
 
+// ── PENDING の上限検査（ラチェット。「増やすためのものではない」を実際に強制する）──
+// 🚨 これは直前の腐敗検査（stale）とは別物: stale は「もう要らない例外が残っている」を
+// 検出し、こちらは「例外の“数”自体が増えていないか」を検出する。片方が緑でももう片方が
+// 赤になり得る（例: 古い例外を消さずに新しい例外を足すと両方赤くなる）。
+const pendingExceeded = PENDING.length > MAX_PENDING;
+const pendingBelowCeiling = PENDING.length < MAX_PENDING;
+
+if (pendingExceeded) {
+  console.error("\n■ 例外リスト（PENDING）が増えました");
+  console.error(`  上限 ${MAX_PENDING} 件に対して、現在 ${PENDING.length} 件あります。`);
+  console.error("  この例外リストは違反を減らすためのものであり、違反を直す代わりに");
+  console.error("  エントリを足して green を保つためのものではありません（PENDING 直前のコメント参照）。");
+  console.error("  上限を上げる必要が本当にあるなら、check-submit-once.mjs の MAX_PENDING を");
+  console.error("  意図的に書き換えてください。その変更が差分としてレビューに出ることが目的です。");
+} else if (pendingBelowCeiling) {
+  console.log(`\nPENDING は ${PENDING.length} 件・上限 ${MAX_PENDING} 件です。減らせたなら MAX_PENDING も下げてください（ラチェットを締める）。`);
+}
+
 // 🚨 reason が分類できていない hit の検査（reasonLabel 自身が壊れていないかの自己検査）。
 // なぜ要るか: 分類できない hit は「変更系かもしれない」側に倒すため必ず unguarded にも
 // 積まれ、そちらの exit 1 だけで検査は落ちる。だが exit コードは「未防御があるから落ちた」
@@ -379,5 +412,11 @@ if (selfTestFailed) {
 }
 
 process.exit(
-  unguarded.length === 0 && !selfTestFailed && staleExceptions.length === 0 && unclassified.length === 0 ? 0 : 1,
+  unguarded.length === 0 &&
+    !selfTestFailed &&
+    staleExceptions.length === 0 &&
+    unclassified.length === 0 &&
+    !pendingExceeded
+    ? 0
+    : 1,
 );
