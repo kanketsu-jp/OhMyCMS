@@ -1951,10 +1951,19 @@ for (const vp of VIEWPORTS) {
       violations.push({ key, rule: "本文の幅", detail: `body が ${r.bodyWidth}px（画面幅 ${r.viewportWidth}px の 90% 未満）` });
     }
     // 🚨 「潰れ」は最優先。壊れていても他の検査は全部通ってしまうため（2026-08-13 の実例）。
+    // 🚨 この規則の前提: **同じ親に並ぶ要素の「中身」が同じであること。**
+    //    中身が違えば、CSS が同じでも文字の重心はずれる。それは指定漏れではない。
+    //    実例（2026-08-16・/admin/files）: タイル 23 件のうち **画像 18 件は off 0、
+    //    画像でない 5 件（txt / svg / html）は off 61.8**。拡張子のラベルが箱の上部に
+    //    描かれるため。**全タイルのクラスは同じ**。＝ 同じ CSS でも中身が違えば出る。
+    //    緩めると本物の指定漏れを逃すので、判定は残し、**detail で「中身が同じかを先に見よ」と言う**。
     if (r.misalignedCount > 0) {
       violations.push({
         key, rule: "§1 行の揃い",
-        detail: `${r.misalignedCount} 箇所で、高さは同じなのに文字の縦位置がずれています（align-items の指定漏れ）`,
+        detail:
+          `${r.misalignedCount} 箇所で、高さは同じなのに文字の縦位置がずれています。` +
+          `🚨 まず「並んでいる要素の中身が同じか」を見てください（この規則は中身が同じことを前提にしています）。` +
+          `同じなら align-items の指定漏れです。`,
         worst: r.misaligned.slice(0, 3),
       });
     }
