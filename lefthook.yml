@@ -130,6 +130,14 @@ pre-commit:
     health-schema:
       run: node apps/studio/scripts/check-health-schema.mjs
 
+    # 不具合報告が画面から送る鍵が、サーバが読む範囲に収まっているか。
+    # 🚨 `bug-report-composer.tsx` は「自動で集めるものを増やさない」と宣言していたが、
+    #    **守っているコードが無かった**（規律12）。サーバは validate() で受ける鍵を絞っているので
+    #    保存はされないが、**送った時点でログ・プロキシには乗る**。線を越える側を止める。
+    # 🚨 見ているのは**この 1 経路だけ**。他のフォームは見ていない。
+    report-body-keys:
+      run: node apps/studio/scripts/check-report-body-keys.mjs
+
     # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
     knowledge:
       run: bash .lefthook/rokf-doctor.sh
