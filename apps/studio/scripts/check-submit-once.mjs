@@ -49,29 +49,43 @@ const METHOD_KEY = /method:\s*/g;
 const SNIPPET_HORIZON = 300;
 
 /**
- * `method:` の値を判定する。
- * リテラル文字列（`'` か `"`）なら中身を読んで POST/PATCH/DELETE かどうかで決める。
+ * `method:` の値を判定する。**拾うか（isMutation）と、なぜ拾ったか（reason）**をペアで返す。
+ *
+ * リテラル文字列（`'` か `"`）なら中身を読んで POST/PATCH/DELETE かどうかで決める
+ * （拾う場合 reason: "literal" = 本当に変更系）。
  *
  * 🚨 識別子・三項演算子・テンプレートリテラル（`` ` ``）など**中身が読めないもの**は、
- * 変更系かもしれないので変更系として扱う（過検出に倒す。取りこぼす側より安全 — 2.2節）。
+ * 変更系かもしれないので変更系として扱う（過検出に倒す。取りこぼす側より安全 — 2.2節。
+ * reason: "unreadable" = 値が読めないので変更系として扱った）。
  * 三項演算子（`method: editing ? "PATCH" : "POST"`）を読み落として1本取りこぼした前科が
  * あるので（33行目のコメント参照）、「読めないなら疑う」を既定にする。
+ *
+ * 🚨 reason は「なぜ赤くなったか」を報告に載せるために存在する（2026-08-15 追加）。
+ * "literal" と "unreadable" は見た目が同じ1行の報告になるが中身は別物なので、
+ * 呼び出し側は必ずこの reason を表示に使うこと（黙って握りつぶさない）。
  */
-function isMutationValue(value) {
+function classifyMethodValue(value) {
   const quoted = /^(['"])((?:\\.|(?!\1).)*)\1/.exec(value);
-  if (quoted) return /^(?:POST|PATCH|DELETE)$/.test(quoted[2]);
-  return true;
+  if (quoted) {
+    const isMutation = /^(?:POST|PATCH|DELETE)$/.test(quoted[2]);
+    return isMutation ? { isMutation: true, reason: "literal" } : { isMutation: false, reason: null };
+  }
+  return { isMutation: true, reason: "unreadable" };
 }
 
 /**
- * ソースの中の `method:` を全部拾い、変更系と判定された出現の**行番号**（元のソース基準・0始まり）を返す。
+ * ソースの中の `method:` を全部拾い、変更系と判定された出現の**行番号と理由（reason）**を
+ * `{ line, reason }` の配列で返す（行番号は元のソース基準・0始まり）。
  *
  * 🚨 `method:` の直後だけを空白ひとつに正規化した「照合専用の文字列」（snippet）を作って判定する。
  * **行番号は正規化していない元のソースから数える**（正規化した文字列から行を数えると、
  * 潰した改行の分だけ報告の行番号がずれて、直す人が使えなくなる）。
+ *
+ * 同じ行に `method:` が複数回出て reason が割れた場合は "unreadable" を優先する
+ * （見落としより過検出に倒す、という本体の方針をここでも維持する）。
  */
 function findMutationLines(source) {
-  const lines = new Set();
+  const hits = new Map(); // line -> reason
   METHOD_KEY.lastIndex = 0;
   let m;
   while ((m = METHOD_KEY.exec(source))) {
@@ -79,11 +93,19 @@ function findMutationLines(source) {
     const snippet = raw.replace(/\s+/g, " ");
     const prefix = /^method:\s*/.exec(snippet);
     const value = snippet.slice(prefix[0].length);
-    if (isMutationValue(value)) {
-      lines.add(source.slice(0, m.index).split("\n").length - 1);
-    }
+    const { isMutation, reason } = classifyMethodValue(value);
+    if (!isMutation) continue;
+    const line = source.slice(0, m.index).split("\n").length - 1;
+    if (reason === "unreadable" || !hits.has(line)) hits.set(line, reason);
   }
-  return [...lines].sort((a, b) => a - b);
+  return [...hits.entries()].map(([line, reason]) => ({ line, reason })).sort((a, b) => a.line - b.line);
+}
+
+/** 検出理由を短い日本語ラベルにする（既存の path:line 出力と同じ行に添える用）。 */
+function reasonLabel(reason) {
+  if (reason === "literal") return 'method: が POST/PATCH/DELETE（本当に変更系）';
+  if (reason === "unreadable") return "method: の値が読めない（識別子/三項演算子/テンプレート等）ため変更系として扱った（過検出）";
+  return "";
 }
 
 const files = globSync("{app,components}/**/*.tsx", { cwd: root }).sort();
@@ -97,7 +119,7 @@ for (const file of files) {
   const lines = source.split("\n");
   const skip = PENDING.find((p) => p.file === file);
 
-  for (const i of findMutationLines(source)) {
+  for (const { line: i, reason } of findMutationLines(source)) {
     // 直前の関数入口まで遡る
     let owner = null;
     for (let j = i; j >= 0 && i - j < 60; j -= 1) {
@@ -107,7 +129,7 @@ for (const file of files) {
       break;
     }
 
-    const entry = { file, line: i + 1, owner: owner?.name ?? "(不明)" };
+    const entry = { file, line: i + 1, owner: owner?.name ?? "(不明)", reason };
     if (skip) pending.push({ ...entry, who: skip.owner });
     else if (!owner || owner.kind === "bare") unguarded.push(entry);
     else guarded.push(entry);
@@ -133,14 +155,14 @@ if (suspects.length > 0) {
 
 if (pending.length > 0) {
   console.log("\n■ 移行待ち（担当が別）");
-  for (const p of pending) console.log(`  ${p.file}:${p.line}  ${p.owner}  ← ${p.who}`);
+  for (const p of pending) console.log(`  ${p.file}:${p.line}  ${p.owner}  ← ${p.who}  ｜ ${reasonLabel(p.reason)}`);
 }
 
 if (unguarded.length > 0) {
   console.error("\n■ 二重送信の防御がありません");
   console.error("  変更系の送信は hooks/use-submit-once.ts の useSubmitOnce を通してください。");
   console.error("  useState / disabled では防げません（setState は非同期で、2回目の押下に間に合いません）。\n");
-  for (const h of unguarded) console.error(`  ${h.file}:${h.line}  関数 ${h.owner}`);
+  for (const h of unguarded) console.error(`  ${h.file}:${h.line}  関数 ${h.owner}  ← ${reasonLabel(h.reason)}`);
 } else {
   console.log("未防御なし。");
 }
