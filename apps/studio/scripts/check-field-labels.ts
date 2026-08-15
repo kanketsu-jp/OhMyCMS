@@ -5,15 +5,20 @@
  *   表示 … 辞書が無いとき **生の識別子に落ちる**こと（＝既存の画面が変わらないこと）
  *   書込 … 壊れた形を **通さない**こと（fail-closed）
  *
- * 🚨 **この検査が見ていない形**（2026-08-16・見逃す入力を作って確かめた。推測ではない）:
- *   **長さの上限なし** ／ **改行を含む名前** ／ **タグを含む名前** ／ **制御文字を含む名前**
- *   → どれも**そのまま保存されます**。画面に出すのは React なので**スクリプトは実行されません**が、
- *     **1 行に収まらない名前・見えない文字を含む名前**は通ります。
- *   （通ってしまうことを、実行のたびに末尾で表示します）
+ * 🚨 **この検査が見ていない形は、ここに書きません。**（2026-08-16）
+ *   **実行のたびに末尾で一覧を出し、【鳴る】形にしてあります**——
+ *   「見逃す」と書いたものが**拾えるようになったら失敗**します。
+ *   🚨 **散文でも同じことを書くと、片方が必ず腐ります**（今日ずっと出ている「本文と要約の食い違い」）。
+ *   **正は毎回の出力です。**
+ *
+ * 🚨 **固定の説明**（毎回の出力では言えないので、ここに置く。**古くなっても鳴りません**）:
+ *   見逃す形はどれも**そのまま保存されます**。描くのは React なので**スクリプトは実行されません**が、
+ *   **1 行に収まらない名前**と**見えない文字を含む名前**は通ります。
  *
  * 🚨 **「検出されてはいけないもの」も入れてある**（正しい形が通ること）。
  *    逆方向が無いと過検出を捕まえられない。
  */
+import { readFileSync } from "node:fs";
 import { fieldLabel, parseFieldTranslations } from "../lib/schema/labels";
 let ok=0, ng=0;
 const t=(名:string, 実:unknown, 期待:unknown)=>{ const p=JSON.stringify(実)===JSON.stringify(期待);
@@ -46,6 +51,36 @@ t("🚨 文字列そのものは undefined", parseFieldTranslations("本文"), u
 t("pt-BR のような鍵は小文字で保存される", parseFieldTranslations({"pt-BR":"Corpo"}), {"pt-br":"Corpo"});
 t("🚨 大文字の鍵でも引ける（読む側も小文字に寄せる）", fieldLabel(f({JA:"本文"}),"ja"), "本文");
 
+// ── 🚨 **外側の門が生きているか**（2026-08-16・「囮は実物より内側に入りたがる」への対処）──
+// この検査の囮は `parseFieldTranslations()` を直接呼ぶ。**入口と結果が一致することは実測した**が、
+// 🚨 **その関数を「呼ぶ側」が消えても、囮は緑のまま**になる。
+// 実測: この検査は `service.ts` に **1 箇所も触れていなかった**（`service` の一致 0 件 /
+// 🟢 対照 `labels` は 2 件）。＝ **書き込み経路から検査が外れても気づけない状態だった。**
+// → **呼ぶ側の存在を、ここで見る**（中身の正しさではなく、**経路に居ること**）。
+{
+  const service = readFileSync(new URL("../lib/schema/service.ts", import.meta.url), "utf8");
+  // 🚨 コメントを落としてから見る（「コメントに書いただけ」を実装として数えない）
+  const 実 = service.split("\n").map((l) => l.split("//")[0]).join("\n");
+  // 🚨 **ファイル全体で探さない**（2026-08-16 実測）。`assertFieldMetaShape` の中に
+  //    `"translations" in meta` が在るので、**許可リストから外しても素通りした**。
+  //    → **FIELD_META_COLUMNS の中だけ**を切り出して見る。
+  const 許可リスト = (() => {
+    const i = 実.indexOf("const FIELD_META_COLUMNS");
+    if (i < 0) return "";
+    const j = 実.indexOf("]);", i);
+    return j < 0 ? "" : 実.slice(i, j);
+  })();
+  t("🟢 対照(+) 許可リストを切り出せている", 許可リスト.includes('"note"'), true);
+  t("service.ts の許可リストに translations が在る", 許可リスト.includes('"translations"'), true);
+  t(
+    "service.ts が assertFieldMetaShape を呼んでいる（定義 1 + 呼び出し 2）",
+    (実.match(/assertFieldMetaShape\(/g) ?? []).length >= 3,
+    true,
+  );
+  // 🟢 対照(+): 同じ読み方で必ず在るものが見つかる（＝ service.ts を読めている）
+  t("🟢 対照(+) service.ts を読めている", 実.includes("FIELD_META_COLUMNS"), true);
+}
+
 // ── 🚨 この検査が「見逃す入力」を、自分で作って通す ──────────────
 // 🚨 **囮は実物と同じ道を通っているか**（2026-08-16・配られた規律）。
 //    ここは `parseFieldTranslations()` を**直接**呼んでいる。実物の道は
@@ -66,7 +101,7 @@ t("🚨 大文字の鍵でも引ける（読む側も小文字に寄せる）", 
     ["タグを含む名前", { ja: "<script>alert(1)</script>" }],
     ["制御文字を含む名前", { ja: `本${CTRL}文` }],
   ];
-  console.log("■ 🚨 この検査が見逃す形（通ってしまうことを、毎回その場で示す）");
+  console.log("■ 【鳴る】この検査が見逃す形（拾えるようになったら失敗します）");
   for (const [名, 入力] of 見逃す) {
     const r = parseFieldTranslations(入力);
     console.log(`  ${r === undefined ? "🟢 拾う" : "🚨 見逃す"}  ${名}`);
