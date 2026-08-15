@@ -89,6 +89,12 @@ export function ReportThread({ report, messages, viewerId, canManage }: Props) {
     { whileTyping: true },
   );
 
+  // 🚨 **行ごとの鍵（keyOf）は要りません。** `check-submit-once` が
+  //    「引数つきで呼んでいるのに isPending を使っていない」として疑いに挙げますが、
+  //    ここの引数 `next` は**どの行か**ではなく**どちらへ変えるか**（開く/解決）です。
+  //    対象は常に `report.id` の 1 件で、この画面に他の行はありません（実測 2026-08-16・
+  //    呼び出しは 1 箇所）。**鍵を分けても分ける先が無い**ので、共有の鍵のままが正しい。
+  //    決定: 2026-08-16 / shell / **要らない**（未決ではありません）。
   const changeStatus = useSubmitOnce(async (next: "open" | "resolved") => {
     const response = await fetch(`/api/reports/${report.id}`, {
       method: "PATCH",
