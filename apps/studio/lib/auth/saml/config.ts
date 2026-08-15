@@ -250,6 +250,42 @@ export type SamlConfigInput = {
 };
 
 /** URL は http/https のみ許す（`javascript:` などを IdP の入口にしない）。 */
+/**
+ * SP の Entity ID が「すべての環境で同じ値」として使えるかを確かめる。
+ *
+ * 🚨 **この設定行は 1 行しかなく、:3101 / :3102 / :3103 が同じ行を見る。**
+ *    そこへ `http://localhost:3103/...` のような**その環境でしか正しくない値**を入れると、
+ *    **他の環境から来た要求で Issuer と ACS URL が食い違い、IdP に弾かれる**
+ *    （2026-08-14 に実際に起きた。症状は「急にログインできなくなった」で、
+ *      **直前にコードを触った人が自分を疑う**形になる）。
+ *
+ * 🚨 それまでは「原則、空のままにすること」と**コメントに書いてあるだけ**で、
+ *    **守っているコードが 1 行も無かった**（画面には出していないが、API は素通しだった）。
+ *    ＝ コメントが在ることは、守られていることではない。**ここが守り手。**
+ *
+ * 判定は**構造で**行う: **共有する識別子が loopback を指すことはありえない。**
+ * （Entity ID は URL とは限らない。URN 等はそのまま通す）
+ */
+function assertSharedEntityId(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return value; // URL でないなら（URN 等）、この判定の対象外
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return value;
+
+  const host = url.hostname.toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "[::1]" || host === "::1") {
+    throw new ApiError(
+      400,
+      "INVALID_SP_ENTITY_ID",
+      "SP の Entity ID に localhost は使えません（この設定はすべての環境で共有されるため）",
+    );
+  }
+  return value;
+}
+
 function validateUrl(value: string, field: string): string {
   let url: URL;
   try {
@@ -282,7 +318,11 @@ export async function updateSamlConfig(
       ? JSON.stringify(input.idpCertificates.map(normalizeCertificate))
       : null;
   }
-  if (input.spEntityId !== undefined) patch.sp_entity_id = input.spEntityId?.trim() || null;
+  if (input.spEntityId !== undefined) {
+    const value = input.spEntityId?.trim();
+    // 🚨 空に戻すのは常に許す（既定へ戻す道を塞がない）。値を入れるときだけ確かめる。
+    patch.sp_entity_id = value ? assertSharedEntityId(value) : null;
+  }
   if (input.grantAllEnabled !== undefined) patch.grant_all_enabled = Boolean(input.grantAllEnabled);
   if (input.grantAllPolicy !== undefined) patch.grant_all_policy = input.grantAllPolicy?.trim() || null;
 
