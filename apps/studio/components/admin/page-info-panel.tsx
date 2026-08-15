@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/accordion";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { PanelDisplay } from "@/components/admin/panel-display";
+import { PanelApiMcp } from "@/components/admin/panel-api-mcp";
 import { PanelLogs } from "@/components/admin/panel-logs";
 import { useT } from "@/i18n/client";
 import { pageMeta } from "@/lib/admin/page-meta";
@@ -103,13 +104,11 @@ export function PageInfoPanel() {
           🚨 **一覧ページ以外では `null` を返す**ので、ここに枠は残らない（①概要と同じ規律）。 */}
       <PanelDisplay />
 
-      {/* ④ API・MCP。
-          TODO: 原典は「**OpenAPI から抽出できるならそうする**」＝ここに手で書かない。
-          MCP でこのページや選択中の ID を LLM へ渡すプロンプトを**コピーできる**ようにする。 */}
-      <AccordionItem value="api">
-        <AccordionTrigger>{t("api_mcp")}</AccordionTrigger>
-        <AccordionContent className="text-muted-foreground">{t("todo")}</AccordionContent>
-      </AccordionItem>
+      {/* ④ API・MCP。中身は `components/admin/panel-api-mcp.tsx`。
+          🚨 原典の「**OpenAPI から抽出できるならそうする**」は、**抽出元がこのリポジトリに無い**
+             （実測・囮つきで確認）ため形式では満たせない。原文の理由「DRY・マスタは1つ」を守り、
+             MCP の目録（`packages/mcp/src/catalog.ts`）を唯一の正にしてある。詳細は同ファイルの冒頭。 */}
+      <PanelApiMcp />
 
       {/* ⑤ ログ・履歴。中身は `components/admin/panel-logs.tsx`。
           🚨 権限が無い / 一覧・詳細ページ以外では `null` を返すので、ここに枠は残らない。 */}
