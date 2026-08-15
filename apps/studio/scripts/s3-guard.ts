@@ -10,6 +10,17 @@
 export const PRODUCTION_BUCKETS = new Set(["ohmycms"]);
 /** 検証用に使ってよいバケット名。 */
 export const VERIFY_BUCKET = "ohmycms-verify";
+/**
+ * 「ローカルの検証用ストレージ」とみなすホスト名。
+ *
+ * 🚨 **この一覧は、私の手元の docker 構成で決めた値**（`docker/compose.yml` の MinIO）。
+ *    **別の環境では当たりません。** CI や他の人の機械で別名を使うなら、ここへ足すこと。
+ * 🚨 **足りないと「ローカルなのに止まる」** …… 安全側に倒れるので、実害は「測れない」だけ。
+ *    **余計に足すと「ローカルでないのに通る」** …… こちらは危険。**足すときは名前を1つずつ。**
+ *
+ * 🚨 **この一覧は守りの本体ではない。** 本体は「本番のバケット名なら無条件で落とす」で、
+ *    そちらは**ホスト名に一切依存しません**（`--allow-remote` でも通らない）。
+ */
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "minio", "ohmycms-minio"]);
 
 export type GuardInput = {
