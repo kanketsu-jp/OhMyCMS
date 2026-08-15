@@ -11,6 +11,7 @@
  */
 
 import { isSecureRequest, sessionCookieHeader } from "@/lib/auth/cookies";
+import { isAllowedEmail, recordAllowlistCheck } from "@/lib/auth/saml/allowlist";
 import { getSamlConfig } from "@/lib/auth/saml/config";
 import { safeRelativePath } from "@/lib/auth/urls";
 import { acsUrl, metadataUrl } from "@/lib/auth/saml/urls";
@@ -53,6 +54,15 @@ export async function POST(request: Request) {
       // 🚨 IdP で認証できても、こちら側で止めている利用者は入れない。
       throw new ApiError(403, "USER_SUSPENDED", "この利用者は利用を停止されています");
     }
+
+    // 🚨 許可リストとの照合はここで**記録するだけ**。403 は投げない。
+    //    「入れて、権限を与えない」設計(`docs/design/sso-user-provisioning.md` §1)なので、
+    //    一覧に無い人もこのままセッションを作る。落とすのは認可の層(`requireAdminAccess` 等)。
+    //    メールを送らない IdP の利用者(identity.email === null)は `isAllowedEmail` が
+    //    そのまま false を返す ── 管理者がその値を一覧に足しようがないため、
+    //    一覧に無い人と同じ扱いにする(§3.3)。
+    const allowed = await isAllowedEmail(identity.email);
+    await recordAllowlistCheck(user.id, allowed);
 
     const session = await issueSession(user.id, request);
 
