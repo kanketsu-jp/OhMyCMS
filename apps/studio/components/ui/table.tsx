@@ -69,7 +69,11 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        // 🚨 素の `h-10` を書かない。高さは app/globals.css の --control-h-* だけが決める
+        //    （2026-08-15。トークンを動かしても素の数字は追随せず、置き去りが静かに増える。
+        //     実際 --control-h-pc を 32→36px にしたとき、素の値のファイルだけ取り残された）。
+        //    40px は --control-h-pc-lg と同値なので、**見た目は変わらない**。
+        "h-(--control-h-pc-lg) px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
