@@ -189,12 +189,13 @@ function ToastList() {
               </div>
             ) : null}
           </div>
+          {/* 44px の当たり判定は縮めず、負の縦マージンで行の高さへの寄与だけを本文1行ぶんに抑える。 */}
           <Button
             type="button"
             data-slot="toast-close"
             variant="ghost"
             size="icon-sm"
-            className="-mt-0.5 shrink-0 hover:bg-black/5 dark:hover:bg-white/10"
+            className="-my-3 shrink-0 hover:bg-black/5 dark:hover:bg-white/10"
             onClick={() => close(item.id)}
           >
             <XIcon />
