@@ -248,7 +248,10 @@ export function LeftSidebar({
       <SidebarHeader className="gap-3 px-2 py-3">
         <Link
           href="/admin"
-          className="flex h-8 min-w-0 items-center gap-2 rounded-md px-2 text-base font-semibold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+          // 🚨 `h-` のまま（`min-h-` にしない）。ここは**高さを固定したい**行で、
+          //    `min-h-` にすると中身の自然な高さまで伸びる（sidebar.tsx で親の行が 32→36px に伸びた）。
+          //    32px は `--control-h-pc-sm`＝サイドバーの行の高さと同じ段。
+          className="flex h-(--control-h-pc-sm) min-w-0 items-center gap-2 rounded-md px-2 text-base font-semibold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
           {logo ? (
             // eslint-disable-next-line @next/next/no-img-element -- 外部URLもありうるので Image コンポーネントを使わない
