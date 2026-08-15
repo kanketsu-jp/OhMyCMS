@@ -126,3 +126,26 @@ export async function downloadFile(
   }
   return buffer;
 }
+
+/**
+ * 繋いだ Google アカウントのメールアドレス。**表示のためだけ**に使う。
+ *
+ * 🚨 **取れなくても連携は成功させる**（null を返す）。これは「どのアカウントに繋いだか」を
+ *    画面に出すための飾りで、**飾りのために本体（連携）を落とさない**。
+ * 🚨 `drive.readonly` の範囲で取れる情報。**追加のスコープを求めない**。
+ */
+export async function getAccountEmail(accessToken: string): Promise<string | null> {
+  try {
+    const response = await fetch(
+      "https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)",
+      { headers: { authorization: `Bearer ${accessToken}` } },
+    );
+    if (!response.ok) return null;
+    const payload = (await response.json().catch(() => null)) as
+      | { user?: { emailAddress?: string } }
+      | null;
+    return payload?.user?.emailAddress ?? null;
+  } catch {
+    return null;
+  }
+}

@@ -51,6 +51,7 @@ export const SETTINGS_DEFAULTS = {
   s3_force_path_style: "false",
   s3_key_prefix: "",
   google_client_id: "",
+  drive_client_id: "",
   smtp_host: "",
   smtp_port: "",
   smtp_user: "",
@@ -71,6 +72,8 @@ export type Settings = {
   s3_force_path_style: string;
   s3_key_prefix: string;
   google_client_id: string;
+  /** Google ドライブ連携の client_id。🚨 PKCE なので秘密ではない（暗号化しない列）。 */
+  drive_client_id: string;
   google_client_secret_set: boolean;
   smtp_host: string;
   smtp_port: string;
@@ -98,6 +101,7 @@ export type SettingsKey =
   | "s3_force_path_style"
   | "s3_key_prefix"
   | "google_client_id"
+  | "drive_client_id"
   | "google_client_secret"
   | "smtp_host"
   | "smtp_port"
@@ -140,6 +144,7 @@ const WRITABLE_KEYS: SettingsKey[] = [
   "s3_force_path_style",
   "s3_key_prefix",
   "google_client_id",
+  "drive_client_id",
   "google_client_secret",
   "smtp_host",
   "smtp_port",
@@ -257,6 +262,7 @@ export async function getSettings(): Promise<Settings> {
   );
   const s3KeyPrefix = resolve("s3_key_prefix", SETTINGS_DEFAULTS.s3_key_prefix);
   const googleClientId = resolve("google_client_id", SETTINGS_DEFAULTS.google_client_id);
+  const driveClientId = resolve("drive_client_id", SETTINGS_DEFAULTS.drive_client_id);
   const googleClientSecret = resolveSecret("google_client_secret");
   const smtpHost = resolve("smtp_host", SETTINGS_DEFAULTS.smtp_host);
   const smtpPort = resolve("smtp_port", SETTINGS_DEFAULTS.smtp_port);
@@ -278,6 +284,7 @@ export async function getSettings(): Promise<Settings> {
     s3_force_path_style: s3ForcePathStyle.value,
     s3_key_prefix: s3KeyPrefix.value,
     google_client_id: googleClientId.value,
+    drive_client_id: driveClientId.value,
     google_client_secret_set: googleClientSecret.set,
     smtp_host: smtpHost.value,
     smtp_port: smtpPort.value,
@@ -299,6 +306,7 @@ export async function getSettings(): Promise<Settings> {
       s3_force_path_style: s3ForcePathStyle.source,
       s3_key_prefix: s3KeyPrefix.source,
       google_client_id: googleClientId.source,
+      drive_client_id: driveClientId.source,
       google_client_secret: googleClientSecret.source,
       smtp_host: smtpHost.source,
       smtp_port: smtpPort.source,
