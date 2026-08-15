@@ -246,14 +246,22 @@
 
      🚨 秒数は components/ui/toast.tsx の `TOAST_TIMEOUT_MS` と**対で 3 秒**。
         片方だけ変えると、バーが端に着く前に消える／着いたのに残る＝表示が嘘をつく。
-     🚨 width ではなく transform を動かす。width はレイアウトを毎フレーム計算させるので、
-        トーストの中の文字が微妙に揺れる。 */
+     🚨 width ではなく scale を動かす。width はレイアウトを毎フレーム計算させるので、
+        トーストの中の文字が微妙に揺れる。
+
+     🚨 **`transform: scaleX()` で書かないこと。** Tailwind v4 は `scale-x-*` を
+        **`scale` プロパティ**へ出す（`.scale-x-0 { scale: var(--tw-scale-x) var(--tw-scale-y) }`）。
+        v4 は transform を translate / scale / rotate の 3 プロパティに割ったので、
+        keyframes 側で `transform` を動かすと**上書きではなく掛け算**になる。
+        実測 2026-08-16: `scale: 0 1`（要素側）× `transform: matrix(0.594…)`（この animation）
+        ＝ **面の幅が 0px のまま**で、animation は走り色も付いているのに**一度も描かれていなかった**。
+        （`getBoundingClientRect().width` が 0。🟢 対照: 同じ計器で箱は 384px を返していた） */
   @keyframes ohmycms-toast-progress {
     from {
-      transform: scaleX(0);
+      scale: 0 1;
     }
     to {
-      transform: scaleX(1);
+      scale: 1 1;
     }
   }
 }
