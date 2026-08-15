@@ -102,6 +102,27 @@ design は「両立しない」という結論をそのまま受け取って実�
 
 濃さは **hover と同じ**にする。押し込みの手応えは `components/ui/button.tsx` の base が持つ
 `active:not-aria-[haspopup]:translate-y-px`（1px 沈む）が担当している。
+
+🚨 **ただし、これは `Button` を使っている要素にしか当てはまらない**（2026-08-15 追記）。
+素の `<tr>` / `<div>` / `<button>` は**沈み込みを継承しない**ので、
+**色だけが押した手応え**になる。そこで `active:` を `hover:` より**薄く**すると、
+**PC では「押すと手応えが弱くなる」**という逆向きになる。
+
+実測（配信 CSS を読んだ・2026-08-15）:
+```
+hover:bg-muted      → background-color: var(--muted)                                （100%）
+active:bg-muted/80  → color-mix(in oklab, var(--muted) 80%, transparent)             （**薄い**）
+```
+＝ `<tr>` や素の `<button>` に付いていた `hover:bg-muted active:bg-muted/80` は、
+**押すと薄くなる**形だった（4 ファイル・6 箇所）。
+
+**判断の順序:**
+```
+① その要素は Button か → **はい** … active は hover と同じでよい（沈み込みが手応えを持つ）
+②                     → **いいえ** … 🚨 **active は hover と同じか、より濃く**。薄くしない
+```
+🚨 **「濃さは hover と同じ」を、沈み込みの無い要素へそのまま当てない。**
+規約を書いたときに、この範囲の条件を書いていなかった。
 🚨 実測（2026-08-15・base2）: 押下時に `translate` が **`0px 0.983px`**（`transition-all` の途中）。
 **`transform` ではなく `translate` プロパティ**に入るので、`transform` を読むと永久に `none` に見える。
 
