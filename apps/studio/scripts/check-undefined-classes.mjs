@@ -1,65 +1,93 @@
 #!/usr/bin/env node
 /**
- * 参照しているのにどこにも定義が無いクラスを見つける。
+ * `cn-*` という独自クラスを**持ち込んでいない**ことを確かめる。
  *
- * 🚨 由来: 2026-08-15。`components/ui/dropdown-menu.tsx` と `avatar.tsx` が
- * `cn-dropdown-menu-item` のような**独自クラスを 21 個参照していたのに、CSS に定義が 0 件**だった。
- * 上流（shadcn の base-nova）はこれらを自前の CSS 層で持っているが、
- * このリポジトリはその層を取り込んでいない。**結果、メニューとアバターが素のまま出ていた。**
+ * 🚨 由来: 2026-08-15。shadcn の base-nova から入れた `dropdown-menu.tsx` / `avatar.tsx` が
+ *    `cn-dropdown-menu-item` のような独自クラスを **21 個参照していたのに、CSS に定義が 0 件**だった。
+ *    上流はこれらを自前の CSS 層で持っているが、このリポジトリはその層を取り込んでいない。
+ *    **結果、メニューとアバターが素のまま画面に出ていた**（堀池さんのスクリーンショット 2 枚）。
  *
- * 🚨 **なぜ既存の検査で見つからなかったか。**
- * 面の監査は「面の深さ・高さ・あふれ」を測る。**素のままのメニュー項目も高さは正しい**ので、
- * 14 ページ × 2 幅が緑のまま壊れていた。**見た目の欠落は、寸法の検査では見えない。**
- * → 「参照はあるが定義が無い」という**別の目**が要る。
+ * 🚨 なぜ寸法の検査で見つからなかったか:
+ *    面の監査は「面の深さ・高さ・あふれ」を測る。**素のままのメニュー項目も高さは正しい**ので、
+ *    14 ページ × 2 幅が緑のまま壊れていた。**見た目の欠落は、寸法の検査では見えない。**
  *
- * 対象は `cn-` で始まるクラスだけ。Tailwind のクラスは対象にしない
- * （生成されるので「定義が無い」の判定ができず、誤検出だらけになる）。
+ * ## この検査が見ている規則
+ *
+ * **このリポジトリに `cn-*` の CSS 層は無い。だから `cn-*` を書かない。**
+ * 決定は `knowledge/decisions/` ではなくここに書いてある（上流の部品を入れるたびに読む場所なので）:
+ * **CSS の層を新しく作らない。同じリポジトリの `select.tsx` のように Tailwind のクラスで書く。**
+ * 上流の CSS 層を部分的に持ち込むと、次に shadcn を更新したとき何が自分のものか分からなくなる。
+ *
+ * 🚨 **以前の版は「参照はあるが定義が無いもの」を数えていた。**
+ *    全部 Tailwind へ置き換えられて**参照が 0 種類になった結果、
+ *    「定義が無いものはありません」と緑を返すだけの、何も見ていない検査になっていた**
+ *    （2026-08-15 実測。しかも lefthook にも載っておらず、一度も走っていなかった）。
+ *    → **0 が正常な規則**に据え直した。**在ること自体を違反にする。**
  */
 import { globSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const PATTERN = /(?<![\w-])(cn-[a-z0-9-]+)/g;
 
-// 参照側: components/**/*.tsx と app/**/*.tsx
-const referenced = new Map(); // name -> [file:line]
-for (const file of globSync("{app,components}/**/*.tsx", { cwd: root })) {
-  const lines = readFileSync(resolve(root, file), "utf8").split("\n");
-  lines.forEach((line, i) => {
-    for (const m of line.matchAll(/(?<![\w-])(cn-[a-z0-9-]+)/g)) {
-      if (!referenced.has(m[1])) referenced.set(m[1], []);
-      referenced.get(m[1]).push(`${file}:${i + 1}`);
-    }
-  });
+/** 与えられたソース群から `cn-*` の参照を拾う。 */
+function scan(sources) {
+  const hits = [];
+  for (const { file, text } of sources) {
+    text.split("\n").forEach((line, i) => {
+      for (const m of line.matchAll(PATTERN)) {
+        hits.push({ file, line: i + 1, name: m[1] });
+      }
+    });
+  }
+  return hits;
 }
 
-// 定義側: CSS 全部（@utility / .class / @apply の受け皿）
-let css = "";
-for (const file of globSync("{app,styles}/**/*.css", { cwd: root })) {
-  css += readFileSync(resolve(root, file), "utf8") + "\n";
+const files = globSync("{app,components}/**/*.tsx", { cwd: root });
+const sources = files.map((file) => ({ file, text: readFileSync(resolve(root, file), "utf8") }));
+
+// ── 自己検査 ─────────────────────────────────────────────────
+console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
+let selfTestFailed = false;
+
+// 🚨 (1) 正の対照。**在るものが在ると出る**ことを確かめる。
+//    「存在しない名前 → 0 件」は対照にならない（自分のパス間違い・cwd 違いも 0 を返すため。
+//     司令塔の規律 2・2026-08-15 に厳しくされた）。
+const decoy = scan([{ file: "decoy.tsx", text: `<div className="cn-dropdown-menu-item px-2" />` }]);
+console.log(`  ${decoy.length === 1 ? "✅" : "❌"} 囮: cn-* を1つ仕込む  → 検出 ${decoy.length} 件`);
+if (decoy.length !== 1) selfTestFailed = true;
+
+// (2) 対象を拾えているか。0 ファイルなら「違反が無い」ではなく「見ていない」。
+console.log(`  ${files.length > 0 ? "✅" : "❌"} 対象を拾えている  ${files.length} ファイル`);
+if (files.length === 0) selfTestFailed = true;
+
+// (3) 似て非なるものを拾わないか（`cn(` の呼び出し・`className`）。
+const near = scan([{ file: "near.tsx", text: `className={cn("px-2")} // cnx-1 concat-2` }]);
+console.log(`  ${near.length === 0 ? "✅" : "❌"} 紛らわしい書き方  → 誤検出 ${near.length} 件`);
+if (near.length !== 0) selfTestFailed = true;
+
+if (selfTestFailed) {
+  console.error("\n🚨 自己検査に失敗した。**この検査の結果は信用できない**（緑でも意味を持たない）。");
+  process.exit(1);
 }
 
-const missing = [];
-for (const [name, where] of referenced) {
-  // `.cn-x` か `@utility cn-x` のどちらかがあれば定義済みとみなす
-  const defined = new RegExp(`(^|[^\\w-])\\.${name}(?![\\w-])|@utility\\s+${name}(?![\\w-])`, "m").test(css);
-  if (!defined) missing.push({ name, where });
-}
+// ── 判定 ─────────────────────────────────────────────────────
+const hits = scan(sources);
+const kinds = [...new Set(hits.map((h) => h.name))];
+console.log(`\n■ 判定`);
+console.log(`  対象: ${files.length} ファイル（app/**, components/** の .tsx）`);
+console.log(`  cn-* の参照: ${hits.length} 箇所 / ${kinds.length} 種類`);
 
-console.log(`cn-* の参照: ${referenced.size} 種類 / CSS: ${css.length} 文字`);
-if (missing.length === 0) {
-  console.log("定義が無いものはありません。");
-  process.exit(0);
-}
+if (hits.length === 0) process.exit(0);
 
-console.error(`\n■ 参照しているのに定義が無いクラス（画面では**素のまま**出る）: ${missing.length} 種類`);
-for (const { name, where } of missing) {
-  console.error(`  ${name}`);
-  console.error(`      ${where.slice(0, 3).join(", ")}${where.length > 3 ? ` ほか ${where.length - 3} 箇所` : ""}`);
-}
+console.error(`\n🚨 \`cn-*\` を参照しています。**このリポジトリに その CSS 層はありません**——`);
+console.error("   定義が無いまま画面に出るので、**部品が素のまま表示されます**（高さは正しいので寸法の検査では気づけません）。");
+for (const h of hits.slice(0, 20)) console.error(`  ${h.file}:${h.line}  ${h.name}`);
+if (hits.length > 20) console.error(`  … ほか ${hits.length - 20} 箇所`);
 console.error(
-  "\n🚨 直し方: **CSS の層を新しく作らない。** 同じリポジトリの select.tsx のように、" +
-    "\n   Tailwind のクラスで書く（cn(\"…\") の中へ）。上流の CSS 層を部分的に持ち込むと、" +
-    "\n   次に shadcn を更新したとき何が自分のものか分からなくなる。",
+  "\n  直し方: **CSS の層を新しく作らない。** 同じリポジトリの select.tsx のように" +
+    "\n  Tailwind のクラスで書く（cn(\"…\") の中へ）。上流の CSS 層を部分的に持ち込むと、" +
+    "\n  次に shadcn を更新したとき何が自分のものか分からなくなる。",
 );
 process.exit(1);

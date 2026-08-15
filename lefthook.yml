@@ -69,6 +69,17 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-no-api-message.mjs
 
+    # 上流（shadcn）から持ち込まれる `cn-*` 独自クラスを入れないための検査。
+    # 🚨 このリポジトリに その CSS 層は無い。一度 21 個入り込み、**メニューとアバターが
+    #    素のまま画面に出た**（堀池さんのスクリーンショット 2 枚・2026-08-15）。
+    # 🚨 寸法の検査では気づけない——**素のままの項目も高さは正しい**ので面の監査は緑のままだった。
+    # 🚨 以前の版は「参照はあるが定義が無いもの」を数えており、全部置き換わって参照 0 に
+    #    なった結果、**何も見ていない緑**を返していた。しかも lefthook に載っておらず
+    #    一度も走っていなかった。**在ること自体を違反にする形**へ据え直した。
+    undefined-classes:
+      root: "apps/studio"
+      run: node scripts/check-undefined-classes.mjs
+
     # MCP のツール目録（packages/mcp/src/catalog.ts）と、Studio 側の写しが一致すること。
     # 🚨 **写しがあるのは、Studio から正を import できないから**（依存も exports も zod も無い。
     #    理由は check-mcp-catalog.mjs の冒頭に実測つきで書いてある）。写しは手で直さず `--write` で作る。
