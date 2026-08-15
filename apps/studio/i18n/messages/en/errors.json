@@ -12,5 +12,6 @@
   "invalid_interface": "This editing interface is not available for the selected type. Change the type or editing interface.",
   "conflict": "Something with that name already exists. Use a different name and try again.",
   "unexpected": "Could not complete the request. Please try again later.",
-  "relation_partial_failure": "The column was created, but the relation could not be created."
+  "relation_partial_failure": "The column was created, but the relation could not be created.",
+  "unauthenticated": "Please sign in again."
 }

@@ -22,6 +22,7 @@ type Props = {
  */
 export default async function NotificationsPage({ searchParams }: Props) {
   const t = await getT("notifications");
+  const tError = await getT("errors");
   const params = await searchParams;
 
   // 既定は「あなた宛」。知らない値が来ても、あなた宛として扱う。
@@ -58,7 +59,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
           emptyLabel={tab === "system" ? t("empty_system") : t("empty")}
         />
       ) : (
-        <ErrorBanner message={result.message} />
+        <ErrorBanner message={tError(result.messageKey)} />
       )}
     </div>
   );

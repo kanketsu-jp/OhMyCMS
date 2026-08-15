@@ -1,4 +1,5 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { getT } from "@/i18n/server";
 import { MailTestButton } from "@/components/admin/mail-test-button";
 import { SettingsManager } from "@/components/admin/settings-manager";
 import { apiFetch } from "@/lib/admin/api";
@@ -9,6 +10,7 @@ import type { Settings } from "@/lib/settings/service";
  * 設定は API 経由で取る（直接 DB を読むと、権限チェックが1系統増えて食い違う）。
  */
 export default async function GeneralSettingsPage() {
+  const tError = await getT("errors");
   const result = await apiFetch<{ data: Settings }>("/api/settings");
 
   return (
@@ -20,7 +22,7 @@ export default async function GeneralSettingsPage() {
           <MailTestButton />
         </>
       ) : (
-        <ErrorBanner message={result.message} />
+        <ErrorBanner message={tError(result.messageKey)} />
       )}
     </div>
   );

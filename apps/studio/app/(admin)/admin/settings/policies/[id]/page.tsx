@@ -29,6 +29,7 @@ type PermissionRow = {
 export default async function PolicyDetailPage({ params }: Props) {
   const { id } = await params;
   const t = await getT("policies");
+  const tError = await getT("errors");
   const [policyResult, collectionsResult, permissionsResult] = await Promise.all([
     apiFetch<{ data: PolicyRow }>(`/api/policies/${id}`),
     apiFetch<CollectionResult[]>("/api/collections"),
@@ -44,9 +45,9 @@ export default async function PolicyDetailPage({ params }: Props) {
       </div>
       <ErrorBanner
         message={
-          (!policyResult.ok ? policyResult.message : null) ??
-          (!collectionsResult.ok ? collectionsResult.message : null) ??
-          (!permissionsResult.ok ? permissionsResult.message : null)
+          (!policyResult.ok ? tError(policyResult.messageKey) : null) ??
+          (!collectionsResult.ok ? tError(collectionsResult.messageKey) : null) ??
+          (!permissionsResult.ok ? tError(permissionsResult.messageKey) : null)
         }
       />
       <Surface>

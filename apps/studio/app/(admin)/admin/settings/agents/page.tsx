@@ -18,11 +18,12 @@ type AgentRow = {
 
 export default async function AgentsPage() {
   const t = await getT("agents");
+  const tError = await getT("errors");
   const result = await apiFetch<{ data: AgentRow[] }>("/api/auth/agents");
 
   return (
     <div className="max-w-6xl space-y-6">
-      <ErrorBanner message={!result.ok ? result.message : null} />
+      <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
       <Surface>
         <SurfaceTitle>{t("manage_title")}</SurfaceTitle>
         {result.ok ? <AgentsManager agents={result.data.data} /> : null}

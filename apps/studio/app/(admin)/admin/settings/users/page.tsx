@@ -41,6 +41,7 @@ type Props = {
 
 export default async function UsersPage({ searchParams }: Props) {
   const t = await getT("users");
+  const tError = await getT("errors");
   const query = await searchParams;
   const page = currentPage(query.page);
 
@@ -67,9 +68,9 @@ export default async function UsersPage({ searchParams }: Props) {
     <div className="max-w-6xl space-y-6">
       <ErrorBanner
         message={
-          (!usersResult.ok ? usersResult.message : null) ??
-          (!policiesResult.ok ? policiesResult.message : null) ??
-          (!accessResult.ok ? accessResult.message : null)
+          (!usersResult.ok ? tError(usersResult.messageKey) : null) ??
+          (!policiesResult.ok ? tError(policiesResult.messageKey) : null) ??
+          (!accessResult.ok ? tError(accessResult.messageKey) : null)
         }
       />
       <Surface>

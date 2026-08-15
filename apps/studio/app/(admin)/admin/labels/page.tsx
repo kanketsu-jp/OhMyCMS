@@ -1,4 +1,5 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { getT } from "@/i18n/server";
 import { LabelsManager, type LabelRow } from "@/components/admin/labels-manager";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -12,6 +13,7 @@ import { apiFetch } from "@/lib/admin/api";
  * 設定は API 経由で取る（直接 DB を読むと、権限チェックが1系統増えて食い違う）。
  */
 export default async function LabelsPage() {
+  const tError = await getT("errors");
   const result = await apiFetch<{ data: LabelRow[] }>("/api/labels");
 
   return (
@@ -19,7 +21,7 @@ export default async function LabelsPage() {
       {result.ok ? (
         <LabelsManager initial={result.data.data} />
       ) : (
-        <ErrorBanner message={result.message} />
+        <ErrorBanner message={tError(result.messageKey)} />
       )}
     </div>
   );

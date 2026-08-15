@@ -72,6 +72,7 @@ function folderPath(folders: FolderRow[], folderId: string | null): FolderRow[] 
 
 export default async function FilesPage({ searchParams }: Props) {
   const t = await getT("files");
+  const tError = await getT("errors");
   const query = await searchParams;
   const page = currentPage(query.page);
   const currentFolderId = query.folder && query.folder !== "root" ? query.folder : null;
@@ -184,8 +185,8 @@ export default async function FilesPage({ searchParams }: Props) {
         </Breadcrumb>
         <ErrorBanner
           message={
-            (!filesResult.ok ? filesResult.message : null) ??
-            (!foldersResult.ok ? foldersResult.message : null)
+            (!filesResult.ok ? tError(filesResult.messageKey) : null) ??
+            (!foldersResult.ok ? tError(foldersResult.messageKey) : null)
           }
         />
         {/* 🚨 一覧そのものを受け皿にする。ここへ放り込むと、いま開いているフォルダに入る。 */}

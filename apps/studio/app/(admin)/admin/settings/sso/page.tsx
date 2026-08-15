@@ -1,4 +1,5 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { getT } from "@/i18n/server";
 import { SamlSettingsManager, type SamlSettings } from "@/components/admin/saml-settings-manager";
 import { apiFetch } from "@/lib/admin/api";
 
@@ -8,6 +9,7 @@ import { apiFetch } from "@/lib/admin/api";
  * `settings/general/page.tsx` と同じ形）。
  */
 export default async function SsoSettingsPage() {
+  const tError = await getT("errors");
   const result = await apiFetch<{ data: SamlSettings }>("/api/settings/saml");
 
   return (
@@ -16,7 +18,7 @@ export default async function SsoSettingsPage() {
       {result.ok ? (
         <SamlSettingsManager settings={result.data.data} />
       ) : (
-        <ErrorBanner message={result.message} />
+        <ErrorBanner message={tError(result.messageKey)} />
       )}
     </div>
   );

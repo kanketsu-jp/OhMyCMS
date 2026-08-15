@@ -23,6 +23,7 @@ type Props = {
  */
 export default async function ReportsPage({ searchParams }: Props) {
   const t = await getT("reports");
+  const tError = await getT("errors");
   const format = await getFormat();
   const params = await searchParams;
 
@@ -59,7 +60,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         />
       ) : (
         // 🚨 これは「まだ続いている状態」なので、その場に出す（トーストにしない）。
-        <ErrorBanner message={list.message} />
+        <ErrorBanner message={tError(list.messageKey)} />
       )}
     </div>
   );

@@ -17,6 +17,7 @@ type Props = {
 
 export default async function PoliciesPage({ searchParams }: Props) {
   const t = await getT("policies");
+  const tError = await getT("errors");
   const query = await searchParams;
   const page = currentPage(query.page);
   // 🚨 全件は取らない（憲章 §4）。1件多く取って「次があるか」を見る。COUNT(*) は撃たない。
@@ -29,7 +30,7 @@ export default async function PoliciesPage({ searchParams }: Props) {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <ErrorBanner message={!result.ok ? result.message : null} />
+      <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
       <Surface>
         <SurfaceTitle>{t("manage_title")}</SurfaceTitle>
         {result.ok ? <PoliciesManager policies={rows} /> : null}

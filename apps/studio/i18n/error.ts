@@ -32,6 +32,9 @@ export const ERROR_KEYS = [
   "invalid_field",
   "invalid_interface",
   "conflict",
+  // 🚨 401。以前は lib/admin/api.ts が「認証が必要です」という日本語を直接持っていた。
+  //    鍵にしないと permission_denied（403）へ潰れ、**入り直せば直る**ことが伝わらない。
+  "unauthenticated",
   // 取りこぼしの受け皿
   "unexpected",
 ] as const;
@@ -59,6 +62,7 @@ export function errorKeyFromQuery(value: string | undefined): ErrorKey | null {
  *    足し忘れても危険側には倒れない（一般的な文言になるだけ）。
  */
 const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
+  UNAUTHENTICATED: "unauthenticated",
   PERMISSION_DENIED: "permission_denied",
   AUTH_FAILED: "permission_denied",
   INVALID_FIELD: "invalid_field",

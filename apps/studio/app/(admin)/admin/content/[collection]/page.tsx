@@ -142,8 +142,8 @@ export default async function ContentPage({ params, searchParams }: Props) {
         <ErrorBanner
           message={
             errorMessage ??
-            (!fieldsResult.ok ? fieldsResult.message : null) ??
-            (!itemsResult.ok ? itemsResult.message : null)
+            (!fieldsResult.ok ? tError(fieldsResult.messageKey) : null) ??
+            (!itemsResult.ok ? tError(itemsResult.messageKey) : null)
           }
         />
         <Surface id={sectionAnchorId("items.list_title")}>

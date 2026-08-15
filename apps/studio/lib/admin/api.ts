@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 
+import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
+
 type ApiErrorPayload = {
   error?: {
     code?: string;
@@ -9,7 +11,7 @@ type ApiErrorPayload = {
 
 export type ApiResult<T> =
   | { ok: true; status: number; data: T }
-  | { ok: false; status: number; message: string; code?: string };
+  | { ok: false; status: number; messageKey: ErrorKey; code?: string };
 
 export type MeResult =
   | {
@@ -35,13 +37,31 @@ export async function requestOrigin(): Promise<string> {
   return `http://${host}`;
 }
 
-function errorMessage(status: number, payload: ApiErrorPayload | null): string {
-  const message = payload?.error?.message;
-  if (message) return status === 403 ? `権限がありません: ${message}` : message;
-  if (status === 403) return "権限がありません";
-  if (status === 404) return "見つかりません";
-  if (status === 401) return "認証が必要です";
-  return `APIエラーが発生しました (${status})`;
+/**
+ * 🚨 **文言を返さない。辞書の鍵だけを返す。**
+ *
+ * ここは `lib/` なので辞書を引く手段（`getT` / `useT`）を持てない
+ * （持つとフレームワークに依存し、AGENTS.md 3.6 の分離が壊れる）。
+ * **鍵まで**を担当し、**訳すのは画面側**にする。
+ *
+ * 🚨 以前はここが日本語を 4 件持ち、さらに API の生文言をそのまま返していた。
+ *    `` `権限がありません: ${message}` `` は、その 2 つが 1 行に混ざっていた。
+ *    実測 2026-08-16（saml）: **英語の画面**に
+ *    「権限がありません: 管理者権限が必要です」がそのまま出ていた（`/admin/settings/sso`・
+ *    権限の無い利用者・応答は 200）。
+ *
+ * status から鍵を補うのは、**API が code を返さなかったとき**だけ。
+ */
+function errorKeyFor(status: number, payload: ApiErrorPayload | null): ErrorKey {
+  const code = payload?.error?.code;
+  if (code) {
+    const key = errorKeyFromApiCode(code);
+    if (key !== FALLBACK_ERROR_KEY) return key;
+  }
+  if (status === 403) return "permission_denied";
+  if (status === 404) return "not_found";
+  if (status === 401) return "unauthenticated";
+  return FALLBACK_ERROR_KEY;
 }
 
 export async function apiFetch<T>(
@@ -69,7 +89,7 @@ export async function apiFetch<T>(
       ok: false,
       status: response.status,
       code: payload?.error?.code,
-      message: errorMessage(response.status, payload),
+      messageKey: errorKeyFor(response.status, payload),
     };
   }
 

@@ -13,6 +13,7 @@ import type { VersionInfo } from "@/lib/version/service";
  */
 export default async function VersionPage() {
   const t = await getT("version");
+  const tError = await getT("errors");
   const result = await apiFetch<{ data: VersionInfo }>("/api/version");
 
   // 確認先が設定されているときだけ「更新を確認」を出す。
@@ -27,7 +28,7 @@ export default async function VersionPage() {
       {canCheck ? <VersionCheckAction /> : null}
 
       {!result.ok ? (
-        <ErrorBanner message={result.message} />
+        <ErrorBanner message={tError(result.messageKey)} />
       ) : (
         <>
           <Surface className="text-sm">

@@ -17,6 +17,7 @@ function mcpEntrypoint(): string {
 
 export default async function McpSettingsPage() {
   const t = await getT("mcp");
+  const tError = await getT("errors");
   const result = await apiFetch<{ data: ConnectionInfo }>("/api/mcp/connection-info");
 
   return (
@@ -29,7 +30,7 @@ export default async function McpSettingsPage() {
       />
       <div className="max-w-4xl space-y-6">
         {!result.ok ? (
-          <ErrorBanner message={result.message} />
+          <ErrorBanner message={tError(result.messageKey)} />
         ) : (
           <Surface>
             <McpConnection url={result.data.data.url} entrypoint={mcpEntrypoint()} />

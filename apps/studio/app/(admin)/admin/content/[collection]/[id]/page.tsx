@@ -38,8 +38,8 @@ export default async function EditItemPage({ params, searchParams }: Props) {
       <ErrorBanner
         message={
           errorMessage ??
-          (!fieldsResult.ok ? fieldsResult.message : null) ??
-          (!itemResult.ok ? itemResult.message : null)
+          (!fieldsResult.ok ? tError(fieldsResult.messageKey) : null) ??
+          (!itemResult.ok ? tError(itemResult.messageKey) : null)
         }
       />
       {itemResult.ok ? (

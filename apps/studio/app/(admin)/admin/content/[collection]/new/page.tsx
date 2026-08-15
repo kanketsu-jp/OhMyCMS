@@ -31,7 +31,7 @@ export default async function NewItemPage({ params, searchParams }: Props) {
           {t("back_to_list")}
         </Link>
       </div>
-      <ErrorBanner message={errorMessage ?? (!fieldsResult.ok ? fieldsResult.message : null)} />
+      <ErrorBanner message={errorMessage ?? (!fieldsResult.ok ? tError(fieldsResult.messageKey) : null)} />
       <Surface>
         <SurfaceTitle>{collection}</SurfaceTitle>
         <ItemForm collection={collection} fields={fields} />

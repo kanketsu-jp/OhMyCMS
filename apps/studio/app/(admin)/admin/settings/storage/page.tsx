@@ -1,4 +1,5 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { getT } from "@/i18n/server";
 import { StorageSettingsManager } from "@/components/admin/storage-settings-manager";
 import { apiFetch } from "@/lib/admin/api";
 import type { Settings } from "@/lib/settings/service";
@@ -8,6 +9,7 @@ import type { Settings } from "@/lib/settings/service";
  * 設定は API 経由で取る（直接 DB を読むと、権限チェックが1系統増えて食い違う）。
  */
 export default async function StorageSettingsPage() {
+  const tError = await getT("errors");
   const result = await apiFetch<{ data: Settings }>("/api/settings");
 
   return (
@@ -16,7 +18,7 @@ export default async function StorageSettingsPage() {
       {result.ok ? (
         <StorageSettingsManager settings={result.data.data} />
       ) : (
-        <ErrorBanner message={result.message} />
+        <ErrorBanner message={tError(result.messageKey)} />
       )}
     </div>
   );

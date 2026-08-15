@@ -27,6 +27,7 @@ type Props = {
  */
 export default async function ReportsManagePage({ searchParams }: Props) {
   const t = await getT("reports");
+  const tError = await getT("errors");
   const format = await getFormat();
   const params = await searchParams;
 
@@ -64,7 +65,7 @@ export default async function ReportsManagePage({ searchParams }: Props) {
           formatDateTime={(value) => format.dateTime(value)}
         />
       ) : (
-        <ErrorBanner message={list.message} />
+        <ErrorBanner message={tError(list.messageKey)} />
       )}
     </div>
   );

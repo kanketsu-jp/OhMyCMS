@@ -56,7 +56,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
           （なりすまし表示。XSS ではないが、電話番号を出せばそのまま偽ページになる）。
           `errorKeyFromQuery` の許可リストを通した `errorMessage` だけを渡す。
           対応の無いコードは汎用文言へ落ちる（fail closed）。 */}
-      <ErrorBanner message={errorMessage ?? (!result.ok ? result.message : null)} />
+      <ErrorBanner message={errorMessage ?? (!result.ok ? tError(result.messageKey) : null)} />
       {/* 🚨 **枠で囲まない**（堀池・2026-08-15）:
           > 「ボーダー＋Padding はいらない。親要素にすでに Padding があるのと、
           >   カードコンポーネントを多用するのはデザインスキルが低い。

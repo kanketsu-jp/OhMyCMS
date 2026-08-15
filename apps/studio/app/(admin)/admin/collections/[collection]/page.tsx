@@ -122,9 +122,9 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       <ErrorBanner
         message={
           errorMessage ??
-          (!collectionResult.ok ? collectionResult.message : null) ??
-          (!fieldsResult.ok ? fieldsResult.message : null) ??
-          (!relationsResult.ok ? relationsResult.message : null)
+          (!collectionResult.ok ? tError(collectionResult.messageKey) : null) ??
+          (!fieldsResult.ok ? tError(fieldsResult.messageKey) : null) ??
+          (!relationsResult.ok ? tError(relationsResult.messageKey) : null)
         }
       />
       <Surface id={sectionAnchorId("fields.list_title")}>

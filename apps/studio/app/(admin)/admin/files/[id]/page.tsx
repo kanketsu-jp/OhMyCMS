@@ -55,6 +55,7 @@ type FolderRow = {
 
 export default async function FileDetailPage({ params }: Props) {
   const t = await getT("files");
+  const tError = await getT("errors");
   const format = await getFormat();
   const { id } = await params;
   const [fileResult, foldersResult, labelsResult, attachedResult] = await Promise.all([
@@ -77,8 +78,8 @@ export default async function FileDetailPage({ params }: Props) {
       </div>
       <ErrorBanner
         message={
-          (!fileResult.ok ? fileResult.message : null) ??
-          (!foldersResult.ok ? foldersResult.message : null)
+          (!fileResult.ok ? tError(fileResult.messageKey) : null) ??
+          (!foldersResult.ok ? tError(foldersResult.messageKey) : null)
         }
       />
       {file ? (

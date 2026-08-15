@@ -24,6 +24,7 @@ type Props = {
 
 export default async function NewFilePage({ searchParams }: Props) {
   const t = await getT("files");
+  const tError = await getT("errors");
   const query = await searchParams;
   const result = await apiFetch<{ data: FolderRow[] }>("/api/folders?limit=100");
   const folders = result.ok ? result.data.data : [];
@@ -49,7 +50,7 @@ export default async function NewFilePage({ searchParams }: Props) {
           {t("back_to_list")}
         </Link>
       </div>
-      <ErrorBanner message={!result.ok ? result.message : null} />
+      <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
       <Surface>
         <FileUploadForm folders={folders} initialFolder={query.folder} />
       </Surface>
