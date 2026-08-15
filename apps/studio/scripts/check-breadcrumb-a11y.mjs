@@ -120,19 +120,41 @@ function inspect(triggerBody, buttonTag, where) {
       found.push(`${where}: ${icon} が aria-hidden="true" になっていません（属性が無い／値が true でない）。` + 実物(tag[0]));
     }
   }
+  // ③ 🚨 **ページ名そのものが在り、隠されていないこと**（2026-08-16 追加）
+  //    由来: 「見逃す入力を作って通す」で、**6/6 見逃していた**うちの 2 つがこれだった。
+  //    ページ名が消える／`aria-hidden` になると、**読み上げ名からページ名が消える**——
+  //    この検査が守ろうとしているものそのものが、素通りしていた。
+  const 名 = /<BreadcrumbPage\b[^>]*>/.exec(triggerBody);
+  if (!名) {
+    found.push(
+      `${where}: 引き金の中に <BreadcrumbPage> がありません。` +
+        `\n    読み上げ名から**ページ名が消えます**（アイコンだけの名前になる）。` +
+        実物(triggerBody),
+    );
+  } else if (/aria-hidden\s*=\s*["{]?\s*(?:true|"true")/.test(名[0]) || /\bsr-only\b/.test(名[0])) {
+    found.push(
+      `${where}: <BreadcrumbPage> が aria-hidden / sr-only になっています。` +
+        `\n    **見えている文字が無くなる**ので、WCAG 2.5.3（label in name）を満たせません。` +
+        実物(名[0]),
+    );
+  }
   return found;
 }
 
 // ── 🚨 囮（自己検査）: **走るたびに、規則が本当に発火するかを確かめる**
 //    これが無いと、規則が壊れて何も検出しなくなっても緑のままになる。
 const OK_ICONS = '<EllipsisIcon aria-hidden="true" /><SlashIcon aria-hidden="true" />';
+// 🚨 「きれいな形」にはページ名も要る（新しい規則③を満たすため）
+const OK_ALL = `${OK_ICONS}<BreadcrumbPage>通知</BreadcrumbPage>`;
 const DECOYS = [
-  ["きれいな形（発火してはいけない）", OK_ICONS, '<Button variant="secondary">', 0],
+  ["きれいな形（発火してはいけない）", OK_ALL, '<Button variant="secondary">', 0],
   ["aria-label", OK_ICONS, '<Button aria-label="x">', 1],
   ["aria-labelledby", OK_ICONS, '<Button aria-labelledby="x">', 1],
   ["spread", OK_ICONS, '<Button {...p}>', 1],
   ['aria-hidden="false"', '<EllipsisIcon aria-hidden="true" /><SlashIcon aria-hidden="false" />', "<Button>", 1],
   ["アイコンが無い", '<EllipsisIcon aria-hidden="true" />', "<Button>", 1],
+  ["ページ名が無い", OK_ICONS, "<Button>", 1],
+  ["ページ名が aria-hidden", `${OK_ICONS}<BreadcrumbPage aria-hidden="true">通知</BreadcrumbPage>`, "<Button>", 1],
 ];
 let decoyFailed = false;
 for (const [name, body, tag, want] of DECOYS) {
@@ -149,6 +171,42 @@ if (decoyFailed) {
 }
 checked.push(`囮 ${DECOYS.length} 件すべてが期待どおり（規則は発火する／きれいな形では発火しない）`);
 
+// ── 🚨 **見逃す入力を、自分で作って通す**（司令塔 2026-08-16 / design の実演）
+//    「取りこぼしの**数**」は数えられない（出てこないので）。
+//    だが「**この形は取りこぼす**」は、**作れば必ず示せる**。
+//    🚨 ここは**落とさない**（落とすと全員のコミットが止まる）。**見逃したことを印字するだけ**。
+const 見逃す入力 = [
+  // 🚨 **どの入力にも `<BreadcrumbPage>` を入れておく。**
+  //    入れないと規則③（ページ名が無い）が拾ってしまい、
+  //    **狙った観点とは別の理由で「捕まえた」ことになる**（2026-08-16 に実際にやった）。
+  ["引き金に role=presentation を付ける（読み上げの木から外れる）",
+   `${OK_ICONS}<BreadcrumbPage>通知</BreadcrumbPage>`,
+   '<Button role="presentation" variant="secondary">'],
+  ["別名 import で違うアイコンを EllipsisIcon と呼ぶ（名前だけ合っている）",
+   `${OK_ICONS}<BreadcrumbPage>通知</BreadcrumbPage>`,
+   '<Button variant="secondary">'],
+  ["title 属性で別の名前を足す",
+   `${OK_ICONS}<BreadcrumbPage>通知</BreadcrumbPage>`,
+   '<Button title="別の名前" variant="secondary">'],
+  ["ページ名の中身を空にする（タグは在るが文字が無い）",
+   `${OK_ICONS}<BreadcrumbPage></BreadcrumbPage>`,
+   '<Button variant="secondary">'],
+  ["ページ名を display:none の親で包む（タグは在るが描かれない）",
+   `${OK_ICONS}<span className="hidden"><BreadcrumbPage>通知</BreadcrumbPage></span>`,
+   '<Button variant="secondary">'],
+  ["引き金を <Button> でない要素にする（沈み込みも読み上げも変わる）",
+   `${OK_ICONS}<BreadcrumbPage>通知</BreadcrumbPage>`,
+   '<Button variant="secondary">'],
+];
+const 見逃した = 見逃す入力.filter(([, body, tag]) => inspect(body, tag, "見逃し").length === 0).map(([n]) => n);
+// 🟢 対照(+): **拾う入力**も 1 つ通す（＝ 検出器が動いていることの確認。全部見逃しなら壊れている）
+const 対照は拾えた = inspect(OK_ICONS, '<Button aria-label="x">', "対照").length > 0;
+if (!対照は拾えた) {
+  console.error("🚨 対照の入力すら拾えていません。見逃しの一覧は読めません（検出器が壊れています）。");
+  process.exit(1);
+}
+checked.push(`🟢 対照(+) 拾う入力は拾えた（＝ 下の「見逃し」は本物）`);
+
 problems.push(...inspect(trigger[1], buttonTag[0], FILE));
 
 console.log(`対象: ${FILE}`);
@@ -161,4 +219,9 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
+if (見逃した.length > 0) {
+  console.log(`\n🚨 この検査が**見ていない形** ${見逃した.length} / ${見逃す入力.length} 件（作って通した結果。落としません）:`);
+  for (const n of 見逃した) console.log(`  ・${n}`);
+  console.log("  🚨 これらは**壊れていても緑になります**。読み上げ名そのものは probe-crumb-name.mjs で測ること。");
+}
 console.log("違反なし。");
