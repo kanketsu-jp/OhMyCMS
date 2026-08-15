@@ -126,9 +126,17 @@ for (const [why, count] of [...byRule].sort((a, b) => b[1] - a[1])) {
   const rule = ALLOW.find((r) => r.why === why);
   console.log(`    ${String(count).padStart(3)} 件  ${why}  [${rule?.decided ?? "🚨 決定の記録が無い"}]`);
 }
-// 🚨 一度も効かなかった例外も出す（**使われていない例外は、消せる／根拠が古い可能性がある**）。
-for (const rule of ALLOW) {
-  if (!byRule.has(rule.why)) console.log(`      0 件  ${rule.why}  [${rule.decided ?? "🚨 決定の記録が無い"}]`);
+// 🚨 一度も効かなかった例外も出す。**ただし「死んだ行」ではない。**
+//    例外は「違反になりかけたもの」にしか効かないので、**候補が出ていなければ 0 件が健全**。
+//    実測（design・2026-08-15）: 候補 133 件の中に components/ui/dialog.tsx も入っており、
+//    **対象は見ている**。0 件は「見ていない」ではなく「要る場面がまだ出ていない」。
+//    🚨 **消さないこと。** 消すと、次に候補が出たとき**正解が違反として落ちる**（憲章 §1）。
+const unused = ALLOW.filter((rule) => !byRule.has(rule.why));
+if (unused.length > 0) {
+  console.log(`  （下の ${unused.length} 行は 0 件＝**この例外が要る場面がまだ出ていない**。対象は見ている。消さないこと）`);
+  for (const rule of unused) {
+    console.log(`      0 件  ${rule.why}  [${rule.decided ?? "🚨 決定の記録が無い"}]`);
+  }
 }
 console.log(`🚨 面の中の生の面: ${hits.length} 件`);
 
