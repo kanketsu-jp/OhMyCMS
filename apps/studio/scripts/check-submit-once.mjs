@@ -140,6 +140,172 @@ function classifyMethodValue(value) {
 }
 
 /**
+ * 🚨 コメントの中の `method:` を実装として誤検出していた（2026-08-15 プローブで発覚。
+ * 実際の違反ではなく予防的な修正）。
+ *
+ * JSDoc の使用例に `fetch(url, { method: "POST" })` を書いただけのファイルが
+ * 「未防御（owner: 関数 (不明)）」として検出された。指摘された側は困る——
+ * コメントを `useSubmitOnce` で包むことはできないので、直しようがない「違反」を
+ * 例外リストに足すか、検査を避けて回るしかなくなる。
+ *
+ * 計測: この修正の直前、走査対象 134 ファイル中の `method:` の出現は
+ * コメント内 = 0 件・コード内 = 45 件だった（つまり今回は予防であり、
+ * 既存の防御済み41・未防御0・移行待ち4という件数は変わらない）。
+ *
+ * 直し方として「行の `//` 以降を正規表現で削る」ような素朴なコメント除去は選ばない。
+ * 文字列リテラルの中の `//`（例: `"https://example.com"`）はコメントの開始ではないため、
+ * 行単位で `//` 以降を削ると URL を含む文字列の後ろにある本物のコードまで一緒に消えてしまう
+ * （＝同じ行の後続にある本当の `method: "POST"` を見失う）。そのため、
+ * ソースを1文字ずつ状態遷移で読み、「コード」「行コメント」「ブロックコメント」
+ * 「文字列（'/"/`）」のどの中にいるかを追跡してコメント範囲だけを求める。
+ */
+
+/**
+ * ソース中の「コメント範囲」を `[start, end)` の半開区間の配列で返す（開始位置の昇順）。
+ * 行番号を再計算するためのものではない——**元のソースをそのまま使い、除去も置換もしない**。
+ * 呼び出し側は各マッチの `index` がこの範囲に入っているかだけを見る
+ * （行番号が今までとずれないようにするため。テキストを削って詰めると行がずれる）。
+ *
+ * 見ていないもの（検出漏れになり得る既知の限界。ファイル冒頭の「見ていないもの」欄と同じ姿勢で書く）:
+ *   - 正規表現リテラル（`/foo\/\/bar/` のような形）は文字列として扱っていないため、
+ *     中の `//` を行コメントの開始と誤認する可能性がある。
+ *     実測した（2026-08-16）。再現する：`const re = /\/\/ method: "POST"/;` を書いた行が
+ *     「変更系」として報告された（所有関数が特定できないため 関数 (不明) と出る）。
+ *     🚨 ただし取りこぼしにはならなかった。同じファイルの次の行に書いた本物の
+ *     `method: "POST"` は正しく検出された。字句の状態は正規表現リテラルの後で戻っている。
+ *     実害が小さいと見ている理由は判断ではなく構造にある：正規表現リテラルの中に
+ *     エスケープされていない `//` は書けない（そこで正規表現が終わるため）ので、
+ *     「実コードを丸ごと読み飛ばす」形にはなりにくい。直していない——直すには
+ *     正規表現リテラルを字句として扱う必要があり、除算の `/` か正規表現の `/` かの
+ *     判定（構文解析）が要る。
+ *   - テンプレートリテラルの `${ 式 }` の中身は文字列として扱わない（＝コメント扱いもしない）。
+ *     `${ 式 }` は実コードなので、その中に `method: "POST"` があれば意図的に検出対象のままにする。
+ */
+function computeCommentRanges(source) {
+  const CODE = 0;
+  const LINE = 1;
+  const BLOCK = 2;
+  const SINGLE = 3;
+  const DOUBLE = 4;
+  const TEMPLATE = 5;
+
+  const ranges = [];
+  let state = CODE;
+  let rangeStart = -1;
+  // テンプレートリテラルの `${ 式 }` に入るたびに、戻り先の波括弧の深さを積む。
+  const templateReturnStack = [];
+  let braceDepth = 0;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const c = source[i];
+    const next = source[i + 1];
+
+    if (state === CODE) {
+      if (c === "/" && next === "/") {
+        state = LINE;
+        rangeStart = i;
+        i += 1;
+        continue;
+      }
+      if (c === "/" && next === "*") {
+        state = BLOCK;
+        rangeStart = i;
+        i += 1;
+        continue;
+      }
+      if (c === "'") {
+        state = SINGLE;
+        continue;
+      }
+      if (c === '"') {
+        state = DOUBLE;
+        continue;
+      }
+      if (c === "`") {
+        state = TEMPLATE;
+        continue;
+      }
+      if (templateReturnStack.length > 0 && c === "{") {
+        braceDepth += 1;
+        continue;
+      }
+      if (templateReturnStack.length > 0 && c === "}") {
+        if (braceDepth === 0) {
+          // `${ ... }` の閉じ。テンプレートリテラルの地の文へ戻る。
+          state = TEMPLATE;
+          braceDepth = templateReturnStack.pop();
+        } else {
+          braceDepth -= 1;
+        }
+        continue;
+      }
+      continue;
+    }
+
+    if (state === LINE) {
+      if (c === "\n") {
+        ranges.push([rangeStart, i]);
+        state = CODE;
+      }
+      continue;
+    }
+
+    if (state === BLOCK) {
+      if (c === "*" && next === "/") {
+        ranges.push([rangeStart, i + 2]);
+        state = CODE;
+        i += 1;
+      }
+      continue;
+    }
+
+    if (state === SINGLE || state === DOUBLE) {
+      if (c === "\\") {
+        i += 1; // エスケープされた次の1文字は読み飛ばす（\" などをクォート終端と誤認しない）
+        continue;
+      }
+      if ((state === SINGLE && c === "'") || (state === DOUBLE && c === '"')) {
+        state = CODE;
+      }
+      continue;
+    }
+
+    if (state === TEMPLATE) {
+      if (c === "\\") {
+        i += 1;
+        continue;
+      }
+      if (c === "`") {
+        state = CODE;
+        continue;
+      }
+      if (c === "$" && next === "{") {
+        templateReturnStack.push(braceDepth);
+        braceDepth = 0;
+        state = CODE;
+        i += 1;
+        continue;
+      }
+      continue;
+    }
+  }
+
+  // 行コメント／ブロックコメントが閉じないままファイル末尾に達した場合、そこまでを範囲に含める。
+  if (state === LINE || state === BLOCK) ranges.push([rangeStart, source.length]);
+
+  return ranges;
+}
+
+/** `index` がコメント範囲（開始位置昇順）に含まれるか。範囲を超えたら探索を打ち切る。 */
+function isInsideCommentRanges(index, ranges) {
+  for (const [start, end] of ranges) {
+    if (index < start) break;
+    if (index < end) return true;
+  }
+  return false;
+}
+
+/**
  * ソースの中の `method:` を全部拾い、変更系と判定された出現の**行番号と理由（reason）**を
  * `{ line, reason }` の配列で返す（行番号は元のソース基準・0始まり）。
  *
@@ -149,12 +315,18 @@ function classifyMethodValue(value) {
  *
  * 同じ行に `method:` が複数回出て reason が割れた場合は "unreadable" を優先する
  * （見落としより過検出に倒す、という本体の方針をここでも維持する）。
+ *
+ * 🚨 コメント（行コメント／ブロックコメント）の中に出現した `method:` は無視する
+ * （computeCommentRanges 直前のコメント参照）。行番号は**元のソースからそのまま**数える
+ * （コメントを削って詰めていないので、報告する行番号は今までと変わらない）。
  */
 function findMutationLines(source) {
   const hits = new Map(); // line -> reason
+  const commentRanges = computeCommentRanges(source);
   METHOD_KEY.lastIndex = 0;
   let m;
   while ((m = METHOD_KEY.exec(source))) {
+    if (isInsideCommentRanges(m.index, commentRanges)) continue; // コメントの中は実装ではない
     const raw = source.slice(m.index, m.index + SNIPPET_HORIZON);
     const snippet = raw.replace(/\s+/g, " ");
     const prefix = /^method:\s*/.exec(snippet);
@@ -407,6 +579,23 @@ const selfTests = [
       return { after, count };
     },
   },
+  {
+    // 🚨 壊し方1〜4 とは**逆向き**の自己検査（2026-08-16 追加。コメント誤検出の修正に対応）。
+    // 壊し方1〜4は全部「これは検出されなければならない」を確かめている。だが「検出できるか」
+    // だけを確かめる自己検査は、**過検出**（コメントの中身まで実装として拾ってしまう）には
+    // 原理的に気づけない——検出されて当然の壊し方しか用意していないので、
+    // 「検出されてはいけないのに検出された」を見る手段が無い。
+    // ここでは形を逆にし、`method: "POST"` を行コメントの中に差し込んで
+    // 「検出 0 件（＝コメントは実装として数えない）」を期待値にする。
+    // expectZero を立てることで、下のループは「壊した後に検出が増えないこと」を確認する。
+    name: '壊し方5(逆方向): コメントの中の method: "POST" を差し込む→検出 0 件のはず',
+    expectZero: true,
+    apply(base) {
+      const count = countOccurrences(base, NEEDLE);
+      const after = base.replaceAll(NEEDLE, `      // method: "POST",\n${NEEDLE}`);
+      return { after, count };
+    },
+  },
 ];
 
 console.log("\n■ 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）");
@@ -414,11 +603,14 @@ let selfTestFailed = false;
 for (const test of selfTests) {
   const { after, count } = test.apply(BASELINE);
   const detected = findMutationLines(after).length - baselineDetections;
-  const ok = count > 0 && detected === count;
+  // expectZero が立っている自己検査（壊し方5）は「検出されないこと」を期待値にする。
+  // それ以外（壊し方1〜4）は従来どおり「置換した件数と同じだけ検出されること」を期待する。
+  const expected = test.expectZero ? 0 : count;
+  const ok = count > 0 && detected === expected;
 
-  console.log(`  ${ok ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${detected} 件`);
+  console.log(`  ${ok ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${detected} 件（期待 ${expected} 件）`);
   if (count === 0) {
-    console.error("     ↑ 置換が 0 件。壊せていないので、検出 0 件は何も確かめていない。");
+    console.error("     ↑ 置換が 0 件。壊せていないので、この結果は何も確かめていない。");
   }
   if (!ok) selfTestFailed = true;
 }
