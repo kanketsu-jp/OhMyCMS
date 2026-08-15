@@ -68,49 +68,71 @@ if (!buttonTag) {
 }
 checked.push("引き金の <Button> の開きタグを取れた");
 
-// ── ① 引き金が読み上げ名を上書きしていないこと
-// 🚨 `aria-label` だけを見ていたら **`aria-labelledby` で素通りできた**（2026-08-15 実測。exit 0 だった）。
-//    どちらも「見えている文字を打ち消す」ので、**両方を見る**。
-for (const attr of ["aria-label", "aria-labelledby"]) {
-  if (new RegExp(`\\b${attr}\\b`).test(buttonTag[0])) {
-    problems.push(
-      `${FILE}: パンくずの引き金に ${attr} があります。\n` +
-        `    読み上げ名が**見えているページ名を打ち消します**（WCAG 2.5.3 label in name）。\n` +
-        `    「上の階層へ」のような補足は、ボタンの中の <span className="sr-only"> で足してください\n` +
-        `    （そちらは見えている文字に**足す**ので打ち消しません）。`,
-    );
+/**
+ * 規則の本体。**任意のソース片に当てられる形**にしてある。
+ * 🚨 こうしておかないと「囮」で自己検査できない——
+ *    規則が壊れて何も検出しなくなっても、対象さえ見つかれば緑になる。
+ *    （司令塔の決め: **囮は「探し方が当たっているか」、0 件ガードは「そもそも読めているか」。両方要る**）
+ */
+function inspect(triggerBody, buttonTag, where) {
+  const found = [];
+  // ① 引き金が読み上げ名を上書きしていないこと
+  // 🚨 `aria-label` だけを見ていたら **`aria-labelledby` で素通りできた**（2026-08-15 実測）。
+  for (const attr of ["aria-label", "aria-labelledby"]) {
+    if (new RegExp(`\\b${attr}\\b`).test(buttonTag)) {
+      found.push(
+        `${where}: パンくずの引き金に ${attr} があります。\n` +
+          `    読み上げ名が**見えているページ名を打ち消します**（WCAG 2.5.3 label in name）。\n` +
+          `    補足は <span className="sr-only"> で**足して**ください（打ち消しません）。`,
+      );
+    }
   }
-}
-// 🚨 spread（`{...}`）の中身はこの検査から見えない。**見えないものを通さない**
-//    （`check-nav-parity.mjs` で同じ穴を塞いだのと同じ考え方）。
-if (/\{\s*\.\.\./.test(buttonTag[0])) {
-  problems.push(
-    `${FILE}: パンくずの引き金に props の spread（{...}）があります。\n` +
-      `    中身がこの検査から見えないので、aria-label を隠して渡せてしまいます。\n` +
-      `    属性は直接書いてください。`,
-  );
+  // 🚨 spread の中身はこの検査から見えない。**見えないものを通さない**
+  if (/\{\s*\.\.\./.test(buttonTag)) {
+    found.push(`${where}: 引き金に props の spread（{...}）があります。中身が見えないので aria-label を隠せます。`);
+  }
+  // ② 記号のアイコンが aria-hidden="true" であること
+  for (const icon of ["EllipsisIcon", "SlashIcon"]) {
+    const tag = new RegExp(`<${icon}\\b[^>]*>`).exec(triggerBody);
+    if (!tag) {
+      found.push(`${where}: ${icon} が引き金の中に見つかりません。文字に戻すと読み上げに記号が混ざります。`);
+      continue;
+    }
+    // 🚨 **有無ではなく値を見る。** `aria-hidden="false"` は在るのに隠していない（2026-08-15 実測）。
+    if (!/aria-hidden\s*=\s*["{]?\s*(?:true|"true")/.test(tag[0])) {
+      found.push(`${where}: ${icon} が aria-hidden="true" になっていません（属性が無い／値が true でない）。`);
+    }
+  }
+  return found;
 }
 
-// ── ② 記号のアイコンに aria-hidden があること
-for (const icon of ["EllipsisIcon", "SlashIcon"]) {
-  const tag = new RegExp(`<${icon}\\b[^>]*>`).exec(trigger[1]);
-  if (!tag) {
-    problems.push(
-      `${FILE}: ${icon} が引き金の中に見つかりません。\n` +
-        `    記号を文字（"..." や "/"）に戻すと、読み上げで「てんてんてんスラッシュ」になります。`,
-    );
-    continue;
-  }
-  checked.push(`${icon} を見つけた`);
-  // 🚨 **有無ではなく値を見る。** `aria-hidden="false"` は「在る」判定を通るのに**隠していない**
-  //    （2026-08-15 実測。exit 0 で素通りした）。
-  if (!/aria-hidden\s*=\s*["{]?\s*(?:true|"true")/.test(tag[0])) {
-    problems.push(
-      `${FILE}: ${icon} が aria-hidden="true" になっていません（属性が無い／値が true でない）。\n` +
-        `    記号が読み上げに混ざります。**"false" は「在る」だけで隠していません**。`,
-    );
+// ── 🚨 囮（自己検査）: **走るたびに、規則が本当に発火するかを確かめる**
+//    これが無いと、規則が壊れて何も検出しなくなっても緑のままになる。
+const OK_ICONS = '<EllipsisIcon aria-hidden="true" /><SlashIcon aria-hidden="true" />';
+const DECOYS = [
+  ["きれいな形（発火してはいけない）", OK_ICONS, '<Button variant="secondary">', 0],
+  ["aria-label", OK_ICONS, '<Button aria-label="x">', 1],
+  ["aria-labelledby", OK_ICONS, '<Button aria-labelledby="x">', 1],
+  ["spread", OK_ICONS, '<Button {...p}>', 1],
+  ['aria-hidden="false"', '<EllipsisIcon aria-hidden="true" /><SlashIcon aria-hidden="false" />', "<Button>", 1],
+  ["アイコンが無い", '<EllipsisIcon aria-hidden="true" />', "<Button>", 1],
+];
+let decoyFailed = false;
+for (const [name, body, tag, want] of DECOYS) {
+  const got = inspect(body, tag, "囮").length;
+  const ok = want === 0 ? got === 0 : got >= 1;
+  if (!ok) {
+    decoyFailed = true;
+    console.error(`🚨 囮が期待どおりに動きません: ${name} → 検出 ${got} 件（期待 ${want === 0 ? "0" : "1 以上"}）`);
   }
 }
+if (decoyFailed) {
+  console.error("\n🚨 **規則そのものが壊れています。この検査の結果は信用できません**（緑でも意味を持たない）。");
+  process.exit(1);
+}
+checked.push(`囮 ${DECOYS.length} 件すべてが期待どおり（規則は発火する／きれいな形では発火しない）`);
+
+problems.push(...inspect(trigger[1], buttonTag[0], FILE));
 
 console.log(`対象: ${FILE}`);
 console.log(`確かめたこと: ${checked.length} 件`);
