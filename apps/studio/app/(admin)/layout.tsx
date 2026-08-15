@@ -2,14 +2,14 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
-import { displayUserAvatarEmoji, displayUserLabel, displayUserPicture } from "@/lib/admin/user-label";
+import { displayUserAvatarEmoji, displayUserLabel, displayUserName, displayUserPicture } from "@/lib/admin/user-label";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import { GlobalSearchProvider } from "@/components/admin/global-search";
 import { HeaderBack } from "@/components/admin/header-back";
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { LeftSidebar, LeftSidebarProvider, LeftSidebarToggle } from "@/components/admin/left-sidebar";
 import { RightPanelProvider, RightPanelToggle } from "@/components/admin/right-panel";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
 import { projectColor } from "@/lib/settings/project-color";
 import { projectLogo } from "@/lib/settings/project-logo";
 import { projectName } from "@/lib/settings/project-name";
@@ -68,6 +68,7 @@ export default async function AdminLayout({
   const logo = await projectLogo();
   const accent = await projectColor();
   const me = await currentUser();
+  const locale = await getLocale();
   if (!me.ok && me.status === 401) {
     // 🚨 セットアップの印を持っている人を /login へ返すと輪ができる（2026-08-13 実事故）。
     //    ログイン → /admin → /login → ログイン … を繰り返し、オンボーディングへ辿り着けない。
@@ -165,10 +166,9 @@ export default async function AdminLayout({
         }
         collectionsError={collections?.ok ? null : t("collections_error")}
         reports={reportsNav}
-        // 🚨 表示名はまだ無い。auth が `displayUserName(me, locale)` を供えたら、
-        //    ここを null からその呼び出しに差し替えるだけで1行目に本名が出るようになる
-        //    （`UserMenu` 側は既に「表示名 → 無ければ辞書の控え」で組んである）。
-        userName={null}
+        // 🚨 auth が `displayUserName(me, locale)` を供えたので、null から差し替え済み。
+        //    1行目には本名が出る（無ければ `UserMenu` 側の「表示名 → 無ければ辞書の控え」で埋まる）。
+        userName={displayUserName(me.ok ? me.data : null, locale)}
         userLabel={displayUserLabel(me.ok ? me.data : null)}
         userPicture={displayUserPicture(me.ok ? me.data : null)}
         userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null)}
@@ -244,10 +244,9 @@ export default async function AdminLayout({
             : []
         }
         contentHeading={t("content_heading")}
-        // 🚨 表示名はまだ無い。auth が `displayUserName(me, locale)` を供えたら、
-        //    ここを null からその呼び出しに差し替えるだけで1行目に本名が出るようになる
-        //    （`UserMenu` 側は既に「表示名 → 無ければ辞書の控え」で組んである）。
-        userName={null}
+        // 🚨 auth が `displayUserName(me, locale)` を供えたので、null から差し替え済み。
+        //    1行目には本名が出る（無ければ `UserMenu` 側の「表示名 → 無ければ辞書の控え」で埋まる）。
+        userName={displayUserName(me.ok ? me.data : null, locale)}
         userLabel={displayUserLabel(me.ok ? me.data : null)}
         userPicture={displayUserPicture(me.ok ? me.data : null)}
         userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null)}
