@@ -18,7 +18,9 @@ import { authorizeTarget, removeLabelsForTarget } from "@/lib/labels/service";
 import { getStorage, getStorageByName } from "@/lib/storage";
 import type { StorageDriver } from "@/lib/storage/driver";
 
-const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+// 🚨 ルート側（app/api/files/route.ts）が **本文を読む前**に同じ値で弾くため公開する。
+//    2 箇所に別々の数字を書くと、片方だけ直したときに**通す門と落とす門が食い違う**。
+export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
 const MAX_TRANSFORM_DIMENSION = 4000;
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
