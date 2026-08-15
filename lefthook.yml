@@ -140,6 +140,14 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-raw-row-exports.mjs
 
+    # 種まきしたシステムラベルが、辞書と部品の両方に登録されているか。
+    # 🚨 知らない system_key は「保存されている名前」をそのまま出す作りなので、
+    #    登録を忘れると **migration に書いた日本語が英語の画面にも出る**（2026-08-15 実測）。
+    #    エラーにならないので、誰も気づけない。
+    system-label-names:
+      root: "apps/studio"
+      run: node scripts/check-system-label-names.mjs
+
     # MCP のツール目録（packages/mcp/src/catalog.ts）と、Studio 側の写しが一致すること。
     # 🚨 **写しがあるのは、Studio から正を import できないから**（依存も exports も zod も無い。
     #    理由は check-mcp-catalog.mjs の冒頭に実測つきで書いてある）。写しは手で直さず `--write` で作る。
