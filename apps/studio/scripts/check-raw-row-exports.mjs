@@ -381,7 +381,12 @@ for (const t of TARGETS) {
   const bad = violationsIn(src, t.raw);
   const a = assertionsIn(src, t.pub);
   const exportCount = exportsOf(src).length;
-  console.log(`  ${t.file}  外向き ${exportCount} 本 / 違反 ${bad.length} 件`);
+  // 🚨 **数に正しい名前を付ける**（司令塔 2026-08-16）。
+  //    「外向き」と書いていたが、拾っているのは **`export function` の宣言だけ**で、
+  //    `export const` の矢印関数・名前の無い既定・`export { x as y }` は入らない
+  //    （＝ この検査が「見ていない形」として毎回出しているもの）。
+  //    🚨 **「外向き 15 本」は、外向きの関数が 15 本ある、という意味に読める。それは嘘。**
+  console.log(`  ${t.file}  \`export function\` の宣言 ${exportCount} 本 / 違反 ${bad.length} 件`);
   // 🚨 **数だけを出さない。拾った行の実物を添える**（司令塔・2026-08-16）。
   //    由来: `error.message` の数え違い。**`?.` が入った書き方**を見落としたのに、
   //    数（12 と 10）が偶然そろってしまい、3 回ひっくり返した。
@@ -394,7 +399,7 @@ for (const t of TARGETS) {
   //    解析が壊れて 0 本になったとき、この検査は「違反 0 件」と言って通ってしまう。
   //    **見ていない 0 と、異常が無い 0 は別**（司令塔・2026-08-15）。
   if (exportCount === 0) {
-    violation(`    🚨 [R0] 外向きの関数を 1 本も拾えていない。解析が壊れている疑い`);
+    violation(`    🚨 [R0] \`export function\` の宣言を 1 本も拾えていない。解析が壊れている疑い`);
     total += 1;
   }
   console.log(`    型表明: as ${a.as.length} 箇所（行 ${a.as.join(", ") || "なし"}）/ 山括弧 ${a.angle.length} 箇所（行 ${a.angle.join(", ") || "なし"}）`);
