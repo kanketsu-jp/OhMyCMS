@@ -134,7 +134,11 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
               // ここは文中リンクではなく**完了画面の行き先の一覧**（ul の項目）なので、
               // 色 + hover の濃さで足りる。**文中に埋まったリンクなら下線を残す**
               // （色だけが手掛かりになると WCAG 1.4.1 に触れる）。
-              className="text-primary hover:text-primary/80"
+              // 🚨 `hover:` を書いたら `active:` も書く（堀池・2026-08-15）。
+              // **タッチの端末には hover が無い**ので、hover だけだと
+              // **スマホでは押しても何も変わらない＝押した手応えが消える**。
+              // ここは同じ効果を当てている（押している間だけ薄くなる）。
+              className="text-primary hover:text-primary/80 active:text-primary/80"
             >
               {t("done_settings_link")}
             </Link>
