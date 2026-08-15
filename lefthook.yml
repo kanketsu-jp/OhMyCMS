@@ -81,9 +81,32 @@ pre-commit:
     #    載せたままだと**全員のコミットが即座に止まる**ので、
     #    **toast が 10 箇所を apiErrorKey() へ寄せ終えてから戻す**。
     #    それまでは手で走らせる: cd apps/studio && node scripts/check-no-api-message.mjs
+    #
+    # 🚨 外している検査は、規律13 の 4 項目を持つこと（司令塔 2026-08-15）。
+    #    ① 記録  2026-08-15
+    #    ② 状態  **未決**（外したまま。戻していない）
+    #    ③ 決める人  toast(w4A:p25)。10 箇所を apiErrorKey() へ寄せる担当
+    #    ④ 何を決めるか  10 箇所の置き換えが済んだかどうか。済んだら**この 3 行のコメントを外す**
+    #    🚨 **外したことを忘れないために、状態を「未決」と書いてある。**
+    #       「理由が書いてある」だけでは、次の人が「もう要らないのかも」と読む。
     # no-api-message:
     #   root: "apps/studio"
     #   run: node scripts/check-no-api-message.mjs
+
+    # 🚨 **まだ一度も載せていない検査**（scripts/check-control-height-tokens.mjs）。
+    #    操作部品の高さを素の数字（h-8 等）で書いていないかを見る。
+    #    「app/globals.css がここが唯一の定義場所」「素の h-8 を書き戻さない」と
+    #    2 箇所に書いてあったのに、**止めるものが無かった**ので作った（規律12）。
+    #    ① 記録  2026-08-15
+    #    ② 状態  **未決**（作ったが載せていない。いま 7 件で赤い）
+    #    ③ 決める人  司令塔。7 件は left-sidebar / right-panel / labels-manager /
+    #                settings-manager / login / layout の各担当へ回す必要がある
+    #    ④ 何を決めるか  7 件を片付けてから載せるか、先に載せて全員に直させるか
+    #    🚨 **コメントすら無いと「そんな検査は無い」と読まれる**ので、
+    #       存在と未決を、載せる場所そのものに書いておく。
+    # control-height:
+    #   root: "apps/studio"
+    #   run: node scripts/check-control-height-tokens.mjs
 
     # 上流（shadcn）から持ち込まれる `cn-*` 独自クラスを入れないための検査。
     # 🚨 このリポジトリに その CSS 層は無い。一度 21 個入り込み、**メニューとアバターが
