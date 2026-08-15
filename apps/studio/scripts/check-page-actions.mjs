@@ -49,14 +49,14 @@ const hrefs = [...table.matchAll(/href:\s*"([^"]+)"/g)].map((m) => m[1]);
 const problems = [];
 
 // 🚨 対象が 0 件なら「見ていない」。正常として通さない。
-if (routes.length === 0) problems.push("PAGE_ACTIONS からルートを1件も取り出せなかった（検査が空振りしている）");
-if (labelKeys.length === 0) problems.push("labelKey を1件も取り出せなかった（検査が空振りしている）");
+if (routes.length === 0) problems.push("[空振り] PAGE_ACTIONS からルートを1件も取り出せなかった");
+if (labelKeys.length === 0) problems.push("[空振り] labelKey を1件も取り出せなかった");
 
 // ── ① 辞書キーが ja / en の両方に実在するか ──────────────────
 for (const full of new Set(labelKeys)) {
   const i = full.indexOf(".");
   if (i < 0) {
-    problems.push(`labelKey "${full}" に名前空間が無い（"namespace.key" の形で書く）`);
+    problems.push(`[辞書] labelKey "${full}" に名前空間が無い（"namespace.key" の形で書く）`);
     continue;
   }
   const ns = full.slice(0, i);
@@ -64,11 +64,11 @@ for (const full of new Set(labelKeys)) {
   for (const locale of ["ja", "en"]) {
     const file = resolve(root, `i18n/messages/${locale}/${ns}.json`);
     if (!existsSync(file)) {
-      problems.push(`labelKey "${full}" … ${locale} に名前空間 ${ns} が無い`);
+      problems.push(`[辞書] labelKey "${full}" … ${locale} に名前空間 ${ns} が無い`);
       continue;
     }
     const dict = JSON.parse(readFileSync(file, "utf8"));
-    if (!(key in dict)) problems.push(`labelKey "${full}" … ${locale} にキーが無い`);
+    if (!(key in dict)) problems.push(`[辞書] labelKey "${full}" … ${locale} にキーが無い`);
   }
 }
 
@@ -86,13 +86,13 @@ const sources = [];
 })(root);
 
 const code = sources.map((f) => readFileSync(f, "utf8")).join("\n");
-if (sources.length === 0) problems.push("走査対象のソースが 0 件（検査が空振りしている）");
+if (sources.length === 0) problems.push("[空振り] 走査対象のソースが 0 件");
 
 for (const id of new Set(formIds)) {
   // <form の直後から、最初の > までの間に id="<id>" があること
   const re = new RegExp(`<form[^>]*\\bid="${id}"`);
   if (!re.test(code)) {
-    problems.push(`form id "${id}" を持つ <form> が無い（ヘッダーの送信ボタンが黙って効かなくなる）`);
+    problems.push(`[form] id "${id}" を持つ <form> が無い（ヘッダーの送信ボタンが黙って効かなくなる）`);
   }
 }
 
@@ -106,17 +106,17 @@ if (existsSync(metaPath)) {
   );
   for (const route of routes) {
     if (!metaRoutes.has(route)) {
-      problems.push(`ルート "${route}" が page-meta.ts に無い（表記ゆれ、または片方の足し忘れ）`);
+      problems.push(`[ルート] "${route}" が page-meta.ts に無い（表記ゆれ、または片方の足し忘れ）`);
     }
   }
 } else {
-  problems.push("lib/admin/page-meta.ts が無い（ルートの突き合わせができない）");
+  problems.push("[空振り] lib/admin/page-meta.ts が無い（ルートの突き合わせができない）");
 }
 
 // ── ④ href の行き先が実在するルートか ───────────────────────
 for (const href of new Set(hrefs)) {
   if (metaRoutes.size > 0 && !metaRoutes.has(href)) {
-    problems.push(`href "${href}" が page-meta.ts に無いルートを指している（押すと 404 になりうる）`);
+    problems.push(`[href] "${href}" が page-meta.ts に無いルートを指している（押すと 404 になりうる）`);
   }
 }
 
@@ -139,7 +139,7 @@ for (const m of src.matchAll(/^ {2}"(\/admin[^"]*)": \[([\s\S]*?)^ {2}\],/gm)) {
   const unreadable = roleValues.filter((v) => v !== '"primary"' && v !== '"secondary"');
   if (unreadable.length > 0) {
     problems.push(
-      `ルート "${route}" の role がリテラルではありません（${unreadable.join(" / ")}）。` +
+      `[読めない] ルート "${route}" の role がリテラルではありません（${unreadable.join(" / ")}）。` +
         "静的に数えられないので、主要が何件あるか分かりません（\"primary\" / \"secondary\" と直接書いてください）",
     );
   }
@@ -147,7 +147,7 @@ for (const m of src.matchAll(/^ {2}"(\/admin[^"]*)": \[([\s\S]*?)^ {2}\],/gm)) {
   primaryCounts.push({ route, count });
   if (count !== 1) {
     problems.push(
-      `ルート "${route}" の主要ボタンが ${count} 件（1 件でなければならない）` +
+      `[主要] ルート "${route}" の主要ボタンが ${count} 件（1 件でなければならない）` +
         `${count === 0 ? "。既定の操作が無い" : "。どれが『まずこれ』か分からなくなる"}`,
     );
   }
@@ -163,7 +163,11 @@ console.log(`走査したソース: ${sources.length} ファイル`);
 console.log(`主要ボタン: ${primaryCounts.length} ルートで数えた（各 1 件であること）`);
 
 if (problems.length > 0) {
-  console.error(`\n■ 実在しないものを指している: ${problems.length} 件`);
+  // 🚨 **何で赤くなったかを出す。**「何かで赤くなった」を「狙ったものを検出した」と読ませないため。
+  //    以前この見出しは「実在しないものを指している」固定で、**主要ボタンの件数違反にも同じ見出し**が
+  //    付いていた（＝見出しと中身が食い違っていた・2026-08-15 実測）。
+  const kinds = [...new Set(problems.map((p) => (p.match(/^\[([^\]]+)\]/) ?? [])[1] ?? "その他"))];
+  console.error(`\n■ 違反 ${problems.length} 件（種別: ${kinds.join(" / ")}）`);
   for (const p of problems) console.error(`  ${p}`);
   process.exit(1);
 }
