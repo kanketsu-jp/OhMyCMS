@@ -65,7 +65,16 @@ function AccordionItem({
   return (
     <AccordionPrimitive.Item
       data-slot="accordion-item"
-      className={cn("not-last:border-b", className)}
+      // 🚨 **項目のあいだに罫線を引かない**（shadcn の既定 `not-last:border-b` を外した）。
+      //    堀池さん（2026-08-15 原文）:「アコーディオンの上にある divider はいらない。
+      //    **それをつけるならアコーディオン全てにつけないと意図がずれる**。divider は
+      //    **明確に分けるもの**なので、今の位置にあると**設定は別の要素と考えてしまう**」
+      //    アコーディオンの項目は**1つの集まり**で、あいだの線は「別の領域」を宣言してしまう
+      //    （knowledge/decisions/no-nested-surfaces.md）。
+      //    🚨 既定が間違っていた証拠: 呼び出し 3 箇所のうち **2 箇所が `border-0` で打ち消していた**
+      //    （left-sidebar.tsx / nav-links.tsx）。打ち消していない右パネルにだけ線が出ていた。
+      //    次に shadcn を更新する人へ: **`not-last:border-b` を書き戻さないこと。**
+      className={cn(className)}
       {...props}
     />
   )
