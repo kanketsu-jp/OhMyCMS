@@ -331,6 +331,16 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
       role: "primary",
     },
   ],
+  // ユーザーメニューから来る個人ページなので、ナビ項目の最後に置く。
+  "/admin/profile": [
+    {
+      kind: "submit",
+      labelKey: "nav.profile_name_save",
+      icon: "Check",
+      form: "profile-name-form",
+      role: "primary",
+    },
+  ],
 };
 
 /** ルートの形かどうか（`[collection]` のような区間） */

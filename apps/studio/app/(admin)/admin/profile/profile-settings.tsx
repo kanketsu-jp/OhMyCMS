@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { AvatarEmojiGrid } from "@/components/admin/avatar-emoji-picker";
-import { Button } from "@/components/ui/button";
+import { PageAction } from "@/components/admin/page-action";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -218,7 +219,11 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
 
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="profile-name-title">
         <SurfaceTitle id="profile-name-title">{t("profile_name_section")}</SurfaceTitle>
-        <form onSubmit={handleNameSubmit} className="flex min-w-0 flex-col gap-4">
+        <form
+          id="profile-name-form"
+          onSubmit={handleNameSubmit}
+          className="flex min-w-0 flex-col gap-4"
+        >
           <div className="flex min-w-0 flex-col gap-1.5">
             <Label htmlFor="profile-name">{t("profile_name_label")}</Label>
             <Input
@@ -233,11 +238,12 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
               <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
           </div>
-          <div className="flex justify-end">
-            <Button type="submit" loading={saveName.pending} disabled={saveName.pending}>
-              {t("profile_name_save")}
-            </Button>
-          </div>
+          <PageAction
+            form="profile-name-form"
+            label={t("profile_name_save")}
+            icon={<Check />}
+            pending={saveName.pending}
+          />
         </form>
       </section>
 
