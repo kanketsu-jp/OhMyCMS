@@ -96,6 +96,16 @@ export default async function AdminLayout({
   const collections = me.ok
     ? await apiFetch<{ collection: string }[]>("/api/collections?names=true")
     : null;
+
+  // 🚨 **この取得が失敗したときの文言は、利用者が「コンテンツ」を開くまで見えません。**
+  //    実測（2026-08-16・/admin/files・PC 1280・権限の無い利用者）:
+  //      /api/collections?names=true → **403**
+  //      閉じたまま   … 「コンテンツ」とだけ見える。**失敗した気配がゼロ**
+  //      開いて初めて … <p> 190x24 で「コレクションを取得できません」が**可視**
+  //      （🟢 対照: 同じサイドバー内の .sr-only は 0 件 ＝ 読み上げ専用ではない）
+  //    🚨 **読めない人ほど「コンテンツを開く理由」が無い**ので、いちばん見せたい相手に届きません。
+  //    直すのはサイドバーの見た目の担当。ここに書いてあるのは、
+  //    **次に `collectionsError` を触る人が最初に読む場所**だからです。
   // 🚨 **`category=personal` は base2 の仮定であって、まだ決まっていない**（2026-08-15 時点）。
   //    決める人: 堀池さん（司令塔から照会中）／ 何を決めるのか:
   //      **バッジの件数を「自分宛て（personal）」だけにするか、system のお知らせも数えるか。**
