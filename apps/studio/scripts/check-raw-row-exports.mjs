@@ -176,6 +176,22 @@ for (const t of TARGETS) {
   console.log(`  見る範囲: ${TARGETS.map((t) => t.file).join(", ")} と app/ 配下（git ls-files）`);
 }
 
+/**
+ * 壊す置換の**当たった件数**を数える。
+ *
+ * 🚨 **「変わったかどうか」では足りない**（司令臺経由・base2 の実測・2026-08-16）。
+ *    base2 は `<LeftSidebar` を狙って **3 件**（import / Provider / JSX）当て、
+ *    **壊したつもりで別の場所を壊し、「検出できた」と読みかけた**。
+ *    `String.replace(文字列, …)` は **最初の 1 件しか置き換えない**ので、
+ *    目印が 2 箇所に在ると**意図と違う場所へ差し込む**（例: コメントの中に差し込むと
+ *    `withoutComments` に消され、**壊れていないのに壊したつもり**になる）。
+ * 🚨 **なお、この検査は共有ツリーへ 1 バイトも書きません**（壊すのはメモリ上の文字列だけ）。
+ *    「切った台の中で壊す」の、いちばん軽い形。
+ */
+function 目印の件数(source, anchor) {
+  return source.split(anchor).length - 1;
+}
+
 console.log("■ 自己検査（実物をメモリ上で壊して、検出できることをその場で確かめる）");
 {
   const src = readFileSync("lib/files/service.ts", "utf8");
@@ -193,8 +209,17 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
       'export async function zzSelfTest4(id: string): Promise<{ row: FileRow }> {\n  return null as never;\n}\n\n'],
   ];
   let ok = true;
+  const ANCHOR = "export async function getFile(";
+  // 🚨 **目印が 1 箇所であることを、囮を回す前に確かめる。**
+  //    2 箇所以上あると、`replace` は最初の 1 件へ差し込むので、
+  //    **どこを壊したのかが分からないまま「検出できた」と読む**ことになる。
+  {
+    const n = 目印の件数(src, ANCHOR);
+    console.log(`  ${n === 1 ? "✅" : "❌"} 目印「${ANCHOR}」の件数: ${n}（1 でないと、どこを壊したか分からない）`);
+    if (n !== 1) ok = false;
+  }
   for (const [label, probe] of cases) {
-    const broken = src.replace("export async function getFile(", probe + "export async function getFile(");
+    const broken = src.replace(ANCHOR, probe + ANCHOR);
     if (broken === src) { console.log(`  ❌ ${label}: 差し込めなかった（この自己検査は無効）`); ok = false; continue; }
     const n = violationsIn(broken, "FileRow").length;
     console.log(`  ${n > base ? "✅" : "❌"} ケース: ${label} → 違反 ${n} 件（実物は ${base} 件）`);
