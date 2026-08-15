@@ -236,7 +236,12 @@ export function FileDropzone({
                 {/* 🚨 画像のレターボックス。背景が要るので面に見えるが、面ではない。
                     例外を検査スクリプト側に隠さず、コードに書いて見えるようにしている
                     （app/(admin)/admin/files/page.tsx:178 と同じ作法） */}
-                <AttachmentMedia data-surface-exempt>
+                {/* 🚨 SP では 44px。`AttachmentMedia` の既定は `w-10`（40px）で、
+                    その中を `size-full` のボタンが埋めるため **40px の的**になっていた
+                    （2026-08-15 実測: [§7 タップ領域（SP）] で 1 件）。
+                    🚨 **ボタンだけ大きくしても直らない**——親が `overflow-hidden` なので
+                    はみ出した分は**当たり判定ごと切られる**。箱の側を広げる。 */}
+                <AttachmentMedia data-surface-exempt className="w-11 sm:w-10">
                   {preview ? (
                     // 押すと大きく見られる。器を持たない（面を増やさない）ので
                     // 見た目はサムネのままで、押せることだけが増える。
