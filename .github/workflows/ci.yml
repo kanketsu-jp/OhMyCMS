@@ -226,6 +226,43 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  acceptance:
+    # 🚨 **V1-E（初回起動）は、どこでも走っていなかった**（2026-08-16・onboard が実測）。
+    #    `.github/` の中で `acceptance/run` を呼ぶ行 = **0 件**
+    #    🟢 対照(+) 同じ探し方で `lefthook` は 12 件 ＝ CI を見に行けている
+    #    🟢 対照(+) `acceptance/run.mjs` に v1-e は 2 件 ＝ 載ってはいる
+    #    ＝ **「見ていない 0」ではなく「本当に呼ばれていない 0」**。
+    #
+    # 🚨 手元では緑 / CI で赤、という種類ではない。**手元でも CI でも走らない**種類なので、
+    #    CI を足しただけでは直らなかった。ここに載せて初めて走る。
+    #
+    # 🚨 **このジョブは本番を止めない。** デプロイは push を引き金に別系統で走り、
+    #    実測（2026-08-16）では **CI 開始の 27 秒後・終了の 6 分前**に本番が焼き上がっていた。
+    #    赤くても出る。**止めたいなら別の仕組みが要る**（ユーザー判断待ち）。
+    #
+    # 🚨 **未検証**: このジョブは**まだ一度も CI で走っていない**。
+    #    v1-e は使い捨ての `postgres:17` を `docker run` で立て、`git worktree` を作り、
+    #    `bun install` → `migrate` → `next dev` まで通す。**手元では動かしていない**
+    #    （使い捨てとはいえ Docker とポートは全ペインで共有しているため）。
+    #    最初の run で BLOCKED / 失敗が出たら、原因はここに追記すること。
+    name: 受入 V1-E（新規インストールで初期設定を終えられる）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # 🚨 `git worktree add` を使うので浅い clone にしない
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: V1-E だけ実行（id 14）
+        run: bun run acceptance --only 14 --json
+
   image:
     name: デプロイ用 amd64 イメージを焼く
     # PR ごとには回さない。docker job が同じものを既に amd64 で建てて 200 まで確認しているので、
