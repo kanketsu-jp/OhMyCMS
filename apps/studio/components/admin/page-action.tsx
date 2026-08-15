@@ -175,7 +175,13 @@ function renderAction({
   compact: boolean;
 }) {
   const size = "sm";
-  const text = <span className={cn(compact && "min-w-0 truncate")}>{label}</span>;
+  // 🚨 SP だけ 11px にする（PC のヘッダは触らない。同じ部品から出ているため）。
+  //    堀池の指示（2026-08-15）は「SPのNAVのタイトル…はもっと小さく。ボタンはSPでは3つ表示」で、
+  //    セレクタはナビのリンクを指していた＝**字義通りにはこのボタンを含まない**。
+  //    それでも揃えたのは、**堀池が3つを「ボタン」と同列に呼んでいる**ため（依頼側の判断）。
+  //    揃えないと、並んだ3つのうち1つだけ 12px になる。
+  //    経緯は `docs/research/ja-en-ui-evidence.md` の例外の段落に集約してある。
+  const text = <span className={cn(compact && "min-w-0 truncate text-[11px]")}>{label}</span>;
   const compactClassName = compact ? "w-full min-w-0 overflow-hidden px-1" : undefined;
 
   if (href) {

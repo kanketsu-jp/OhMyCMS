@@ -241,7 +241,14 @@ export function MobileNav({
               )}
             >
               <Icon className="size-5 shrink-0" />
-              <span className="max-w-full truncate text-xs leading-none">{label}</span>
+              {/* 🚨 **11px は規約の下限（12px）を割っている。** 堀池の指示（2026-08-15 原文）:
+                  「SPのNAVのタイトル…はもっと小さく。ボタンはSPでは3つ表示」
+                  経緯は `docs/research/ja-en-ui-evidence.md` に残した。**消さないこと**——
+                  残さないと、次に照合した人が「規約違反だ」と言って戻す（今日それが起きた）。
+                  🚨 **タップ領域の 44px は割らない**（親の `min-h-(--control-h)`）。
+                  12px の下限は E2（一次ガイドライン未確認）だが、44px は E3（WCAG / HIG / Material）。
+                  **下げてよいのは前者だけ。** */}
+              <span className="max-w-full truncate text-[11px] leading-none">{label}</span>
             </Link>
           ))}
           {/*
