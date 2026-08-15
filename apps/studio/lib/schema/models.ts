@@ -50,6 +50,13 @@ export type FieldMeta = {
   conditions: unknown | null;
   validation: unknown | null;
   validation_message: string | null;
+  /**
+   * 欄名の辞書（設問286 A）。`{"ja": "本文", "en": "Body"}` のロケール辞書。
+   * 🚨 **null が既定**。null のときは**生の識別子（`field`）をそのまま出す**——
+   * 「まだ名前を付けていない」と「空文字の名前を付けた」を区別するため。
+   * 読むときは必ず `fieldLabel()` を通すこと（各所で `?? field.field` を書くと必ず割れる）。
+   */
+  translations: Record<string, string> | null;
 };
 
 export type RelationMeta = {

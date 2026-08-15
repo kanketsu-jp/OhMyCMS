@@ -18,6 +18,7 @@ import { deriveFieldType, sqlTypeForField } from "./types";
 import { isInterfaceAllowedForType } from "@/lib/schema/interfaces";
 import { plainColumnName } from "@/lib/richtext/document";
 import { assertSafeIdentifier, isSystemTableName } from "./validate";
+import { parseFieldTranslations } from "./labels";
 
 const COLLECTION_META_COLUMNS = new Set([
   "note",
@@ -54,7 +55,28 @@ const FIELD_META_COLUMNS = new Set([
   "conditions",
   "validation",
   "validation_message",
+  // 🚨 欄名の辞書（設問286 A）。`{"ja":"本文","en":"Body"}` のロケール辞書。
+  //    ここに足さないと、列は在るのに **API から一切書けない**（migration が死んだ列になる）。
+  "translations",
 ]);
+
+/**
+ * 🚨 `translations` だけは許可リストを通ったあとに**形も見る**（fail-closed）。
+ * 許可リストは「その鍵を書いてよいか」しか見ないので、
+ * 値が配列でも数値でも素通りし、**画面に出る文字列が型の保証なしに DB へ入る**。
+ * 壊れた形は 400 で弾き、`null`（＝辞書を消す）とは区別する。
+ */
+function assertFieldMetaShape(meta: Record<string, unknown> | undefined): void {
+  if (!meta || !("translations" in meta)) return;
+  if (parseFieldTranslations(meta.translations) === undefined) {
+    throw new ApiError(
+      400,
+      "INVALID_FIELD_TRANSLATIONS",
+      "欄名の辞書は {\"ja\": \"本文\"} の形（ロケール→文字列）で送ってください",
+    );
+  }
+  meta.translations = parseFieldTranslations(meta.translations) ?? null;
+}
 
 const RELATION_META_COLUMNS = new Set([
   "many_collection",
@@ -711,6 +733,7 @@ export async function createField(
   const field = body.field;
   const schema = parseFieldSchema(body.schema);
   const meta = pickAllowed(body.meta, FIELD_META_COLUMNS, "UNSUPPORTED_FIELD_META");
+  assertFieldMetaShape(meta as Record<string, unknown> | undefined);
 
   // 🚨 columnExists は「同時に2回」来ると両方が false を見る（二重クリックの実体は並行）。
   // 後着は PostgreSQL の duplicate_column で弾かれる。データは壊れないが、
@@ -757,6 +780,7 @@ export async function updateField(
   const meta = body.meta === undefined
     ? {}
     : pickAllowed(body.meta, FIELD_META_COLUMNS, "UNSUPPORTED_FIELD_META");
+    assertFieldMetaShape(meta as Record<string, unknown> | undefined);
   const schema = parseFieldSchemaPatch(body.schema);
 
   await db.transaction(async (trx) => {
