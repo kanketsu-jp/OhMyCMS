@@ -212,6 +212,20 @@ console.log(`ルート: ${routes.length} 件 / labelKey: ${labelKeys.length} 件
 console.log(`form id: ${formIds.length} 件（<form> に付いているかを確認）/ href: ${hrefs.length} 件`);
 console.log(`走査したソース: ${sources.length} ファイル`);
 console.log(`主要ボタン: ${primaryCounts.length} ルートで数えた（各 1 件であること）`);
+// 🚨 **数だけを出さない。拾った実物を 3 本ずつ添える**（司令塔 2026-08-16）。
+//    「labelKey 27 件」だけでは、**何を数えたのか**を読んだ人が確かめられない。
+//    実際、私は別の検査で「許容 14 件」と書き続けていて、**実物を出した瞬間に
+//    その 14 件が同じファイルの同じクラスだと初めて知った**（＝自分の数の中身を知らなかった）。
+{
+  const show = (why, list) => {
+    if (list.length === 0) return;
+    console.log(`  ${why}（先頭 3 本。**数ではなく中身を見るため**）:`);
+    for (const v of list.slice(0, 3)) console.log(`    ${v}`);
+  };
+  show("labelKey", [...new Set(labelKeys)]);
+  show("form id", [...new Set(formIds)].map((id) => `${id} → <form id="${id}"> を ${sources.length} 本の中に確認`));
+  show("href", [...new Set(hrefs)]);
+}
 
 if (problems.length > 0) {
   // 🚨 **何で赤くなったかを出す。**「何かで赤くなった」を「狙ったものを検出した」と読ませないため。
