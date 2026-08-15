@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Check, ChevronsUpDown, LogOut, Smile } from "lucide-react";
+import Link from "next/link";
+import { ChevronsUpDown, LogOut, Settings } from "lucide-react";
 
-import { AvatarEmojiPicker } from "@/components/admin/avatar-emoji-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLocale, useT } from "@/i18n/client";
-import { setLocaleAction } from "@/i18n/actions";
-import { LOCALES } from "@/i18n/config";
+import { useT } from "@/i18n/client";
 
 type Props = {
   /**
@@ -53,18 +50,12 @@ type Props = {
  */
 export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: Props) {
   const t = useT("nav");
-  const tCommon = useT("common");
-  const locale = useLocale();
   // 🚨 名前が出せないときの控えは「メニュー」ではなく「アカウント」。
   //    この行は**人のアカウントの行**なので、器の名前（メニュー）を出すと何の行か分からない。
   //    名前が出せない例: エージェント／起動用の内部ユーザー（`lib/admin/user-label.ts`）。
   //    🚨 控えは辞書の固定文言であって、メールアドレス（`userLabel`）を代用しない
   //       （判断ボード 設問211。1行目＝名前・2行目＝メールという役割を保つ）。
   const name = userName ?? t("account");
-  // 🚨 面は1段まで（憲章 §3b）。メニューを開いたままダイアログを重ねない。
-  // Dialog は DropdownMenu の外に置き、メニュー側は state を立てるだけにする。
-  // DropdownMenuItem の onSelect は既定でメニューを閉じるので、Radix の挙動に任せている。
-  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   return (
     <div className="shrink-0 border-t px-2 py-2">
@@ -107,38 +98,12 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
           このリポジトリのサイドバーは畳めないので、再掲は重複でしかない。
         */}
         <DropdownMenuContent side="top" align="end">
-          {/* アイコン（アバターの絵文字）を変える。押すとメニューを閉じてダイアログを開く
-              （state を立てるだけ。ダイアログ本体はメニューの外・下で描画している）。 */}
-          <DropdownMenuItem onSelect={() => setAvatarPickerOpen(true)}>
-            <Smile />
-            {t("avatar_change")}
+          <DropdownMenuItem asChild>
+            <Link href="/admin/profile">
+              <Settings />
+              {t("profile")}
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {/*
-            🚨 **言語も `DropdownMenuItem` にすること。素の button を置かない。**
-            Base UI の Menu は **`Menu.Item` の子孫だけ**を ↑↓ の移動対象にしていた。
-            ここに `LocaleSwitcher`（素の form + 素の button）を置いていたときは、
-            **↓ を4回押しても「日本語」から動かなかった**（実測。Tab では移れた）。
-            見た目は同じでも、**キーボードで辿れない項目**になっていた。
-
-            🚨 現在地は**塗りではなく `✓`** で示す（憲章 §3b）。
-            メニューの中で塗ると、選択中の項目が「親と違う背景」＝面として数えられる。
-          */}
-          <form action={setLocaleAction}>
-            {LOCALES.map((item) => (
-              <DropdownMenuItem key={item} asChild>
-                <button
-                  type="submit"
-                  name="locale"
-                  value={item}
-                  className="w-full"
-                >
-                  {tCommon(`locale_${item}`)}
-                  {item === locale ? <Check className="ml-auto" /> : null}
-                </button>
-              </DropdownMenuItem>
-            ))}
-          </form>
           <DropdownMenuSeparator />
           <form action="/admin/actions/logout" method="post">
             {/*
@@ -158,12 +123,6 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
           </form>
         </DropdownMenuContent>
       </DropdownMenu>
-      {/* 🚨 メニューの外。開いている間、メニューとダイアログが同時に面を持たないようにする。 */}
-      <AvatarEmojiPicker
-        current={userAvatarEmoji}
-        open={avatarPickerOpen}
-        onOpenChange={setAvatarPickerOpen}
-      />
     </div>
   );
 }

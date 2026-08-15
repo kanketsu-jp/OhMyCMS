@@ -239,6 +239,8 @@ export default async function AdminLayout({
       <MobileNav
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
         groups={navGroups}
+        bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+        reports={reportsNav}
         collections={
           collections?.ok
             ? collections.data.map((row) => ({
@@ -247,6 +249,7 @@ export default async function AdminLayout({
               }))
             : []
         }
+        collectionsError={collections?.ok ? null : t("collections_error")}
         contentHeading={t("content_heading")}
         // 🚨 auth が `displayUserName(me, locale)` を供えたので、null から差し替え済み。
         //    1行目には本名が出る（無ければ `UserMenu` 側の「表示名 → 無ければ辞書の控え」で埋まる）。

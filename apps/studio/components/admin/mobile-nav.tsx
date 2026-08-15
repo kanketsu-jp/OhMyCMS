@@ -8,7 +8,7 @@ import {
   FolderTree,
   MenuIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { GlobalSearchButton } from "@/components/admin/global-search";
 import { NavLinks, type NavGroup, type NavLink } from "@/components/admin/nav-links";
@@ -30,8 +30,14 @@ type Props = {
   items: NavLink[];
   /** コレクション（動的に増える）。サイドバーの「コンテンツ」と同じもの */
   collections: NavLink[];
+  /** コレクションが引けなかったときに出す文。**サイドバーと同じものを渡す**（null なら「1件も無い」と区別する） */
+  collectionsError: string | null;
   /** 畳んで持つ組（ファイル・設定）。**サイドバーと同じものを渡す** */
   groups: NavGroup[];
+  /** 組より下に置く平リンク。**サイドバーと同じものを渡す**（通知など） */
+  bottomItems: NavLink[];
+  /** 下部の「不具合報告」。**サイドバーと同じ ReactNode を渡す**（中身は E 群が差し替える） */
+  reports: ReactNode;
   /** ドロワーの中の「コンテンツ」見出し */
   contentHeading: string;
   /** メニュー最下部に出す、いま入っている人の表示名。取れなければ null */
@@ -63,11 +69,21 @@ type Props = {
  *   堀池さんが繰り返す「**使うのは非技術者**」に対して、アイコンだけでは通じない。
  *
  * 🚨 面は作らない（§1）。上辺の罫線1本だけで、背景は本体と同じ。
+ *
+ * 🚨 **`bottomItems` と `reports` は必ずサイドバー（PC）と同じものを受け取る。**
+ * 同じデータを PC は `left-sidebar.tsx`、SP はここで別々に描いているため、
+ * 片方だけに配線すると**もう片方だけ表示が消える**（実測: 2026-08-15、layout.tsx が
+ * `bottomItems`/`reports` を `<LeftSidebar>` にしか渡しておらず、SP から通知・不具合報告が
+ * 消えていた）。新しい行き先を足すときは、layout.tsx がこの2つのコンポーネント**両方**に
+ * 配線しているかを確認すること（`scripts/check-nav-parity.mjs` が機械的に検出する）。
  */
 export function MobileNav({
   items,
   groups,
+  bottomItems,
+  reports,
   collections,
+  collectionsError,
   contentHeading,
   userName,
   userLabel,
@@ -131,8 +147,17 @@ export function MobileNav({
                   2箇所に書くと、片方だけ直したときに PC と SP で行き先が食い違う。 */}
               <div className="flex flex-col px-2 pb-4">
                 {/* 🚨 コンテンツが一番上（堀池さん指示）。メインはコレクションでなくコンテンツで、
-                    毎日触るものを上に置く。PC サイドバーは既にこの並びなので、ここが逆だと食い違う。 */}
-                {collections.length > 0 ? (
+                    毎日触るものを上に置く。PC サイドバーは既にこの並びなので、ここが逆だと食い違う。
+                    🚨 **「読み込みに失敗した」と「1件も無い」は別の状態**（PC＝left-sidebar.tsx の
+                    `emptyMessage` と同じ区別）。エラーを空リストのように見せない。 */}
+                {collectionsError ? (
+                  <>
+                    <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">
+                      {contentHeading}
+                    </p>
+                    <p className="px-3 py-1 text-xs text-muted-foreground">{collectionsError}</p>
+                  </>
+                ) : collections.length > 0 ? (
                   <>
                     <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">
                       {contentHeading}
@@ -150,6 +175,29 @@ export function MobileNav({
                   </>
                 ) : null}
                 <NavLinks items={items} groups={groups} onNavigate={() => setOpen(false)} />
+                {/* 🚨 組より下＝PC の `bottomItems`（サイドバー中央の下）と同じ並び順。
+                    通知など、畳まない平リンク。 */}
+                {bottomItems.length > 0 ? (
+                  <div className="flex flex-col">
+                    {bottomItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        aria-current={isCurrent(item.href) ? "page" : undefined}
+                        className={cn(
+                          "flex h-(--control-h) items-center truncate rounded-md px-3 text-sm",
+                          isCurrent(item.href) ? "bg-muted font-medium text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+                {/* 🚨 PC の `SidebarFooter` と同じ位置＝一番下。中身は Server 側が渡す ReactNode
+                    なので `onClick` を持たせられない。クリックがバブルする外側で閉じる。 */}
+                <div onClick={() => setOpen(false)}>{reports}</div>
               </div>
             </div>
             <UserMenu
