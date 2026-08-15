@@ -77,7 +77,11 @@ const CONTROL_TAGS = new Set([
   "button", "input", "select", "textarea", "a", "label", "summary",
   "Button", "Input", "Select", "SelectTrigger", "Textarea", "Link", "Toggle", "Switch",
   "Checkbox", "RadioGroupItem", "SidebarMenuButton", "SidebarMenuSubButton", "CopyButton",
-  "PageAction", "TabsTrigger", "AccordionTrigger", "DropdownMenuTrigger", "PopoverTrigger",
+  // 🚨 `TabsTrigger` は外した（2026-08-15）。`components/ui/tabs.tsx` を消したため
+  //    （実画面 0 / story 0 で、作った本人から「使う予定なし」の回答があった）。
+  //    タブは `components/admin/page-tabs.tsx` が <nav> + <Link> で持っており、
+  //    そちらは **リンクなので `Link` が既にこの表に在る**。
+  "PageAction", "AccordionTrigger", "DropdownMenuTrigger", "PopoverTrigger",
 ]);
 
 /**
