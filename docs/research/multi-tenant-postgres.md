@@ -55,9 +55,12 @@ RLS は「現在のテナント」を **`SET LOCAL app.tenant_id = ...`**（ト�
 
 推測で B を選ばない。次を**実測**してから決定を起こす:
 
-1. **チョークポイントの実在**: `lib/schema/service.ts` の CREATE TABLE 経路が**1箇所**か。
-   1箇所なら、そこに「tenant_id 列 + FORCE RLS + ポリシー」を自動付与できる。分散していたら B のコストが跳ねる。
-   （測り方: 作成経路の関数を数え、runtime `CREATE TABLE` を出す箇所を列挙。「0/1/多」を明示）
+1. **チョークポイントの実在 → 🟢 実測済み（2026-08-15・security）。単一チョークポイントあり。**
+   runtime DDL を出すファイルは **`lib/schema/service.ts` の1本だけ**（`grep -rln` で lib/app・migrations 除外 = 1件）。
+   コレクション作成の入口は **`createCollection`（service.ts:434）**。`raw(` が12箇所 = 生 SQL 併用なので、
+   ここに「tenant_id 列 + `FORCE ROW LEVEL SECURITY` + ポリシー」を**自動付与する改修が1箇所で済む**。
+   → **B(RLS床) の実装コストは跳ねない。この発見は B を後押しする。**
+   （残点検: `createField`(703) がリレーション用の中間テーブル等を作る場合、そこも同じ付与が要るか要確認）
 2. **プール GUC リークの再現**: probe テーブルを実行時に作り、`SET LOCAL` 版と `SET` 版で
    「テナントA で設定 → 同一プール接続の次リクエストがテナントB」を叩き、**A の行が B に見えないこと**を対照付きで確認。
    🔴 見えたら実装が誤り。🟢 見えなければ床が効いている。
