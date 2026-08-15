@@ -23,6 +23,43 @@ export async function isAllowedEmail(email: string | null): Promise<boolean> {
   return row !== undefined;
 }
 
+/**
+ * 許可判定の「理由」まで割った型。
+ *
+ * 🚨 `allowed` だけだと `false` の内訳（一覧に無い／そもそもメールが届いていない）が
+ * 記録の上で区別できない(`docs/design/sso-user-provisioning.md` §1)。
+ * `no_email` は**管理者が一覧に足しても直らない**（IdP の属性設定の話）。
+ * `not_listed` は**足せば直る**。この2つを同じ `false` のまま記録すると、
+ * 管理者は直らない方にも一覧を足し続けることになる。
+ */
+export type AllowlistReason = "allowed" | "not_listed" | "no_email";
+
+export type AllowlistCheck = {
+  allowed: boolean;
+  reason: AllowlistReason;
+  /** 実際に照合した値(小文字化後)。照合できなかった(no_email)ときは null。 */
+  email: string | null;
+};
+
+/**
+ * 許可リストと照合し、判定結果を理由つきで返す。
+ *
+ * 🚨 判定そのものは `isAllowedEmail` を呼んで行う(同じ判定を2箇所に書かない)。
+ * ここで返す `email` は**照合に使った値そのもの**。`upsertSamlUser` が保存用に使う
+ * `<uuid>@saml.invalid` のような埋め草は入れない(管理者が一覧に足せる値ではないため)。
+ */
+export async function checkAllowlist(email: string | null): Promise<AllowlistCheck> {
+  const normalized = email?.trim().toLowerCase() ?? "";
+  if (!normalized) {
+    return { allowed: false, reason: "no_email", email: null };
+  }
+
+  const allowed = await isAllowedEmail(normalized);
+  return allowed
+    ? { allowed: true, reason: "allowed", email: normalized }
+    : { allowed: false, reason: "not_listed", email: normalized };
+}
+
 export type AllowedEmailRow = {
   id: string;
   email: string;
@@ -122,8 +159,12 @@ function authDataRecord(value: unknown): Record<string, unknown> {
  *
  * 記録する理由: 一覧に入れ忘れた人が来たとき、その人が誰か分かるようにするため。
  * 記録が無いと、管理者は誰を追加すべきか分からない(設計 §1 の3つ目の理由)。
+ *
+ * 🚨 `reason` / `email` も併せて記録する。**`allowed` から `reason` を導出しない**
+ * (呼び出し元で `checkAllowlist` が判定済みの値をそのまま渡す)。理由まで残さないと、
+ * 「一覧に足せば直る」と「足しても直らない」が後から区別できなくなる(上の由来と同じ)。
  */
-export async function recordAllowlistCheck(userId: string, allowed: boolean): Promise<void> {
+export async function recordAllowlistCheck(userId: string, check: AllowlistCheck): Promise<void> {
   const existing = await db<{ id: string; auth_data: unknown }>("directus_users")
     .select("auth_data")
     .where("id", userId)
@@ -134,7 +175,9 @@ export async function recordAllowlistCheck(userId: string, allowed: boolean): Pr
     .update({
       auth_data: {
         ...authDataRecord(existing?.auth_data),
-        saml_allowed: allowed,
+        saml_allowed: check.allowed,
+        saml_allowed_reason: check.reason,
+        saml_allowed_email: check.email,
         saml_allowed_checked_at: new Date().toISOString(),
       },
     });

@@ -11,7 +11,7 @@
  */
 
 import { isSecureRequest, sessionCookieHeader } from "@/lib/auth/cookies";
-import { isAllowedEmail, recordAllowlistCheck } from "@/lib/auth/saml/allowlist";
+import { checkAllowlist, recordAllowlistCheck } from "@/lib/auth/saml/allowlist";
 import { getSamlConfig } from "@/lib/auth/saml/config";
 import { safeRelativePath } from "@/lib/auth/urls";
 import { acsUrl, metadataUrl } from "@/lib/auth/saml/urls";
@@ -58,11 +58,14 @@ export async function POST(request: Request) {
     // 🚨 許可リストとの照合はここで**記録するだけ**。403 は投げない。
     //    「入れて、権限を与えない」設計(`docs/design/sso-user-provisioning.md` §1)なので、
     //    一覧に無い人もこのままセッションを作る。落とすのは認可の層(`requireAdminAccess` 等)。
-    //    メールを送らない IdP の利用者(identity.email === null)は `isAllowedEmail` が
-    //    そのまま false を返す ── 管理者がその値を一覧に足しようがないため、
+    //    メールを送らない IdP の利用者(identity.email === null)は `checkAllowlist` が
+    //    そのまま `no_email` を返す ── 管理者がその値を一覧に足しようがないため、
     //    一覧に無い人と同じ扱いにする(§3.3)。
-    const allowed = await isAllowedEmail(identity.email);
-    await recordAllowlistCheck(user.id, allowed);
+    //    理由(`no_email` / `not_listed`)まで記録するのは、`no_email` は**一覧に足しても
+    //    直らない**(IdP の属性設定の話)ため。真偽値だけだと両者が同じ `false` に潰れ、
+    //    管理者は直らない方にも足し続けることになる。
+    const check = await checkAllowlist(identity.email);
+    await recordAllowlistCheck(user.id, check);
 
     const session = await issueSession(user.id, request, "saml");
 
