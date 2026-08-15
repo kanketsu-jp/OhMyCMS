@@ -56,6 +56,7 @@ x_rag_okf:
 - [保管先の安全装置は「実装が実際に使う値」で判定する](./decisions/storage-guard-uses-effective-config.md) — `knowledge/decisions/storage-guard-uses-effective-config.md`
 - [保管先の根（STORAGE_LOCAL_ROOT）は環境変数に残す](./decisions/storage-local-root-is-fixed.md) — `decisions/storage-local-root-is-fixed`
 - [保管先のキー設計を固定する（接頭辞は後から変えない）](./decisions/storage-key-prefix-is-fixed.md) — `decisions/storage-key-prefix-is-fixed`
+- [アップロードの上限は 2 つある。同じ文言で語らない](./decisions/upload-limits-are-two-not-one.md) — `decisions/upload-limits-are-two-not-one`
 - [合成 ID は画面に出さない](./decisions/synthetic-ids-are-not-contacts.md) — `decisions/synthetic-ids-are-not-contacts`
 - [Tailwind v4 は transform を translate / scale / rotate の 3 つに割った](./decisions/tailwind-v4-transform-is-three-properties.md) — `decisions/tailwind-v4-transform-is-three-properties`
 - [ゴミ箱と復元の画面（箱の形は決める。中に何が並ぶかは未決）](./decisions/trash-and-restore-ui.md) — `decisions/trash-and-restore-ui`
