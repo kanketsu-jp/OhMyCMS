@@ -262,6 +262,17 @@ if (inspectedRoutes === 0) {
   process.exit(1);
 }
 
+// 🚨 **「全部が 0」は、24 個の退行より「辿れていない」を疑う**（2026-08-16 実測）。
+//    `reachableFrom` を空にした写しで測ったら、**exit 1 にはなったが文面が
+//    「宣言したのに画面へ出ていない: 24 件」**だった。＝ **正しく赤いが、理由が違う。**
+//    読んだ人は 24 ルートの退行を探しに行く（実際は import を辿る処理が壊れている）。
+if (inspectedRoutes > 1 && foundCallSites === 0) {
+  console.error(`\n🚨 **辿ったファイルの中に <PageAction> が 1 つもありません**（${inspectedFiles} ファイル）。`);
+  console.error("   24 ルートが同時に退行したより、**import を辿る処理（reachableFrom）が壊れている**");
+  console.error("   ほうが起きやすい形です。**先にそちらを疑ってください。**");
+  process.exit(1);
+}
+
 if (problems.length > 0) {
   console.error(`\n■ 宣言したのに画面へ出ていない: ${problems.length} 件`);
   for (const p of problems) console.error(`  ${p}`);
