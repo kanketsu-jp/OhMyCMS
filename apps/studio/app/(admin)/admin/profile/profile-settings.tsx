@@ -163,6 +163,17 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
     }
     setNameError(null);
 
+    // 🚨 **変わっていないなら、そもそも送らない。**
+    //    以前は body = {} のまま PATCH していた。サーバは省いたキーを触らないので
+    //    害は無いが、**押すたびに無駄な往復が1本増える**。
+    //    保存ボタンをヘッダへ出した（497209f）ので押される回数が増え、悪化していた。
+    //    🚨 トーストは出す。押して何も起きないのは不親切で、しかも
+    //    **「保存されている内容と、いま見えている内容が一致している」は事実**なので嘘にならない。
+    if (!nameChanged) {
+      toast.success(t("profile_name_saved"));
+      return;
+    }
+
     const response = await fetch("/api/auth/me", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
