@@ -100,6 +100,17 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-submit-once.mjs
 
+    # packages/* の型。
+    # 🚨 2026-08-15 まで **packages は lefthook のどの項目からも見られていなかった**
+    #    （root: "apps/studio" の外なので、staged が packages だけだと 12 項目中 10 が飛び、
+    #      走るのは secrets と knowledge の 2 つだけ。🟢 対照: apps/studio のファイルなら 12 項目すべて走る）。
+    #    その状態で `ohmycms_health` の出力スキーマが約1日壊れていた（saml 実測）。
+    # 🚨 glob は付けない。**staged が packages 以外でも走らせる**——`apps/studio` の変更が
+    #    packages の型を壊すことがあるため（health の鍵が増えて MCP のスキーマが弾いた、が実例）。
+    #    実測 890ms なので毎回走らせても pre-commit の「速いものだけ」に収まる。
+    packages-typecheck:
+      run: bash .lefthook/packages-typecheck.sh
+
     # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
     knowledge:
       run: bash .lefthook/rokf-doctor.sh
