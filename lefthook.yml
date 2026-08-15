@@ -69,6 +69,16 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-no-api-message.mjs
 
+    # MCP のツール目録（packages/mcp/src/catalog.ts）と、Studio 側の写しが一致すること。
+    # 🚨 **写しがあるのは、Studio から正を import できないから**（依存も exports も zod も無い。
+    #    理由は check-mcp-catalog.mjs の冒頭に実測つきで書いてある）。写しは手で直さず `--write` で作る。
+    # 🚨 **lefthook は `apps/studio` しか見ていない**ので、`packages/mcp` 側だけを変えた人は
+    #    どの検査にも引っかからない。**この検査が、その唯一の橋**（正が変われば写しがずれて落ちる）。
+    #    実際、`packages/mcp` が対象外だったせいで `/api/health` の変更が MCP を1日壊していた（2026-08-15）。
+    mcp-catalog:
+      root: "apps/studio"
+      run: node scripts/check-mcp-catalog.mjs
+
     # ナビに出した画面を横断検索へ入れ忘れないための検査。
     # ルート一覧ではなくナビの行き先と比べる（個人設定など、検索へ入れると権限が壊れる画面がある）。
     search-entries:
