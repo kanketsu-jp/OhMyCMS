@@ -120,10 +120,32 @@ for (const href of new Set(hrefs)) {
   }
 }
 
+// ── ⑤ 主要（primary）は 1 ルートに 1 つだけ ─────────────────
+// 🚨 これは `page-actions.ts` のコメントが「**主要は 1 ページに 1 つだけ**。2 つ並べると
+//    『まずこれ』が消える」と**宣言していたのに、どこも守っていなかった**もの（規律12）。
+//    2026-08-15 時点で偶然 24 ルートすべて 1 件だったが、**守っていたのは規律であって機械ではない**。
+//    コメントが在ることは、守られていることではない。
+const primaryCounts = [];
+for (const m of src.matchAll(/^ {2}"(\/admin[^"]*)": \[([\s\S]*?)^ {2}\],/gm)) {
+  const [, route, block] = m;
+  const count = (block.match(/role: "primary"/g) ?? []).length;
+  primaryCounts.push({ route, count });
+  if (count !== 1) {
+    problems.push(
+      `ルート "${route}" の主要ボタンが ${count} 件（1 件でなければならない）` +
+        `${count === 0 ? "。既定の操作が無い" : "。どれが『まずこれ』か分からなくなる"}`,
+    );
+  }
+}
+if (primaryCounts.length === 0) {
+  problems.push("主要ボタンの数を 1 ルートも数えられなかった（PAGE_ACTIONS の書き方が変わった可能性）");
+}
+
 // ── 結果 ────────────────────────────────────────────────────
 console.log(`ルート: ${routes.length} 件 / labelKey: ${labelKeys.length} 件（ja・en で実在確認）`);
 console.log(`form id: ${formIds.length} 件（<form> に付いているかを確認）/ href: ${hrefs.length} 件`);
 console.log(`走査したソース: ${sources.length} ファイル`);
+console.log(`主要ボタン: ${primaryCounts.length} ルートで数えた（各 1 件であること）`);
 
 if (problems.length > 0) {
   console.error(`\n■ 実在しないものを指している: ${problems.length} 件`);
