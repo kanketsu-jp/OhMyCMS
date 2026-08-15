@@ -447,6 +447,12 @@ const sidebarMenuButtonVariants = cva(
           "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
       },
       size: {
+        // 🚨 **この行では下限（min-h）は効いていない。** 実測（下限を 0 にして測り直した）:
+        //      親の行  36px → 36px（変わらない）＝ 高さを決めているのは `p-2` と文字
+        //      子の行  32px → 20px（縮む）      ＝ あちらは下限が効いている（`SidebarMenuSubButton`）
+        //    それでも `h-` に戻さないのは、固定にすると字号が変わったときや
+        //    `[&>span:last-child]:truncate` を外したときに**中身が切れる**ため。
+        //    下限は保険であって、いまの高さの理由ではない——ここを取り違えないこと。
         default: "min-h-(--control-h-pc-sm) text-sm",
         // `size=` を渡す呼び出しは0件だった。28px / 48px は `--control-h-*` に対応する段が無い。
         // 使われていない選択肢のために段を増やさないので、sm / lg は残さない。
@@ -641,6 +647,11 @@ function SidebarMenuSubButton({
       className={cn(
         // 下位項目であることは、SidebarMenuSub の左の罫線（border-l）と字下げ（mx-3.5 px-2.5）で既に示している。
         // 高さでもう一度示すのは同じことの3つ目の signal で、28px は段に無い。重ねない。
+        // 🚨 **この行の高さは下限（min-h）が決めている。** 実測（下限を 0 にして測り直した）:
+        //      32px → 20px（縮む）。この行は縦の padding を持たないので、下限を外すと文字の高さになる。
+        //    → **`min-h-` を外したり `h-` に変えたりすると、ここは 32px でなくなる。**
+        //      親の行（SidebarMenuButton）は逆で、下限を外しても 36px のまま変わらない。
+        //      **同じ書き方でも、効いている行と効いていない行がある。**
         "flex min-h-(--control-h-pc-sm) min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=md]:text-sm data-[size=sm]:text-xs data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
         className
       )}
