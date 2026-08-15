@@ -391,7 +391,11 @@ const original = loadSources();
 //    🚨 ここで**読めた件数**を先に出し、対象が無ければ**読める文で**落とす。
 {
   const 読めた = Object.keys(original).length;
-  console.log(`読み込み: ${読めた} ファイル（判定に要るのは ${LAYOUT_FILE}）`);
+  // 🚨 **件数だけだと「1 ファイル」は 0 バイトでも出る**（司令塔 2026-08-16 / polish の形）。
+  //    **読めた文字数**も出す。0 なら数字が明らかにおかしいと分かる。
+  //    🚨 名前の意味: 「読み込み」＝ **実際に readFileSync した数**（候補の数ではない）。
+  const 文字数 = typeof original?.[LAYOUT_FILE] === "string" ? original[LAYOUT_FILE].length : 0;
+  console.log(`読み込み: ${読めた} ファイル / ${文字数} 文字（判定に要るのは ${LAYOUT_FILE}）`);
   if (原本が無い(original)) {
     console.error(
       `🚨 ${LAYOUT_FILE} を読めていません（読み込み ${読めた} ファイル）。\n` +
