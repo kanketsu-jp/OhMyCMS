@@ -104,8 +104,32 @@ function inspect(serviceSource, formSource) {
   return { violations, bodyChars: rawBody.length };
 }
 
-const serviceSource = readFileSync(resolve(root, SERVICE), "utf8");
-const formSource = readFileSync(resolve(root, FORM), "utf8");
+/**
+ * 対象を読む。
+ *
+ * 🚨 **読めなかったときに `node:fs` の生スタックを出さない。**
+ * 2026-08-15、別の検査でまさにこれが起き、**「違反が出た」と読みかけた**（cwd 違いだった）。
+ * 「**違反がある**」と「**そもそも読めていない**」は別の話なので、別の文言・別の終了コードにする。
+ * 🚨 **cwd を必ず出す**（今日、cwd 違いで 2 人が踏んでいる）。
+ */
+function readTarget(relative) {
+  const full = resolve(root, relative);
+  try {
+    return readFileSync(full, "utf8");
+  } catch (error) {
+    console.log(
+      `🚨 中止: ${relative} を読めませんでした（${error.code ?? error.message}）。\n` +
+        `  **検査が失敗した**のであって、違反が見つかったのではありません。\n` +
+        `  探した場所: ${full}\n` +
+        `  いまの cwd: ${process.cwd()}\n` +
+        `  正しい走らせ方: cd apps/studio && node scripts/check-onboarding-contract.mjs`,
+    );
+    process.exit(2);
+  }
+}
+
+const serviceSource = readTarget(SERVICE);
+const formSource = readTarget(FORM);
 
 // ── 自己検査: 実物をメモリ上で壊して、検出できることをその場で確かめる ──
 console.log("■ 自己検査（実物を壊して、検出できることをその場で確かめる）");
