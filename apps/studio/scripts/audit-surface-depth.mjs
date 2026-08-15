@@ -58,6 +58,12 @@ const DISCOVERY_POSITIVE_CONTROL = has("discovery-positive-control");
 //    ページを開いただけでは DOM に無いので、**測る前にこれを押す**。
 //    例: --click '[data-slot=global-search-trigger]'
 const CLICK = arg("click", "");
+// 🚨 --clipboard … --click 後に実際の clipboard を読む。
+//    「押せた」「✓ が出た」はコピーできた証拠ではないので、ブラウザが読んだ値を出す。
+//    付けていないときは、既存の出力を 1 バイトも変えない。
+const CLIPBOARD = has("clipboard");
+const CLIPBOARD_SENTINEL = "__OHMYCMS_AUDIT_CLIPBOARD_EMPTY__";
+const CLIPBOARD_PREVIEW_CHARS = 500;
 const MEASURE = arg("measure", "");
 // 🚨 --dump … 測ったあとの画面の中身を出す。
 //    「深さ=0 / ナビ=0 / 書体=Times」のように**壊れているのに数字だけ出る**とき、
@@ -960,6 +966,79 @@ function measureExpression(selector) {
   })()`;
 }
 
+function clipboardWriteExpression(value) {
+  return `((async () => {
+    window.focus();
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+      return { ok: false, reason: "navigator.clipboard.writeText がありません" };
+    }
+    try {
+      await navigator.clipboard.writeText(${JSON.stringify(value)});
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: String((error && error.name ? error.name + ": " : "") + (error?.message ?? error)),
+      };
+    }
+  })())`;
+}
+
+const CLIPBOARD_READ_EXPRESSION = `((async () => {
+  window.focus();
+  if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") {
+    return { ok: false, reason: "navigator.clipboard.readText がありません" };
+  }
+  try {
+    const value = await navigator.clipboard.readText();
+    return { ok: true, value: String(value) };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: String((error && error.name ? error.name + ": " : "") + (error?.message ?? error)),
+    };
+  }
+})())`;
+
+function evalFailure(result, fallback) {
+  return result.exceptionDetails?.exception?.description
+    ?? result.exceptionDetails?.text
+    ?? fallback;
+}
+
+async function initializeClipboard(cdp) {
+  try { await cdp.send("Page.bringToFront"); } catch { /* headless で失敗しても Runtime 側で理由を返す */ }
+  const result = await cdp.send("Runtime.evaluate", {
+    expression: clipboardWriteExpression(CLIPBOARD_SENTINEL),
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  if (result.exceptionDetails) {
+    return { ok: false, reason: evalFailure(result, "clipboard 初期化で例外が発生しました") };
+  }
+  return result.result.value ?? { ok: false, reason: "clipboard 初期化が結果を返しませんでした" };
+}
+
+async function readClipboard(cdp) {
+  try { await cdp.send("Page.bringToFront"); } catch { /* headless で失敗しても Runtime 側で理由を返す */ }
+  const result = await cdp.send("Runtime.evaluate", {
+    expression: CLIPBOARD_READ_EXPRESSION,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  if (result.exceptionDetails) {
+    return { ok: false, reason: evalFailure(result, "clipboard 読み取りで例外が発生しました") };
+  }
+  return result.result.value ?? { ok: false, reason: "clipboard 読み取りが結果を返しませんでした" };
+}
+
+function formatClipboardValue(value) {
+  const text = String(value);
+  if (text.length === 0) return "（空文字）";
+  if (text.length <= CLIPBOARD_PREVIEW_CHARS) return text;
+  return `${text.slice(0, CLIPBOARD_PREVIEW_CHARS)}\n...（${text.length} 文字中 ${CLIPBOARD_PREVIEW_CHARS} 文字まで表示）`;
+}
+
 async function discoverDynamicPaths(cdp) {
   log("\n動的ルート発見:");
   log(`  検索元: ${DISCOVERY_LIST_PATHS.join(", ")}`);
@@ -1013,6 +1092,35 @@ await cdp.send("Page.enable");
 await cdp.send("Runtime.enable");
 await cdp.send("Accessibility.enable");
 await cdp.send("Network.enable");
+
+let clipboardPermission = null;
+if (CLIPBOARD) {
+  const origin = new URL(BASE).origin;
+  // 🚨 陰性対照用。通常の --clipboard は必ず CDP で権限を与える。
+  //    `OHMYCMS_AUDIT_SKIP_CLIPBOARD_PERMISSION=1` のときだけ、権限なしで読めないことを確認する。
+  if (process.env.OHMYCMS_AUDIT_SKIP_CLIPBOARD_PERMISSION === "1") {
+    clipboardPermission = {
+      ok: false,
+      origin,
+      reason: "OHMYCMS_AUDIT_SKIP_CLIPBOARD_PERMISSION=1 のため CDP 権限付与を飛ばしました",
+    };
+  } else {
+    try {
+      await cdp.send("Browser.grantPermissions", {
+        origin,
+        permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"],
+      });
+      clipboardPermission = { ok: true, origin };
+    } catch (error) {
+      clipboardPermission = {
+        ok: false,
+        origin,
+        reason: String(error?.message ?? error),
+      };
+      log(`クリップボード権限: 読み書き許可を与えられませんでした（${clipboardPermission.reason}）`);
+    }
+  }
+}
 
 // 🚨 **言語を固定する。** headless Chrome の Accept-Language は既定で `en` なので、
 //    何もしないと**英語の画面を測る**ことになる（2026-08-15 実測。shell ペインの指摘で発覚）。
@@ -1072,6 +1180,26 @@ for (const vp of VIEWPORTS) {
     }
     await sleep(400); // 描画の落ち着き待ち
 
+    const key = `${vp.name} ${path}`;
+    let clipboardAudit = null;
+    if (CLIPBOARD) {
+      const initialized = await initializeClipboard(cdp);
+      clipboardAudit = {
+        permission: clipboardPermission,
+        sentinel: CLIPBOARD_SENTINEL,
+        initialized,
+        read: null,
+      };
+      if (!initialized.ok) {
+        log(`     クリップボード: 読めなかった（初期化できません: ${initialized.reason}）`);
+        violations.push({
+          key,
+          rule: "測定不能",
+          detail: `clipboard を既知の値で初期化できません: ${initialized.reason}`,
+        });
+      }
+    }
+
     // 🚨 --click があれば押してから測る。押せたかどうかを**必ず出力**する
     //    （押せていないのに緑が出るのが、いちばん危ない）。
     // 🚨 `>>` で区切ると順に押す（SP は「ドロワーを開く → ユーザー行を押す」の2段が要る）。
@@ -1082,7 +1210,6 @@ for (const vp of VIEWPORTS) {
     //    （2026-08-14。製品ではなく検査の誤り）。
     // 🚨 末尾に `?` を付けた段は「あれば押す」。画面幅で片方にしか無いものを1本の指定で書ける
     //    （SP のドロワーは PC に無い。無いことを違反にすると PC が必ず落ちる）。
-    const key = `${vp.name} ${path}`;
     let clickFailed = false;
     for (const raw of CLICK ? CLICK.split(">>").map((s) => s.trim()).filter(Boolean) : []) {
       const optional = raw.endsWith("?");
@@ -1115,6 +1242,25 @@ for (const vp of VIEWPORTS) {
       await sleep(800); // 開くアニメーションの待ち
     }
     if (clickFailed) continue;
+
+    if (CLIPBOARD && clipboardAudit) {
+      if (clipboardAudit.initialized.ok) {
+        const read = await readClipboard(cdp);
+        clipboardAudit.read = read;
+        if (read.ok) {
+          log(`     クリップボード: ${formatClipboardValue(read.value)}`);
+        } else {
+          log(`     クリップボード: 読めなかった（${read.reason}）`);
+          violations.push({
+            key,
+            rule: "測定不能",
+            detail: `clipboard を読めません: ${read.reason}`,
+          });
+        }
+      } else {
+        clipboardAudit.read = { ok: false, reason: "初期化に失敗したため読み取り結果を信用できません" };
+      }
+    }
 
     // 🚨 --file があれば、隠れている file input に実際のファイルを載せて change を起こす。
     if (FILE) {
@@ -1205,6 +1351,7 @@ for (const vp of VIEWPORTS) {
     r.renderTitle = renderSnapshot.title ?? "";
     r.renderTextChars = renderSnapshot.textChars ?? r.renderTextChars ?? 0;
     r.renderLivenessReasons = renderLivenessReasons;
+    if (CLIPBOARD) r.clipboard = clipboardAudit;
     report[key] = r;
 
     if (MEASURE) {
