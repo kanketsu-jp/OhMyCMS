@@ -166,7 +166,13 @@ function PanelDisplayControls({
       {status === "loading" ? (
         <p className="text-sm text-muted-foreground">{t("display_loading")}</p>
       ) : status === "error" ? (
+        // 🚨 **取れなかった**とき。実際に出ることを実測済み（セッションが切れた状態でパネルを開くと 401）。
         <p className="text-sm text-muted-foreground">{t("display_error")}</p>
+      ) : fields.length === 0 ? (
+        // 🚨 **取れたが候補が無い**とき。上の「取れなかった」と**別の文言**にする。
+        //    同じ見た目にすると「列が無い」と「列を取りに行けていない」が区別できない
+        //    （`/api/fields/<存在しないコレクション>` は 404 ではなく 200 [] を返すので、実際に起きる）。
+        <p className="text-sm text-muted-foreground">{t("display_empty")}</p>
       ) : (
         <>
           <section className="flex min-w-0 flex-col gap-2">

@@ -15,6 +15,7 @@
   "api_rest_none": "There is no API for this screen.",
   "display": "Display",
   "display_columns_heading": "Visible columns",
+  "display_empty": "No columns to show",
   "display_error": "Could not load display settings",
   "display_limit_heading": "Items per page",
   "display_loading": "Loading display settings",
