@@ -69,7 +69,9 @@ WORKDIR /app
 #    **本当に消されたファイルとの区別が付かない**（文脈は元から「絞られた複製」なので、
 #    「無い」の理由がステージの中からは分からない）。
 #    → 消えたことまで見たいなら、**文脈から追跡ファイルを外すのをやめる**しかない
-#      （いま外れているのは .claude/** と .dockerignore と compose.yml で、実測 19 本）。
+#      （外れているのは .claude/**=16 と .dockerignore=1 と compose.yml=1 と .gitignore=1 の
+#        **合わせて 19 本**。`git ls-files -- .claude .dockerignore compose.yml .gitignore | wc -l`。
+#        🚨 .gitignore を数え忘れると 18 本になる）。
 #    ❌ 穴を埋めるつもりで skip-worktree を消さないこと。消すとその 19 本が全部 " D" で復活し、
 #      **綺麗なツリーでも常に dirty=1** になる（＝旗が常に立ち、誰も見なくなる）。
 COPY . .
@@ -86,6 +88,10 @@ RUN set -eu; \
           DETECTED_DIRTY=1; \
           echo "=== gitinfo: dirty=1 の内訳（先頭50行） ==="; \
           git status --porcelain 2>/dev/null | head -50; \
+          echo "--- gitinfo: 記号ごとの件数（?? 未追跡 /  M 変更 /  D 削除） ---"; \
+          git status --porcelain 2>/dev/null | cut -c1-2 | sort | uniq -c | sort -rn; \
+          echo "--- gitinfo: 権限ビットだけの変更ならここに mode change が出る ---"; \
+          git diff --summary 2>/dev/null | head -20; \
           echo "=== gitinfo: 内訳ここまで ==="; \
         else \
           DETECTED_DIRTY=0; \
@@ -99,6 +105,10 @@ RUN set -eu; \
     fi; \
     if [ "$DETECTED_SHA" != "unknown" ]; then FINAL_SHA="$DETECTED_SHA"; else FINAL_SHA="$GIT_SHA"; fi; \
     if [ "$DETECTED_DIRTY" != "unknown" ]; then FINAL_DIRTY="$DETECTED_DIRTY"; else FINAL_DIRTY="$GIT_DIRTY"; fi; \
+    if [ "$DETECTED_DIRTY" != "unknown" ]; then DIRTY_SOURCE="このステージの中で判定"; \
+    else DIRTY_SOURCE="判定できず → 外から渡された GIT_DIRTY をそのまま採用（この値はビルドしたツリーについて何も言っていない）"; fi; \
+    echo "=== gitinfo: sha=$FINAL_SHA dirty=$FINAL_DIRTY ==="; \
+    echo "=== gitinfo: dirty の出どころ = $DIRTY_SOURCE ==="; \
     if [ "$BUILD_TIME" != "unknown" ]; then FINAL_BUILT_AT="$BUILD_TIME"; else FINAL_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; fi; \
     printf '%s' "$FINAL_SHA" > /tmp/GIT_SHA; \
     printf '%s' "$FINAL_DIRTY" > /tmp/GIT_DIRTY; \
