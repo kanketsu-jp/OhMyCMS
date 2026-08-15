@@ -27,10 +27,11 @@ export const SHORTCUTS = {
   /**
    * 右サイドバーの開閉。
    * 🚨 `mod+i` にしない。WYSIWYG（Tiptap）の斜体と衝突する。
-   *    **守り手: 無し＝願望**。`scripts/check-shortcuts.mjs` は 120 行あるが、
-   *    `mod+i` / Tiptap / 衝突 のどれも見ていない（実測 0 件。🟢 対照: 同ファイルの
-   *    `shortcut` は 7 件なので、探し方は当たっている）。
-   *    **誰かがここを `mod+i` に書き換えても、何も落ちない。**
+   *    **守り手: `scripts/check-shortcuts.mjs` の Tiptap 衝突検査**（2026-08-15 追加）。
+   *    `node_modules` の Tiptap 本体（`@tiptap/starter-kit` の依存グラフ）から
+   *    `addKeyboardShortcuts()` の実際のキーバインドを抽出し、`SHORTCUTS` と突き合わせる。
+   *    ここを `mod+i` に書き換えると、Tiptap の `extension-italic`（`Mod-i`）と衝突するとして
+   *    検査が落ちる。
    *    `useShortcut` は入力中を避けるので実害は出ないが、
    *    **「入力欄の外では効いて、中では効かない」ショートカットは説明できない**。
    */
