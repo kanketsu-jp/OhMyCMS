@@ -39,10 +39,22 @@
  *
  * 🚨 衝突が見つかっても、勝手に EXCEPTIONS へ入れて緑にしない。件数と中身をそのまま報告する。
  *    例外にするかどうかは堀池が決める（`TIPTAP_CONFLICT_EXCEPTIONS` は既定で空）。
+ *
+ * ── アプリ側の上書き検出（2026-08-15 追加）──────────────────────────
+ * 上の Tiptap 衝突検査は `node_modules` の**既定値だけ**を見ているため、アプリが
+ * `Extension.create({ addKeyboardShortcuts() { return { "Mod-Enter": () => true }; } })`
+ * のように**既定を上書き**していても気づけない（衝突が実質解消していても「未決」と言い続ける）。
+ *
+ * 🚨 上書きを見つけても、この検査は判定（✅/🟡/🚨）を**勝手に変えない**。
+ *    `decided` は司令塔（人）が決めるもの。ここは「上書きがある」という事実を追加で出すだけ。
+ *
+ * 🚨 上書きしているファイル名を決め打ちにしない。**未コミットの差分は変わりうる**ので、
+ *    components 配下 / app 配下を毎回走査して見つける（対象範囲は check-i18n-hardcoded.mjs の
+ *    globSync("{app,components}" 配下の全 .ts/.tsx) と同じ考え方）。
  */
 
 import { createRequire } from "node:module";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -258,6 +270,32 @@ function groupTiptapBindings(bindings) {
     map.get(norm).push({ raw: b.raw, pkgName: b.pkgName });
   }
   return { map, literal, dynamic };
+}
+
+/**
+ * `components/**` と `app/**` から、Tiptap の `addKeyboardShortcuts()` をアプリ側で
+ * 上書きしている箇所を集める（例: `Extension.create({ addKeyboardShortcuts() { return
+ * { "Mod-Enter": () => true }; } } })` で既定の挙動を打ち消す）。
+ *
+ * 抽出ロジックは Tiptap 側の抽出（`extractFunctionBodies` / `extractModBindings`）を
+ * そのまま再利用する。**ファイル名を決め打ちにしない**（未コミットの差分で変わりうるため、
+ * 対象は毎回 glob で走査する）。
+ */
+function collectAppOverrides(studioRoot) {
+  const files = globSync("{app,components}/**/*.{ts,tsx}", { cwd: studioRoot }).sort();
+  const map = new Map(); // normalized -> [{ raw, file }]
+  for (const file of files) {
+    const text = readFileSync(join(studioRoot, file), "utf8");
+    for (const body of extractFunctionBodies(text, "addKeyboardShortcuts")) {
+      for (const b of extractModBindings(body)) {
+        if (b.dynamic) continue; // 動的な値は比較対象外（Tiptap側の抽出と同じ扱い）
+        const norm = normalizeTiptapKey(b.raw);
+        if (!map.has(norm)) map.set(norm, []);
+        map.get(norm).push({ raw: b.raw, file });
+      }
+    }
+  }
+  return { map, fileCount: files.length };
 }
 
 /**
@@ -483,6 +521,48 @@ if (falsePositives.length > 0) {
   selfTestFailed = true;
 }
 
+// ── アプリ側の上書き検出 ─────────────────────────────────────────
+const { map: appOverrideMap, fileCount: appScannedFileCount } = collectAppOverrides(root);
+
+console.log("\n■ 自己検査（アプリ側の上書き検出 — components/**, app/** を走査する）");
+
+// (9) そもそもアプリ側ソースを走査できているか。0 件なら「上書きが無い」ではなく「見ていない」。
+const appScanOk = appScannedFileCount > 0;
+console.log(
+  `  ${appScanOk ? "✅" : "❌"} アプリ側ソースを走査できている  ${appScannedFileCount} 件（components/**, app/**）`,
+);
+if (!appScanOk) {
+  console.error("     ↑ 0 件しか走査できていない。glob パターンかディレクトリ構成が変わった。");
+  selfTestFailed = true;
+}
+
+// (10) 囮5(RED): メモリ上の合成ソース（実ファイルは書き換えない）に Mod-Enter の上書きを
+//      仕込んで、検出できることを確かめる。検出件数を印字し、0 件なら失敗にする。
+const decoyOverrideSource = [
+  "Extension.create({",
+  "  addKeyboardShortcuts() {",
+  '    return { "Mod-Enter": () => true };',
+  "  },",
+  "})",
+].join("\n");
+const decoyOverrideBindings = extractFunctionBodies(decoyOverrideSource, "addKeyboardShortcuts")
+  .flatMap((body) => extractModBindings(body))
+  .filter((b) => !b.dynamic && normalizeTiptapKey(b.raw) === "mod+enter");
+console.log(
+  `  ${decoyOverrideBindings.length > 0 ? "✅" : "❌"} 囮5: 合成ソースに Mod-Enter の上書きを仕込む  → 検出 ${decoyOverrideBindings.length} 件`,
+);
+if (decoyOverrideBindings.length === 0) selfTestFailed = true;
+
+// (11) 対照(GREEN): 上書きの無い合成ソースでは上書き 0 件と出ること（誤検出しない）。
+const cleanAppSource = ["export function Foo() {", "  return null;", "}"].join("\n");
+const cleanOverrideBindings = extractFunctionBodies(cleanAppSource, "addKeyboardShortcuts").flatMap((body) =>
+  extractModBindings(body),
+);
+console.log(
+  `  ${cleanOverrideBindings.length === 0 ? "✅" : "❌"} 対照: 上書きの無い合成ソースでは上書き 0 件  → 検出 ${cleanOverrideBindings.length} 件`,
+);
+if (cleanOverrideBindings.length !== 0) selfTestFailed = true;
+
 if (skippedPackages.length > 0) {
   console.log(`\n  スキップしたパッケージ（root export が無い等・想定内）:`);
   for (const s of skippedPackages) {
@@ -543,6 +623,22 @@ for (const entry of entries) {
     `  ${entry.name.padEnd(20)} ${entry.combo.padEnd(18)} ${mark}` +
       (hasHit ? `  ← ${hits.map((h) => `${h.raw}(${h.pkgName})`).join(", ")}` : ""),
   );
+  // 🚨 上書きが見つかっても mark は変えない（decided は司令塔が決める）。事実の追記のみ。
+  if (hasHit) {
+    const overrideHits = appOverrideMap.get(norm);
+    if (overrideHits && overrideHits.length > 0) {
+      const overrideFiles = [...new Set(overrideHits.map((h) => h.file))];
+      for (const f of overrideFiles) {
+        console.log(`  ${" ".repeat(20)} ${" ".repeat(18)} 🔵 アプリ側で上書きあり: ${f}`);
+      }
+      // 承認済み(decided:true)は既に決着済みなので「閉じられる可能性」の案内は出さない。
+      if (!excepted || excepted.decided === false) {
+        console.log(
+          `  ${" ".repeat(20)} ${" ".repeat(18)} → この未決は閉じられる可能性があります。決める人に確認してください`,
+        );
+      }
+    }
+  }
   if (excepted && excepted.decided === false) {
     console.log(
       `  ${" ".repeat(20)} ${" ".repeat(18)} 記録 ${excepted.recordedAt} / 決める人: ${excepted.decidedBy} / ${excepted.openQuestion}`,
