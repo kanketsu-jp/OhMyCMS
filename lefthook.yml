@@ -122,6 +122,14 @@ pre-commit:
     packages-typecheck:
       run: bash .lefthook/packages-typecheck.sh
 
+    # `/api/health` の鍵と MCP の `HEALTH_OUTPUT` の一致。
+    # 🚨 **見ているのは health 1 本だけ**（出力スキーマは全部で 14 本ある）。
+    #    残りは対応する API を静的に辿れない（ツール定義に叩き先が書かれていない）。
+    #    全ツールを実プロトコルで叩くのは受入ハーネスの 10 番。**ここを「MCP は検査済み」と読まない。**
+    # 🚨 root を付けない。**apps/studio と packages/ の両方を読む**検査なので。
+    health-schema:
+      run: node apps/studio/scripts/check-health-schema.mjs
+
     # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
     knowledge:
       run: bash .lefthook/rokf-doctor.sh
