@@ -252,47 +252,79 @@ function readTarget(relative) {
 const serviceSource = readTarget(SERVICE);
 const formSource = readTarget(FORM);
 
+/**
+ * 壊した箇所の**件数**を数える（🚨 base2 の③・2026-08-16 の全員向け規律）。
+ *
+ * 狙った文字列がファイル中に **2 箇所以上**在ると、`.replace()` は **1 箇所しか直しません**。
+ * 実測（2026-08-16・写しの台で門番の行を 1→2 件に増やして確認）:
+ * ```
+ * 🟢 黙りはしない … 囮2 が ❌ になり exit=1
+ * 🚨 ただし文言が「検出できていません（期待 rule: no-omit-guard）」で、
+ *    **規則が壊れたように読めます**（実際は「2 箇所のうち 1 箇所しか壊せていない」）
+ * ```
+ * → **件数を持たせて、失敗したときに一緒に出す。**
+ */
+function countIn(source, pattern) {
+  if (pattern === null) return null;
+  const re = typeof pattern === "string"
+    ? new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")
+    : new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  return (source.match(re) ?? []).length;
+}
+
 // ── 自己検査: 実物をメモリ上で壊して、検出できることをその場で確かめる ──
 console.log("■ 自己検査（実物を壊して、検出できることをその場で確かめる）");
+const P1 = /const picked: Record<string, unknown> = \{\};/;
+const P2 = /if \(key in input\) picked\[key\] = input\[key\];/;
+const P3 = /new_password:/;
+const P5 = "    if (!(key in input)) continue;";
+const P6 = "function validate(input:";
+const P4 = "export async function completeOnboardingWithAdmin";
 const probes = [
   {
     name: "囮1: validate() にオブジェクトリテラルを戻す（事故そのものの形）",
     service: serviceSource.replace(
-      /const picked: Record<string, unknown> = \{\};/,
+      P1,
       'const patchX = validate({ project_name: input.project_name, tenant_name: input.tenant_name });\n  const picked: Record<string, unknown> = {};',
     ),
     form: formSource,
     expect: "literal-to-validate",
+    hits: countIn(serviceSource, P1),
   },
   {
     name: "囮2: 省略された鍵を落とす処理を消す",
-    service: serviceSource.replace(/if \(key in input\) picked\[key\] = input\[key\];/, "picked[key] = input[key];"),
+    service: serviceSource.replace(P2, "picked[key] = input[key];"),
     form: formSource,
     expect: "no-omit-guard",
+    hits: countIn(serviceSource, P2),
   },
   {
     name: "囮3: 画面から new_password を落とす",
     service: serviceSource,
-    form: formSource.replace(/new_password:/, "new_password_renamed:"),
+    form: formSource.replace(P3, "new_password_renamed:"),
     expect: "form-missing-key",
+    hits: countIn(formSource, P3),
   },
   {
     name: "囮5: validate() の「省略された鍵を飛ばす」処理を壊す（呼び出し側はそのまま）",
-    service: serviceSource.replace("    if (!(key in input)) continue;", "    // (壊した)"),
+    service: serviceSource.replace(P5, "    // (壊した)"),
     form: formSource,
     expect: "validate-requires-all",
+    hits: countIn(serviceSource, P5),
   },
   {
     name: "囮6: validate() の名前を変えて、切り出せなくする",
-    service: serviceSource.replace("function validate(input:", "function validateX(input:"),
+    service: serviceSource.replace(P6, "function validateX(input:"),
     form: formSource,
     expect: "validate-not-found",
+    hits: countIn(serviceSource, P6),
   },
   {
     name: "囮4: 関数名を変えて、切り出せなくする（＝何も見ていない緑を防ぐ）",
-    service: serviceSource.replace("export async function completeOnboardingWithAdmin", "export async function completeOnboardingWithAdminX"),
+    service: serviceSource.replace(P4, "export async function completeOnboardingWithAdminX"),
     form: formSource,
     expect: "not-found",
+    hits: countIn(serviceSource, P4),
   },
 ];
 
@@ -336,7 +368,14 @@ for (const probe of probes) {
     continue;
   }
   const hit = inspect(probe.service, probe.form).violations.some((v) => v.rule === probe.expect);
-  console.log(`  ${hit ? "✅" : "❌"} ${probe.name}  → ${hit ? `検出（rule: ${probe.expect}）` : `🚨 検出できていません（期待 rule: ${probe.expect}）`}`);
+  // 🚨 失敗したときは**壊した件数**も出す。1 でなければ「規則が壊れた」ではなく
+  //    「狙いが複数当たって、1 箇所しか壊せていない」——原因がまったく別。
+  const why = hit
+    ? `検出（rule: ${probe.expect}）`
+    : probe.hits === 1
+      ? `🚨 検出できていません（期待 rule: ${probe.expect}／狙いは 1 箇所に当たっています＝**規則の側**を見てください）`
+      : `🚨 検出できていません（期待 rule: ${probe.expect}／🚨 **狙いが ${probe.hits} 箇所に当たっています**。replace は 1 箇所しか直さないので、**壊し切れていません**＝規則ではなく囮の側の問題）`;
+  console.log(`  ${hit ? "✅" : "❌"} ${probe.name}  → ${why}`);
   if (!hit) selfCheckFailed = true;
 }
 
