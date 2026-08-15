@@ -9,9 +9,22 @@ const buttonVariants = cva(
   // 🚨 **`hover:` を足したら、同じ variant に `active:` も足すこと**（2026-08-15 堀池さん指示）。
   //    Tailwind v4 の `hover:` は `@media (hover: hover)` の中に入るので、
   //    **タッチ端末では hover の色が一度も当たらない**＝押しても色が変わらない。
-  //    実測(2026-08-15): このファイルの `hover:` 13 個のうち、対の `active:` は **0 個**だった。
+  //    実測(2026-08-15・headless Chrome で hover:none / pointer:coarse を再現して押した):
+  //      平常      背景 rgba(0,0,0,0)
+  //      触れた時   背景 rgba(0,0,0,0)   ← **hover は一度も当たらない**（これが理由の裏づけ）
+  //      押している時 背景 oklab(0.97…)   ← 足した active が出る
+  //    このファイルの `hover:` 13 個のうち、対の `active:` は **0 個**だった。
+  //    🚨 **幅を SP にしただけでは、この差は出ない。** `setDeviceMetricsOverride({mobile:true})` だけだと
+  //    `(hover: hover)` は **true のまま**で、hover の色が当たってしまう（＝PC を細くしただけ）。
+  //    `Emulation.setEmulatedMedia` で hover/pointer を差し替えて、初めて再現できる。
   //    🚨 なお base には以前から `active:not-aria-[haspopup]:translate-y-px` が在り、
   //    **押すと 1px 沈む手応えは元からある**（色が変わらないだけ）。**この行を消さないこと。**
+  //    🚨 **その沈みを確かめるときは `translate` を読むこと。`transform` ではない。**
+  //    Tailwind v4 は `transform` ではなく **`translate` プロパティ**を使うので、
+  //    `getComputedStyle(el).transform` は**効いていても永久に `none`** を返す。
+  //    実測: 押下時 `translate: "0px 0.983px"`（1px へ向かう途中。transition-all のため）。
+  //    ここを読み違えて「沈みが効いていない」と報告しかけた（2026-08-15）。
+  //    もう1つ条件があり、`:not([aria-haspopup])` なのでメニューを開くボタンは意図的に沈まない。
   // 🚨 無効状態を base に置かない。variant ごとに**色そのものを変える**（憲章 §3）。
   // `opacity` で薄くすると要素全体が均等に薄くなるだけで、文字と背景の関係は変わらない
   // ＝「押せない」ことが色として伝わらない。手本（X / WorkOS）はどちらもグレーへ**色を変える**。
