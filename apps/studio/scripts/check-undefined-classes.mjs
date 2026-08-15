@@ -30,6 +30,14 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PATTERN = /(?<![\w-])(cn-[a-z0-9-]+)/g;
+/**
+ * 🚨 **文字列を組み立てての迂回**を止める（2026-08-15）。
+ *    司令塔「自分ならどう避けるか、を一度考えて、避けられるなら塞いでください」を受けて
+ *    実際に試したところ、`"cn-" + "probe"` で**素通りした**（exit 0）。
+ *    変数へ入れる形（`const c = "cn-x"`）は元から拾えていたが、**連結は拾えていなかった**。
+ *    接頭辞だけの断片（`"cn-"` / `'cn-'`）が現れたら、組み立てを疑って落とす。
+ */
+const SPLIT_PATTERN = /(["'`])cn-\1/g;
 
 /** 与えられたソース群から `cn-*` の参照を拾う。 */
 function scan(sources) {
@@ -38,6 +46,9 @@ function scan(sources) {
     text.split("\n").forEach((line, i) => {
       for (const m of line.matchAll(PATTERN)) {
         hits.push({ file, line: i + 1, name: m[1] });
+      }
+      for (const _m of line.matchAll(SPLIT_PATTERN)) {
+        hits.push({ file, line: i + 1, name: 'cn-（文字列を組み立てている）' });
       }
     });
   }
@@ -55,8 +66,13 @@ let selfTestFailed = false;
 //    「存在しない名前 → 0 件」は対照にならない（自分のパス間違い・cwd 違いも 0 を返すため。
 //     司令塔の規律 2・2026-08-15 に厳しくされた）。
 const decoy = scan([{ file: "decoy.tsx", text: `<div className="cn-dropdown-menu-item px-2" />` }]);
-console.log(`  ${decoy.length === 1 ? "✅" : "❌"} 囮: cn-* を1つ仕込む  → 検出 ${decoy.length} 件`);
+console.log(`  ${decoy.length === 1 ? "✅" : "❌"} 囮1: cn-* を1つ仕込む  → 検出 ${decoy.length} 件`);
 if (decoy.length !== 1) selfTestFailed = true;
+
+// 🚨 迂回の囮。実際にこれで素通りしていた（2026-08-15）。
+const evade = scan([{ file: "d.tsx", text: `const c = "cn-" + "probe";` }]);
+console.log(`  ${evade.length >= 1 ? "✅" : "❌"} 囮2: 文字列を組み立てて迂回  → 検出 ${evade.length} 件`);
+if (evade.length < 1) selfTestFailed = true;
 
 // (2) 対象を拾えているか。0 ファイルなら「違反が無い」ではなく「見ていない」。
 console.log(`  ${files.length > 0 ? "✅" : "❌"} 対象を拾えている  ${files.length} ファイル`);

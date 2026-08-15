@@ -31,6 +31,13 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /** 操作部品として使われうる段だけ（4px 刻みの 24〜56px）。 */
 const PATTERN = /(?:^|[^a-z-])((?:min-)?h-(?:6|7|8|9|10|11|12|14))\b/g;
+/**
+ * 🚨 **文字列を組み立てての迂回**を止める（2026-08-15）。
+ *    司令塔「自分ならどう避けるか、を一度考えて、避けられるなら塞いでください」を受けて
+ *    実際に試したところ、`"h-" + "8"` で**素通りした**（件数が変わらなかった）。
+ *    接頭辞だけの断片（`"h-"` / `"min-h-"`）が現れたら、組み立てを疑って落とす。
+ */
+const SPLIT_PATTERN = /(["'`])(?:min-)?h-\1/g;
 
 function isComment(line) {
   const t = line.trim();
@@ -44,6 +51,9 @@ function scan(sources) {
       if (isComment(line)) return;
       for (const m of line.matchAll(PATTERN)) {
         hits.push({ file, line: i + 1, cls: m[1], text: line.trim().slice(0, 90) });
+      }
+      for (const _m of line.matchAll(SPLIT_PATTERN)) {
+        hits.push({ file, line: i + 1, cls: "h-（文字列を組み立てている）", text: line.trim().slice(0, 90) });
       }
     });
   }
@@ -74,6 +84,11 @@ const near = scan([
 ]);
 console.log(`  ${near.length === 0 ? "✅" : "❌"} 囮3: トークン記法 / size- / コメント  → 誤検出 ${near.length} 件`);
 if (near.length !== 0) selfTestFailed = true;
+
+// 🚨 迂回の囮。実際にこれで素通りしていた（2026-08-15）。
+const evade = scan([{ file: "d.tsx", text: `const c = "h-" + "8";` }]);
+console.log(`  ${evade.length >= 1 ? "✅" : "❌"} 囮4: 文字列を組み立てて迂回  → 検出 ${evade.length} 件`);
+if (evade.length < 1) selfTestFailed = true;
 
 console.log(`  ${files.length > 0 ? "✅" : "❌"} 対象を拾えている  ${files.length} ファイル`);
 if (files.length === 0) selfTestFailed = true;
