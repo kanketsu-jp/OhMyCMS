@@ -74,6 +74,10 @@ function AccordionItem({
       //    🚨 既定が間違っていた証拠: 呼び出し 3 箇所のうち **2 箇所が `border-0` で打ち消していた**
       //    （left-sidebar.tsx / nav-links.tsx）。打ち消していない右パネルにだけ線が出ていた。
       //    次に shadcn を更新する人へ: **`not-last:border-b` を書き戻さないこと。**
+      //    🚨 守り手: **既定が「罫線を持たない」ことそのもの**。
+      //       ここは `cn(className)` を通すだけで、罫線を出すには**呼び出し側が明示的に足す**必要がある。
+      //       ＝ 黙って戻ることはなく、戻すなら差分に必ず現れる。
+      //       （面の入れ子は scripts/check-surface-nesting.mjs が別途 lefthook で見ている）
       className={cn(className)}
       {...props}
     />
