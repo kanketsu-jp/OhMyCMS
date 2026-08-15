@@ -99,7 +99,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           この行が並べるものは何も残らない（`PageAction` は portal で外へ出る）。
           ❌ 戻さないこと。戻すと**同じ役目のものが2箇所**に出る。 */}
       <div>
-        <Link href="/admin/collections" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/admin/collections" className="text-sm text-muted-foreground transition-colors hover:text-foreground active:text-foreground">
           {tCollections("back_to_list")}
         </Link>
       </div>

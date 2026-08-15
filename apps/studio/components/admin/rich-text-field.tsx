@@ -428,7 +428,7 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
                 type="button"
                 key={file.id}
                 onClick={() => insertImage(file)}
-                className="min-w-0 rounded-md p-2 text-left hover:bg-muted"
+                className="min-w-0 rounded-md p-2 text-left transition-colors hover:bg-muted active:bg-muted"
               >
                 <div className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-muted">
                   <NextImage

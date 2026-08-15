@@ -135,7 +135,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
       />
       <div className="max-w-7xl space-y-6">
         <div>
-          <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground transition-colors hover:text-foreground active:text-foreground">
             {tFields("manage_link")}
           </Link>
         </div>
