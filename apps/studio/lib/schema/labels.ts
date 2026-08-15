@@ -28,7 +28,13 @@ export function fieldLabel(
   const 辞書 = field.meta?.translations;
   const 引く = (key: string): string | null => {
     if (!辞書 || typeof 辞書 !== "object") return null;
-    const value = (辞書 as Record<string, unknown>)[key];
+    // 🚨 **読む側でも小文字に寄せる**（書き込み側だけ直しても、既に入っている値や
+    //    API を経由せず入った値は引けないままになる。両側で揃える）。
+    const 表 = 辞書 as Record<string, unknown>;
+    const 実鍵 = key in 表
+      ? key
+      : Object.keys(表).find((k) => k.toLowerCase() === key.toLowerCase());
+    const value = 実鍵 === undefined ? undefined : 表[実鍵];
     if (typeof value !== "string") return null;
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
@@ -60,7 +66,13 @@ export function parseFieldTranslations(value: unknown): Record<string, string> |
     const trimmed = raw.trim();
     // 🚨 空文字は「その言語の名前を消す」意味として受け取り、鍵ごと落とす
     //    （空文字を残すと、`fieldLabel` 側で毎回スキップ判定が要る）。
-    if (trimmed.length > 0) out[key] = trimmed;
+    // 🚨 **ロケール鍵は小文字へ正規化する**（2026-08-16・「見逃す入力」を自分で作って発見）。
+    //    それまでは `{"JA": "本文"}` を**そのまま通していた**のに、
+    //    `fieldLabel(field, "ja")` は `ja` を探すので**見つからず、生の識別子に落ちていた**。
+    //    ＝ **保存は成功したのに、付けた名前がどこにも出ない**（利用者には理由が分からない）。
+    //    実測: 正規化前は `fieldLabel(… {JA:"本文"} …, "ja")` → `"body_rich"`。
+    //    BCP 47 は言語部分が大小を区別しないので、小文字に寄せて引き当たるようにする。
+    if (trimmed.length > 0) out[key.toLowerCase()] = trimmed;
   }
   return Object.keys(out).length > 0 ? out : null;
 }
