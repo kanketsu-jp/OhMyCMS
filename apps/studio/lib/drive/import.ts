@@ -128,10 +128,11 @@ export async function importFromDrive(
 
   // 🚨 取り込んだ印。**要件の「システムラベル」が実際に使われる最初の経路**。
   await attachSystemLabel(row.id, "imported", userId);
-  // ゴミ箱にあるものは、消えてはいないが**実質リンク切れ**。印を付けて後から気づけるようにする。
-  if (metadata.trashed) {
-    await attachSystemLabel(row.id, "source_missing", userId);
-  }
+  // 🚨 ここに「ゴミ箱なら source_missing」を書いていたが、**到達しないコードだった**。
+  //    `getFileMetadata` はゴミ箱のファイルを `DriveFileMissingError` にするので、
+  //    この行まで来た時点で trashed ではない。**読んだ人が「ゴミ箱のものも取り込める」と
+  //    誤解する嘘のコード**なので消した。
+  //    `source_missing` は「**取り込んだ後に元が消えた**」を検出する仕組みで使う（未実装）。
 
   return row;
 }

@@ -149,3 +149,69 @@ export async function getAccountEmail(accessToken: string): Promise<string | nul
     return null;
   }
 }
+
+/** 一覧の1件。**選ばせるのに要る分だけ**。詳細は選んだ後に `getFileMetadata` で取る。 */
+export type DriveFileSummary = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: string | null;
+  modifiedTime: string | null;
+  iconLink: string | null;
+  /** 画像のときだけ入る小さな絵。**一覧の見た目に使う**。 */
+  thumbnailLink: string | null;
+};
+
+export type DriveFileList = {
+  files: DriveFileSummary[];
+  /** 次のページを取るための印。無ければ最後のページ。 */
+  nextPageToken: string | null;
+};
+
+const LIST_FIELDS =
+  "nextPageToken,files(id,name,mimeType,size,modifiedTime,iconLink,thumbnailLink)";
+
+/**
+ * ドライブのファイルを一覧する。**選ばせるための口**。
+ *
+ * 🚨 **ゴミ箱は最初から外す**（`trashed = false`）。取り込めないものを選ばせない。
+ *    `getFileMetadata` はゴミ箱のファイルを `DriveFileMissingError` にするので、
+ *    一覧に出すと**選んだ瞬間に失敗する**。
+ *
+ * 🚨 **検索語はそのまま組み立てない。** `q` は Drive のクエリ言語なので、
+ *    シングルクォートを含む名前を素で入れると**式が壊れる**（構文エラーで 400）。
+ */
+export async function listDriveFiles(
+  accessToken: string,
+  options: { search?: string | null; pageToken?: string | null; pageSize?: number } = {},
+): Promise<DriveFileList> {
+  const url = new URL(FILES_ENDPOINT);
+  const conditions = ["trashed = false"];
+  if (options.search) {
+    // シングルクォートとバックスラッシュを打ち消す（Drive のクエリ言語の作法）。
+    const escaped = options.search.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    conditions.push(`name contains '${escaped}'`);
+  }
+  url.searchParams.set("q", conditions.join(" and "));
+  url.searchParams.set("fields", LIST_FIELDS);
+  url.searchParams.set("pageSize", String(Math.min(options.pageSize ?? 50, 100)));
+  url.searchParams.set("orderBy", "folder,modifiedTime desc,name");
+  // 共有ドライブも見えるようにする（getFileMetadata と揃える）。
+  url.searchParams.set("supportsAllDrives", "true");
+  url.searchParams.set("includeItemsFromAllDrives", "true");
+  if (options.pageToken) url.searchParams.set("pageToken", options.pageToken);
+
+  const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new ApiError(401, "DRIVE_UNAUTHORIZED", "ドライブへの接続が切れています。繋ぎ直してください");
+    }
+    // 🚨 本文を投げ直さない（要求の中身が混ざることがある）。状態だけ通す。
+    throw new ApiError(502, "DRIVE_REQUEST_FAILED", `ドライブへの要求が失敗しました (${response.status})`);
+  }
+  const payload = (await response.json()) as {
+    files?: DriveFileSummary[];
+    nextPageToken?: string;
+  };
+  return { files: payload.files ?? [], nextPageToken: payload.nextPageToken ?? null };
+}
