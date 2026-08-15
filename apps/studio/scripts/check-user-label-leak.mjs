@@ -615,6 +615,103 @@ for (const test of greenTests) {
   if (!clean) greenTestFailed = true;
 }
 
+// ── 1c) 見ていない範囲の診断: 免除①②を毎回その場で作って通す ─────────────
+// 🚨 ファイル冒頭のJSDocに書いた「この検査で分からないこと」は、書いた時点の実装を
+//    写しただけで、今もそのとおりかは保証しない。毎回ここで①②の形をメモリ上に作り、
+//    findViolations に通して実測する（ディスクは書き換えない）。
+//
+//   ① 別ファイルの関数を経由（zzLeakyLabel が生のメールを返す）
+//      規則Bは呼び出し元がどのファイルかを見ておらず、式が `displayUserLabel(` を
+//      含むかしか見ていないので、拾える。**いま拾えているので、緑であることを保証する対象**
+//      （拾えなくなったら selfTestFailed にして落とす＝退行）。
+//   ② 別ファイルの const を素の識別子で渡す（zzLeakedLabel）
+//      規則Hは**同じファイル内**の const/let/var 宣言しか追わない設計なので、拾えない。
+//      これは left-sidebar.tsx が親から受けた prop を素の識別子で渡している、
+//      正当な免除と同じ形。塞ぐのではなく、毎回「見ていない」と言わせるのがここの役目
+//      （急に「拾える」に変わったら、その免除が効かなくなった可能性があるので出力に出す。
+//      ただし left-sidebar.tsx 側の正当な素通しを壊す変更かもしれないので、これは失敗にしない）。
+
+const BLIND_SPOT_LAYOUT_FILE = "app/(admin)/layout.tsx";
+const BLIND_SPOT_PROBE_FILE = "lib/admin/zz-leak-probe.ts";
+const BLIND_SPOT_NEEDLE = "userLabel={displayUserLabel(me.ok ? me.data : null)}";
+const BLIND_SPOT_PROBE_SOURCE =
+  "// 診断専用のメモリ上の写し。ディスクには書かない（check-user-label-leak.mjs の自己診断）。\n" +
+  "export function zzLeakyLabel(user) {\n" +
+  '  return user && user.type === "human" ? user.email : null;\n' +
+  "}\n\n" +
+  'export const zzLeakedLabel = "leaked@example.com";\n';
+
+/** 先頭1件だけ置換する（壊し方5/6 と同じ理由。全部置き換えると他の的と区別が付かなくなる）。 */
+function buildBlindSpotSources(replacement) {
+  const before = original[BLIND_SPOT_LAYOUT_FILE];
+  const count = countOccurrences(before, BLIND_SPOT_NEEDLE) > 0 ? 1 : 0;
+  const after = before.replace(BLIND_SPOT_NEEDLE, replacement);
+  return {
+    sources: {
+      ...original,
+      [BLIND_SPOT_LAYOUT_FILE]: after,
+      [BLIND_SPOT_PROBE_FILE]: BLIND_SPOT_PROBE_SOURCE,
+    },
+    count,
+  };
+}
+
+const blindSpotProbes = [
+  {
+    label: "① 別ファイルの関数を経由（zzLeakyLabel が生のメールを返す）",
+    expectDetected: true,
+    replacement: "userLabel={zzLeakyLabel(me.ok ? me.data : null)}",
+  },
+  {
+    label: "② 別ファイルの const を素の識別子で渡す（zzLeakedLabel。left-sidebar.tsx の正当な素通しと同じ形の免除）",
+    expectDetected: false,
+    replacement: "userLabel={zzLeakedLabel}",
+  },
+];
+
+console.log("\n■ 見ていない範囲の診断（毎回その場で測る。静的な文言ではない）");
+let blindSpotRegression = false;
+for (const probe of blindSpotProbes) {
+  const { sources, count } = buildBlindSpotSources(probe.replacement);
+  if (count === 0) {
+    console.error(`  ❌ ${probe.label}  置換 0 件（壊せていない。判定できない）`);
+    blindSpotRegression = true;
+    continue;
+  }
+
+  const probeViolations = findViolations(sources);
+  const detected = probeViolations.length > 0;
+  const detectedRules = [...new Set(probeViolations.map((v) => v.rule))].join(",") || "-";
+
+  if (detected === probe.expectDetected) {
+    const mark = detected ? "✅ 拾える" : "⚠️ 拾えない（既知の免除。設計上の限界。塞いでいない）";
+    console.log(
+      `  ${mark}  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）`,
+    );
+    continue;
+  }
+
+  if (probe.expectDetected && !detected) {
+    // ①はいま拾えているので、緑であることを保証する対象。拾えなくなったのは退行。
+    console.error(`  🚨 退行  ${probe.label}  置換 ${count} 件 → 検出 0 件`);
+    console.error("     ↑ これまで拾えていた経路が拾えなくなった（findViolations の変更を疑う）。");
+    blindSpotRegression = true;
+  } else {
+    // ②が急に「拾える」に変わった。免除が効かなくなった＝left-sidebar.tsx の正当な
+    // 素通し（規則H）まで違反にし始めた可能性がある。黙って変わらせず、必ず出力に出す。
+    console.log(
+      `  ℹ️ 免除が効かなくなった  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）`,
+    );
+    console.log("     ↑ left-sidebar.tsx の正当な素通し（規則H）まで違反にし始めていないか確認すること。");
+  }
+}
+
+if (blindSpotRegression) {
+  // 🚨 既存の自己検査(RED)と同じ扱いにする。①が拾えなくなるのは退行であり、
+  //    この検査の結果が信用できない状態なので、既存のゲート変数に載せて exit 1 にする。
+  selfTestFailed = true;
+}
+
 // ── 2) 本番の判定 ─────────────────────────────────────────────────────
 const violations = findViolations(original);
 
