@@ -126,6 +126,19 @@ for (const t of TARGETS) {
 }
 
 // ── 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）──────────
+// 🚨 **出どころは人に書かせず、計器に出させる**（司令塔・2026-08-15）。
+//    貼り付ける人が毎回書く形にすると、忙しいときに落ちる。
+{
+  const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
+  const dirty = execFileSync("git", ["status", "--porcelain", "--", ...TARGETS.map((t) => t.file), "app"],
+    { encoding: "utf8" }).split("\n").filter(Boolean).length;
+  console.log(
+    `採取: HEAD ${head} / cwd ${process.cwd()} / ` +
+      `この検査が見る範囲の未コミット変更 ${dirty} 件`,
+  );
+  console.log(`  見る範囲: ${TARGETS.map((t) => t.file).join(", ")} と app/ 配下（git ls-files）`);
+}
+
 console.log("■ 自己検査（実物をメモリ上で壊して、検出できることをその場で確かめる）");
 {
   const src = readFileSync("lib/files/service.ts", "utf8");
