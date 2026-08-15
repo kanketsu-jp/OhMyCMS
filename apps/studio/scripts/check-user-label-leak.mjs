@@ -64,6 +64,37 @@ const GUARD_FILE = "lib/admin/user-label.ts";
  */
 const REQUIRED_FILES = [GUARD_FILE, "app/(admin)/layout.tsx", "components/admin/left-sidebar.tsx"];
 
+/**
+ * 走査数（GUARD_FILE を除いた本数）の基準線。**実測値と実測日を書く**。
+ * 🚨 由来: 2026-08-16。「0 件しか見ていない0ガード」は 214 本 → 1 本に減っても
+ * 通ってしまう（実測済み。台で列挙を2本に置換し、既存の「走査0なら落とす」門・
+ * 必須ファイル確認の両方をすり抜けて exit 0 になった）。「見ていない0」は塞げても、
+ * 「**ほとんど見ていない**」は塞げていなかった。
+ *
+ * `node scripts/check-user-label-leak.mjs` を実行し、「■ 判定」の「走査 N 本」を
+ * 読んで更新すること（このファイルの実測でも 214 本を確認済み・下の SELF-CHECK 参照）。
+ */
+const SCANNED_BASELINE = { at: "2026-08-16", count: 214 };
+
+/**
+ * 走査数がこれを下回ったら、基準線からの減少として落とす（既存の「走査0なら落とす」門とは別物。
+ * こちらは「0 ではないが、ほとんど見ていない」を狙う）。
+ * 🚨 しきい値は**基準線の 70%**: `Math.floor(214 * 0.7)` = 149。
+ * 214→149 は 65 本の減少で、単一ファイルの追加・削除・リネームでは起こらない大きさ。
+ * 一方でリファクタで数本〜十数本が増減しても 70% は割らないので、通常の開発では鳴らない
+ * （鳴らしすぎると煙感知器が信用されなくなる。取りこぼす側に倒す一般原則とは逆に、
+ * ここは「毎回鳴る運用ノイズ」を避ける側に倒した。理由はコメントに残す）。
+ */
+const SCANNED_MIN_THRESHOLD = Math.floor(SCANNED_BASELINE.count * 0.7); // 149
+
+/**
+ * 走査数がこれを上回ったら「基準線が古い可能性がある」と**落とさずに** 1 行だけ出す
+ * （`check-raw-api-message.mjs` が「件数が減ったら基準線を削れ」と言っているのと同じ考え方。
+ * 基準線を更新し忘れると、次に本当に減ったときの検出力が下がるため）。
+ * 🚨 しきい値は**基準線の 130%**（減少側 70% と対称に取った）: `Math.ceil(214 * 1.3)` = 279。
+ */
+const SCANNED_STALE_THRESHOLD = Math.ceil(SCANNED_BASELINE.count * 1.3); // 279
+
 function read(file) {
   return readFileSync(resolve(root, file), "utf8");
 }
@@ -1017,6 +1048,23 @@ console.log(
 console.log(`        （${GUARD_FILE} は規則 A/B/F/G の対象外。規則 C/D/E で別に見る）`);
 console.log(`  違反: ${violations.length} 件`);
 
+// 🚨 走査数の基準線チェック（既存の「走査0なら落とす」門とは別物。0ではないが、
+//    ほとんど見ていない場合を狙う。SCANNED_BASELINE のJSDoc参照）。
+let scannedBaselineFailed = false;
+if (scannedFiles < SCANNED_MIN_THRESHOLD) {
+  scannedBaselineFailed = true;
+  console.error(
+    `\n🚨 走査が基準線から大きく減っています（基準線 ${SCANNED_BASELINE.count} 本・${SCANNED_BASELINE.at} 実測 / いま ${scannedFiles} 本）。`,
+  );
+  console.error("   次のどちらかです:");
+  console.error("     ① ファイルを実際に減らした → SCANNED_BASELINE.count を更新してください");
+  console.error("     ② 列挙（glob）が壊れた     → 直すまでこの検査の「違反 0 件」は意味を持ちません");
+} else if (scannedFiles > SCANNED_STALE_THRESHOLD) {
+  console.log(
+    `\nℹ️ 走査が基準線から大きく増えています（基準線 ${SCANNED_BASELINE.count} 本・${SCANNED_BASELINE.at} 実測 / いま ${scannedFiles} 本）。SCANNED_BASELINE の更新を検討してください（落としてはいません）。`,
+  );
+}
+
 if (violations.length > 0) {
   console.error("\n■ 内部識別子が画面のラベルへ届く経路");
   // 🚨 **拾った行の実物を添える**（司令塔の規律・2026-08-16）。
@@ -1045,5 +1093,10 @@ if (selfTestFailed) {
 if (greenTestFailed) {
   console.error("\n🚨 対照検査（GREEN）に失敗した。壊していない変更で誤検出している（過検出）。");
 }
+if (scannedBaselineFailed) {
+  console.error("\n🚨 走査数が基準線を大きく下回った。**この検査の結果は信用できない**（緑でも意味を持たない）。");
+}
 
-process.exit(violations.length === 0 && !selfTestFailed && !greenTestFailed ? 0 : 1);
+process.exit(
+  violations.length === 0 && !selfTestFailed && !greenTestFailed && !scannedBaselineFailed ? 0 : 1,
+);
