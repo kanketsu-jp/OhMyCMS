@@ -833,25 +833,35 @@ if (selfTestFailed) {
 //       1 回は置換が当たったのに狙った振る舞いが変わらなかった）。
 //       🚨 **「鳴るはず」は設計上の期待であって、実測ではない。**
 //       壊し方を思いついた人は、測って、この行を消してください。
+// 🚨 3 つ目の欄は「**いまこのコードに在る形か**」（2026-08-16 実測）。
+//    司令塔の指摘: **見逃す入力は、規約を知っている人が作らないと「在りえない形」ばかりになる。**
+//    在りえない形だけで固めると、**見逃しの実害が 0 でも同じ緑**になり、何も言わない検査になる。
 const BLIND_SPOTS = [
-  ["<form action={fn}> で送る", '<form action={save}><button>x</button></form>', true],
-  ["axios で送る", 'await axios.post("/api/x", body);', true],
-  ["sendBeacon で送る", 'navigator.sendBeacon("/api/x", body);', true],
-  ["Server Action を直に呼ぶ", "await setLocaleAction(formData);", true],
-  ["XMLHttpRequest で送る", 'const x = new XMLHttpRequest(); x.open("POST", "/api/x"); x.send(body);', true],
+  ["<form action={fn}> で送る", '<form action={save}><button>x</button></form>', true, "在る（16 件・うち 8 件が未防御）"],
+  ["Server Action を直に呼ぶ", "await setLocaleAction(formData);", true, "在る（profile-settings.tsx:229）"],
+  ["axios で送る", 'await axios.post("/api/x", body);', true, "無い（0 件）"],
+  ["sendBeacon で送る", 'navigator.sendBeacon("/api/x", body);', true, "無い（0 件）"],
+  ["XMLHttpRequest で送る", 'const x = new XMLHttpRequest(); x.open("POST", "/api/x"); x.send(body);', true, "無い（0 件）"],
   // 🚨 これは「見ていないもの」に**書いていない**形。拾えることを毎回示す（記述が広すぎないことの担保）
-  ["同一ファイルの変数経由", 'const opts = { method: "POST" }; await fetch("/api/x", opts);', false],
-  ["🟢 対照: fetch + method", 'await fetch("/api/x", { method: "POST" });', false],
+  ["同一ファイルの変数経由", 'const opts = { method: "POST" }; await fetch("/api/x", opts);', false, "在る"],
+  ["🟢 対照: fetch + method", 'await fetch("/api/x", { method: "POST" });', false, "在る"],
 ];
 const blindBase = findMutationLines(BASELINE).length;
 let blindDrift = false;
 console.log("\n■ 死角の見張り（見逃すはずの形が、拾えるようになっていないか）");
-for (const [name, code, shouldMiss] of BLIND_SPOTS) {
+for (const [name, code, shouldMiss, exists] of BLIND_SPOTS) {
   const got = findMutationLines(`${BASELINE}\n${code}`).length - blindBase;
   const ok = shouldMiss ? got === 0 : got > 0;
   if (!ok) blindDrift = true;
-  console.log(`  ${ok ? "✅" : "❌"} ${shouldMiss ? "見逃すはず" : "拾うはず  "} ${name}（検出 ${got} 件）`);
+  console.log(
+    `  ${ok ? "✅" : "❌"} ${shouldMiss ? "見逃すはず" : "拾うはず  "} ${name}（検出 ${got} 件）｜ 実在: ${exists}`,
+  );
 }
+console.log(
+  `  🚨 「無い」と書いた形は、見逃していても実害が 0。実害が在るのは「在る」と書いた ${
+    BLIND_SPOTS.filter((s) => s[2] && s[3].startsWith("在る")).length
+  } 形（この数は 2026-08-16 の手動実測。**自動では追っていない**）`,
+);
 if (blindDrift) {
   console.error("\n🚨 死角の記述が実装と食い違っている。");
   console.error("  ・「見逃すはず」が拾えるようになった → **冒頭の「見ていないもの」から外す**");
