@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { DriveImportPanel } from "@/components/admin/drive-import-panel";
 import { FileUploadForm } from "@/components/admin/files-manager";
 import { Surface } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
@@ -26,6 +27,17 @@ export default async function NewFilePage({ searchParams }: Props) {
   const query = await searchParams;
   const result = await apiFetch<{ data: FolderRow[] }>("/api/folders?limit=100");
   const folders = result.ok ? result.data.data : [];
+  /**
+   * ドライブの接続状態を**サーバ側で**調べる。
+   * 🚨 設定が無いときは 503 が返るので、`ok` でない＝**パネルを出さない**。
+   *    クライアントで調べると、**設定が無いのに一瞬パネルが見える**。
+   */
+  const driveResult = await apiFetch<{
+    data: { configured: boolean; connected: boolean; accountEmail: string | null };
+  }>(
+    "/api/drive/connection",
+  );
+  const driveConnection = driveResult.ok ? driveResult.data.data : null;
   const backHref = query.folder && query.folder !== "root"
     ? `/admin/files?folder=${query.folder}`
     : "/admin/files";
@@ -41,6 +53,9 @@ export default async function NewFilePage({ searchParams }: Props) {
       <Surface>
         <FileUploadForm folders={folders} initialFolder={query.folder} />
       </Surface>
+      {/* 🚨 設定が無いときは中で何も描かない（管理者が client_id を入れるまで、
+          利用者にできることが無いため）。 */}
+      <DriveImportPanel folder={query.folder ?? null} initialConnection={driveConnection} />
     </div>
   );
 }

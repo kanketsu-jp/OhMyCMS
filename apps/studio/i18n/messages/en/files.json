@@ -62,5 +62,17 @@
   "row_folder": "Folder",
   "menu_open_detail": "Open details",
   "menu_delete": "Delete",
-  "deleted": "Deleted"
+  "deleted": "Deleted",
+  "drive_heading": "Import from Google Drive",
+  "drive_description": "The selected file is copied into this CMS. The original stays in Drive and remains reachable.",
+  "drive_connect": "Connect Google Drive",
+  "drive_connected_as": "Connected as {email}",
+  "drive_search_placeholder": "Filter by file name",
+  "drive_list": "Load list",
+  "drive_import": "Import",
+  "drive_imported": "Imported {name}",
+  "drive_import_failed": "Could not import",
+  "drive_source_missing": "The file was not found in Drive",
+  "drive_list_failed": "Could not load the list",
+  "drive_disconnected": "The Drive connection expired. Please reconnect"
 }

@@ -62,5 +62,17 @@
   "row_folder": "フォルダ",
   "menu_open_detail": "詳細をひらく",
   "menu_delete": "削除",
-  "deleted": "削除しました"
+  "deleted": "削除しました",
+  "drive_heading": "Google ドライブから取り込む",
+  "drive_description": "選んだファイルをこのCMSに複製します。もとのファイルは残り、あとから辿れます。",
+  "drive_connect": "Google ドライブに繋ぐ",
+  "drive_connected_as": "{email} で繋いでいます",
+  "drive_search_placeholder": "ファイル名で絞り込む",
+  "drive_list": "一覧を取得",
+  "drive_import": "取り込む",
+  "drive_imported": "{name} を取り込みました",
+  "drive_import_failed": "取り込めませんでした",
+  "drive_source_missing": "ドライブ上でファイルが見つかりません",
+  "drive_list_failed": "一覧を取得できませんでした",
+  "drive_disconnected": "ドライブへの接続が切れています。繋ぎ直してください"
 }
