@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { EllipsisIcon, SlashIcon } from "lucide-react";
 
 import {
@@ -43,7 +43,6 @@ function shorten(label: string): string {
 
 export function Breadcrumbs({ brand }: { brand: string }) {
   const t = useT();
-  const router = useRouter();
   const crumbs = usePageTrail(brand);
 
   const current = crumbs[crumbs.length - 1];
@@ -96,17 +95,24 @@ export function Breadcrumbs({ brand }: { brand: string }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuGroup>
+                  {/* 🚨 **本物のリンク（`<a href>`）にする**（2026-08-15）。
+                      以前は onClick でページを移していたが、`href` が無いと:
+                        ・**Cmd+クリック / 中クリックで新しいタブに開けない**
+                        ・読み上げで「リンク」ではなく「メニュー項目」として読まれる
+                      `asChild` で `<a>` を項目そのものにすれば、**押した挙動は変えずに**両方直る。
+                      🚨 `role="menuitem"` は Radix が `asChild` でも保つ（＝メニューの操作性は失わない）。
+                      🚨 **このコメントを `map(... => (` の内側に置かないこと。**
+                      返り値は 1 要素しか置けず、置いた瞬間に**構文エラーで全画面 500**になる（実際にやった）。 */}
                   {parents.map((crumb, index) => (
-                    <DropdownMenuItem
-                      key={crumb.href}
-                      onClick={() => router.push(crumb.href)}
-                    >
-                      {/* 木の枝の記号。最後（＝ひとつ上の階層）だけ └ にする。
-                          記号なので辞書には載せない（文言ではない）。 */}
-                      <span className="truncate">
-                        {index === parents.length - 1 ? "└" : "├"}
-                        {crumb.label}
-                      </span>
+                    <DropdownMenuItem key={crumb.href} asChild>
+                      <Link href={crumb.href}>
+                        {/* 木の枝の記号。最後（＝ひとつ上の階層）だけ └ にする。
+                            記号なので辞書には載せない（文言ではない）。 */}
+                        <span className="truncate">
+                          {index === parents.length - 1 ? "└" : "├"}
+                          {crumb.label}
+                        </span>
+                      </Link>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuGroup>
