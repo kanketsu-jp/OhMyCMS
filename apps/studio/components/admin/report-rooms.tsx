@@ -37,7 +37,7 @@ export function ReportRooms({ reports, emptyLabel, resolvedLabel, formatDateTime
         <li key={report.id}>
           <Link
             href={`/admin/reports/${report.id}`}
-            className="flex min-w-0 items-baseline gap-3 py-3 hover:bg-muted/50"
+            className="flex min-w-0 items-baseline gap-3 py-3 hover:bg-muted/50 active:bg-muted/50"
           >
             <span
               className={cn(

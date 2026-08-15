@@ -129,7 +129,7 @@ export function NotificationsManager({
                 {notification.link ? (
                   <Link
                     href={notification.link}
-                    className="text-xs text-primary hover:text-primary/80"
+                    className="text-xs text-primary hover:text-primary/80 active:text-primary/80"
                   >
                     {t("open_link")}
                   </Link>
