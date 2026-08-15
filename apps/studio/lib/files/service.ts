@@ -14,7 +14,7 @@ import {
 import { ApiError } from "@/lib/schema/errors";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { RelationMeta } from "@/lib/schema/models";
-import { removeLabelsForTarget } from "@/lib/labels/service";
+import { authorizeTarget, removeLabelsForTarget } from "@/lib/labels/service";
 import { getStorage, getStorageByName } from "@/lib/storage";
 import type { StorageDriver } from "@/lib/storage/driver";
 
@@ -558,6 +558,7 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
   const permission = await permissionForAction(actor, "directus_files", "delete");
   const relations = permission.rowFilter ? await relationRows() : [];
   const row = await findFile(id, permission.rowFilter, schemaOverview, relations);
+  const auth = await authorizeTarget(actor, "file", id, "delete");
   const key = ensureStoredFile(row);
   // 🚨 削除も**保存したときの保管先**へ。今の設定で消すと、切り替え前のファイルが
   //    消えずに残る（利用者は消したつもりでいる）。
@@ -572,7 +573,7 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
   await deleteQuery.delete();
   // 🚨 ラベルの割り当ては外部キーで消えない（target_id が files と folders の
   //    どちらも指すため、外部キーを張れない）。**ここで消さないと残り続ける。**
-  await removeLabelsForTarget("file", id);
+  await removeLabelsForTarget("file", id, auth);
 }
 
 function parseDimension(value: string | null | undefined, field: string): number | undefined {
@@ -863,6 +864,7 @@ export async function deleteFolder(actor: Actor, id: string): Promise<void> {
   if (!visible) {
     throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
   }
+  const auth = await authorizeTarget(actor, "folder", id, "delete");
 
   const file = await db<FileRow>("directus_files").where({ folder: id }).first();
   if (file) {
@@ -879,7 +881,7 @@ export async function deleteFolder(actor: Actor, id: string): Promise<void> {
     throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
   }
   // 🚨 ファイルと同じ理由で、ここで割り当てを消す。
-  await removeLabelsForTarget("folder", id);
+  await removeLabelsForTarget("folder", id, auth);
 }
 
 export function recordBody(body: unknown): Record<string, unknown> {

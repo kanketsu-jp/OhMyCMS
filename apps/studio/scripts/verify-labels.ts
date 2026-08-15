@@ -21,6 +21,7 @@ import { db } from "../lib/db/knex";
 import {
   createLabel,
   deleteLabel,
+  authorizeTarget,
   labelsForTarget,
   listLabels,
   removeLabelsForTarget,
@@ -198,7 +199,8 @@ async function main(): Promise<void> {
     );
 
     // 🚨 対象を消したら割り当ても消える（外部キーが張れないので手で消している）。
-    await removeLabelsForTarget("file", file.id);
+    const auth = await authorizeTarget(actor, "file", file.id, "update");
+    await removeLabelsForTarget("file", file.id, auth);
     const cleaned = await labelsForTarget(actor, "file", file.id);
     check("後片付け: 対象の割り当てが消える", cleaned.length === 0, `${cleaned.length} 件`);
 

@@ -56,6 +56,17 @@ export type PublicLabel = {
 
 export type LabelTargetType = "file" | "folder";
 type TargetCollection = (typeof TARGET_COLLECTION)[LabelTargetType];
+const targetAuthorizationBrand: unique symbol = Symbol("TargetAuthorization");
+
+export type TargetAuthorization = {
+  readonly targetType: LabelTargetType;
+  readonly targetId: string;
+  /**
+   * 外から `{ targetType, targetId }` を書けると、判定済みである保証が構造的に消える。
+   * 非公開の unique symbol をブランドにして、このモジュール外では組み立てられないようにする。
+   */
+  readonly [targetAuthorizationBrand]: typeof targetAuthorizationBrand;
+};
 
 function toPublic(row: LabelRow): PublicLabel {
   return { id: row.id, name: row.name, color: row.color, is_system: row.is_system };
@@ -115,6 +126,16 @@ async function assertTargetVisible(
       targetType === "file" ? "ファイルが見つかりません" : "フォルダが見つかりません",
     );
   }
+}
+
+export async function authorizeTarget(
+  actor: Actor,
+  targetType: LabelTargetType,
+  targetId: string,
+  action: PermissionAction,
+): Promise<TargetAuthorization> {
+  await assertTargetVisible(actor, targetType, targetId, action);
+  return { targetType, targetId, [targetAuthorizationBrand]: targetAuthorizationBrand };
 }
 
 function actorUserId(actor: Actor): string {
@@ -316,7 +337,11 @@ export async function setLabelsForTarget(
 export async function removeLabelsForTarget(
   targetType: LabelTargetType,
   targetId: string,
+  authorization: TargetAuthorization,
 ): Promise<void> {
+  if (authorization.targetType !== targetType || authorization.targetId !== targetId) {
+    throw new Error("Target authorization does not match label target");
+  }
   await db("ohmycms_label_assignments")
     .where({ target_type: targetType, target_id: targetId })
     .delete();
