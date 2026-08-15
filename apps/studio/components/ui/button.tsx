@@ -9,10 +9,14 @@ const buttonVariants = cva(
   // 🚨 **`hover:` を足したら、同じ variant に `active:` も足すこと**（2026-08-15 堀池さん指示）。
   //    Tailwind v4 の `hover:` は `@media (hover: hover)` の中に入るので、
   //    **タッチ端末では hover の色が一度も当たらない**＝押しても色が変わらない。
-  //    実測(2026-08-15・headless Chrome で hover:none / pointer:coarse を再現して押した):
-  //      平常      背景 rgba(0,0,0,0)
-  //      触れた時   背景 rgba(0,0,0,0)   ← **hover は一度も当たらない**（これが理由の裏づけ）
-  //      押している時 背景 oklab(0.97…)   ← 足した active が出る
+  //    実測(2026-08-15・**遷移が終わるまで待ってから**読んだ値):
+  //      タッチを再現(hover:none)  平常 透明 → 触れた **透明**（hover は当たらない）→ 押下 **lab(96.52)** ＋ 1px 沈む
+  //      PC(hover あり)            平常 透明 → 触れた **lab(96.52)**（hover が当たる）→ 押下 **同じ色** ＋ 1px 沈む
+  //    🚨 **PC では、押しても色は変わらない**（active と hover が同じ色なので）。
+  //    **PC の手応えは `translate-y-px` の沈みだけ**で、色は hover の時点で既に変わっている。
+  //    ＝ **`active:` はタッチのためのもの**。PC の見た目を変える変更ではない。
+  //    🚨 **遷移中に読むと値が違う**（`transition-all` があるため）。
+  //    120ms で読んだときは PC でも「触れた時＝透明」と出て、**hover が効いていないように見えた**（誤り）。
   //    このファイルの `hover:` 13 個のうち、対の `active:` は **0 個**だった。
   //    🚨 **幅を SP にしただけでは、この差は出ない。** `setDeviceMetricsOverride({mobile:true})` だけだと
   //    `(hover: hover)` は **true のまま**で、hover の色が当たってしまう（＝PC を細くしただけ）。
