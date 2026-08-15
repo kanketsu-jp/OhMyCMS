@@ -18,6 +18,7 @@ import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
 import { FolderLabelsMenu } from "@/components/admin/folder-labels-menu";
 import { useT } from "@/i18n/client";
+import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
 
 type FolderRow = {
   id: string;
@@ -42,24 +43,36 @@ const FOLDER_COLOR_CLASS: Record<string, string> = {
 };
 const FOLDER_COLOR_NAMES = Object.keys(FOLDER_COLOR_CLASS);
 
-function messageFrom(payload: unknown, status: number, fallback: string): string {
-  if (status === 409) return fallback;
+/**
+ * 🚨 **API の生文言を画面へ出さない。** code だけを見て辞書の鍵へ写す。
+ *    生文言は `lib/` に直書きされた日本語なので、**英語で見ている人の画面にも日本語が出る**。
+ *    表に無い code は `null` を返し、呼び出し側の具体的な文言を使う
+ *    （`unexpected`「予期しないエラー」より、その場の文言のほうが正確なため）。
+ */
+function errorKeyFrom(payload: unknown): ErrorKey | null {
   if (
     payload &&
     typeof payload === "object" &&
     "error" in payload &&
     payload.error &&
     typeof payload.error === "object" &&
-    "message" in payload.error &&
-    typeof payload.error.message === "string"
+    "code" in payload.error &&
+    typeof payload.error.code === "string"
   ) {
-    return payload.error.message;
+    const key = errorKeyFromApiCode(payload.error.code);
+    return key === FALLBACK_ERROR_KEY ? null : key;
   }
-  return fallback;
+  return null;
 }
 
 export function FolderGrid({ folders }: { folders: FolderRow[] }) {
   const t = useT("folders");
+  const tError = useT("errors");
+  const messageFrom = (payload: unknown, status: number, fallback: string) => {
+    if (status === 409) return fallback;
+    const key = errorKeyFrom(payload);
+    return key ? tError(key) : fallback;
+  };
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 

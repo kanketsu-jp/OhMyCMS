@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
+import { errorKeyFromApiCode, FALLBACK_ERROR_KEY } from "@/i18n/error";
 
 type SettingsSource = "database" | "environment" | "default";
 
@@ -41,6 +42,7 @@ type Draft = {
 
 export function StorageSettingsManager({ settings }: { settings: StorageSettings }) {
   const t = useT("storage");
+  const tError = useT("errors");
   const format = useFormat();
   const router = useRouter();
   const initial = useMemo<Draft>(
@@ -116,7 +118,12 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       if (response.status === 403) setError(t("error_forbidden"));
       else if (code === "INVALID_FIELD") setError(t("error_invalid_field"));
       else if (code === "SECRET_KEY_MISSING") setError(t("error_secret_key_missing"));
-      else setError(payload?.error?.message ?? t("error_save_failed"));
+      else {
+        // 🚨 API の生文言を画面へ出さない（英語の画面に lib/ の日本語が出るため）。
+        //    表に無い code は保存の途中なので、この画面の error_save_failed が正確。
+        const key = errorKeyFromApiCode(payload?.error?.code);
+        setError(key === FALLBACK_ERROR_KEY ? t("error_save_failed") : tError(key));
+      }
       return;
     }
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/client";
+import { errorKeyFromApiCode, FALLBACK_ERROR_KEY } from "@/i18n/error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import { useSubmitOnce } from "@/hooks/use-submit-once";
 export function DevLoginForm() {
   const router = useRouter();
   const t = useT("auth");
+  const tError = useT("errors");
   const [email, setEmail] = useState("admin@local");
   const [admin, setAdmin] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +30,19 @@ export function DevLoginForm() {
     });
 
     if (!response.ok) {
+      // 🚨 型からも message を外す（読める形が在ると、また書かれる）。
       const payload = await response.json().catch(() => null) as {
-        error?: { message?: string };
+        error?: { code?: string };
       } | null;
-      setError(payload?.error?.message ?? t("login_failed", { status: response.status }));
+      // 🚨 API の生文言を画面へ出さない。code を鍵へ写して辞書から出す。
+      //    生文言は lib/ に直書きされた日本語なので、英語で見ている人の画面にも日本語が出る。
+      //    表に無い code は「予期しないエラー」ではなく、この画面の具体的な文言へ落とす。
+      const key = errorKeyFromApiCode(payload?.error?.code);
+      setError(
+        key === FALLBACK_ERROR_KEY
+          ? t("login_failed", { status: response.status })
+          : tError(key),
+      );
       setPending(false);
       return;
     }

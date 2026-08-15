@@ -47,18 +47,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
  * `(c)` で直すたびに **この表から削る**。空になったら、この検査は普通の禁止検査になる。
  * 🚨 **勝手に足さない。** 足すのは「直せない理由」が在るときだけで、そのときは理由を隣に書く。
  */
+// 🚨 2026-08-16: 7 ファイルを `errorKeyFromApiCode()` へ寄せて 0 件にしたので、ここから削った
+//    （残り 5 は auth / saml が別作業で触っている最中。終わってから寄せる）。
+//    削らないと、そのぶん増えても気づけない——この検査自身がそう書いている。
 const BASELINE = {
   "components/admin/agents-manager.tsx": 2,
-  "components/admin/dev-login-form.tsx": 1,
-  "components/admin/file-detail-manager.tsx": 2,
-  "components/admin/file-picker.tsx": 2,
-  "components/admin/files-manager.tsx": 2,
-  "components/admin/folder-grid.tsx": 2,
-  "components/admin/new-folder-form.tsx": 2,
   "components/admin/policies-manager.tsx": 2,
   "components/admin/policy-permissions-manager.tsx": 2,
   "components/admin/roles-manager.tsx": 2,
-  "components/admin/storage-settings-manager.tsx": 1,
   "components/admin/users-policy-manager.tsx": 2,
 };
 
