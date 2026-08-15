@@ -36,6 +36,43 @@ import {
 
 export type Item = Record<string, unknown>;
 
+/**
+ * 記事の書込リクエストから渡される、activity ログ用の最小コンテキスト。
+ * 🚨 lib/ は next/* を import しない（AGENTS.md §3.6）ので、route 側でヘッダから
+ * 素の値を取り出してここへ渡す（apps/studio/app/api/items/**の route.ts を参照）。
+ */
+export type ActivityContext = {
+  ip: string;
+  userAgent: string | null;
+};
+
+type ActivityAction = "create" | "update" | "delete";
+
+/**
+ * directus_activity へ1行 insert する。呼び出し側の transaction (trx) の中で呼ぶこと
+ * （記事の書込がロールバックされたらログも残らないようにするため）。
+ * 🚨 記事本文（body の中身）は入れない。who/when/what のメタだけ。
+ */
+async function recordActivity(
+  trx: Knex.Transaction,
+  actor: Actor,
+  action: ActivityAction,
+  collection: string,
+  item: string,
+  context: ActivityContext,
+): Promise<void> {
+  await trx("directus_activity").insert({
+    action,
+    user: actor.type === "human" ? actor.userId : null,
+    actor_type: actor.type,
+    actor_id: actor.type === "agent" ? actor.agentId : null,
+    collection,
+    item,
+    ip: context.ip,
+    user_agent: context.userAgent,
+  });
+}
+
 export type ItemsListResult = {
   data: Item[];
   meta?: {
@@ -971,6 +1008,7 @@ export async function createItems(
   actor: Actor,
   collection: string,
   body: unknown,
+  context: ActivityContext,
 ): Promise<Item | Item[]> {
   const schemaOverview = await getSchemaOverview();
   const columns = assertUserCollection(collection, schemaOverview);
@@ -1007,6 +1045,9 @@ export async function createItems(
       schemaOverview,
       relations,
     );
+      for (const row of writtenRows as Item[]) {
+        await recordActivity(trx, actor, "create", collection, String(row[primaryKey]), context);
+      }
       return writtenRows;
     }),
   )) as Item[];
@@ -1020,6 +1061,7 @@ export async function updateItem(
   collection: string,
   id: string,
   body: unknown,
+  context: ActivityContext,
 ): Promise<Item> {
   if (!isRecord(body)) {
     throw new ApiError(400, "INVALID_BODY", "JSONオブジェクトを指定してください");
@@ -1056,6 +1098,7 @@ export async function updateItem(
       schemaOverview,
       relations,
     );
+    await recordActivity(trx, actor, "update", collection, id, context);
     return rows[0] as Item;
   });
 
@@ -1066,6 +1109,7 @@ export async function deleteItem(
   actor: Actor,
   collection: string,
   id: string,
+  context: ActivityContext,
 ): Promise<void> {
   const schemaOverview = await getSchemaOverview();
   assertUserCollection(collection, schemaOverview);
@@ -1082,5 +1126,6 @@ export async function deleteItem(
     if (deleted === 0) {
       throw new ApiError(404, "ITEM_NOT_FOUND", "アイテムが見つかりません");
     }
+    await recordActivity(trx, actor, "delete", collection, id, context);
   });
 }

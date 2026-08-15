@@ -1,5 +1,10 @@
 import { requireActor } from "@/lib/auth/context";
-import { createItems, itemsQueryFromRequest, listItems } from "@/lib/items/service";
+import {
+  createItems,
+  itemsQueryFromRequest,
+  listItems,
+  type ActivityContext,
+} from "@/lib/items/service";
 import { errorResponse, ok } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 
@@ -17,6 +22,13 @@ async function readJson(request: Request): Promise<unknown> {
   }
 }
 
+function activityContextFromRequest(request: Request): ActivityContext {
+  return {
+    ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "",
+    userAgent: request.headers.get("user-agent"),
+  };
+}
+
 export async function GET(request: Request, ctx: Context) {
   try {
     const actor = await requireActor(request);
@@ -32,7 +44,8 @@ export async function POST(request: Request, ctx: Context) {
     const actor = await requireActor(request);
     const { collection } = await ctx.params;
     const body = await readJson(request);
-    return ok({ data: await createItems(actor, collection, body) }, 201);
+    const context = activityContextFromRequest(request);
+    return ok({ data: await createItems(actor, collection, body, context) }, 201);
   } catch (error) {
     return errorResponse(error);
   }
