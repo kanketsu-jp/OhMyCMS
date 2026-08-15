@@ -70,10 +70,18 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
     sectionKeys: ["collections.list_title"],
   },
   "/admin/collections/new": { titleKey: "collections.create_title" },
-  "/admin/collections/[collection]": { titleKey: "collections.title", titleFromData: true },
+  "/admin/collections/[collection]": {
+    titleKey: "collections.title",
+    titleFromData: true,
+    sectionKeys: ["fields.list_title", "relations.list_title", "relations.add_title"],
+  },
   "/admin/collections/[collection]/fields/new": { titleKey: "fields.add_title" },
 
-  "/admin/content/[collection]": { titleKey: "items.title_for_collection", titleFromData: true },
+  "/admin/content/[collection]": {
+    titleKey: "items.title_for_collection",
+    titleFromData: true,
+    sectionKeys: ["items.list_title"],
+  },
   "/admin/content/[collection]/new": { titleKey: "items.new_item" },
   "/admin/content/[collection]/[id]": { titleKey: "items.edit_item_title" },
 

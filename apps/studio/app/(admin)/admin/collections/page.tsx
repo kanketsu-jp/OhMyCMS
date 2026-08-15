@@ -3,6 +3,7 @@ import type { CollectionResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
+import { sectionAnchorId } from "@/components/admin/page-sections";
 import { Plus } from "lucide-react";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
@@ -66,7 +67,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
           🚨 見出し（「一覧」）も出さない。「そもそも見てわかるので」。
              ただし**右サイドバーの項目一覧には出す**ので、辞書キーは
              `lib/admin/page-meta.ts` の `sectionKeys` に残してある。 */}
-      <div>
+      <div id={sectionAnchorId("collections.list_title")}>
         {result.ok ? (
           <Table>
             <TableHeader>

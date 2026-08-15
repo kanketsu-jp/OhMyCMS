@@ -6,6 +6,7 @@ import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-displ
 import { isFileField } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
+import { sectionAnchorId } from "@/components/admin/page-sections";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { DEFAULT_COLUMN_COUNT, DEFAULT_LIST_LIMIT, resolveColumns, resolveLimit } from "@/lib/admin/list-view";
@@ -141,7 +142,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
             (!itemsResult.ok ? itemsResult.message : null)
           }
         />
-        <Surface>
+        <Surface id={sectionAnchorId("items.list_title")}>
           <SurfaceTitle>{t("list_title")}</SurfaceTitle>
           {itemsResult.ok ? (
             <>

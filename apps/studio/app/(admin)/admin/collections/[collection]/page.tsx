@@ -4,6 +4,7 @@ import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
+import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RelationForm } from "@/components/admin/relation-form";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
@@ -122,7 +123,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           (!relationsResult.ok ? relationsResult.message : null)
         }
       />
-      <Surface>
+      <Surface id={sectionAnchorId("fields.list_title")}>
         <SurfaceTitle>{tFields("list_title")}</SurfaceTitle>
         {fieldsResult.ok ? (
           <Table>
@@ -157,7 +158,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           </Link>
         </div>
       </Surface>
-      <Surface>
+      <Surface id={sectionAnchorId("relations.list_title")}>
         <SurfaceTitle>{tRelations("list_title")}</SurfaceTitle>
         {relationsResult.ok ? (
           collectionRelations.length > 0 ? (
@@ -200,7 +201,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           )
         ) : null}
       </Surface>
-      <Surface>
+      <Surface id={sectionAnchorId("relations.add_title")}>
         <SurfaceTitle>{tRelations("add_title")}</SurfaceTitle>
         <RelationForm collection={collection} collectionNames={collectionNames} />
       </Surface>
