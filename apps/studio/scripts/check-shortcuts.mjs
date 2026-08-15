@@ -53,10 +53,19 @@
  *    globSync("{app,components}" 配下の全 .ts/.tsx) と同じ考え方）。
  */
 
-import { createRequire } from "node:module";
-import { existsSync, globSync, readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  normalize,
+  normalizeTiptapKey,
+  extractFunctionBodies,
+  extractModBindings,
+  collectTiptapBindings,
+  groupTiptapBindings,
+  isExtractionHealthy,
+  assertCombosUsable,
+} from "./tiptap-combos.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = "components/admin/shortcuts.ts";
@@ -75,22 +84,9 @@ function parseShortcuts(source) {
   return entries;
 }
 
-/**
- * 組み合わせを比較できる形へ揃える。
- * 修飾キーの**書き順が違うだけの同じ組み合わせ**（"mod+shift+k" と "shift+mod+k"）を
- * 別物として見逃さないため、小文字にして並べ替える。
- */
-function normalize(combo) {
-  const parts = combo.toLowerCase().split("+");
-  const key = parts[parts.length - 1];
-  const modifiers = parts.slice(0, -1).sort();
-  return [...modifiers, key].join("+");
-}
-
-/** Tiptap 記法（`"Mod-Shift-b"` のように `-` 区切り）を、うちの `normalize()` に通せる形にする。 */
-function normalizeTiptapKey(raw) {
-  return normalize(raw.split("-").join("+"));
-}
+// 🚨 normalize() / normalizeTiptapKey() は tiptap-combos.mjs から import する（このファイルの
+//    上部を参照）。実装をここへ複製しない — 複製すると node_modules の中身が変わったときに
+//    片方だけ古くなる（このファイル冒頭コメント「なぜ」を参照）。
 
 function findConflicts(entries) {
   const seen = new Map();
@@ -108,169 +104,9 @@ function findConflicts(entries) {
 }
 
 // ── Tiptap のキーバインドを node_modules の実体から抽出する ──────────────────
-
-/**
- * `startFile` から見て `expectedName` という package.json (`"name"` が一致するもの) を
- * ディレクトリを遡って探す。`require.resolve("@pkg/package.json")` は `exports` フィールドで
- * 弾かれるパッケージがある（実測: `@tiptap/starter-kit` はこれで失敗する）ため、
- * 解決済みのファイルパスから逆に辿る。
- */
-function findPackageJsonNear(startFile, expectedName) {
-  let dir = dirname(startFile);
-  for (let i = 0; i < 6; i++) {
-    const candidate = join(dir, "package.json");
-    if (existsSync(candidate)) {
-      try {
-        const pkg = JSON.parse(readFileSync(candidate, "utf8"));
-        if (pkg.name === expectedName) return pkg;
-      } catch {
-        // 壊れたJSON等は無視して上へ遡り続ける
-      }
-    }
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
-}
-
-/**
- * `addKeyboardShortcuts() { ... }` の本体をソース全体から**すべて**抜き出す
- * （1ファイルに複数の拡張がバンドルされていることがある。実測: `@tiptap/extension-list` の
- * dist に7個ある）。
- *
- * 🚨 終端は正規表現の固定パターン（`\n\s{2,4}\}` 等）に頼らない。それも取りこぼしの原因になる
- *    （仕様書より）。文字列/テンプレートリテラルの中の `{` `}` を除外しつつ、開き括弧からの
- *    深さで閉じ括弧を探す。
- */
-function extractFunctionBodies(source, functionName) {
-  const bodies = [];
-  const marker = new RegExp(`${functionName}\\s*\\(\\s*\\)\\s*\\{`, "g");
-  let m;
-  while ((m = marker.exec(source)) !== null) {
-    const openBraceIndex = m.index + m[0].length - 1;
-    let depth = 0;
-    let inString = null; // ' " ` のいずれか。文字列/テンプレートの中は括弧を数えない。
-    let end = -1;
-    for (let i = openBraceIndex; i < source.length; i++) {
-      const ch = source[i];
-      if (inString) {
-        if (ch === "\\") {
-          i++; // エスケープの次の1文字はそのまま読み飛ばす
-          continue;
-        }
-        if (ch === inString) inString = null;
-        continue;
-      }
-      if (ch === '"' || ch === "'" || ch === "`") {
-        inString = ch;
-        continue;
-      }
-      if (ch === "{") depth++;
-      else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          end = i;
-          break;
-        }
-      }
-    }
-    if (end === -1) continue; // 閉じが見つからない = パース失敗。この関数体は諦める。
-    bodies.push(source.slice(openBraceIndex, end + 1));
-  }
-  return bodies;
-}
-
-/**
- * 関数体の中から `"Mod-…"` のリテラルと `` `Mod-…` `` のテンプレートリテラルを拾う。
- * テンプレートリテラルに `${…}` が入っている（例: `` `Mod-Alt-${level}` ``）ものは
- * 静的に確定できないので `dynamic: true` にし、比較対象から外す（黙って落とさず別枠で報告する）。
- */
-function extractModBindings(bodyText) {
-  const bindings = [];
-  for (const m of bodyText.matchAll(/"(Mod-[^"]+)"/g)) {
-    bindings.push({ raw: m[1], dynamic: false });
-  }
-  for (const m of bodyText.matchAll(/`([^`]*Mod-[^`]*)`/g)) {
-    bindings.push({ raw: m[1], dynamic: m[1].includes("${") });
-  }
-  return bindings;
-}
-
-/**
- * `studio/package.json` に直接書かれている `@tiptap/*` を起点に、パッケージグラフを
- * （`package.json` の `dependencies` + 実際の `require()`/`import` 文の両方から）辿って、
- * 到達したすべてのパッケージの `addKeyboardShortcuts()` を集める。
- *
- * 🚨 `dependencies` だけでは足りないことがある（実測: `@tiptap/extension-bullet-list` は
- *    `@tiptap/extension-list` への依存を `peerDependencies` にしか書いておらず、
- *    `dependencies` は空。ただし今回は `starter-kit` がその実体側 `extension-list` も
- *    直接 `dependencies` に持っているため実害は無い）。念のため、実ファイルの
- *    `require("@tiptap/…")` / `from "@tiptap/…"` も走査して子パッケージ候補に足す。
- */
-function collectTiptapBindings(studioRoot) {
-  const studioPkgPath = join(studioRoot, "package.json");
-  const studioPkg = JSON.parse(readFileSync(studioPkgPath, "utf8"));
-  const rootNames = Object.keys(studioPkg.dependencies ?? {}).filter((n) => n.startsWith("@tiptap/"));
-
-  const visitedNames = new Set();
-  const queue = rootNames.map((name) => ({ name, ctxFile: studioPkgPath }));
-  const bindings = []; // { pkgName, raw, dynamic }
-  const skipped = []; // 解決できなかったパッケージ（想定内: サブパスのみで root export が無いもの等）
-  const visitedList = [];
-
-  while (queue.length > 0) {
-    const { name, ctxFile } = queue.shift();
-    if (visitedNames.has(name)) continue;
-    visitedNames.add(name);
-
-    const req = createRequire(ctxFile);
-    let mainPath;
-    try {
-      mainPath = req.resolve(name);
-    } catch (e) {
-      skipped.push({ name, reason: e.message });
-      continue;
-    }
-    visitedList.push({ name, mainPath });
-
-    const text = readFileSync(mainPath, "utf8");
-    for (const body of extractFunctionBodies(text, "addKeyboardShortcuts")) {
-      for (const b of extractModBindings(body)) {
-        bindings.push({ pkgName: name, ...b });
-      }
-    }
-
-    const childNames = new Set();
-    const pkgJson = findPackageJsonNear(mainPath, name);
-    if (pkgJson) {
-      for (const dep of Object.keys(pkgJson.dependencies ?? {})) {
-        if (dep.startsWith("@tiptap/")) childNames.add(dep);
-      }
-    }
-    for (const m of text.matchAll(/(?:require\(|from\s+)["']@tiptap\/([a-z0-9-]+)["']/g)) {
-      childNames.add(`@tiptap/${m[1]}`);
-    }
-    for (const child of childNames) {
-      if (!visitedNames.has(child)) queue.push({ name: child, ctxFile: mainPath });
-    }
-  }
-
-  return { bindings, skipped, visited: visitedList };
-}
-
-/** 抽出結果を正規化キーでまとめる（同じ組み合わせが複数パッケージ/大文字小文字違いで登録されうる）。 */
-function groupTiptapBindings(bindings) {
-  const literal = bindings.filter((b) => !b.dynamic);
-  const dynamic = bindings.filter((b) => b.dynamic);
-  const map = new Map(); // normalized -> [{ raw, pkgName }]
-  for (const b of literal) {
-    const norm = normalizeTiptapKey(b.raw);
-    if (!map.has(norm)) map.set(norm, []);
-    map.get(norm).push({ raw: b.raw, pkgName: b.pkgName });
-  }
-  return { map, literal, dynamic };
-}
+// 🚨 findPackageJsonNear() / extractFunctionBodies() / extractModBindings() /
+//    collectTiptapBindings() / groupTiptapBindings() は tiptap-combos.mjs へ移設した
+//    （このファイル冒頭コメント「なぜ」を参照）。ここでは import したものをそのまま使う。
 
 /**
  * `components/**` と `app/**` から、Tiptap の `addKeyboardShortcuts()` をアプリ側で
@@ -445,10 +281,7 @@ const { map: tiptapMap, literal: literalBindings, dynamic: dynamicBindings } = g
 
 console.log("\n■ 自己検査（Tiptap 抽出 — これが失敗していたら「衝突が無い」ではなく「見ていない」）");
 
-/** 抽出が健全か（0件なら壊れている）を判定する純関数。真偽どちらの入力でも self-test できるようにする。 */
-function isExtractionHealthy(literalCount) {
-  return literalCount > 0;
-}
+// 🚨 isExtractionHealthy() も tiptap-combos.mjs から import する（このファイル冒頭を参照）。
 
 // (4) 抽出そのものが機能しているか（0件なら壊れている）
 const tiptapExtractedOk = isExtractionHealthy(literalBindings.length);
@@ -519,6 +352,92 @@ console.log(
 if (falsePositives.length > 0) {
   console.error(`     ↑ 過検出: ${falsePositives.join(", ")}`);
   selfTestFailed = true;
+}
+
+// ── assertCombosUsable の自己検査（返す値側の守りが本当に鳴るか）────────────────
+// 由来（2026-08-16・shell の実測）: 旧版の守りは literal（入力側）だけを見ており、
+// normalizeTiptapKey が壊れて map の鍵が null になっても throw しなかった
+// （combos 18件・null の鍵1件・mod+i 欠落 のまま黙って返っていた）。
+// tiptap-combos.mjs の assertCombosUsable() はそれを返す値（combos/map）側で見るように直した。
+// ここではその守りが実際に鳴ることを確かめる。
+//
+// 🚨 囮は実物と同じ入口から入れる（司令塔の規律・2026-08-16「囮は実物と同じ入口から入れる」）。
+//    内部配列へ push したり、判定を迂回して直接組み立てたりしない — 必ず assertCombosUsable() を
+//    直接呼び、throw するかどうかで確かめる。
+console.log("\n■ 自己検査（assertCombosUsable — 返す値側の守りが本当に鳴るか）");
+
+function expectAssertCombosUsableThrows(label, args) {
+  let threw = false;
+  let message = "";
+  try {
+    assertCombosUsable(args);
+  } catch (e) {
+    threw = true;
+    message = e.message;
+  }
+  console.log(
+    `  ${threw ? "✅" : "❌"} 🔴 ${label} → throw すること` +
+      (threw ? `  (${message.slice(0, 70)}…)` : "  throw しなかった"),
+  );
+  if (!threw) selfTestFailed = true;
+}
+
+// (12) 🔴 鍵に null が混じった集合
+expectAssertCombosUsableThrows("鍵に null が混じった集合", {
+  combos: new Set(["mod+i", null]),
+  map: new Map([
+    ["mod+i", [{ raw: "Mod-i", pkgName: "@tiptap/extension-italic" }]],
+    [null, [{ raw: "Broken-key", pkgName: "@tiptap/extension-foo" }]],
+  ]),
+  literal: [{ raw: "Mod-i", pkgName: "@tiptap/extension-italic", dynamic: false }],
+  visited: [],
+  skipped: [],
+});
+
+// (13) 🔴 mod+i を欠いた集合（literal 側には Mod-i を「見えている」形にして、combos/map の側だけが
+//      壊れている状況を再現する。これがまさに実測で見つかった穴 — literal だけを見る旧版の守りは
+//      これを通してしまっていた）
+expectAssertCombosUsableThrows("mod+i を欠いた集合（combos/map だけが壊れている）", {
+  combos: new Set(["mod+k"]),
+  map: new Map([["mod+k", [{ raw: "Mod-k", pkgName: "@tiptap/extension-something" }]]]),
+  literal: [{ raw: "Mod-i", pkgName: "@tiptap/extension-italic", dynamic: false }],
+  visited: [],
+  skipped: [],
+});
+
+// (14) 🔴 空の集合
+expectAssertCombosUsableThrows("空の集合", {
+  combos: new Set(),
+  map: new Map(),
+  literal: [],
+  visited: [],
+  skipped: [],
+});
+
+// (15) 🟢 対照: 本物の抽出結果（実際に collectTiptapBindings/groupTiptapBindings で得た
+//      tiptapMap/literalBindings をそのまま渡す）。これが throw したら、上の (12)〜(14) の
+//      「鳴った」は「何でも鳴るだけ」であり、何も言っていない。
+{
+  const realCombos = new Set(tiptapMap.keys());
+  let threw = false;
+  let message = "";
+  try {
+    assertCombosUsable({
+      combos: realCombos,
+      map: tiptapMap,
+      literal: literalBindings,
+      visited,
+      skipped: skippedPackages,
+    });
+  } catch (e) {
+    threw = true;
+    message = e.message;
+  }
+  console.log(
+    `  ${!threw ? "✅" : "❌"} 🟢 対照: 本物の抽出結果 → throw しないこと` +
+      (threw ? `  throw した (${message})` : ""),
+  );
+  if (threw) selfTestFailed = true;
 }
 
 // ── アプリ側の上書き検出 ─────────────────────────────────────────
