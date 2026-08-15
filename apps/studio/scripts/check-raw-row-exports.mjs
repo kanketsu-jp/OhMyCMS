@@ -95,12 +95,12 @@ function violationsIn(source, raw) {
   const bad = [];
   for (const fn of exportsOf(source)) {
     if (fn.returns === null) {
-      bad.push({ ...fn, why: "返り値の型を書いていない（推論だと生の行が漏れても気づけない）" });
+      bad.push({ ...fn, rule: "R1", why: "返り値の型を書いていない（推論だと生の行が漏れても気づけない）" });
       continue;
     }
     // 語として一致させる。`PublicFileRow` の中の `FileRow` を拾わないよう境界を見る。
     if (new RegExp(`(^|[^A-Za-z])${raw}([^A-Za-z]|$)`).test(fn.returns)) {
-      bad.push({ ...fn, why: `外向きの返り値に生の行の型 ${raw} を使っている` });
+      bad.push({ ...fn, rule: "R2", why: `外向きの返り値に生の行の型 ${raw} を使っている` });
     }
   }
   return bad;
@@ -146,19 +146,27 @@ for (const t of TARGETS) {
   const src = readFileSync(t.file, "utf8");
   const bad = violationsIn(src, t.raw);
   const a = assertionsIn(src, t.pub);
-  console.log(`  ${t.file}  外向き ${exportsOf(src).length} 本 / 違反 ${bad.length} 件`);
+  const exportCount = exportsOf(src).length;
+  console.log(`  ${t.file}  外向き ${exportCount} 本 / 違反 ${bad.length} 件`);
+  // 🚨 **規則 G: 対象を1件も拾えていないのに緑、を防ぐ。**
+  //    解析が壊れて 0 本になったとき、この検査は「違反 0 件」と言って通ってしまう。
+  //    **見ていない 0 と、異常が無い 0 は別**（司令塔・2026-08-15）。
+  if (exportCount === 0) {
+    console.log(`    🚨 [R0] 外向きの関数を 1 本も拾えていない。解析が壊れている疑い`);
+    total += 1;
+  }
   console.log(`    型表明: as ${a.as.length} 箇所（行 ${a.as.join(", ") || "なし"}）/ 山括弧 ${a.angle.length} 箇所（行 ${a.angle.join(", ") || "なし"}）`);
   // 🚨 `as` は変換の関数の中の 1 箇所だけが正しい。山括弧は 0 が正しい。
   if (a.as.length > 1) {
-    console.log(`    🚨 as ${t.pub} が ${a.as.length} 箇所ある。正しいのは変換の関数の中の 1 箇所だけ`);
+    console.log(`    🚨 [R3] as ${t.pub} が ${a.as.length} 箇所ある。正しいのは変換の関数の中の 1 箇所だけ`);
     total += a.as.length - 1;
   }
   if (a.angle.length > 0) {
-    console.log(`    🚨 山括弧の型表明 <${t.pub}> がある。印を素通りできてしまう`);
+    console.log(`    🚨 [R4] 山括弧の型表明 <${t.pub}> がある。印を素通りできてしまう`);
     total += a.angle.length;
   }
   for (const b of bad) {
-    console.log(`    🚨 ${t.file}:${b.line}  ${b.name}()  ${b.why}`);
+    console.log(`    🚨 [${b.rule}] ${t.file}:${b.line}  ${b.name}()  ${b.why}`);
     console.log(`       → ${t.pub} を返し、変換の関数を通すこと`);
   }
   total += bad.length;
@@ -205,13 +213,18 @@ function directTableUses(file) {
         console.log(`    ・${f}:${u.line} ${u.table}（理由つきで許可）`);
       } else {
         bad++;
-        console.log(`    🚨 ${f}:${u.line} ${u.table} をルートが直接読んでいる`);
+        console.log(`    🚨 [R5] ${f}:${u.line} ${u.table} をルートが直接読んでいる`);
         console.log(`       → lib のサービス経由にすること（compressed_key / system_key が素通りする）`);
         console.log(`       → どうしても要るなら同じ行に「直接読む理由: …」と書く`);
       }
     }
   }
   console.log(`  app/ 配下 ${routes.length} ファイル / 直接読み ${bad} 件（理由つきの許可 ${allowed} 件）`);
+  // 🚨 規則 G（上と同じ）。`git ls-files` が空を返したら「違反なし」ではなく「見ていない」。
+  if (routes.length === 0) {
+    console.log(`    🚨 [R0] app/ 配下のファイルを 1 件も拾えていない。走っていないのと同じ`);
+    total += 1;
+  }
   total += bad;
 }
 
