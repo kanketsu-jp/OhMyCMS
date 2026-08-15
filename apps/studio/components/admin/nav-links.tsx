@@ -19,11 +19,16 @@ export type NavGroup = {
   /** 畳んだ行に出す文字 */
   label: string;
   /** この接頭辞の下に居るときは、開いた状態で描く */
-  match: string;
+  match: string | string[];
   children: NavLink[];
   /** children が空のときに出す文。無ければ何も出さない */
   emptyMessage?: string | null;
 };
+
+export function matchesNavGroup(pathname: string, match: NavGroup["match"]): boolean {
+  const prefixes = Array.isArray(match) ? match : [match];
+  return prefixes.some((prefix) => pathname.startsWith(prefix));
+}
 
 type Props = {
   /** 畳まずに並べる行き先 */
@@ -73,7 +78,7 @@ export function NavLinks({ items, groups, onNavigate }: Props) {
     );
   };
 
-  const open = groups.filter((group) => pathname.startsWith(group.match)).map((group) => group.key);
+  const open = groups.filter((group) => matchesNavGroup(pathname, group.match)).map((group) => group.key);
 
   return (
     <div className="flex flex-col">
@@ -82,7 +87,7 @@ export function NavLinks({ items, groups, onNavigate }: Props) {
         // 🚨 いる場所から決める。開閉を覚えさせない
         <Accordion defaultValue={open} className="border-0">
           {groups.map((group) => {
-            const inside = pathname.startsWith(group.match);
+            const inside = matchesNavGroup(pathname, group.match);
             return (
               <AccordionItem key={group.key} value={group.key} className="border-0">
                 <AccordionTrigger

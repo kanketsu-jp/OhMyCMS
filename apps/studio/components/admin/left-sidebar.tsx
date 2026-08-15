@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { GlobalSearchButton } from "@/components/admin/global-search";
-import { type NavGroup, type NavLink } from "@/components/admin/nav-links";
+import { matchesNavGroup, type NavGroup, type NavLink } from "@/components/admin/nav-links";
 import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
 import { UserMenu } from "@/components/admin/user-menu";
@@ -80,8 +80,10 @@ export function LeftSidebarToggle() {
 type Props = {
   brand: string;
   logo: string | null;
-  /** 上部の行き先（コレクション・通知） */
+  /** 上部の行き先。いまは空だが、将来の平リンク用に口は残す */
   items: NavLink[];
+  /** 組より下に置く平リンク */
+  bottomItems: NavLink[];
   /** 畳んで持つ組（ファイル・設定） */
   groups: NavGroup[];
   /** 「コンテンツ」のディレクトリに並べるコレクション */
@@ -136,7 +138,7 @@ function SidebarLink({ item }: { item: NavLink }) {
 
 function SidebarGroupNav({ group }: { group: NavGroup }) {
   const pathname = usePathname();
-  const inside = pathname.startsWith(group.match);
+  const inside = matchesNavGroup(pathname, group.match);
 
   return (
     <AccordionPrimitive.Item value={group.key} className="border-0">
@@ -179,10 +181,11 @@ function SidebarGroupNav({ group }: { group: NavGroup }) {
 
 function SidebarNav({
   items,
+  bottomItems,
   groups,
   collections,
   collectionsError,
-}: Pick<Props, "items" | "groups" | "collections" | "collectionsError">) {
+}: Pick<Props, "items" | "bottomItems" | "groups" | "collections" | "collectionsError">) {
   const t = useT("nav");
   const pathname = usePathname();
   const contentGroup: NavGroup = {
@@ -192,16 +195,18 @@ function SidebarNav({
     children: collections,
     emptyMessage: collectionsError,
   };
-  const allGroups = [...groups, contentGroup];
-  const open = allGroups.filter((group) => pathname.startsWith(group.match)).map((group) => group.key);
+  const allGroups = [contentGroup, ...groups];
+  const open = allGroups.filter((group) => matchesNavGroup(pathname, group.match)).map((group) => group.key);
 
   return (
     <div className="flex min-h-0 flex-col gap-6 px-2 pb-2">
-      <SidebarMenu>
-        {items.map((item) => (
-          <SidebarLink key={item.href} item={item} />
-        ))}
-      </SidebarMenu>
+      {items.length > 0 ? (
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarLink key={item.href} item={item} />
+          ))}
+        </SidebarMenu>
+      ) : null}
 
       <AccordionPrimitive.Root type="multiple" defaultValue={open} className="flex flex-col">
         <SidebarMenu>
@@ -210,6 +215,14 @@ function SidebarNav({
           ))}
         </SidebarMenu>
       </AccordionPrimitive.Root>
+
+      {bottomItems.length > 0 ? (
+        <SidebarMenu>
+          {bottomItems.map((item) => (
+            <SidebarLink key={item.href} item={item} />
+          ))}
+        </SidebarMenu>
+      ) : null}
     </div>
   );
 }
@@ -218,6 +231,7 @@ export function LeftSidebar({
   brand,
   logo,
   items,
+  bottomItems,
   groups,
   collections,
   collectionsError,
@@ -256,6 +270,7 @@ export function LeftSidebar({
         <nav aria-label={t("menu_title")}>
           <SidebarNav
             items={items}
+            bottomItems={bottomItems}
             groups={groups}
             collections={collections}
             collectionsError={collectionsError}

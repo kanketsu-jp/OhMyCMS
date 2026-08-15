@@ -20,10 +20,12 @@ import { isOnboardingCompleted } from "@/lib/settings/service";
 // 🚨 上位と「設定」を分ける（design ⑥）。平らに 12 行並べると、同じ接頭辞の settings_* が
 // 7回続いて**上位5項目が埋もれる**。開閉に畳んで 12行 → 6行にする。
 //
+// 🚨 **「通知」はここに無い。** 組の下へ移した（堀池・2026-08-15）。
 // 🚨 **「不具合報告」はここに無い。** 左サイドバーの**下部**へ移した（堀池・2026-08-15）。
 // 🚨 **「ファイル」もここに無い。** 畳む組になった（下の `fileItems`）。
-const navItems = [
-  { href: "/admin/collections", labelKey: "collections" },
+const navItems: { href: string; labelKey: string }[] = [];
+
+const bottomNavItems = [
   { href: "/admin/notifications", labelKey: "notifications" },
 ];
 
@@ -43,6 +45,7 @@ const fileItems = [
 // 子は「設定 / 一般」ではなく**「一般」**。親が「設定」なので繰り返さない。
 // 🚨 `settings_*`（長い方）の辞書キーは消していない。他で使われている可能性があるため。
 const settingsItems = [
+  { href: "/admin/collections", labelKey: "collections" },
   { href: "/admin/settings/general", labelKey: "settings_child_general" },
   { href: "/admin/settings/storage", labelKey: "settings_child_storage" },
   // 認証まわりなので general の次。ページは saml(pG) が f96973f でコミット済み
@@ -113,7 +116,7 @@ export default async function AdminLayout({
     {
       key: "settings",
       label: t("settings"),
-      match: "/admin/settings",
+      match: ["/admin/settings", "/admin/collections"],
       children: settingsItems.map((item) => ({ href: item.href, label: t(item.labelKey) })),
     },
   ];
@@ -155,6 +158,7 @@ export default async function AdminLayout({
         brand={brand}
         logo={logo}
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+        bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
         groups={navGroups}
         collections={
           collections?.ok

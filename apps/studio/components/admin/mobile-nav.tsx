@@ -130,7 +130,8 @@ export function MobileNav({
                   🚨 行き先の描き方は **サイドバー（PC）と同じ部品**を使う。
                   2箇所に書くと、片方だけ直したときに PC と SP で行き先が食い違う。 */}
               <div className="flex flex-col px-2 pb-4">
-                <NavLinks items={items} groups={groups} onNavigate={() => setOpen(false)} />
+                {/* 🚨 コンテンツが一番上（堀池さん指示）。メインはコレクションでなくコンテンツで、
+                    毎日触るものを上に置く。PC サイドバーは既にこの並びなので、ここが逆だと食い違う。 */}
                 {collections.length > 0 ? (
                   <>
                     <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">
@@ -148,6 +149,7 @@ export function MobileNav({
                     ))}
                   </>
                 ) : null}
+                <NavLinks items={items} groups={groups} onNavigate={() => setOpen(false)} />
               </div>
             </div>
             <UserMenu
