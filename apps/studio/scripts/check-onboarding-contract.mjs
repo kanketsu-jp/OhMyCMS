@@ -108,13 +108,37 @@ function validateBodyOf(source) {
  *    ＝ **経緯を残せと言いながら、その経緯を罰する**検査になっていた。
  */
 function stripComments(source) {
+  // 🚨 **消すのではなく、同じ長さの空白へ置き換える**（改行だけ残す）。
+  //    長さが変わると、ここで見つけた位置を**元のファイルの行番号へ写せない**。
+  //    2026-08-16 に「拾った生の行を出す」ことにしたので、位置が要るようになった
+  //    （司令塔 → 全員「自分の検査が数だけを出しているなら、拾った行を 1〜3 本添えて」）。
+  //    🟢 中身を消すという振る舞いは変えていない（囮 6 本・対照 3 本がそのまま判定する）。
+  const blank = (s) => s.replace(/[^\n]/g, " ");
   return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^[ \t]*\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    .replace(/^[ \t]*\/\/.*$/gm, blank)
     // 🚨 文字列・テンプレートリテラルの**中身**を消す（引用符は残して構文を壊さない）
-    .replace(/"[^"\n]*"/g, '""')
-    .replace(/'[^'\n]*'/g, "''")
-    .replace(/`[^`]*`/g, "``");
+    .replace(/"[^"\n]*"/g, (m) => `"${" ".repeat(Math.max(0, m.length - 2))}"`)
+    .replace(/'[^'\n]*'/g, (m) => `'${" ".repeat(Math.max(0, m.length - 2))}'`)
+    .replace(/`[^`]*`/g, (m) => "`" + blank(m.slice(1, -1)) + "`");
+}
+
+/**
+ * 拾った生の行を返す（🚨 数だけを出さないため）。
+ *
+ * `body` は `stripComments` を通した文字列で、**元ファイルと長さが揃っている**ので、
+ * ここで得た位置に `bodyOffset` を足せばファイル内の位置になる。
+ * 表示する中身は **元のソース**から採る（空白化した後のものを見せても読めないため）。
+ */
+function evidence(re, body, bodyOffset, fileSource, label) {
+  const m = re.exec(body);
+  if (!m) return `${label}: 🚨 位置を取れませんでした（検出はしています）`;
+  const at = bodyOffset + m.index;
+  const line = fileSource.slice(0, at).split("\n").length;
+  const start = fileSource.lastIndexOf("\n", at) + 1;
+  let end = fileSource.indexOf("\n", at);
+  if (end === -1) end = fileSource.length;
+  return `${label} ${SERVICE}:${line}  ${fileSource.slice(start, end).trim().slice(0, 100)}`;
 }
 
 /** 判定本体。壊した文字列でも呼べるように、ソースを引数で受ける。 */
@@ -130,10 +154,16 @@ function inspect(serviceSource, formSource) {
     return { violations, bodyChars: 0 };
   }
 
+  // 🚨 位置合わせ。`bodyOf` は `m.index + 1` から切り出しているので、そこが本体の起点。
+  const head = /export\s+async\s+function\s+completeOnboardingWithAdmin\s*\(/.exec(serviceSource);
+  const bodyOffset = head ? head.index + 1 : 0;
+
   if (/validate\(\s*\{/.test(body)) {
     violations.push({
       rule: "literal-to-validate",
       message: "validate() にオブジェクトリテラルを渡しています。送られてこなかった鍵も『在る（undefined）』になり、**全部必須**になります（2026-08-15 の退行と同じ形）",
+      // 🚨 拾った生の行。数と説明だけだと、読んだ人がもう一度自分で探すことになる。
+      evidence: evidence(/validate\(\s*\{/, body, bodyOffset, serviceSource, "拾った行"),
     });
   }
 
@@ -141,6 +171,10 @@ function inspect(serviceSource, formSource) {
     violations.push({
       rule: "no-omit-guard",
       message: "省略された鍵を落とす処理（`key in input`）が見当たりません。画面が聞くのをやめた項目が、そのまま必須になります",
+      // 🚨 **これは「無い」ことの違反**なので、拾える行が在りません。
+      //    代わりに **いま在るもの**（validate を呼んでいる行）を出す。
+      //    「探した場所」が見えないと、読んだ人は「本当に無いのか」を確かめられない。
+      evidence: evidence(/validate\s*\(/, body, bodyOffset, serviceSource, "🚨 拾える行がありません（無いことの違反）。代わりに、いま在る呼び出し"),
     });
   }
 
@@ -302,7 +336,11 @@ if (violations.length === 0) {
   console.log("  違反なし（＝画面が送らない鍵を API が必須にしていない）。");
 } else {
   console.log(`  🚨 違反 ${violations.length} 件:`);
-  for (const v of violations) console.log(`    [${v.rule}] ${v.message}`);
+  for (const v of violations) {
+    console.log(`    [${v.rule}] ${v.message}`);
+    // 🚨 拾った生の行を必ず添える（2026-08-16 の規律。数だけだと、他人が確かめられない）
+    if (v.evidence) console.log(`        ${v.evidence}`);
+  }
 }
 
 if (selfCheckFailed) {
