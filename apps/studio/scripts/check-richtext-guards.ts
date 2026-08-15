@@ -159,10 +159,15 @@ const editorSource = readFileSync(
 );
 check(editorSource.includes("richTextReservedKeys"), "Mod-Enter を押さえる拡張ごと消えている");
 check(/"Mod-Enter":\s*\(\)\s*=>\s*true/.test(editorSource), "Mod-Enter を Tiptap へ返している（保存に改行が混ざる）");
+// 🚨 **壊し方その3で見つけた穴**（2026-08-15）。拡張が在って `Mod-Enter` も書いてあるのに、
+// **priority を下げるだけで StarterKit の hardBreak が先に効く**。
+// 実測: `priority: 1` にすると **検査は exit 0 のまま**、保存された doc の hardBreak が **1 → 2** に増えた。
+// ＝ **「在るか」だけ見ていると素通りする。効く順番まで見る。**
+check(/priority:\s*1000/.test(editorSource), "Mod-Enter を押さえる拡張の priority が下がっている（StarterKit が先に効く）");
 // 🟢 対照(+): 同じ読み方で、必ず在るものが見つかること（＝ファイルを読めている）
 check(editorSource.includes("StarterKit.configure"), "エディタの定義を読めていない（この検査は何も言っていない）");
 
-const total = hrefCases.length + srcCases.length + 22 + 8 + 3;
+const total = hrefCases.length + srcCases.length + 22 + 8 + 4;
 if (failed > 0) {
   console.error(`\n本文ガード: ${failed} 件 FAILED`);
   process.exit(1);
