@@ -85,6 +85,13 @@ export type TargetAuthorization = {
   /**
    * 外から `{ targetType, targetId }` を書けると、判定済みである保証が構造的に消える。
    * 非公開の unique symbol をブランドにして、このモジュール外では組み立てられないようにする。
+   *
+   * 🚨 **これが効いていることの実測（2026-08-15）**:
+   *    印を手で組み立てた呼び出しを書くと tsc が
+   *    `TS2345 Property '[targetAuthorizationBrand]' is missing` で拒否する。
+   *    `authorizeTarget` を通した呼び出しは通る。
+   *    🚨 **ブランドを外しても tsc は 0 で通る**（型がゆるくなるだけで赤くならない）。
+   *    ＝ **消したことに気づける検査は無い。** 触るならこの実測を採り直すこと。
    */
   readonly [targetAuthorizationBrand]: typeof targetAuthorizationBrand;
 };
@@ -100,6 +107,16 @@ function toPublic(row: LabelRow): PublicLabel {
   } as PublicLabel;
 }
 
+/**
+ * 🚨 **これは「ラベルそのもの」の権限しか見ない。対象（ファイル・フォルダ）は一切見ない。**
+ *
+ * 使っているのは `listLabels` / `createLabel` / `updateLabel` / `deleteLabel` の 4 つ＝
+ * **ラベルの一覧と定義**を触る出口。対象に付け外しする出口は `authorizeTarget` の側を通る。
+ *
+ * 🚨 **この 4 つは `scripts/verify-labels-authz.ts` の見ていない範囲**（2026-08-15 実測）。
+ *    あの検査が緑でも、**ここの認可が壊れたことは分からない**。
+ *    ここを触るなら、検査を足すところまでやること（緑は無関係な緑）。
+ */
 async function assertPermission(actor: Actor, action: PermissionAction): Promise<void> {
   const permission = await resolvePermission(actor, "directus_files", action);
   if (!permission.allowed) {
@@ -361,6 +378,17 @@ export async function setLabelsForTarget(
  * 割り当てには**外部キーを張っていない**（target_id が files と folders の
  * どちらも指すため、1本の外部キーで表せない）。**呼び忘れると、消えたファイルの
  * ラベルが残り続ける。** ファイル・フォルダの削除処理から必ず呼ぶこと。
+ *
+ * 🚨 **判定をこの関数の中でやり直すことはできない。**
+ *    呼ばれる時点で対象の行はもう消えているので、行フィルタで 1 件引く判定は**必ず 404** になる。
+ *    だから判定は削除の**前**に `authorizeTarget` で済ませ、その印を持ち回っている。
+ *
+ * 🚨 **いま `app/` のルートからここを直接呼んでいる箇所は 0 件**（実測 2026-08-15。
+ *    呼び出しは `lib/files/service.ts` の 2 箇所と検査スクリプトだけで、どちらも認可済み。
+ *    🟢 対照: 同じ探し方で `listLabels` は `app/api/labels/route.ts` に見つかる＝探し方は当たっている）。
+ *    ＝ **この印の仕組みは、まだ攻撃経路として一度も踏まれていない。**
+ *    新しい出口を生やす人が塞がれる形にしてあるだけなので、
+ *    **「動いているから大丈夫」ではなく「まだ誰も通っていない」と読むこと。**
  */
 export async function removeLabelsForTarget(
   targetType: LabelTargetType,
