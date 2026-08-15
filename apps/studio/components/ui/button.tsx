@@ -101,6 +101,21 @@ function Button({
      *    サーバから呼べなくなり、`/admin/collections` などが軒並み 500 になった。
      *    **この部品はサーバから使える状態を保つこと。**
      *    CSS はキーボードの Enter/Space を止めないが、**それでよい**（門は上記のとおり別にある）。
+     *
+     * 🚨 **将来どうしても `"use client"` が要るときの正解**（いまは採っていない）:
+     *    `buttonVariants` を **`components/ui/button-variants.ts` へ切り出し**、
+     *    そちらには `"use client"` を付けない。`button.tsx` は上から import して再 export する。
+     *    shadcn がこの問題に出している標準の答えで、**サーバから `buttonVariants()` を
+     *    呼んでいる 5 ファイル**（`app/login/page.tsx` を含む）が生き残る。
+     *    🚨 **分割せずに `"use client"` だけ足すと、その 5 画面が 500 になる**
+     *    （2026-08-15 実測。ログイン画面も落ちる）。
+     *
+     *    いま分割していない理由: **必要になっていない構造を先に入れない**
+     *    （`knowledge/decisions/every-element-must-earn-its-place.md`）。
+     *    `"use client"` を足すと `button.tsx` が全画面で client へ渡り、
+     *    **一覧の行ごとに描かれる静的なボタンにも JS を配る**ことになる。
+     *    **分割するのは「Button 自身に本当に状態やイベントが要る」と分かったとき**であって、
+     *    サーバから使えないエラーを消すためではない。
      */
     loading?: boolean
   }) {
