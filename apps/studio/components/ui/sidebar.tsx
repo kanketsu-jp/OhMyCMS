@@ -542,6 +542,14 @@ function SidebarMenuAction({
       data-sidebar="menu-action"
       className={cn(
         "absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
+        // 🚨 `showOnHover` はタッチの大画面で**押せなくなる**（2026-08-15 実測して確認）。
+        //    `md:opacity-0` は幅で効くが、`group-hover/menu-item:` は
+        //    Tailwind v4 では `@media (hover: hover)` の中に入るので**タッチでは一度も当たらない**。
+        //    ＝ 幅 768px 以上のタッチ端末（タブレット）では**透明のまま、出す手段が無い**
+        //    （残る経路はキーボードの `group-focus-within` と `aria-expanded` だけ）。
+        //    🚨 いまは**この部品自体がどこからも使われていない**ので、画面には出ていない
+        //    （実測: 描画された DOM で menu-action は 0 件／🟢 対照 menu-button は 5 件）。
+        //    **使うときは `md:opacity-0` を `(hover:hover) かつ md` の条件に変えること。**
         showOnHover &&
           "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 peer-data-active/menu-button:text-sidebar-accent-foreground aria-expanded:opacity-100 md:opacity-0",
         className
