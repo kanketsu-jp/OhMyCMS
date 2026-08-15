@@ -40,10 +40,41 @@ const PATTERN = /(?<![\w-])(cn-[a-z0-9-]+)/g;
 const SPLIT_PATTERN = /(["'`])cn-\1/g;
 
 /** 与えられたソース群から `cn-*` の参照を拾う。 */
+/**
+ * 行ごとの「コメントか」を、**ブロックの状態を持って**判定する（2026-08-15 追加）。
+ *
+ * 🚨 それまで**コメントを一切除いていなかった**。実測で確かめたら、
+ * 次の 2 つとも「違反」として拾っていた:
+ * ```
+ * // 🚨 cn-foo のようなクラスは使わない        ← 行コメント
+ *    `cn-foo` は Base UI 時代の名残            ← ブロックの継続行
+ * ```
+ * ＝ **「なぜ使わないか」を書き残すほど、検査が赤くなる**という逆向きの圧力があった。
+ * 経緯を残すことを推奨しておきながら、その経緯を違反として数えていた。
+ */
+function commentMask(lines) {
+  const mask = [];
+  let inBlock = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (inBlock) { mask.push(true); if (t.includes("*/")) inBlock = false; continue; }
+    if (t.startsWith("/*") || t.startsWith("{/*")) {
+      mask.push(true);
+      if (!t.includes("*/")) inBlock = true;
+      continue;
+    }
+    mask.push(t.startsWith("//") || t.startsWith("*"));
+  }
+  return mask;
+}
+
 function scan(sources) {
   const hits = [];
   for (const { file, text } of sources) {
-    text.split("\n").forEach((line, i) => {
+    const lines = text.split("\n");
+    const マスク = commentMask(lines);
+    lines.forEach((line, i) => {
+      if (マスク[i]) return;
       for (const m of line.matchAll(PATTERN)) {
         hits.push({ file, line: i + 1, name: m[1] });
       }
@@ -82,6 +113,18 @@ console.log(`  ${evade.length >= 1 ? "✅" : "❌"} 囮2: 文字列を組み立�
 if (evade.length < 1) selfTestFailed = true;
 
 // (2) 対象を拾えているか。0 ファイルなら「違反が無い」ではなく「見ていない」。
+// 🚨 拾ってはいけないもの: **経緯を書いたコメント**（行コメントとブロックの継続行）。
+//    これを拾うと「なぜ使わないか」を書き残すほど検査が赤くなる。
+const コメント囮 = scan([{ file: "decoy.tsx", text: [
+  "// 🚨 cn-foo のようなクラスは使わない",
+  "/**",
+  " * かつて cn-bar と書いていた",
+  "   `cn-baz` は Base UI 時代の名残",
+  " */",
+].join("\n") }]);
+console.log(`  ${コメント囮.length === 0 ? "✅" : "❌"} 囮3: 経緯を書いたコメント  → 誤検出 ${コメント囮.length} 件`);
+if (コメント囮.length !== 0) selfTestFailed = true;
+
 console.log(`  ${files.length > 0 ? "✅" : "❌"} 対象を拾えている  ${files.length} ファイル`);
 if (files.length === 0) selfTestFailed = true;
 

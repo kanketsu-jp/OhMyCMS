@@ -62,10 +62,37 @@ const SHAPE_PATTERNS = [
   { name: "生文言を分割代入している", re: /\{[^{}\n]*\bmessage\b[^{}\n]*\}\s*=\s*[a-zA-Z_$][\w$]*(?:\?)?\s*\.\s*error\b/g },
 ];
 
-/** 行がコメントなら true（`//` 始まり・JSDoc の `*` 始まり・`/*` 始まり）。 */
+/**
+ * 行ごとの「コメントか」を、**ブロックの状態を持って**判定する（2026-08-15）。
+ *
+ * 🚨 それまで行頭の記号だけで見ていたので、**ブロックコメントの継続行が実コードとして残った**:
+ * ```
+ * /* 🚨 …             ← 行頭が /* なので落ちる
+ *    `xxx` は使わない  ← 🚨 残る（バッククォート始まりなので、どの記号にも当たらない）
+ * ```
+ * 実測でこの穴に落ちたのは hover の計器（1 件多く報告した）。ここも同じ形だった。
+ * **経緯コメント（「かつてこう書いていた」）を違反として拾う**ので、
+ * **書き残すほど検査が赤くなる**という逆向きの圧力になる。
+ */
+function commentMask(lines) {
+  const mask = [];
+  let inBlock = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (inBlock) { mask.push(true); if (t.includes("*/")) inBlock = false; continue; }
+    if (t.startsWith("/*") || t.startsWith("{/*")) {
+      mask.push(true);
+      if (!t.includes("*/")) inBlock = true;
+      continue;
+    }
+    mask.push(t.startsWith("//") || t.startsWith("*"));
+  }
+  return mask;
+}
+
+/** 1 行だけを見る版（自己検査の囮で使う。**ブロックの継続行は判定できない**）。 */
 function isComment(line) {
-  const t = line.trim();
-  return t.startsWith("//") || t.startsWith("*") || t.startsWith("/*");
+  return commentMask([line])[0];
 }
 
 /**
@@ -78,12 +105,13 @@ function scan(files) {
   for (const file of files) {
     const src = readFileSync(resolve(root, file), "utf8");
     const lines = src.split("\n");
+    const マスク = commentMask(lines);
     /** 文字位置 → 行番号（1 始まり）。 */
     const lineAt = (index) => src.slice(0, index).split("\n").length;
 
     // 規則①: 名前そのもの（apiMessage の復活）。こちらは 1 行で足りる。
     lines.forEach((line, i) => {
-      if (!line.includes(NEEDLE) || isComment(line)) return;
+      if (!line.includes(NEEDLE) || マスク[i]) return;
       hits.push({ file, line: i + 1, rule: "画面側からの呼び出し", text: line.trim().slice(0, 100) });
     });
 
@@ -94,7 +122,7 @@ function scan(files) {
       while ((m = re.exec(src)) !== null) {
         const line = lineAt(m.index);
         // 🚨 一致が始まった行がコメントなら落とす（経緯の記述を違反にしない）。
-        if (isComment(lines[line - 1] ?? "")) continue;
+        if (マスク[line - 1]) continue;
         // 同じ行を 2 つのパターンが拾ったら 1 件にまとめる（内訳の合計がずれる）。
         if (hits.some((h) => h.file === file && h.line === line)) continue;
         hits.push({
@@ -132,6 +160,21 @@ const commentSamples = [" * かつて apiMessage() があった", "// apiMessage
 const falsePositives = commentSamples.filter((s) => s.includes(NEEDLE) && !isComment(s)).length;
 console.log(`  ${falsePositives === 0 ? "✅" : "❌"} 囮2: コメントの言及  → 誤検出 ${falsePositives} 件`);
 if (falsePositives !== 0) selfTestFailed = true;
+
+// 🚨 囮2b: **ブロックコメントの継続行**（バッククォート始まりで、どの記号にも当たらない）。
+//    行頭判定だけだと、ここが実コードとして残る（2026-08-15 に hover の計器で実際に踏んだ形）。
+const ブロック = [
+  "/**",
+  " * かつて apiMessage() があった",
+  "   `payload.error.message` をそのまま返していた",   // 🚨 記号で始まらない継続行
+  "   return payload.error.message;",                   // 🚨 コメントの中の実コード風
+  " */",
+  "const real = 1;",
+];
+const マスク = commentMask(ブロック);
+const 継続行の誤検出 = ブロック.filter((_, i) => !マスク[i]).length - 1; // 最後の実コード 1 行は正しい
+console.log(`  ${継続行の誤検出 === 0 ? "✅" : "❌"} 囮2b: ブロックコメントの継続行  → 誤検出 ${継続行の誤検出} 件`);
+if (継続行の誤検出 !== 0) selfTestFailed = true;
 
 // 🚨 囮3: 別名の写経。実際に 9 本生きていた形（2026-08-15）。
 /**
