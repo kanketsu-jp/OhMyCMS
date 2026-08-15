@@ -15,9 +15,15 @@
  *    後者に近づけるための最低限。
  *
  * 落とす条件:
- *   ① パンくずの引き金のボタンに `aria-label` がある（見えている文字を打ち消す。WCAG 2.5.3）
- *   ② 記号のアイコン（Ellipsis / Slash）に `aria-hidden` が無い（記号が読み上げに混ざる）
- *   ③ 🚨 **対象そのものを見つけられない**（＝この検査が何も見ていない状態。**通さずに落とす**）
+ *   ① 引き金のボタンに `aria-label` **または `aria-labelledby`** がある（見えている文字を打ち消す。WCAG 2.5.3）
+ *   ② 引き金のボタンに props の **spread（`{...}`）** がある（中身が見えないので隠して渡せる）
+ *   ③ 記号のアイコン（Ellipsis / Slash）が **`aria-hidden="true"` になっていない**
+ *      （**有無ではなく値**を見る。`"false"` は在るのに隠していない）
+ *   ④ 🚨 **対象そのものを見つけられない**（＝この検査が何も見ていない状態。**通さずに落とす**）
+ *
+ * 🚨 ①②③ は、最初に作ったとき**素通りできた**（2026-08-15 実測。いずれも exit 0 だった）。
+ *    司令塔の「自分の検査は迂回できないか当ててみろ」に従って自分で試したら見つかった。
+ *    **迂回できる形を残すと、検査は在るだけで守っていない。**
  */
 import { readFileSync } from "node:fs";
 
@@ -55,13 +61,26 @@ if (!buttonTag) {
 }
 checked.push("引き金の <Button> の開きタグを取れた");
 
-// ── ① 引き金に aria-label が無いこと
-if (/\baria-label\b/.test(buttonTag[0])) {
+// ── ① 引き金が読み上げ名を上書きしていないこと
+// 🚨 `aria-label` だけを見ていたら **`aria-labelledby` で素通りできた**（2026-08-15 実測。exit 0 だった）。
+//    どちらも「見えている文字を打ち消す」ので、**両方を見る**。
+for (const attr of ["aria-label", "aria-labelledby"]) {
+  if (new RegExp(`\\b${attr}\\b`).test(buttonTag[0])) {
+    problems.push(
+      `${FILE}: パンくずの引き金に ${attr} があります。\n` +
+        `    読み上げ名が**見えているページ名を打ち消します**（WCAG 2.5.3 label in name）。\n` +
+        `    「上の階層へ」のような補足は、ボタンの中の <span className="sr-only"> で足してください\n` +
+        `    （そちらは見えている文字に**足す**ので打ち消しません）。`,
+    );
+  }
+}
+// 🚨 spread（`{...}`）の中身はこの検査から見えない。**見えないものを通さない**
+//    （`check-nav-parity.mjs` で同じ穴を塞いだのと同じ考え方）。
+if (/\{\s*\.\.\./.test(buttonTag[0])) {
   problems.push(
-    `${FILE}: パンくずの引き金に aria-label があります。\n` +
-      `    読み上げ名が**見えているページ名を打ち消します**（WCAG 2.5.3 label in name）。\n` +
-      `    「上の階層へ」のような補足は、ボタンの中の <span className="sr-only"> で足してください\n` +
-      `    （そちらは見えている文字に**足す**ので打ち消しません）。`,
+    `${FILE}: パンくずの引き金に props の spread（{...}）があります。\n` +
+      `    中身がこの検査から見えないので、aria-label を隠して渡せてしまいます。\n` +
+      `    属性は直接書いてください。`,
   );
 }
 
@@ -76,8 +95,13 @@ for (const icon of ["EllipsisIcon", "SlashIcon"]) {
     continue;
   }
   checked.push(`${icon} を見つけた`);
-  if (!/\baria-hidden\b/.test(tag[0])) {
-    problems.push(`${FILE}: ${icon} に aria-hidden がありません。記号が読み上げに混ざります。`);
+  // 🚨 **有無ではなく値を見る。** `aria-hidden="false"` は「在る」判定を通るのに**隠していない**
+  //    （2026-08-15 実測。exit 0 で素通りした）。
+  if (!/aria-hidden\s*=\s*["{]?\s*(?:true|"true")/.test(tag[0])) {
+    problems.push(
+      `${FILE}: ${icon} が aria-hidden="true" になっていません（属性が無い／値が true でない）。\n` +
+        `    記号が読み上げに混ざります。**"false" は「在る」だけで隠していません**。`,
+    );
   }
 }
 
