@@ -36,7 +36,8 @@ type CodeBlockProps = {
  *   外した状態  SP の `/admin/settings/mcp` で **あふれ = 217px**（ページが横に伸びた）
  *   戻した状態  `/admin/settings/mcp`・`/settings/agents`・`/settings/policies/<id>`
  *               すべて SP / PC とも **あふれ = 0px**
- *   ＝ 外れていても**その画面を開かなければ気づかない**ので、消す前にこの数字を思い出すこと。
+ *   ＝ 外れても **検査は落ちず、出力にも何も出ません**。
+ *      あふれは**その画面を開いたときにだけ**起きます。消す前にこの数字を見ること。
  */
 export function CodeBlock({
   value,

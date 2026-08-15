@@ -212,7 +212,9 @@ export async function getSamlConfig(): Promise<SamlConfig> {
  * X.509 証明書を正規化する（PEM のヘッダ・改行・空白を落として base64 の本体だけにする）。
  *
  * 🚨 IdP のメタデータからコピーすると改行や空白が混ざる。そのまま渡すと
- *    **署名検証が「証明書が読めない」で落ち、原因が署名の不一致に見える**。
+ *    **署名検証が「証明書が読めない」で落ちます**。
+ *    🚨 返るコードは**証明書の読み取り失敗**で、**署名の不一致とは別のコード**です
+ *    （どちらも「SSO が通らない」としてしか現れません）。
  */
 export function normalizeCertificate(raw: string): string {
   const body = raw

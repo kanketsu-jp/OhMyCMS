@@ -131,7 +131,8 @@ export async function addAllowedEmail(body: Record<string, unknown>): Promise<Al
 
   const existing = await db("ohmycms_saml_allowed_emails").select("id").where({ email }).first();
   if (existing) {
-    // 🚨 黙って成功にしない。管理者が「足したつもり」で重複に気づけなくなる。
+    // 🚨 黙って成功にしない。成功で返すと **応答が新規追加と同じ形になり、行は増えません**
+    //    （＝ 呼んだ側からは、追加できたのか重複だったのかを区別できません）。
     throw new ApiError(409, "EMAIL_ALREADY_ALLOWED", "このメールアドレスはもう許可リストにあります");
   }
 
