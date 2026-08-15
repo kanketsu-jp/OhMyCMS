@@ -44,11 +44,30 @@ def acs_location(saml_response, relay):
 
 
 def fresh_response():
-    out = subprocess.run([sys.executable, os.path.join(HERE, "roundtrip.py"), "/tmp/redir-saml.txt"],
+    """毎回、IdP から新しい応答を取り直す。
+
+    🚨 **読む前に必ず消す。** `roundtrip.py` は目印（「SAMLResponse を返した」）を
+       **書き込みより先に**出すので、目印が出たあとに書き込みが失敗すると、
+       ここで**前回の応答を読んで**「新しく取った」ことにしてしまう。
+       実際、書き込みは今日 `IsADirectoryError` で落ちている（引数にディレクトリを渡した）。
+    🚨 **終了コードも見る。** 目印は「途中まで進んだ」ことしか言わない。
+    """
+    path = "/tmp/redir-saml.txt"
+    try:
+        os.remove(path)          # 古い応答を残さない（残ると失敗が成功に見える）
+    except FileNotFoundError:
+        pass
+
+    out = subprocess.run([sys.executable, os.path.join(HERE, "roundtrip.py"), path],
                          env={**os.environ, "SKIP_ACS": "1"}, capture_output=True, text=True)
-    if "SAMLResponse を返した" not in out.stdout:
-        print(out.stdout, out.stderr); sys.exit(1)
-    return open("/tmp/redir-saml.txt").read().strip()
+    if out.returncode != 0 or "SAMLResponse を返した" not in out.stdout:
+        print(out.stdout, out.stderr)
+        print(f"🚨 応答を取り直せませんでした（exit={out.returncode}）。**測れていません。**")
+        sys.exit(1)
+    if not os.path.exists(path):
+        print(f"🚨 目印は出たのに {path} が作られていません。**測れていません。**")
+        sys.exit(1)
+    return open(path).read().strip()
 
 
 def escapes(location):
