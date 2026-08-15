@@ -18,7 +18,27 @@
  */
 
 import { readFileSync } from "node:fs";
+
+
 import { join } from "node:path";
+
+/**
+ * 🚨 **「読めない」と「無い」を同じ文言にしない**（規律11）。
+ *    対象のファイルが移動・改名されたら、この検査は**何も見ていない**状態になる。
+ *    そのとき素の ENOENT で死ぬと、読んだ人には「検査が壊れた」としか分からず、
+ *    **「いま health のスキーマは誰も見ていない」**という一番大事なことが伝わらない。
+ */
+function readOrExplain(path, why) {
+  try {
+    return readFileSync(path, "utf8");
+  } catch (error) {
+    console.error(`🚨 ${path} を読めませんでした（${why}）。`);
+    console.error("   **この検査は現在ブラインドです**——鍵の不一致があっても検出できません。");
+    console.error("   ファイルを移動・改名したなら、このスクリプトの定数も一緒に直してください。");
+    console.error(`   （元のエラー: ${error?.code ?? error?.message ?? error}）`);
+    process.exit(1);
+  }
+}
 
 const REPO_ROOT = new URL("../../../", import.meta.url).pathname;
 const HEALTH_ROUTE = join(REPO_ROOT, "apps/studio/app/api/health/route.ts");
@@ -66,7 +86,7 @@ const problems = [];
 const notes = [];
 
 // ── 1) /api/health が返す鍵 ────────────────────────────────────────────
-const routeSource = readFileSync(HEALTH_ROUTE, "utf8");
+const routeSource = readOrExplain(HEALTH_ROUTE, "/api/health の実装");
 const responses = [];
 for (const m of routeSource.matchAll(/Response\.json\(\s*/g)) {
   const at = m.index + m[0].length;
@@ -89,7 +109,7 @@ const healthKeys = new Set(responses.flatMap((body) => topLevelKeys(body)));
 // version は getBuildVersion() の戻り値。中の鍵も辿る。
 let versionKeys = new Set();
 if (responses.some((body) => /version\s*:\s*getBuildVersion\(\)/.test(body))) {
-  const service = readFileSync(VERSION_SERVICE, "utf8");
+  const service = readOrExplain(VERSION_SERVICE, "getBuildVersion の実装");
   const fn = service.indexOf("export function getBuildVersion(");
   const ret = fn >= 0 ? service.indexOf("return {", fn) : -1;
   const body = ret >= 0 ? balanced(service, service.indexOf("{", ret)) : null;
@@ -103,7 +123,7 @@ if (responses.some((body) => /version\s*:\s*getBuildVersion\(\)/.test(body))) {
 }
 
 // ── 2) HEALTH_OUTPUT が宣言している鍵 ─────────────────────────────────
-const schemaSource = readFileSync(MCP_SCHEMAS, "utf8");
+const schemaSource = readOrExplain(MCP_SCHEMAS, "MCP の出力スキーマ");
 const declAt = schemaSource.indexOf("export const HEALTH_OUTPUT = {");
 if (declAt < 0) problems.push(`解析できません: ${MCP_SCHEMAS} に HEALTH_OUTPUT がありません`);
 const declBody = declAt >= 0 ? balanced(schemaSource, schemaSource.indexOf("{", declAt)) : null;
@@ -137,8 +157,8 @@ console.log("");
 console.log("■ 判定（🚨 見ているのは health 1 本だけ。出力スキーマは全部で 14 本ある）");
 console.log(`  /api/health が返す鍵: ${[...healthKeys].join(", ") || "(なし)"}`);
 console.log(`  HEALTH_OUTPUT の鍵  : ${[...schemaKeys].join(", ") || "(なし)"}`);
-console.log(`  version の中（API）  : ${[...versionKeys].join(", ") || "(なし)"}`);
-console.log(`  version の中（宣言） : ${[...schemaVersionKeys].join(", ") || "(なし)"}`);
+console.log(`  version の中（API）  : ${[...versionKeys].join(", ") || (problems.length > 0 ? "(🚨 読めませんでした。無いという意味ではありません)" : "(なし)")}`);
+console.log(`  version の中（宣言） : ${[...schemaVersionKeys].join(", ") || (problems.length > 0 ? "(🚨 読めませんでした。無いという意味ではありません)" : "(なし)")}`);
 for (const note of notes) console.log(`  ⚠ ${note}`);
 
 if (!decoyDetected) {
