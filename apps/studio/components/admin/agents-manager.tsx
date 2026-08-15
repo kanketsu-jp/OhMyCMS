@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import type { PermissionAction } from "@/lib/permissions/resolve";
@@ -205,6 +206,17 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
       setError(messageFrom(payload, response.status === 403 ? t("forbidden") : t("revoke_failed")));
       return;
     }
+    // 🚨 成功したことを知らせる。これが無いと **押しても何も言わずに行が消える**
+    //    （2026-08-16 に横断で見つかった 7 箇所のうちの 1 つ）。
+    //
+    // 🚨 鍵は `deleted` ではなく `revoked`。**この画面の語彙は全部「失効」**で
+    //    （revoke_button / revoke_failed / revoked_badge）、`deleted` という名前に
+    //    「失効しました」を入れると**名前が中身を語らない**形になる。
+    //    ＝ 他の画面（files / labels）は `deleted` で揃っているが、ここだけ違う。
+    //    🚨 **`*.deleted` で横断して探す人は、この画面を取りこぼす。** design へ連絡済み。
+    //
+    // 🚨 渡すのは**翻訳済みの文字列**（鍵ではない）。鍵を渡すと画面に鍵が出る。
+    toast.success(t("revoked"));
     router.refresh();
   }, (id) => id);
 

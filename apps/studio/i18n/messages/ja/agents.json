@@ -22,6 +22,7 @@
   "manage_title": "エージェント管理",
   "name_label": "名前",
   "revoke_button": "失効",
+  "revoked": "失効しました",
   "revoke_failed": "失効できません",
   "revoked_badge": "失効済み",
   "tenant_scope_label": "tenant_scope（JSON）",
