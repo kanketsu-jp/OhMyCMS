@@ -223,6 +223,12 @@ export type UploadFileInput = {
    *    切ると配信が重くなるだけで、失うものは無い。
    */
   compress?: boolean;
+  /**
+   * 取り込み元などの付帯情報。そのまま `directus_files.metadata`（json）へ入る。
+   * 🚨 **利用者に見せてよいものだけ入れること。** この列は API のレスポンスに載る。
+   *    アクセストークンや内部のキーを入れない。
+   */
+  metadata?: unknown;
 };
 
 export type ListInput = {
@@ -465,6 +471,8 @@ export async function uploadFile(actor: Actor | null, input: UploadFileInput): P
         height: detected.height,
         description: input.description ?? null,
         tags: input.tags ?? null,
+        // 🚨 undefined と null を分ける。undefined は「渡されなかった」なので触らない。
+        metadata: input.metadata === undefined ? null : JSON.stringify(input.metadata),
         blur_data_url: blurDataUrl,
         compressed_key: storedCompressedKey,
       })
