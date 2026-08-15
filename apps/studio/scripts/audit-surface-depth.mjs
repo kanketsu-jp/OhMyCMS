@@ -58,6 +58,7 @@ const DISCOVERY_POSITIVE_CONTROL = has("discovery-positive-control");
 //    ページを開いただけでは DOM に無いので、**測る前にこれを押す**。
 //    例: --click '[data-slot=global-search-trigger]'
 const CLICK = arg("click", "");
+const MEASURE = arg("measure", "");
 // 🚨 --dump … 測ったあとの画面の中身を出す。
 //    「深さ=0 / ナビ=0 / 書体=Times」のように**壊れているのに数字だけ出る**とき、
 //    何が起きたのかが分からず止まる（2026-08-14 実測）。数字の裏に画面を貼れるようにする。
@@ -879,6 +880,84 @@ function normalizeLocalHref(href) {
   }
 }
 
+function measureExpression(selector) {
+  return `(() => {
+    const selector = ${JSON.stringify(selector)};
+    const px = (v) => parseFloat(v) || 0;
+    const rounded = (n) => Math.round(n * 10) / 10;
+    const shown = (el) => (typeof el.checkVisibility === "function"
+      ? el.checkVisibility()
+      : (() => { const s = getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden"; })());
+    const sel = (el) => {
+      let s = el.tagName.toLowerCase();
+      if (el.id) s += "#" + el.id;
+      const slot = el.getAttribute("data-slot");
+      if (slot) s += "[data-slot=" + slot + "]";
+      const cls = (el.getAttribute("class") || "").split(/\\s+/).filter(Boolean).slice(0, 5).join(".");
+      if (cls) s += "." + cls;
+      return s.slice(0, 160);
+    };
+    const firstTextNode = (el) => {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          return node.nodeValue.trim()
+            ? NodeFilter.FILTER_ACCEPT
+            : NodeFilter.FILTER_REJECT;
+        },
+      });
+      return walker.nextNode();
+    };
+    let all;
+    try {
+      all = [...document.querySelectorAll(selector)];
+    } catch (error) {
+      return { selector, invalid: true, error: String(error?.message ?? error), count: 0, items: [] };
+    }
+    const items = all
+      .filter((el) => shown(el) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0)
+      .map((el) => {
+        const boxRect = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const textNode = firstTextNode(el);
+        let textRect = null;
+        let textStyle = cs;
+        if (textNode) {
+          const range = document.createRange();
+          range.selectNodeContents(textNode);
+          const rects = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+          const tr = rects[0] ?? range.getBoundingClientRect();
+          range.detach?.();
+          if (tr && tr.height > 0) {
+            textRect = {
+              top: rounded(tr.top),
+              height: rounded(tr.height),
+              width: rounded(tr.width),
+            };
+          }
+          if (textNode.parentElement) textStyle = getComputedStyle(textNode.parentElement);
+        }
+        const text = (el.innerText || el.textContent || "").replace(/\\s+/g, " ").trim();
+        return {
+          sel: sel(el),
+          box: {
+            top: rounded(boxRect.top),
+            height: rounded(boxRect.height),
+            width: rounded(boxRect.width),
+          },
+          text: text.length > 60 ? text.slice(0, 57) + "..." : text,
+          textBox: textRect,
+          space: textRect ? {
+            top: rounded(textRect.top - boxRect.top),
+            bottom: rounded(boxRect.bottom - (textRect.top + textRect.height)),
+          } : null,
+          fontSize: rounded(px(textStyle.fontSize)),
+          lineHeight: textStyle.lineHeight,
+        };
+      });
+    return { selector, invalid: false, count: items.length, totalMatches: all.length, items };
+  })()`;
+}
+
 async function discoverDynamicPaths(cdp) {
   log("\n動的ルート発見:");
   log(`  検索元: ${DISCOVERY_LIST_PATHS.join(", ")}`);
@@ -1125,6 +1204,35 @@ for (const vp of VIEWPORTS) {
     r.renderTextChars = renderSnapshot.textChars ?? r.renderTextChars ?? 0;
     r.renderLivenessReasons = renderLivenessReasons;
     report[key] = r;
+
+    if (MEASURE) {
+      const measured = await cdp.send("Runtime.evaluate", {
+        expression: measureExpression(MEASURE),
+        returnByValue: true,
+      });
+      const m = measured.result.value;
+      r.measure = m;
+      if (m.invalid) {
+        log(`     測定 ${m.selector}: セレクタが不正です（${m.error}）`);
+      } else if (m.count === 0) {
+        log(`     測定 ${m.selector}: 当たらなかった（DOM一致 ${m.totalMatches} 件 / 見えている要素 0 件）`);
+      } else {
+        log(`     測定 ${m.selector}: ${m.count} 件（DOM一致 ${m.totalMatches} 件）`);
+        for (const item of m.items) {
+          const textBox = item.textBox
+            ? `文字 top=${item.textBox.top}px h=${item.textBox.height}px`
+            : "文字 なし";
+          const space = item.space
+            ? `余白 上=${item.space.top}px 下=${item.space.bottom}px`
+            : "余白 不明";
+          log(
+            `       - ${item.sel} "${item.text}" ` +
+            `箱 top=${item.box.top}px h=${item.box.height}px w=${item.box.width}px ` +
+            `${textBox} ${space} font=${item.fontSize}px line=${item.lineHeight}`,
+          );
+        }
+      }
+    }
 
     if (renderLivenessReasons.length) {
       violations.push({
