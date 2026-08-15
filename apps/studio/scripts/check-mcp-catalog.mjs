@@ -176,19 +176,24 @@ if (!WRITE) {
     //    2026-08-16 まで、囮は 3 本とも「検出されること」だけだった。
     //    **逆方向が無いと、過検出は永久に捕まらない**（司令塔 2026-08-16）。
     //    実際、この 2 つは**塞ぐ前は拾っていた**（＝正しく書いてあるものを違反と言っていた）。
+    // 🚨 期待は「**この名前が出ないこと**」であって「違反 0 件」ではない。
+    //    0 件を要求すると、**本物の違反が 1 つ在るだけで囮のほうが落ち**、
+    //    「自己検査に失敗」が本当の違反を覆い隠す（2026-08-16 実測）。
+    //    ＝ 赤くなったことと、狙ったものを捕まえたことは別。
     ["囮4: コメントに書いた使用例（拾ってはいけない）", source,
-      serverText + '\n// server.registerTool("ohmycms_zz_incomment", …) と書く\n', null],
+      serverText + '\n// server.registerTool("ohmycms_zz_incomment", …) と書く\n', "ohmycms_zz_incomment"],
     ["囮5: JSDoc の使用例（拾ってはいけない）", source,
-      serverText + '\n/**\n * 例: server.registerTool("ohmycms_zz_injsdoc", {})\n */\n', null],
+      serverText + '\n/**\n * 例: server.registerTool("ohmycms_zz_injsdoc", {})\n */\n', "ohmycms_zz_injsdoc"],
   ];
   let alive = 0;
   console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
   for (const [name, src, srv, wantRule] of probes) {
-    // wantRule が null の囮は「**何も出ないこと**」が期待。
-    if (wantRule === null) {
+    // `ohmycms_` で始まる wantRule は「**その名前が出ないこと**」が期待（過検出の囮）。
+    if (wantRule.startsWith("ohmycms_")) {
       const violations = findViolations(src, srv).violations;
-      const quiet = violations.length === 0;
-      console.log(`  ${quiet ? "✅" : "🚨"} ${name}  → ${quiet ? "拾わない（過検出なし）" : `**拾ってしまう**: ${violations.map((v) => v.detail).join(" / ")}`}`);
+      const leaked = violations.filter((v) => v.detail.includes(wantRule));
+      const quiet = leaked.length === 0;
+      console.log(`  ${quiet ? "✅" : "🚨"} ${name}  → ${quiet ? "拾わない（過検出なし）" : `**拾ってしまう**: ${leaked.map((v) => v.detail).join(" / ")}`}`);
       if (quiet) alive++;
       continue;
     }
