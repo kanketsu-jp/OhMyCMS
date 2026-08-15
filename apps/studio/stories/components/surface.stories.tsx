@@ -25,7 +25,8 @@ const meta = {
   parameters: { layout: "padded" },
   argTypes: {
     tone: { control: "inline-radio", options: ["outline", "muted", "plain"] },
-    padded: { control: "boolean" },
+    // 🚨 `padded` は 2026-08-15 に Surface から削除した（原典 idea.md:66「Padding はいらない」）。
+    //    面は上下左右とも 0 で、余白は親（main）が持つ。つまみを戻さないこと。
   },
 } satisfies Meta<typeof Surface>;
 

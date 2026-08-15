@@ -1009,6 +1009,20 @@ function measureExpression(selector) {
             //    ツリーの受入が「罫線↔テキスト 4px が em でないこと」を求めている。
             left: rounded(textRect.left - boxRect.left),
           } : null,
+          // 🚨 **padding そのもの**を出す（2026-08-15）。上の space は
+          //    「文字の箱と要素の箱の差」なので、**padding に子要素の margin や
+          //    間の要素の高さが混ざる**。実測: main は px-4（=16px）なのに
+          //    space.left は **24px** と出た（中の子が 8px 持っていた）。
+          //    「親要素にすでに Padding がある」を確かめるのに space を使うと、
+          //    **在ると言えないものを在ると読む**。
+          //    🚨 この関数はブラウザ側へ渡すテンプレートリテラルの中なので、
+          //       **コメントにバッククォートを書くと構文が壊れる**（今日2回やった）。
+          pad: {
+            top: rounded(px(cs.paddingTop)),
+            right: rounded(px(cs.paddingRight)),
+            bottom: rounded(px(cs.paddingBottom)),
+            left: rounded(px(cs.paddingLeft)),
+          },
           fontSize: rounded(px(textStyle.fontSize)),
           lineHeight: textStyle.lineHeight,
         };
@@ -1615,9 +1629,13 @@ for (const vp of VIEWPORTS) {
           const space = item.space
             ? `余白 上=${item.space.top}px 下=${item.space.bottom}px 左=${item.space.left}px`
             : "余白 不明";
+          const pad = item.pad
+            ? `padding 上=${item.pad.top} 右=${item.pad.right} 下=${item.pad.bottom} 左=${item.pad.left}`
+            : "padding 不明";
           log(
             `       - ${item.sel} "${item.text}" ` +
             `箱 top=${item.box.top}px h=${item.box.height}px w=${item.box.width}px ` +
+            `${pad} ` +
             `${textBox} ${space} font=${item.fontSize}px line=${item.lineHeight}`,
           );
         }
