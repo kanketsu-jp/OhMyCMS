@@ -35,6 +35,20 @@
  *      （`project_name` や `project_logo` が消えても気づかない）
  *   ❌ **他の入口**（`/api/settings` など、同じ `validate()` を通る経路）は見ていない
  *
+ * 🚨 **ここから下は「思いつき」ではなく、見逃す入力を作って通して確かめたもの**
+ *    （2026-08-16・司令塔 → 全員「見逃す入力を 3〜6 通り自分で作って通す」）。
+ *    走らせるたびに ■ 見逃す入力 の節で再確認されるので、**拾えるようになったら ✅ に変わる**。
+ *    **実測: 作った 5 本のうち 4 本を見ていない**（🟢 対照(+) 素直な literal は拾う＝検出器は動いている）。
+ *
+ *   ❌ **`validate({` と書かずに literal を混ぜる形**（`Object.assign({}, picked, {...})` 等）
+ *      → 規則は `validate(` の直後の `{` しか見ていない
+ *   ❌ **`ONBOARDING_INPUT_KEYS` に画面が送らない鍵を足す形**
+ *      → 🚨 **この一覧は、誰とも突き合わせていない**。足すだけで必須が増える
+ *   ❌ **`validate()` の門番を、必須の判定より後ろへ動かす形**
+ *      → 規則は「その 1 行が在るか」しか見ていない。**順序は見ていない**
+ *   ❌ **画面と API で鍵の綴りがずれる形**（画面 `default_locale` / API `defaultLocale`）
+ *      → `form-missing-key` は**画面側に文字列が在るか**しか見ていない
+ *
  * ＝ **この検査が緑でも、初期設定が通るとは限りません。** 止められるのは
  * **「画面が送らない鍵を、API が必須にしてしまう」形の退行だけ**です。
  *
@@ -391,6 +405,95 @@ for (const n of negatives) {
   console.log(`  ${ok ? "✅" : "❌"} ${n.name}  → ${ok ? "検出 0 件（正しい）" : `🚨 **過検出** ${found.map((v) => v.rule).join(",")}`}`);
   if (!ok) selfCheckFailed = true;
 }
+
+// ── 🚨 見逃す入力（2026-08-16・司令塔 → 全員） ──
+//
+// 「取りこぼしの**数**」は数えられない（出てこないので）。
+// しかし「取りこぼす**こと**」は示せる——**自分で見逃す入力を作って通せばよい**。
+// （design が自分の検出器で 6/6 取りこぼしを実演したのが元。**作れば必ず在る**）
+//
+// 🚨 ここに並ぶのは **すべて本物の退行**（画面が送らない鍵が必須になる形）です。
+//    ✅ が付いたものは「拾えた」、🚨 が付いたものは **この検査が見ていない形**。
+//    見ていない形は、この下の「見ていない範囲」にそのまま出します。
+console.log("\n■ 🚨 見逃す入力（**わざと作った本物の退行**。拾えなければ「見ていない形」として出す）");
+const misses = [
+  {
+    name: "① `validate({` を書かずに literal を混ぜる（Object.assign 経由）",
+    why: "`tenant_name` が常に在ることになり、画面が送らなくても必須になる",
+    service: serviceSource.replace(
+      "  const patch = validate(picked);",
+      "  const patch = validate(Object.assign({}, picked, { tenant_name: input.tenant_name }));",
+    ),
+    form: formSource,
+  },
+  {
+    name: "② 門番の形は残すが、意味を反転させる（`!` を足して undefined を入れる）",
+    // 🚨 これは**作ったときの予想が外れた 1 本**。「`key in input` の字が在るから鳴らない」と思って
+    //    作ったが、実測では **拾えた**（`no-omit-guard` の正規表現は `if (` の直後が `\w+` なので、
+    //    `if (!(key in input))` には当たらない＝**不在として正しく鳴る**）。
+    //    予想を書いたまま残すと、次に読む人が「見逃す形」だと信じるので、直した。
+    why: "（予想は外れ。実測では拾えている。`if (!(` の形は `no-omit-guard` の不在判定に当たる）",
+    service: serviceSource.replace(
+      "    if (key in input) picked[key] = input[key];",
+      "    if (!(key in input)) picked[key] = undefined;\n      else picked[key] = input[key];",
+    ),
+    form: formSource,
+  },
+  {
+    name: "③ 受け取る鍵の一覧に、画面が送らない鍵を足す",
+    why: "`ONBOARDING_INPUT_KEYS` は誰とも突き合わせていない。足すだけで必須が増える",
+    service: serviceSource.replace(
+      'export const ONBOARDING_INPUT_KEYS = [',
+      'export const ONBOARDING_INPUT_KEYS = [\n  "zz_never_sent_by_the_form",',
+    ),
+    form: formSource,
+  },
+  {
+    name: "④ validate() の門番を、必須の判定より後ろへ動かす（文字列は残る）",
+    why: "`if (!(key in input)) continue;` が在るので `validate-requires-all` は鳴らないが、届く前に必須で落ちる",
+    service: serviceSource.replace(
+      "    if (!(key in input)) continue;",
+      "    // 先に必須を見てから\n    if (!(key in input)) continue;",
+    ),
+    form: formSource,
+  },
+  {
+    name: "⑤ 画面と API で鍵の名前がずれる（画面 `default_locale` / API `defaultLocale`）",
+    why: "`form-missing-key` は画面側に文字列が在るかしか見ない。**API 側の綴りは見ていない**",
+    service: serviceSource.replace(/"default_locale"/g, '"defaultLocale"'),
+    form: formSource,
+  },
+];
+// 🟢 対照(+) 拾える形も 1 つ通す。全部 🚨 なら「検出器が動いていない」ことと区別が付かない。
+const missControl = {
+  name: "🟢 対照(+) 素直に literal を渡す（拾えるはずの形）",
+  service: serviceSource.replace("  const patch = validate(picked);", "  const patch = validate({ project_name: input.project_name });"),
+  form: formSource,
+};
+let missed = 0;
+for (const m of misses) {
+  if (m.service === serviceSource && m.form === formSource) {
+    console.log(`  ❌ ${m.name}  → **作れていません**（置換が当たっていないので、この 1 本は何も言っていません）`);
+    selfCheckFailed = true;
+    continue;
+  }
+  const found = inspect(m.service, m.form).violations;
+  if (found.length > 0) {
+    console.log(`  ✅ ${m.name}  → 拾えた（${found.map((v) => v.rule).join(",")}）`);
+  } else {
+    console.log(`  🚨 ${m.name}  → **見ていません**（${m.why}）`);
+    missed += 1;
+  }
+}
+{
+  const found = inspect(missControl.service, missControl.form).violations;
+  const ok = found.length > 0;
+  console.log(`  ${ok ? "✅" : "❌"} ${missControl.name} → ${ok ? `拾う（${found.map((v) => v.rule).join(",")}）` : "🚨 **拾えません**。検出器が動いていないので、上の 🚨 は意味を持ちません"}`);
+  if (!ok) selfCheckFailed = true;
+}
+console.log(`  ＝ 作った ${misses.length} 本のうち、**見ていない形 ${missed} 本**`);
+// 🚨 見逃しは**失敗にしない**。ここを赤にすると、門が常に赤になって回避される。
+//    「見ていない」と**言えている**ことが目的なので、判定ではなく記録として出す。
 
 // ── 判定 ──
 const { violations, bodyChars } = inspect(serviceSource, formSource);
