@@ -150,6 +150,30 @@
  *    対処後の実測（受入基準・全て「タブ数が増えない」を確認）は `docs/` ではなくこの作業の
  *    報告に実測値として残してある（このファイル自体には最新の数値を書き続けない——実行の
  *    たびに変わるため。**再現したいときは上の「対処前の実測」と同じ形で自分の手元で測り直す**）。
+ *
+ * 7. 🚨 **可視判定はクラス名でなく算出値（`getBoundingClientRect` / `getComputedStyle`）で行う。**
+ *    2026-08-15 時点、この駆動器を使う複数のペインが**それぞれ自分で**可視判定を書こうとしていた。
+ *    実測: `visible|sr-only|clip|aria-hidden` を含む行はこのファイルに 2 行あったが、
+ *    どちらも既存コメントの文章（この落とし穴の解説そのもの）で、**判定の実装は 0 件**だった。
+ *    各自が毎回書くと条件が必ず割れる／漏れるので、`page.visibleTexts(selector)` として
+ *    ここに集約した。
+ *
+ *    - **なぜクラス名（`sr-only` 等）で判定しないか**: クラス名は CSS の実装詳細であって
+ *      契約ではない。Tailwind のバージョンが変わる・別ユーティリティ名に置き換わる・
+ *      自前のクラスで同じ効果を作る、のどれでも文字列一致の判定は壊れる。ブラウザが最終的に
+ *      「見えない」と判断する材料は算出された box とスタイルだけなので、そこを直接見る。
+ *    - **なぜ `width > 0 && height > 0` では足りないか**: スクリーンリーダー専用に見せる
+ *      定番実装（Tailwind の `sr-only` 等）は
+ *      `width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0)` のように
+ *      **幅・高さをゼロにせず 1px だけ残す**（`width:0` にすると読み上げごとスキップされる
+ *      支援技術があるため、意図的に 1px を残している）。`> 0` の判定だとこの 1×1px 要素を
+ *      「見える」と誤判定する。**`<= 1px` で見る必要がある。**
+ *    - **なぜ「外した件数」を返すか**: 可視文字だけを返して黙って間引くと、
+ *      「そもそも対象が無かった（0件）」と「見た上で除外条件に当たって外した（0件）」が
+ *      同じ `[]` の顔になる（`~/.claude/rules/count-before-you-report.md` の
+ *      「0件は単独では情報を持たない」と同じ話）。呼び出し側が
+ *      `外した.小さい / clip / ariaHidden / 非表示` の内訳を見れば、
+ *      「本当に対象が無かった」のか「除外条件で落ちた」のかを区別できる。
  */
 
 const PORT = 9333;
@@ -416,6 +440,96 @@ class Session {
       throw new Error(res.result.exceptionDetails.exception?.description ?? "評価に失敗");
     }
     return res.result.result.value;
+  }
+
+  /**
+   * `selector` に一致する要素のうち、落とし穴7の4条件に当たるものを除いた
+   * `textContent`（trim 済み）の配列と、除いた件数の内訳を返す。
+   *
+   * 🚨 判定は算出値（`getBoundingClientRect` / `getComputedStyle`）だけで行い、クラス名は見ない。
+   * 除外は次の順で判定し、最初に当たった条件のバケットに数える（4条件のどれにも当たらなければ
+   * 残す）:
+   *   1. `小さい` … 幅 または 高さ が **1px 以下**（`> 0` ではなく `<= 1px` で判定。落とし穴7）
+   *   2. `clip`   … 旧 `clip`（`rect(...)`）が `auto` でない、または `clip-path` が要素自身を
+   *                 1px 以下まで削っている（`inset()` は実際に効いている辺の値から可視サイズを
+   *                 計算する。`inset()` 以外の非 `none` な `clip-path` 関数は面積を厳密計算
+   *                 しないが、明示的に付いている時点で「意図的に隠す」ケースが多いため潰されて
+   *                 いるとみなす）
+   *   3. `ariaHidden` … 自身または祖先のいずれかが `aria-hidden="true"`
+   *   4. `非表示` … `visibility: hidden` または `display: none`
+   *
+   * 可視文字が 1 件も無くても例外にはしない。`外した` の内訳と `全体`（一致した要素数）を
+   * 一緒に返すので、呼び出し側は「対象が無かった」のか「除外に当たって落ちた」のかを区別できる。
+   */
+  async visibleTexts(selector) {
+    const script = `
+      (function (sel) {
+        function isAriaHidden(el) {
+          for (let n = el; n; n = n.parentElement) {
+            if (n.getAttribute && n.getAttribute("aria-hidden") === "true") return true;
+          }
+          return false;
+        }
+        function isClipped(el, rect) {
+          const cs = getComputedStyle(el);
+          if (cs.clip && cs.clip !== "auto") return true;
+          const cp = cs.clipPath;
+          if (!cp || cp === "none") return false;
+          const m = cp.match(/^inset\\(([^)]+)\\)$/);
+          if (!m) return true; // inset() 以外の非 none な clip-path は潰されているとみなす
+          const parts = m[1].trim().split(/\\s+/);
+          const toPx = (v, base) => (v.endsWith("%") ? (parseFloat(v) / 100) * base : parseFloat(v));
+          let top, right, bottom, left;
+          if (parts.length === 1) {
+            // inset(X) は四辺とも X（% は要素自身の幅/高さそれぞれを基準にする）
+            top = bottom = toPx(parts[0], rect.height);
+            right = left = toPx(parts[0], rect.width);
+          } else if (parts.length === 2) {
+            top = bottom = toPx(parts[0], rect.height);
+            right = left = toPx(parts[1], rect.width);
+          } else if (parts.length === 3) {
+            top = toPx(parts[0], rect.height);
+            right = left = toPx(parts[1], rect.width);
+            bottom = toPx(parts[2], rect.height);
+          } else {
+            top = toPx(parts[0], rect.height);
+            right = toPx(parts[1], rect.width);
+            bottom = toPx(parts[2], rect.height);
+            left = toPx(parts[3], rect.width);
+          }
+          const visW = rect.width - left - right;
+          const visH = rect.height - top - bottom;
+          return visW <= 1 || visH <= 1;
+        }
+        const all = Array.from(document.querySelectorAll(sel));
+        let counts = { 小さい: 0, clip: 0, ariaHidden: 0, 非表示: 0 };
+        const texts = [];
+        for (const el of all) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width <= 1 || rect.height <= 1) {
+            counts.小さい++;
+            continue;
+          }
+          if (isClipped(el, rect)) {
+            counts.clip++;
+            continue;
+          }
+          if (isAriaHidden(el)) {
+            counts.ariaHidden++;
+            continue;
+          }
+          const cs = getComputedStyle(el);
+          if (cs.visibility === "hidden" || cs.display === "none") {
+            counts.非表示++;
+            continue;
+          }
+          const t = (el.textContent || "").trim();
+          if (t) texts.push(t);
+        }
+        return { texts: texts, 全体: all.length, 外した: counts };
+      })(${JSON.stringify(selector)})
+    `;
+    return await this.eval(script);
   }
 
   /**
