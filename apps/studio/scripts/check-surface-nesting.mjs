@@ -222,6 +222,11 @@ for (const file of files) {
     //    ＝ **自分が入れた守りを、自分が忘れていた形。** 期待を実測に合わせる。
     ["cn() で文字列が割れる", 'className={cn("rounded-lg p-4", isX && "border")}', "caught"],
     ["インライン style", 'style={{ border: "1px solid" }}', "missed"],
+    // 🚨 design が「拾う」と報告 → 追試で **両方とも見逃す**（2026-08-16・私の実測）。
+    //    判定は **1 行の中の、className より後ろの文字列リテラル**しか見ないので、
+    //    変数に入れた瞬間に消える（**定義が同じ行に在っても、className より前なら見えない**）。
+    ["変数に入れる（別行）", 'className={cls}', "missed"],
+    ["変数に入れる（同じ行）", 'const cls = "rounded-lg border p-4"; return <div className={cls} />', "missed"],
     // 🚨 これは「拾う」が、**正しい理由で拾っていない**（下の注記）
     ["ring-1 ring-border", 'className="rounded-lg ring-1 ring-border p-4"', "caught"],
     ["ring-1 ring-zinc-200", 'className="rounded-lg ring-1 ring-zinc-200 p-4"', "missed"],
