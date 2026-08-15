@@ -150,6 +150,30 @@ const evade = scan([{ file: "d.tsx", text: `const c = "h-" + "8";` }]);
 console.log(`  ${evade.length >= 1 ? "✅" : "❌"} 囮4: 文字列を組み立てて迂回  → 検出 ${evade.length} 件`);
 if (evade.length < 1) selfTestFailed = true;
 
+/**
+ * 🚨 CONTROL_TAGS の**綴り間違いは、静かに「参考」へ落ちる**（2026-08-15・saml の3通り目の指摘を当てた）。
+ *
+ * 分類が見つからないタグは「不明」＝参考側（落とさない側）へ倒す設計なので、
+ * `Input` を `Inpu` と書き間違えても**検査は緑のまま**、違反だけが消える。
+ * ＝ **打ち間違いが型でも検査でも落ちない**（saml が列名で踏んだのと同じ形）。
+ *
+ * ここでは **照合そのものが生きているか**を見る:
+ *   このツリーに 1 つも現れないなら、**綴りか探し方が壊れている**（落とす）。
+ * 個々の未出現は**落とさずに一覧で出す**——まだ使っていない部品名は正当なので
+ * （実測: summary / Toggle / Switch / Checkbox / RadioGroupItem / PopoverTrigger の 6 件は未使用）。
+ * 🚨 だが**黙って隠さない**。綴り間違いは、この一覧に**見慣れない名前**として現れる。
+ */
+const 全文 = sources.map((x) => x.text).join("\n");
+const 現れないタグ = [...CONTROL_TAGS].filter(
+  (t) => !new RegExp("<" + t + "[\\s/>]").test(全文),
+);
+const 現れるタグ数 = CONTROL_TAGS.size - 現れないタグ.length;
+console.log(`  ${現れるタグ数 > 0 ? "✅" : "❌"} 囮6: CONTROL_TAGS の照合が生きている  → このツリーに現れる ${現れるタグ数}/${CONTROL_TAGS.size} 件`);
+if (現れるタグ数 === 0) selfTestFailed = true;
+if (現れないタグ.length > 0) {
+  console.log(`     未出現（まだ使っていない部品名なら正常。🚨 **見慣れない名前が在れば綴り間違い**）: ${現れないタグ.join(" ")}`);
+}
+
 // 🚨 分類そのものにも囮を置く（2026-08-15）。
 //    「部品か / 部品でないか」で落とす側を変えたので、**分類が壊れたら検査は静かに嘘をつく**
 //    （画像を部品と読めば正しいコードを直させ、部品を画像と読めば違反を見逃す）。
