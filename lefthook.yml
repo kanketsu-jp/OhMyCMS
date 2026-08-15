@@ -211,6 +211,15 @@ pre-commit:
     report-body-keys:
       run: node apps/studio/scripts/check-report-body-keys.mjs
 
+    # 本文（リッチテキスト）の保存側のガード。危険な URL / 許可外の節点 / 自作ブロックの属性、
+    # そして **Mod-Enter を Tiptap へ返していないこと**（返すと保存に改行が混ざる）を見る。
+    # 🚨 2026-08-15 まで **package.json には在るのに lefthook に載っておらず、一度も自動では走っていなかった**
+    #    （`check:richtext` は手で叩いたときだけ動いていた）。載せる前に回して 53 件 PASS を確認済み。
+    # 🚨 見ているのは**ソースに在るか**だけ。**実際に押して確かめてはいない**（それはブラウザの受入）。
+    richtext:
+      root: "apps/studio"
+      run: bun run check:richtext
+
     # `/api/health` の `dirty` を意味のある旗のまま保つ（.dockerignore と docker/Dockerfile）。
     # 🚨 root を付けない。**リポジトリ直下の 2 ファイル**を読む検査なので。
     # 🚨 これは「コメントに **消さないこと** と書いてあるだけ」だったものを検査にしたもの（規律12）。

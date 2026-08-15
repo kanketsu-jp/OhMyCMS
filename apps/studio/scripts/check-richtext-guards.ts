@@ -10,6 +10,7 @@
  * 許可リストを変えるときは両方を直すこと（sdk(w4A:p5) と約束済み）。
  */
 
+import { readFileSync } from "node:fs";
 import {
   isAllowedImageSrc,
   isAllowedLinkHref,
@@ -145,7 +146,23 @@ check(blocksPlain.includes("見本の文字"), "自作ブロックの文字が�
 check(blocksPlain.includes("通常の本文"), "通常の本文まで消えた");
 check(!blocksPlain.includes("通ってはいけない"), "登録していないブロックの文字が拾われた");
 
-const total = hrefCases.length + srcCases.length + 22 + 8;
+// 🚨 **注意書きを守りに変える**（2026-08-15）。
+// `rich-text-field.tsx` に「❌ ここを戻すなら、保存に改行が混ざらないことを先に確かめること」と
+// **コメントで書いただけ**にしていた。**書いただけでは守りではない**（今日の規律12）。
+// 実測: `Mod-Enter` を Tiptap へ返すと、**保存と同時に hardBreak が 1 つ増える**
+// （本文の末尾に見えない改行が混ざり、`body_plain` には出ないので画面と検索がずれる）。
+// 🚨 見ているのは「その割り当てがソースに在るか」だけで、**実際に押して確かめてはいない**
+//    （押して確かめるのはブラウザの受入。ここは戻されたことに気づくための番人）。
+const editorSource = readFileSync(
+  new URL("../components/admin/rich-text-field.tsx", import.meta.url),
+  "utf8",
+);
+check(editorSource.includes("richTextReservedKeys"), "Mod-Enter を押さえる拡張ごと消えている");
+check(/"Mod-Enter":\s*\(\)\s*=>\s*true/.test(editorSource), "Mod-Enter を Tiptap へ返している（保存に改行が混ざる）");
+// 🟢 対照(+): 同じ読み方で、必ず在るものが見つかること（＝ファイルを読めている）
+check(editorSource.includes("StarterKit.configure"), "エディタの定義を読めていない（この検査は何も言っていない）");
+
+const total = hrefCases.length + srcCases.length + 22 + 8 + 3;
 if (failed > 0) {
   console.error(`\n本文ガード: ${failed} 件 FAILED`);
   process.exit(1);
