@@ -4,7 +4,7 @@ import type { FilterObject } from "@/lib/items/filter";
 import { ApiError } from "@/lib/schema/errors";
 import { replacePermissionVariables, variablesForActor } from "./variables";
 
-export type PermissionAction = "read" | "create" | "update" | "delete";
+export type PermissionAction = "read" | "create" | "update" | "delete" | "log";
 export type AdminCapability =
   | "schema:read" | "schema:write" | "settings:read" | "settings:write";
 

@@ -6,7 +6,7 @@ import { getTables } from "@/lib/schema/introspect";
 import { ApiError } from "@/lib/schema/errors";
 import { parseListRange, type ListRangeInput } from "@/lib/list-range";
 
-const actions = new Set<PermissionAction>(["read", "create", "update", "delete"]);
+const actions = new Set<PermissionAction>(["read", "create", "update", "delete", "log"]);
 
 type RoleRow = {
   id: string;
