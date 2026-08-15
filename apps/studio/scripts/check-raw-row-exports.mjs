@@ -28,7 +28,13 @@
  * 🚨 2026-08-15 時点でそういう経路は **0 件**（コメントを除いて実測。
  *    🟢 対照(+) 同じ探し方で `lib` 側は 25 件拾える＝探し方は効いている）。
  *    **0 件のいまのうちに固定する。** 後から 1 件ずつ増えると、もう戻せない。
- * 逃げ道: どうしても要るときは同じ行に `直接読む理由:` と書く（理由まで書かせる）。
+ * 逃げ道（＝承認リスト）: 同じ行に次の形で書く。**4 つ全部が要る**。
+ * ```
+ * // 直接読む理由: <なぜ> / 記録 2026-08-15 / 決める人: <誰> / 未決
+ * ```
+ * 🚨 **「承認」は多くの場合「いま在ることを記録した」だけで、「これでよい」ではない。**
+ *    **でも緑が続くと、全員がそれを「解決済み」として扱い始める**（司令塔・2026-08-15 規律13）。
+ *    だから **未決のものは毎回出す**。黙って緑にしない。
  *
  * 使い方: node scripts/check-raw-row-exports.mjs
  * 終了コード: 違反があれば 1。
@@ -189,9 +195,15 @@ function directTableUses(file) {
   clean.forEach((line, i) => {
     for (const t of GUARDED_TABLES) {
       if (!line.includes(`"${t}"`) && !line.includes(`'${t}'`)) continue;
-      // 逃げ道: 同じ行に理由が書いてあれば通す（**理由の文字列は元の行から探す**）
-      if (/直接読む理由:\s*\S/.test(lines[i])) {
-        found.push({ line: i + 1, table: t, allowed: true });
+      // 逃げ道: 同じ行に承認が書いてあれば通す（**文字列は元の行から探す**。コメントを外した側には無い）
+      const raw = lines[i];
+      const m = /直接読む理由:\s*([^/]+?)\s*\/\s*記録\s*(\d{4}-\d{2}-\d{2})\s*\/\s*決める人:\s*([^/]+?)\s*\/\s*(未決|決定済み)/.exec(raw);
+      if (m) {
+        found.push({ line: i + 1, table: t, allowed: true, why: m[1], at: m[2], who: m[3], state: m[4] });
+      } else if (/直接読む理由:/.test(raw)) {
+        // 🚨 **形の足りない承認は通さない。** 理由だけ書いて黙らせられると、
+        //    「誰が・いつ・何を決めるのか」が失われる（規律13）。
+        found.push({ line: i + 1, table: t, allowed: false, malformed: true });
       } else {
         found.push({ line: i + 1, table: t, allowed: false });
       }
@@ -206,11 +218,20 @@ function directTableUses(file) {
     .filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"));
   let bad = 0;
   let allowed = 0;
+  let undecided = 0;
   for (const f of routes) {
     for (const u of directTableUses(f)) {
       if (u.allowed) {
         allowed++;
-        console.log(`    ・${f}:${u.line} ${u.table}（理由つきで許可）`);
+        // 🚨 **未決のものは毎回出す。** 黙って緑が続くと、決める人が居ることを誰も思い出さない。
+        const mark = u.state === "未決" ? "🟡 未決" : "✅ 決定済み";
+        console.log(`    ${mark} ${f}:${u.line} ${u.table}`);
+        console.log(`       理由: ${u.why} ／ 記録 ${u.at} ／ 決める人: ${u.who}`);
+        if (u.state === "未決") undecided++;
+      } else if (u.malformed) {
+        bad++;
+        console.log(`    🚨 [R6] ${f}:${u.line} 承認の形が足りない`);
+        console.log(`       → 「直接読む理由: <なぜ> / 記録 YYYY-MM-DD / 決める人: <誰> / 未決」の 4 つを書く`);
       } else {
         bad++;
         console.log(`    🚨 [R5] ${f}:${u.line} ${u.table} をルートが直接読んでいる`);
@@ -219,7 +240,7 @@ function directTableUses(file) {
       }
     }
   }
-  console.log(`  app/ 配下 ${routes.length} ファイル / 直接読み ${bad} 件（理由つきの許可 ${allowed} 件）`);
+  console.log(`  app/ 配下 ${routes.length} ファイル / 直接読み ${bad} 件（承認 ${allowed} 件・うち🟡未決 ${undecided} 件）`);
   // 🚨 規則 G（上と同じ）。`git ls-files` が空を返したら「違反なし」ではなく「見ていない」。
   if (routes.length === 0) {
     console.log(`    🚨 [R0] app/ 配下のファイルを 1 件も拾えていない。走っていないのと同じ`);
