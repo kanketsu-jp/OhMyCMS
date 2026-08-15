@@ -135,7 +135,15 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
             <form action={upload.run} className="grid gap-3">
               {/* 🚨 `flat` … ダイアログ（`DialogContent` は `bg-popover` を持つ＝**面**）の中なので、
                   選んだ後の Attachment が器を持つと2段目になる。
-                  実測: 渡す前は pc で **深さ2**（Storybook の Pages/FilePicker で測定）。 */}
+                  実測: 渡す前は pc で **深さ2**（当時は Storybook の Pages/FilePicker で測定）。
+                  🚨 **2026-08-15 に実アプリ（:3102）で測り直した。**
+                  `audit-surface-depth.mjs --paths /admin/content/zz_probe_dialog/new
+                   --click '[data-file-picker-trigger]'` で**ダイアログを開いた状態**にして、
+                  面の入れ子・scroll-fade とも**違反なし**を確認している。
+                  🚨 Storybook は**書体が当たっておらず（Times に落ちる）**、
+                  **行送り・折り返し・書体の字幅に依存する高さ**は測れない（2026-08-15・design の実測）。
+                  面の深さは罫線・背景・影で決まるので**書体には依存しない**が、
+                  **測った場所が違う**ので、根拠を実アプリ側へ差し替えた。 */}
               <FileDropzone name="file" flat label={t("select_file_title")} />
               <Button type="submit" className="w-full md:w-fit" disabled={upload.pending}>
                 <Upload />
