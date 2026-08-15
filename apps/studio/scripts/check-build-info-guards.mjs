@@ -198,7 +198,11 @@ console.log(`採取: HEAD ${head} / ${new Date().toISOString()}`);
 
 console.log(
   `対象: .dockerignore ${dockerignore.bytes} バイト（コメントでない行 ${行.filter((l) => l && !l.startsWith("#")).length}）`
-  + ` / docker/Dockerfile ${dockerfile.bytes} バイト（コメントでない行 ${実コード.split("\n").filter((l) => l.trim()).length}）`,
+  + ` / docker/Dockerfile ${dockerfile.bytes} バイト（コメントでない行 ${実コード.split("\n").filter((l) => l.trim()).length}）`
+  // 🚨 **読んでいるのに出していなかった**（2026-08-16）。読む人は「見ていない」と読む。
+  //    ここに出るのは**候補**でも**当たりの数**でもなく、**実際に読めたバイト数**
+  //    （`read()` は 0 バイト・読めないときに exit 2 で落ちる）。
+  + ` / .github/workflows/ci.yml ${ci.bytes} バイト（コメントでない行 ${CI実コード.split("\n").filter((l) => l.trim()).length}）`,
 );
 
 const checks = [

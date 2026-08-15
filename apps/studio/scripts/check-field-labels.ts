@@ -21,6 +21,7 @@
 import { readFileSync } from "node:fs";
 import { fieldLabel, parseFieldTranslations } from "../lib/schema/labels";
 let ok=0, ng=0;
+const 読んだ = { labels: 0, service: 0 };
 const t=(名:string, 実:unknown, 期待:unknown)=>{ const p=JSON.stringify(実)===JSON.stringify(期待);
   console.log(`  ${p?"✅":"🚨"} ${名}  実際=${JSON.stringify(実)} 期待=${JSON.stringify(期待)}`); p?ok++:ng++; };
 const f=(tr:unknown)=>({ field:"body_rich", meta:{ translations: tr } } as never);
@@ -59,6 +60,8 @@ t("🚨 大文字の鍵でも引ける（読む側も小文字に寄せる）", 
 // → **呼ぶ側の存在を、ここで見る**（中身の正しさではなく、**経路に居ること**）。
 {
   const service = readFileSync(new URL("../lib/schema/service.ts", import.meta.url), "utf8");
+  読んだ.service = service.length;
+  読んだ.labels = readFileSync(new URL("../lib/schema/labels.ts", import.meta.url), "utf8").length;
   // 🚨 コメントを落としてから見る（「コメントに書いただけ」を実装として数えない）
   const 実 = service.split("\n").map((l) => l.split("//")[0]).join("\n");
   // 🚨 **ファイル全体で探さない**（2026-08-16 実測）。`assertFieldMetaShape` の中に
@@ -119,5 +122,11 @@ t("🚨 大文字の鍵でも引ける（読む側も小文字に寄せる）", 
   if (対照 !== undefined) { console.error("  ✗ 対照が落ちました。見逃しの一覧は信用できません"); ng += 1; }
 }
 
-console.log(`判定: OK ${ok} / NG ${ng}`);
+// 🚨 **数に正しい名前を付ける**（2026-08-16）。`OK/NG` は**走った assert の回数**であって、
+//    「何を読んだか」ではない。読んだ量も出す（0 なら**読めていない**とその場で分かる）。
+console.log(
+  `読んだ: labels.ts ${読んだ.labels} 文字 / service.ts ${読んだ.service} 文字`
+  + `（🚨 どちらかが 0 なら、この検査は何も見ていません）`,
+);
+console.log(`判定: OK ${ok} / NG ${ng}（＝走った assert の回数。候補でも当たりの数でもない）`);
 process.exit(ng>0?1:0);
