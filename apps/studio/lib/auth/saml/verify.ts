@@ -20,7 +20,7 @@ import { ApiError } from "@/lib/schema/errors";
 import { createSamlClient, purgeExpiredSamlRecords, type SamlEndpoints } from "./client";
 import { ATTRIBUTE_DEFAULTS, isSamlUsable, type SamlConfig } from "./config";
 import { samlPlaceholderEmail } from "./placeholder-email";
-import { asJsonObject } from "./json-object";
+import { asJsonObject } from "../json-object";
 
 export type SamlIdentity = {
   /** IdP がこの人を指す識別子。🚨 **メールとは限らない**。 */
