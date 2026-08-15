@@ -55,6 +55,18 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-i18n-hardcoded.mjs && node scripts/check-i18n-keys.mjs && node scripts/check-i18n-usage.mjs && node scripts/check-i18n-placeholders.mjs
 
+    # 🚨 画面が **API の生文言をそのまま表示していないか**。**名前でなく振る舞い**で見る。
+    # 由来: 「apiMessage() の呼び出しが 0 件だから生文言は出ない」と決定に書いたが誤りだった。
+    #   同じ振る舞いが messageFrom() という**別名で 12 ファイル**に在った（storage が発見）。
+    #   その文言は lib/ の日本語リテラルなので、**英語で見ている人の画面に日本語が出る**
+    #   （saml が偽の 404 を返して画面で実証）。**識別子 1 つを見る検査では逃げられる。**
+    # 🚨 これは「減らす検査」ではなく「**増やさない**検査」。既存 12 ファイルを赤にすると
+    #   全員が門を回避し始めるので、**2026-08-16 の実測を基準線**にして増加だけ落とす。
+    #   直すたびにスクリプト内の BASELINE から削る（減ったら緑のまま「削れ」と言う）。
+    raw-api-message:
+      root: "apps/studio"
+      run: node scripts/check-raw-api-message.mjs
+
     # 内部専用の固定ユーザー（local-admin@localhost）が画面のラベルへ届かないこと。
     # 一度実際に左サイドバーへ出た（2026-08-15）。**直しただけだと必ず戻る**ので検査で留める。
     # 🚨 この検査は走るたびに「自分が検出できること」を2通りの壊し方で証明してから判定を出す
