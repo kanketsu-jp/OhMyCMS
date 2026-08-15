@@ -67,6 +67,12 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   INVALID_INTERFACE: "invalid_interface",
   INVALID_SCHEMA: "invalid_body",
   INVALID_FILTER: "invalid_body",
+  // conflict は同名重複の 409 用: COLLECTION_EXISTS / FIELD_EXISTS / RELATION_EXISTS / LABEL_EXISTS。
+  // FOLDER_NOT_EMPTY は「配下があるため削除できない」で同名重複ではないため、意図的に含めない。
+  COLLECTION_EXISTS: "conflict",
+  FIELD_EXISTS: "conflict",
+  RELATION_EXISTS: "conflict",
+  LABEL_EXISTS: "conflict",
   COLLECTION_NOT_FOUND: "not_found",
   FIELD_NOT_FOUND: "not_found",
   ITEM_NOT_FOUND: "not_found",
