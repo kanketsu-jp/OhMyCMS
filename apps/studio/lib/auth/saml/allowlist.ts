@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db/knex";
+import { ApiError, rethrowAsConflict } from "@/lib/schema/errors";
+import { parseListRange, type ListRangeInput } from "@/lib/list-range";
 
 /**
  * SAML(SSO) の許可リスト照合。
@@ -18,6 +21,76 @@ export async function isAllowedEmail(email: string | null): Promise<boolean> {
   const row = await db("ohmycms_saml_allowed_emails").select("id").where({ email: normalized }).first();
 
   return row !== undefined;
+}
+
+export type AllowedEmailRow = {
+  id: string;
+  email: string;
+  created_at: string;
+};
+
+/**
+ * 許可リストの一覧を返す。
+ *
+ * 🚨 並び順は `created_at` の昇順（足した順）。管理者が「さっき足した行」を
+ * 一番下から探せるようにするため（新しい順にすると毎回並びが変わって探しにくい）。
+ */
+export async function listAllowedEmails(range: ListRangeInput = {}): Promise<AllowedEmailRow[]> {
+  const { limit, offset } = parseListRange(range);
+  return db<AllowedEmailRow>("ohmycms_saml_allowed_emails")
+    .select("id", "email", "created_at")
+    .orderBy("created_at", "asc")
+    .limit(limit)
+    .offset(offset);
+}
+
+/**
+ * 許可リストへ1件足す。
+ *
+ * 🚨 メールの正規表現は書かない。IdP が返す値が正であり、形で弾きすぎると
+ * 実在するアドレスまで拒否してしまう（`AGENTS.md` の考え方と同じ）。
+ * ここでは「文字列であること」「`@` を含むこと」だけを見る。
+ */
+export async function addAllowedEmail(body: Record<string, unknown>): Promise<AllowedEmailRow> {
+  const raw = body.email;
+  if (typeof raw !== "string") {
+    throw new ApiError(400, "INVALID_EMAIL", "email は文字列で指定してください");
+  }
+
+  // 🚨 表の値は必ず小文字（isAllowedEmail は小文字化してから引くため、
+  // 大文字混じりで保存すると永久に一致しない）。
+  const email = raw.trim().toLowerCase();
+  if (!email.includes("@")) {
+    throw new ApiError(400, "INVALID_EMAIL", "email の形式が正しくありません");
+  }
+
+  const existing = await db("ohmycms_saml_allowed_emails").select("id").where({ email }).first();
+  if (existing) {
+    // 🚨 黙って成功にしない。管理者が「足したつもり」で重複に気づけなくなる。
+    throw new ApiError(409, "EMAIL_ALREADY_ALLOWED", "このメールアドレスはもう許可リストにあります");
+  }
+
+  try {
+    // 🚨 id に既定値が無い列（uuid 主キー）なので、ここで生成して渡す
+    // (`lib/auth/sessions.ts` / `app/api/auth/dev-login/route.ts` と同じ形)。
+    const [row] = await db<AllowedEmailRow>("ohmycms_saml_allowed_emails")
+      .insert({ id: randomUUID(), email })
+      .returning("*");
+    return row;
+  } catch (error) {
+    // 事前チェック(↑)は分かりやすいエラーのため、こちらは同時挿入の競合窓を塞ぐため。
+    // 役割が違うので両方要る(unique_violation を 409 に翻訳)。
+    rethrowAsConflict(error);
+    throw error;
+  }
+}
+
+/** 許可リストから1件消す。存在しなければ 404。 */
+export async function deleteAllowedEmail(id: string): Promise<void> {
+  const deleted = await db("ohmycms_saml_allowed_emails").where({ id }).delete();
+  if (!deleted) {
+    throw new ApiError(404, "ALLOWED_EMAIL_NOT_FOUND", "許可リストの行が見つかりません");
+  }
 }
 
 /**
