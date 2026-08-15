@@ -49,10 +49,19 @@ type LabelRow = {
  *    外へ出る経路は `listLabels` / `readLabelsForTarget` / `createLabel` / `updateLabel` の
  *    4つで、**すべて `toPublic` を通る**（2026-08-15 に return を全部並べて確認）。
  *    🚨 クエリは `select("ohmycms_labels.*")` なので **row には system_key が入っている**。
- *    落としているのは型ではなく `toPublic` の**組み立て**。新しい出口を足すときは必ず通すこと。
+ *    落としているのは型ではなく `toPublic` の**組み立て**。
  *    ただし `is_system` は返す（**消せないことを画面で示す必要がある**ため）。
+ *
+ * 🚨 **印（brand）を付けて、`toPublic` を通らないと作れないようにしてある。**
+ *    印が無いと、新しい出口が `Promise<PublicLabel>` と書いて生の行をそのまま返しても
+ *    **型が通る**（変数の代入では余分な項目が許されるため。2026-08-15 に実測して確認した——
+ *    印を外すと tsc は 0 で通り、付けると `LabelRow is not assignable` で落ちる）。
+ *    symbol のキーは JSON に出ないので、応答の中身は変わらない。
  */
+declare const publicLabelBrand: unique symbol;
+
 export type PublicLabel = {
+  readonly [publicLabelBrand]: true;
   id: string;
   name: string;
   color: string | null;
@@ -73,8 +82,14 @@ export type TargetAuthorization = {
   readonly [targetAuthorizationBrand]: typeof targetAuthorizationBrand;
 };
 
+/** 🚨 **`system_key` を落とす唯一の場所。ここが守り手そのもの。** `as` はここだけ。 */
 function toPublic(row: LabelRow): PublicLabel {
-  return { id: row.id, name: row.name, color: row.color, is_system: row.is_system };
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    is_system: row.is_system,
+  } as PublicLabel;
 }
 
 async function assertPermission(actor: Actor, action: PermissionAction): Promise<void> {

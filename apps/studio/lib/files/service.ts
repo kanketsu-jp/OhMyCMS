@@ -213,13 +213,36 @@ type FileRow = {
  *    🚨 API ルートが `directus_files` を直接読むとこの守りを迂回できる。
  *    2026-08-15 時点で `app/` `components/` に直接読む経路は無い（ヒットはコメント 2 件のみ）。
  */
-export type PublicFileRow = Omit<FileRow, "compressed_key">;
+/**
+ * 🚨 **印（brand）。`toPublicFile` を通らないと `PublicFileRow` を作れなくするためだけに在る。**
+ *
+ * これが無いと `Omit` は**宣言でしかない**——新しい出口を足す人が
+ * `Promise<PublicFileRow>` と書いて生の行をそのまま返しても、**構造が合うので型が通る**
+ * （`FileRow` は `PublicFileRow` の全項目を持っているため）。
+ * 印を付けると**素の行では型が合わなくなる**ので、`toPublicFile` を通すか、
+ * `as PublicFileRow` と**自分の手で書く**しかない。後者は `git grep` で見つかる。
+ *
+ * 🚨 **symbol のキーは JSON に出ない**（`JSON.stringify` / `Object.keys` / `Response.json` の
+ * どれも symbol キーを無視する。2026-08-15 に実測。文字列キーの `__brand` にすると漏れる）。
+ * だから応答の中身は 1 バイトも変わらない。
+ */
+declare const publicFileBrand: unique symbol;
 
+export type PublicFileRow = Omit<FileRow, "compressed_key"> & {
+  readonly [publicFileBrand]: true;
+};
+
+/**
+ * 🚨 **`compressed_key` を落とす唯一の場所。ここが守り手そのもの。**
+ * この関数の中の `as` は**意図した1箇所**で、外に増やさないこと。
+ */
 function toPublicFile(row: FileRow): PublicFileRow {
   // compressed_key だけを落とす（他の列は今までどおり返す）。
-  const publicFields: PublicFileRow & { compressed_key?: string | null } = { ...row };
+  const publicFields: Omit<FileRow, "compressed_key"> & { compressed_key?: string | null } = {
+    ...row,
+  };
   delete publicFields.compressed_key;
-  return publicFields;
+  return publicFields as PublicFileRow;
 }
 
 type FolderRow = {
