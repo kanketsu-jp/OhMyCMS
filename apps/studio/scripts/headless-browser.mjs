@@ -22,6 +22,7 @@
  * import { open } from "./headless-browser.mjs";
  * const page = await open();
  * await page.goto("http://localhost:3102/login");
+ * console.log(await page.where()); // 🚨 測定の1行目でこれを出す（落とし穴5）
  * await page.setCookie("ohmycms_locale", "ja", "http://localhost:3102");
  * await page.goto("http://localhost:3102/admin/collections");
  * console.log(await page.eval(`document.querySelectorAll("header").length`));
@@ -78,6 +79,30 @@
  *   **描画されていない文言も HTML に必ず 1 回は出る**。行き先を数えるなら `href` を数える。
  * - **対照を必ず並べる。** 「0 件」は単独では「異常が無い」と「見ていない」を区別できない。
  *   必ず 1 になるもの／必ず 0 になるものを一緒に出す。
+ *
+ * 5. 🚨 **「サーバが落ちている」と「要素が無い」は、同じ「0 件」の顔で出る。**
+ *    2026-08-15 実測: この駆動器には `status`/`responseCode`/`Network.responseReceived` を
+ *    拾う仕組みが**0 件**だった。`eval()` で要素を数えて 0 が返ったとき、それが
+ *    「本当に無い」のか「500/接続不可でページ自体が描画されていない」のかを**区別できなかった**。
+ *    → `Page.navigate` の主ドキュメントの HTTP ステータスを `goto()` 実行後に
+ *    `page.lastStatus`（`page.status()` でも取れる）に入れるようにした。
+ *    `goto()` 自体の戻り値・呼び出し方は変えていない（**既存コード 0 件がこの戻り値を
+ *    使っていることを grep で確認済み**。変えても壊れないが、念のため互換を保った）。
+ *    - 200/404 のような **HTTP レスポンスが来た**場合は数値。
+ *    - **接続不可**（`net::ERR_CONNECTION_REFUSED` 等、TCP接続自体に失敗）の場合は
+ *      `"ERR:net::ERR_CONNECTION_REFUSED"` のような**文字列**（`ERR:` 接頭辞）。
+ *      数値と文字列で型が違うので `typeof === "number"` で機械判定もできる。
+ *    - 🚨 **`where()` は async。`await` を忘れると `[object Promise]` が出る。**
+ *      実測で踏んだ（2026-08-15）。ここは**測定の1行目**なので、忘れると
+ *      「いまどこに居るか」が毎回 `[object Promise]` になり、**何も分からないまま
+ *      後続の 0 件を読むことになる**。`status()` は同期なので、`await` を疑うときは
+ *      `page.status()` と並べて出すと切り分けやすい。
+ *      （live な値を返したいので同期にはしていない。`lang` を goto 時に固めると、
+ *        クライアント側で言語が切り替わる画面で嘘になる）
+ *    - 使い方: 測定スクリプトの**1行目**で `console.log(await page.where())` を呼ぶ。
+ *      `url=... lang=ja status=200` のように、URL・言語・直前の HTTP コードを1文字列で出す。
+ *      500 や接続不可なら `status` が非200/非404の値で分かるので、後続の「要素が0件」を
+ *      「壊れているから0」と「本当に無いから0」に区別できる。
  */
 
 const PORT = 9333;
@@ -89,6 +114,13 @@ class Session {
     this.targetId = targetId;
     this.id = 0;
     this.pending = new Map();
+    // 落とし穴5: 主ドキュメントの HTTP ステータス。goto() が毎回更新する。
+    // 未実行時は null（「まだ measure していない」を「200 だった」と混同しないため）。
+    this.lastStatus = null;
+    this.lastUrl = null;
+    // open() の Page.getFrameTree で埋める。トップフレームの識別に使う
+    // （Network.responseReceived が iframe/XHR の応答まで拾わないための絞り込み）。
+    this.frameId = null;
     ws.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
       const resolve = this.pending.get(msg.id);
@@ -105,12 +137,34 @@ class Session {
     return new Promise((resolve) => this.pending.set(id, resolve));
   }
 
-  /** 読み込みを待ってから返る（落とし穴3）。 */
+  /**
+   * 読み込みを待ってから返る（落とし穴3）。
+   * 🚨 落とし穴5: 主ドキュメントの HTTP ステータスを `this.lastStatus` へ入れる
+   * （`goto()` 自体の戻り値・呼び出し方は互換のため変えていない。ファイル冒頭の解説を参照）。
+   * 数値なら実際に HTTP レスポンスが来たとき、`"ERR:..."` 文字列なら
+   * 接続不可（TCP接続自体に失敗）や原因不明のタイムアウトのとき。
+   */
   async goto(url, settleMs = 700, timeoutMs = 20000) {
+    this.lastUrl = url;
+    this.lastStatus = null;
     const loaded = new Promise((resolve) => {
       const onMessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg.method === "Page.loadEventFired") {
+        if (msg.method === "Network.responseReceived") {
+          // 主フレームの「文書」レスポンスだけ拾う（XHR/フォント等の type は無視）。
+          // リダイレクトで複数回来ることがあるが、最後に来たものが最終ステータスになる。
+          const p = msg.params;
+          if (p.type === "Document" && p.frameId === this.frameId) {
+            this.lastStatus = p.response.status;
+          }
+        } else if (msg.method === "Network.loadingFailed") {
+          // 接続不可（DNS失敗・ERR_CONNECTION_REFUSED 等）は HTTP レスポンスが来ないので
+          // ここでしか検知できない。「要素が無い」と区別するため文字列で明示する。
+          const p = msg.params;
+          if (p.type === "Document" && p.frameId === this.frameId) {
+            this.lastStatus = `ERR:${p.errorText}`;
+          }
+        } else if (msg.method === "Page.loadEventFired") {
           this.ws.removeEventListener("message", onMessage);
           resolve(true);
         }
@@ -121,10 +175,46 @@ class Session {
         resolve(false);
       }, timeoutMs);
     });
-    await this.send("Page.navigate", { url });
+    const navResult = await this.send("Page.navigate", { url });
+    // URL自体が不正等、ナビゲーション開始前に同期的に失敗した場合はここで判明する。
+    if (navResult?.result?.errorText && this.lastStatus === null) {
+      this.lastStatus = `ERR:${navResult.result.errorText}`;
+    }
     await loaded;
+    if (this.lastStatus === null) {
+      // Network.responseReceived も loadingFailed も来ないまま loadEventFired/timeout に
+      // 達した場合。通常は起きないはずだが、null のまま返すと「未計測」と区別が付かないため
+      // 明示的な値にしておく。
+      this.lastStatus = "ERR:unknown_no_response";
+    }
     // 水和（React が動き出す）ぶんだけ待つ
     await new Promise((r) => setTimeout(r, settleMs));
+  }
+
+  /** `goto()` の戻り値を変えずに直前の HTTP ステータスを取り出す（落とし穴5）。 */
+  status() {
+    return this.lastStatus;
+  }
+
+  /**
+   * 🚨 落とし穴5: 「いまの URL / lang / 直前の HTTP コード」を1文字列で返す。
+   * 測定スクリプトの**1行目**でこれを出すと、「サーバが落ちている」と「要素が無い」を
+   * 見分けられる（前者は status が非200/404、あるいは "ERR:..." になる）。
+   */
+  async where() {
+    let url = this.lastUrl ?? "?";
+    let lang = "?";
+    try {
+      url = await this.eval(`location.href`);
+    } catch {
+      // 接続不可のページでは評価自体が失敗しうる。goto() に渡した URL にフォールバック。
+    }
+    try {
+      lang = await this.eval(`document.documentElement.lang || "?"`);
+    } catch {
+      // 同上。lang は "?" のまま返す。
+    }
+    return `url=${url} lang=${lang} status=${this.lastStatus ?? "?"}`;
   }
 
   /** Cookie は `document.cookie` でなくここから入れる（落とし穴1）。 */
@@ -186,5 +276,10 @@ export async function open() {
   await session.send("Runtime.enable");
   await session.send("Page.enable");
   await session.send("Network.enable");
+  // 落とし穴5: goto() が Network.responseReceived を主フレームのものだけに絞るための
+  // frameId をここで確定させる（Page.navigate のたびに問い合わせない。取得失敗時は
+  // target.id にフォールバックし、常に何かしらの frameId で絞り込めるようにする）。
+  const frameTree = await session.send("Page.getFrameTree");
+  session.frameId = frameTree?.result?.frameTree?.frame?.id ?? target.id;
   return session;
 }
