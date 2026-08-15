@@ -92,13 +92,21 @@
  *    - **接続不可**（`net::ERR_CONNECTION_REFUSED` 等、TCP接続自体に失敗）の場合は
  *      `"ERR:net::ERR_CONNECTION_REFUSED"` のような**文字列**（`ERR:` 接頭辞）。
  *      数値と文字列で型が違うので `typeof === "number"` で機械判定もできる。
- *    - 🚨 **`where()` は async。`await` を忘れると `[object Promise]` が出る。**
- *      実測で踏んだ（2026-08-15）。ここは**測定の1行目**なので、忘れると
+ *    - 🚨 **`where()` は async。いまは `await` を忘れると例外で落ちる**（下記）。
+ *      足した直後は `[object Promise]` が**静かに出るだけ**だった。実測で踏んだ（2026-08-15）。
+ *      ここは**測定の1行目**なので、忘れると
  *      「いまどこに居るか」が毎回 `[object Promise]` になり、**何も分からないまま
- *      後続の 0 件を読むことになる**。`status()` は同期なので、`await` を疑うときは
- *      `page.status()` と並べて出すと切り分けやすい。
- *      （live な値を返したいので同期にはしていない。`lang` を goto 時に固めると、
- *        クライアント側で言語が切り替わる画面で嘘になる）
+ *      後続の 0 件を読むことになる**。司令塔指摘（2026-08-15）「`await` 忘れを形で塞げないか」
+ *      を受け、**今は `await` せずに文字列化しようとすると例外で落ちる**ようにしてある
+ *      （`where()` が返す Promise の `Symbol.toPrimitive` / `toString` だけを、そのインスタンス
+ *      限定で throw に差し替えている。`await` / `.then()` は Promise の内部スロットで動くので
+ *      影響を受けない）。`status()` は同期なので、`await` を疑うときは `page.status()` と
+ *      並べて出すと切り分けやすい。
+ *      （**同期関数にはしていない**。`lang` は毎回 `document.documentElement.lang` を
+ *      評価して取っている＝live な値。`goto()` の時点で固定すると、クライアント側で
+ *      言語が切り替わる画面（Cookie 変更やルーティングでの再描画）を測るときに
+ *      古い値のまま嘘をつく。だから同期化はせず、Promise の**中身**でなく
+ *      **await せず文字列化しようとする経路**だけを塞いだ）
  *    - 使い方: 測定スクリプトの**1行目**で `console.log(await page.where())` を呼ぶ。
  *      `url=... lang=ja status=200` のように、URL・言語・直前の HTTP コードを1文字列で出す。
  *      500 や接続不可なら `status` が非200/非404の値で分かるので、後続の「要素が0件」を
@@ -107,6 +115,33 @@
 
 const PORT = 9333;
 const BASE = `http://127.0.0.1:${PORT}`;
+
+/**
+ * `await` せずに文字列化しようとしたら throw する Promise に変える（落とし穴5・`await` 忘れ対策）。
+ *
+ * テンプレートリテラル（`` `${p}` ``）・`String(p)`・`p + ""` は、いずれも ToPrimitive
+ * （hint "string" または既定）を経由し、**まず `Symbol.toPrimitive` を探す**。それが無いときだけ
+ * `toString` → `valueOf` の順に落ちる。ここでは両方を、渡された Promise **インスタンスだけ**に
+ * `Object.defineProperty` で差し替える（`Promise.prototype` は一切触らない。他の Promise・
+ * 他の `await` 済みの値には影響しない）。
+ *
+ * `await p` / `p.then(...)` は文字列化を経由しない（エンジンが内部の [[PromiseState]] を直接見る）
+ * ので、この差し替えの影響を受けずに今までどおり動く。
+ */
+function guardAsyncStringCoercion(promise, callLabel) {
+  const throwNotAwaited = () => {
+    throw new Error(`${callLabel} は async です。await ${callLabel} と書いてください。`);
+  };
+  Object.defineProperty(promise, Symbol.toPrimitive, {
+    value: throwNotAwaited,
+    configurable: true,
+  });
+  Object.defineProperty(promise, "toString", {
+    value: throwNotAwaited,
+    configurable: true,
+  });
+  return promise;
+}
 
 class Session {
   constructor(ws, targetId) {
@@ -200,8 +235,17 @@ class Session {
    * 🚨 落とし穴5: 「いまの URL / lang / 直前の HTTP コード」を1文字列で返す。
    * 測定スクリプトの**1行目**でこれを出すと、「サーバが落ちている」と「要素が無い」を
    * 見分けられる（前者は status が非200/404、あるいは "ERR:..." になる）。
+   *
+   * 🚨 **`await` 忘れは形で塞んである。** `where()` 自体は今までどおり Promise を返す
+   * （同期化はしていない — 理由はファイル冒頭の落とし穴5を参照）。ただしその Promise を
+   * `await` せずに文字列化しようとする（`` `${page.where()}` `` 等）と例外で落ちる。
+   * `await page.where()` / `page.where().then(...)` は普通に動く。
    */
-  async where() {
+  where() {
+    return guardAsyncStringCoercion(this.#whereImpl(), "page.where()");
+  }
+
+  async #whereImpl() {
     let url = this.lastUrl ?? "?";
     let lang = "?";
     try {
