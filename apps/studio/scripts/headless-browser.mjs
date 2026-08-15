@@ -26,6 +26,7 @@
  * await page.setCookie("ohmycms_locale", "ja", "http://localhost:3102");
  * await page.goto("http://localhost:3102/admin/collections");
  * console.log(await page.eval(`document.querySelectorAll("header").length`));
+ * await page.closeTab(); // 検証スクリプトの最後は必ずこれ（落とし穴2・6）
  * process.exit(0);
  * ```
  *
@@ -40,9 +41,15 @@
  *    `SecurityError: Access is denied for this document` で落ちる（共有の :3102 が
  *    重いときに必ず起きる）。**CDP の `Network.setCookie` なら遷移前でも入る。**
  *
- * 2. **`page.close()` を呼ぶと headless Chrome ごと終わる。**
- *    最後のタブを閉じるとブラウザが終了し、次のスクリプトが `ECONNREFUSED` で死ぬ。
- *    → 検証スクリプトの最後は `process.exit(0)`。タブは閉じない。
+ * 2. **`closeTab()` は検証スクリプトの最後で毎回呼ぶ（2026-08-15 以前は逆の注意書きだった）。**
+ *    以前はここに「`closeTab()` は呼ばない。最後のタブを閉じるとブラウザごと終わる」と
+ *    書いていたが、実際の検証スクリプト群（例: `probe-nav.mjs`）はとっくに
+ *    `closeTab()` を呼んでから `process.exit(0)` する形が定着していた。**Chrome を複数ペインで
+ *    共有し、常に他のタブが開いている実運用では、1個閉じてもブラウザは終了しない。**
+ *    それでも「本当に最後の1枚だった」場合にブラウザごと終了するリスク自体はゼロではないので、
+ *    それが心配なら閉じずに `process.exit(0)` だけでもよい——**落とし穴6の後始末が両方の書き方を
+ *    カバーする**（`closeTab()` を呼んでいれば冪等にスキップ、呼んでいなければ `process.exit()`
+ *    の差し替えが代わりに閉じる）。
  *    🚨 逆に `process.exit()` を書き忘れると、WebSocket が開いたままで
  *    **node が終了しない**（ハングに見える）。
  *
@@ -111,10 +118,119 @@
  *      `url=... lang=ja status=200` のように、URL・言語・直前の HTTP コードを1文字列で出す。
  *      500 や接続不可なら `status` が非200/非404の値で分かるので、後続の「要素が0件」を
  *      「壊れているから0」と「本当に無いから0」に区別できる。
+ *
+ * 6. 🚨 **スクリプトが途中で落ちる／殺されると、タブが Chrome に残り続ける（2026-08-15 実測）。**
+ *    朝は75タブでChromeが固まり CDP に繋がらなくなった。**1回のプローブが1個ずつ漏らす**ため、
+ *    溜まると **この駆動器を使う全ペインのブラウザ測定が同時に止まる**（対照: `/json/version` は
+ *    200 のまま＝Chrome自体は生きているのにCDPで新規タブが作れなくなる、という壊れ方をする）。
+ *
+ *    対処前の実測（この修正の直前・同一Chromeインスタンス）:
+ *    ```
+ *    例外で落ちる    (closeTab() に到達しない) : タブ 40 → 41 (+1 漏れ)
+ *    SIGTERM で殺す  (無限に待つスクリプトをkill) : タブ 41 → 42 (+1 漏れ)
+ *    ```
+ *    → **`open()` した Session をプロセス単位のレジストリで追跡**し、次のいずれでプロセスが
+ *    終わるときも、**まだ閉じていない自分のタブだけ**を `/json/close/<targetId>` で閉じてから
+ *    実際に終了する: `SIGTERM` / `SIGINT` / `uncaughtException` / `unhandledRejection` /
+ *    そして **`process.exit()` そのもの**（`closeTab()` を呼ばずに `process.exit(0)` で終わる
+ *    既存の書き方も塞ぐため。`process.exit` を「後始末してから元の exit を呼ぶ」ものに
+ *    差し替えている。**同期関数にはできない**——CDPの `fetch` は非同期な往復が要るため、
+ *    元の `process.exit` を `Promise` の解決後に呼ぶ形にした。呼び出し側から見た挙動は
+ *    「`process.exit(0)` を書いた行より後には進まない」ので変わらない）。
+ *
+ *    **二重に閉じない**: `Session` に `closed` フラグを持たせ、`closeTab()` を明示的に
+ *    呼んだあと（＝もう閉じている）に上記のハンドラが発火しても、フラグを見て素通りする。
+ *    `closeTab()` 自体も冪等にした（2回呼んでもエラーにならない）。
+ *
+ *    **なぜ他のタブを閉じない**か: レジストリに積むのは `open()` が**そのプロセス内で**返した
+ *    `Session` インスタンスだけで、`targetId` はそのタブ固有の識別子。他ペイン・他プロセスが
+ *    開いたタブの `targetId` はこのレジストリに一切現れないので、閉じる対象になり得ない
+ *    （Chrome は複数プロセスから同じ `:9333` に相乗りする共有物であることの裏返し）。
+ *
+ *    対処後の実測（受入基準・全て「タブ数が増えない」を確認）は `docs/` ではなくこの作業の
+ *    報告に実測値として残してある（このファイル自体には最新の数値を書き続けない——実行の
+ *    たびに変わるため。**再現したいときは上の「対処前の実測」と同じ形で自分の手元で測り直す**）。
  */
 
 const PORT = 9333;
 const BASE = `http://127.0.0.1:${PORT}`;
+
+// 落とし穴6: このプロセスが `open()` したタブのレジストリ。プロセス終了時の後始末は
+// ここに載っている（＝このプロセスが開いた）タブだけを対象にする。
+const openSessions = new Set();
+
+/** 直接 `/json/close/<id>` を叩く（`closeTab()` と後始末ハンドラの共通処理）。 */
+async function closeTarget(targetId) {
+  await fetch(`${BASE}/json/close/${targetId}`).catch(() => {});
+}
+
+// 落とし穴6: まだ閉じていない自分のタブを全部閉じる。何度呼んでも安全
+// （進行中の Promise を使い回すので、SIGTERM ハンドラと process.exit 差し替えが
+// ほぼ同時に発火しても二重に fetch しない）。
+let cleanupInFlight = null;
+function cleanupOwnTabs() {
+  if (!cleanupInFlight) {
+    cleanupInFlight = (async () => {
+      const targets = [...openSessions];
+      for (const session of targets) {
+        if (session.closed) continue; // closeTab() 済み・二重に閉じない
+        session.closed = true;
+        openSessions.delete(session);
+        await closeTarget(session.targetId);
+      }
+    })();
+  }
+  return cleanupInFlight;
+}
+
+// 落とし穴6: プロセス終了経路をまとめて塞ぐ。`open()` が最初に呼ばれたときに一度だけ登録する
+// （複数回 `open()` してもハンドラが重複登録されないように、モジュール単位のフラグで守る）。
+let processCleanupRegistered = false;
+function ensureProcessCleanupRegistered() {
+  if (processCleanupRegistered) return;
+  processCleanupRegistered = true;
+
+  // `process.exit()` そのものを「後始末してから元の exit を呼ぶ」ものに差し替える。
+  // closeTab() を呼ばずに process.exit(0) だけで終わる既存の書き方もこれで塞がる。
+  // 同期関数のままにはできない（CDP の fetch が非同期な往復を要るため）。呼び出し側から見た
+  // 挙動は変わらない: process.exit(0) を書いた行より後には進まない。
+  const originalExit = process.exit.bind(process);
+  process.exit = (code) => {
+    cleanupOwnTabs().finally(() => originalExit(code));
+  };
+
+  // SIGTERM/SIGINT: 後始末してから、ハンドラを外して自分自身に同じシグナルを再送する
+  // （こうすると Node の既定の終了コード・終了経路をそのまま再現できる。exit code を
+  // 129/130/143 のように決め打ちで作らない）。
+  const onSigterm = () => {
+    cleanupOwnTabs().finally(() => {
+      process.removeListener("SIGTERM", onSigterm);
+      process.kill(process.pid, "SIGTERM");
+    });
+  };
+  const onSigint = () => {
+    cleanupOwnTabs().finally(() => {
+      process.removeListener("SIGINT", onSigint);
+      process.kill(process.pid, "SIGINT");
+    });
+  };
+  process.on("SIGTERM", onSigterm);
+  process.on("SIGINT", onSigint);
+
+  // 未捕捉の例外・rejection: 後始末してから、Node の既定挙動どおりスタックを出して exit(1)。
+  process.on("uncaughtException", (err) => {
+    cleanupOwnTabs().finally(() => {
+      console.error(err);
+      originalExit(1);
+    });
+  });
+  process.on("unhandledRejection", (reason) => {
+    cleanupOwnTabs().finally(() => {
+      console.error("Unhandled rejection:", reason);
+      originalExit(1);
+    });
+  });
+}
 
 /**
  * `await` せずに文字列化しようとしたら throw する Promise に変える（落とし穴5・`await` 忘れ対策）。
@@ -156,6 +272,9 @@ class Session {
     // open() の Page.getFrameTree で埋める。トップフレームの識別に使う
     // （Network.responseReceived が iframe/XHR の応答まで拾わないための絞り込み）。
     this.frameId = null;
+    // 落とし穴6: closeTab() 済み（または後始末ハンドラが既に閉じた）かどうか。
+    // 二重に /json/close を叩かないためのフラグ。
+    this.closed = false;
     ws.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
       const resolve = this.pending.get(msg.id);
@@ -300,15 +419,24 @@ class Session {
   }
 
   /**
-   * 🚨 **呼ばないこと**（落とし穴2）。最後のタブを閉じると headless Chrome ごと終わる。
-   * 残しておくのは、タブを複数開いたときに片付けられるようにするため。
+   * 検証スクリプトの最後で毎回呼ぶ（落とし穴2・6）。**冪等**（2回呼んでもエラーにならない・
+   * 2回目以降は何もしない）ので、後始末ハンドラ（落とし穴6）と競合しても二重に
+   * `/json/close` を叩かない。
+   *
+   * 🚨 Chrome を複数ペインで共有している通常運用では、これで他のタブが無くなることはない。
+   * ただし「本当に最後の1枚だった」場合はブラウザごと終了しうる（落とし穴2）。
    */
   async closeTab() {
-    await fetch(`${BASE}/json/close/${this.targetId}`).catch(() => {});
+    if (this.closed) return;
+    this.closed = true;
+    openSessions.delete(this);
+    await closeTarget(this.targetId);
   }
 }
 
 export async function open() {
+  // 落とし穴6: このプロセスで初めて open() されたときに、後始末ハンドラを一度だけ登録する。
+  ensureProcessCleanupRegistered();
   const res = await fetch(`${BASE}/json/new?about:blank`, { method: "PUT" });
   const target = await res.json();
   const ws = new WebSocket(target.webSocketDebuggerUrl);
@@ -317,6 +445,8 @@ export async function open() {
     ws.addEventListener("error", reject, { once: true });
   });
   const session = new Session(ws, target.id);
+  // 落とし穴6: プロセスが落ちる／殺されるとき、このタブを後始末の対象にする。
+  openSessions.add(session);
   await session.send("Runtime.enable");
   await session.send("Page.enable");
   await session.send("Network.enable");
