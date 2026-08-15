@@ -88,7 +88,18 @@ export async function upsertGoogleUser(identity: GoogleIdentity): Promise<Direct
   };
 }
 
-export async function issueSession(userId: string, request: Request): Promise<SessionIssueResult> {
+// そのセッションがどの経路で作られたか。SSO専用へ切り替えた時に何を切るかの判断材料になる。
+// setup（初期設定パスワード1つで入る経路）と password（利用者のパスワード）は別物として区別する。
+// onboarding（初期設定を終えた直後に発行される経路）も password/setup とは別に分ける。
+export type AuthMethod = "password" | "otp" | "google" | "saml" | "setup" | "onboarding" | "dev";
+
+// 🚨 第3引数(authMethod)は省略可にしない。省略可にすると渡し忘れた呼び出し元が黙って null を記録し、
+// 「どの経路で作られたか」を後から集計できなくなる。必須にすることで tsc が渡し忘れを検出する。
+export async function issueSession(
+  userId: string,
+  request: Request,
+  authMethod: AuthMethod,
+): Promise<SessionIssueResult> {
   const rawToken = randomToken(32);
   const expires = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000);
 
@@ -101,6 +112,7 @@ export async function issueSession(userId: string, request: Request): Promise<Se
     data: null,
     origin: new URL(request.url).origin,
     next_token: null,
+    auth_method: authMethod,
   });
 
   return {

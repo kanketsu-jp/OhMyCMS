@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       throw new ApiError(401, "AUTH_FAILED", "確認コードが正しくありません");
     }
 
-    const session = await issueSession(result.userId, request);
+    const session = await issueSession(result.userId, request, "otp");
     const response = ok({ data: { type: "human", userId: result.userId, role: null } });
     response.headers.append("Set-Cookie", sessionCookieHeader(session.rawToken, session.maxAge, isSecureRequest(request)));
     return response;

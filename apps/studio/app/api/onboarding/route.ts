@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     const body = await readJsonObject(request);
     const user = await completeOnboardingWithAdmin(body);
-    const session = await issueSession(user.userId, request);
+    const session = await issueSession(user.userId, request, "onboarding");
     const response = ok({
       data: { type: "human", userId: user.userId, role: null },
     });

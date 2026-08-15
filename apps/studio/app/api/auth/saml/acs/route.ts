@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const allowed = await isAllowedEmail(identity.email);
     await recordAllowlistCheck(user.id, allowed);
 
-    const session = await issueSession(user.id, request);
+    const session = await issueSession(user.id, request, "saml");
 
     const response = new Response(null, {
       status: 302,

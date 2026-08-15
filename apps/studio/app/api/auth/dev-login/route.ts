@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       await ensureDevAdminAccess(user.id);
     }
 
-    const session = await issueSession(user.id, request);
+    const session = await issueSession(user.id, request, "dev");
     const response = ok({ data: { type: "human", userId: user.id, email, role: null } });
     response.headers.append(
       "Set-Cookie",

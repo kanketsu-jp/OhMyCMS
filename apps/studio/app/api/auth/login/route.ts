@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const session = await issueSession(result.userId, request);
+    const session = await issueSession(result.userId, request, "password");
     const response = ok({
       data: {
         type: "human",

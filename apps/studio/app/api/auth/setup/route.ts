@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         // 想定外（フラグは立っているのにユーザーが居ない）。安全側に倒して失敗させる。
         throw new ApiError(401, "AUTH_FAILED", "パスワードが正しくありません");
       }
-      const session = await issueSession(userId, request);
+      const session = await issueSession(userId, request, "setup");
       const response = ok({ data: { type: "human", userId, role: null } });
       response.headers.append(
         "Set-Cookie",

@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     const idToken = await exchangeGoogleCode(config, code, codeVerifier);
     const identity = await verifyGoogleIdToken(idToken, config.clientId);
     const user = await upsertGoogleUser(identity);
-    const session = await issueSession(user.id, request);
+    const session = await issueSession(user.id, request, "google");
 
     const response = new Response(null, {
       status: 302,
