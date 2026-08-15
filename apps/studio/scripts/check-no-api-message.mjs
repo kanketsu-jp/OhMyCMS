@@ -36,7 +36,31 @@ const NEEDLE = "apiMessage";
  * だから **API の応答から取り出した文言を、そのまま返している形**を見る。
  * 正しい経路は `apiErrorKey()`——code を辞書の鍵へ写し、知らない code は `unexpected` へ倒す。
  */
-const SHAPE_PATTERN = /return\s+[a-zA-Z_$][\w$]*(?:\?)?\.error(?:\?)?\.message\b/;
+/**
+ * 🚨 **この形の検出は「いまの改行のしかた」に乗っていた**（2026-08-15・司令塔の「3段目」を自分に当てて発見）。
+ *
+ * 元は `/return\s+\w+\.error\.message/` を **1 行ずつ**当てていた。
+ * それで 9 本の写経が捕まったのは、**9 本とも偶然 1 行で書かれていたから**でしかない。実測:
+ * ```
+ *   ✅ 検出   return payload.error.message;            ← いまの 10 件
+ *   🚨 素通り  return payload\n    .error.message;      ← prettier の幅が変わるだけで消える
+ *   🚨 素通り  const { message } = payload.error;       ← 分割代入
+ *   🚨 素通り  const m = payload.error.message; return m;
+ *   🚨 素通り  return ok ? fallback : payload.error.message;
+ * ```
+ * 🚨 **6 通り試して 4 通りが素通り。** 守りが**整形の副作用**で成立していた。
+ * 「いま効いている」は「効き続ける」ではない——**prettier の設定が正しく変わった日に、黙って外れる。**
+ *
+ * ## 直した形: **`return` を条件にしない。ファイル全文に当てる**
+ * `.error.message` を**取り出していること自体**を見る（取り出した先で何をするかは問わない）。
+ * 分割代入は別パターンで見る。**取りこぼす側より過検出する側に倒す**
+ * （過検出＝人が 1 件見に行くだけ。取りこぼし＝気づけない）。
+ */
+const SHAPE_PATTERNS = [
+  { name: "生文言を取り出している", re: /[a-zA-Z_$][\w$]*(?:\?)?\s*\.\s*error(?:\?)?\s*\.\s*message\b/g },
+  // 分割代入: const { message } = payload.error / const { message: m } = res?.error
+  { name: "生文言を分割代入している", re: /\{[^{}\n]*\bmessage\b[^{}\n]*\}\s*=\s*[a-zA-Z_$][\w$]*(?:\?)?\s*\.\s*error\b/g },
+];
 
 /** 行がコメントなら true（`//` 始まり・JSDoc の `*` 始まり・`/*` 始まり）。 */
 function isComment(line) {
@@ -44,26 +68,43 @@ function isComment(line) {
   return t.startsWith("//") || t.startsWith("*") || t.startsWith("/*");
 }
 
-/** 対象ファイルを走査して、コメント以外で NEEDLE を含む行を返す。 */
+/**
+ * 対象ファイルを走査して違反を返す。
+ * 🚨 **全文に当てる**（行ごとではない）。行ごとだと、改行が入った瞬間に見えなくなる。
+ *    行番号は一致位置から数える。
+ */
 function scan(files) {
   const hits = [];
   for (const file of files) {
-    const lines = readFileSync(resolve(root, file), "utf8").split("\n");
+    const src = readFileSync(resolve(root, file), "utf8");
+    const lines = src.split("\n");
+    /** 文字位置 → 行番号（1 始まり）。 */
+    const lineAt = (index) => src.slice(0, index).split("\n").length;
+
+    // 規則①: 名前そのもの（apiMessage の復活）。こちらは 1 行で足りる。
     lines.forEach((line, i) => {
-      const byName = line.includes(NEEDLE);
-      const byShape = SHAPE_PATTERN.test(line);
-      if (!byName && !byShape) return;
-      if (isComment(line)) return;
-      // 🚨 **何の規則で赤くなったか**を持たせる（2026-08-15・司令塔）。
-      //    「赤くなった」と「狙ったものを捕まえた」は別。種別が無いと、
-      //    別の理由（自己検査の的が消えた等）で落ちたときに読み分けられない。
-      hits.push({
-        file,
-        line: i + 1,
-        rule: byName ? "画面側からの呼び出し" : "API の生文言をそのまま返している（別名の写経）",
-        text: line.trim().slice(0, 100),
-      });
+      if (!line.includes(NEEDLE) || isComment(line)) return;
+      hits.push({ file, line: i + 1, rule: "画面側からの呼び出し", text: line.trim().slice(0, 100) });
     });
+
+    // 規則②: 生文言の取り出し。**全文に当てる。**
+    for (const { re } of SHAPE_PATTERNS) {
+      re.lastIndex = 0;
+      let m;
+      while ((m = re.exec(src)) !== null) {
+        const line = lineAt(m.index);
+        // 🚨 一致が始まった行がコメントなら落とす（経緯の記述を違反にしない）。
+        if (isComment(lines[line - 1] ?? "")) continue;
+        // 同じ行を 2 つのパターンが拾ったら 1 件にまとめる（内訳の合計がずれる）。
+        if (hits.some((h) => h.file === file && h.line === line)) continue;
+        hits.push({
+          file,
+          line,
+          rule: "API の生文言をそのまま返している（別名の写経）",
+          text: (lines[line - 1] ?? "").trim().slice(0, 100),
+        });
+      }
+    }
   }
   return hits;
 }
@@ -93,12 +134,28 @@ console.log(`  ${falsePositives === 0 ? "✅" : "❌"} 囮2: コメントの言�
 if (falsePositives !== 0) selfTestFailed = true;
 
 // 🚨 囮3: 別名の写経。実際に 9 本生きていた形（2026-08-15）。
-const shapeDecoy = SHAPE_PATTERN.test("    return payload.error.message;");
-console.log(`  ${shapeDecoy ? "✅" : "❌"} 囮3: 別名で生文言を返す  → 検出 ${shapeDecoy ? 1 : 0} 件`);
-if (!shapeDecoy) selfTestFailed = true;
+/**
+ * 🚨 囮3 は **整形を変えた形も含めて**測る（2026-08-15）。
+ *    元は 1 行の形だけを試していたので、**守りが整形に乗っていること自体が見えなかった**。
+ *    ここに並べた 5 通りが、実際に 4 通り素通りしていた形。
+ */
+const shapeVariants = [
+  ["1 行（いまの 10 件）", "  return payload.error.message;"],
+  ["改行が入る", "  return payload\n    .error.message;"],
+  ["分割代入", "  const { message } = payload.error;\n  return message;"],
+  ["変数に入れてから返す", "  const m = payload.error.message;\n  return m;"],
+  ["三項の中", "  return ok ? fallback : payload.error.message;"],
+];
+const shapeMissed = shapeVariants.filter(
+  ([, src]) => !SHAPE_PATTERNS.some((p) => { p.re.lastIndex = 0; return p.re.test(src); }),
+);
+console.log(`  ${shapeMissed.length === 0 ? "✅" : "❌"} 囮3: 生文言を返す ${shapeVariants.length} 通り  → 素通り ${shapeMissed.length} 件${shapeMissed.length ? "（" + shapeMissed.map(([n]) => n).join(" / ") + "）" : ""}`);
+if (shapeMissed.length !== 0) selfTestFailed = true;
 
 // 誤検出しないこと（辞書経由・code を見る形）。
-const shapeNear = ["  return t(errorKey);", "  return payload.error.code;"].filter((l) => SHAPE_PATTERN.test(l)).length;
+// 🚨 過検出しないこと。**全文に当てる形にしたので、ここが前より効く**（範囲が広がった分だけ誤検出も増えうる）。
+const shapeNear = ["  return t(errorKey);", "  return payload.error.code;", "  const { code } = payload.error;"]
+  .filter((l) => SHAPE_PATTERNS.some((p) => { p.re.lastIndex = 0; return p.re.test(l); })).length;
 console.log(`  ${shapeNear === 0 ? "✅" : "❌"} 囮4: 辞書経由 / code を見る形  → 誤検出 ${shapeNear} 件`);
 if (shapeNear !== 0) selfTestFailed = true;
 
@@ -134,8 +191,12 @@ const RULES = [
 ];
 for (const rule of RULES) {
   const n = hits.filter((h) => h.rule === rule.name).length;
-  const tail = n === 0 ? `  ← まだ出番が来ていない 0（対象は見ている）${rule.note ? " / " + rule.note : ""}` : "";
-  console.log(`    ${String(n).padStart(3)} 件  ${rule.name}${tail}`);
+  // 🚨 **単位を書く**（2026-08-15）。「27 件」は行数で、直す箇所の数ではない。
+  //    実測: 27 行のうち 10 行は、別の 10 行と**同じ関数の別の行**（`typeof …` の番人行）。
+  //    ファイル数を併記しないと、受け取った人が「27 箇所直す」と読む。
+  const fileCount = new Set(hits.filter((h) => h.rule === rule.name).map((h) => h.file)).size;
+  const tail = n === 0 ? `  ← まだ出番が来ていない 0（対象は見ている）${rule.note ? " / " + rule.note : ""}` : `（${fileCount} ファイル）`;
+  console.log(`    ${String(n).padStart(3)} 行  ${rule.name}${tail}`);
 }
 /**
  * 🚨 内訳が実態と合わない形は **2 つあり、原因が違う**（2026-08-15・polish の実測を受けて分けた）。
