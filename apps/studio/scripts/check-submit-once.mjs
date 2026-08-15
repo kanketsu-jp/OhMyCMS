@@ -550,7 +550,19 @@ if (pendingExceeded) {
 const KNOWN_REASONS = new Set(Object.values(REASON));
 const unclassified = [...unguarded, ...guarded, ...pending].filter((h) => !KNOWN_REASONS.has(h.reason));
 
-console.log(`防御済み: ${guarded.length} 件 / 未防御: ${unguarded.length} 件 / 移行待ち: ${pending.length} 件`);
+// 🚨 単位を明示する（2026-08-16・司令塔の指示「その数に正しい名前が付いているか」）。
+// 以前は「防御済み: 41 件」とだけ出していた。**41 は検出**箇所**の数**で、
+// 同じ出力に並ぶ「判定が働いたのは 30 本」は**ファイル**の数。単位が違うものが並んでいた。
+// さらに MAX_PENDING（=2）は**ファイル**数、「移行待ち 4 件」は**箇所**数で、これも別単位。
+// 🚨 entry は { file, line, owner, kind, reason } の**オブジェクト**（496 行）。
+// 一度 String(e).split(":") と書いて "[object Object]" になり、**全部同じ文字列＝ 1 ファイル**と出た。
+// 30 ファイルで判定が働いているのに 1 は**ありえない**ので気づけた（数だけ見ていたら通していた）。
+const fileCountOf = (list) => new Set(list.map((e) => e.file)).size;
+console.log(
+  `防御済み: ${guarded.length} 箇所（${fileCountOf(guarded)} ファイル） / ` +
+    `未防御: ${unguarded.length} 箇所（${fileCountOf(unguarded)} ファイル） / ` +
+    `移行待ち: ${pending.length} 箇所（${PENDING.length} ファイル ＝ MAX_PENDING の単位）`,
+);
 
 // 🚨 このセクションは毎回 exit 0 のまま8件を出し続けていた（決める人も状態も無い）。
 // PENDING（移行待ち）リストで既に直した「未決のまま緑」と同じ問題——司令塔承認の上で
