@@ -5,6 +5,23 @@
  *
  * `labelsForTarget` / `setLabelsForTarget` が、対象行の rowFilter と
  * コレクション権限を本当に見ていることを測る。
+ *
+ * 注意:
+ * この検査には 0 件ガード（自己検査）はあるが、囮（decoy）が無い。
+ * 実測: 自己検査は 3 件（行フィルタが付いている / 被害者のファイルが実在する /
+ * フォルダ権限が無い）、囮は 0 件。比較: scripts/verify-labels.ts には囮がある。
+ *
+ * 囮と 0 件ガードは別のものを守る:
+ * 囮＝探し方（規則）が当たっているか / 0 件ガード＝そもそも読めているか。
+ * だから 0 件ガードがあるからといって、規則が当たっている保証にはならない。
+ *
+ * この検査は実行時の振る舞いを見るので、囮を仕込むには製品コードを一時的に
+ * 壊す必要があり、スクリプトの中には入れていない。
+ *
+ * したがって: lib/labels/service.ts の assertTargetVisible を変えたら、
+ * 手で RED を採り直すこと。
+ * やり方: labelsForTarget から assertTargetVisible の呼び出しを一時的に外す →
+ * この検査が #3 と #6 で FAIL・exit 1 になることを見る → 戻す。
  */
 import { randomUUID } from "node:crypto";
 import type { Actor } from "../lib/auth/context";
