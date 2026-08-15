@@ -75,13 +75,41 @@ function exportsOf(source) {
         if (depth === 0) break;
       }
     }
-    const brace = source.indexOf("{", i);
-    const between = source.slice(i + 1, brace);
-    const colon = between.indexOf(":");
+    // 🚨 **最初の `{` を本体の始まりだと決めつけない**（2026-08-16 実測で見つけた穴）。
+    //    以前は `source.indexOf("{", i)` で切っていたので、
+    //      `): Promise<{ row: FileRow }> {`
+    //    のように**返り値の型の中に `{` がある**と、そこで切れて `Promise<` になり、
+    //    🚨 **中に書かれた生の行の型を 1 件も拾えなかった**（囮で実測。🟢 対照 `Promise<FileRow>` は拾えた）。
+    //    見つけ方: **この穴は「拾った例」を出力に足した瞬間に見えた**
+    //    （`compressImage → Promise<` と表示された）。**数だけ出していた間は見えなかった。**
+    const after = source.slice(i + 1);
+    const colonHead = /^\s*:/.exec(after);
+    let returns = null;
+    if (colonHead) {
+      let angle = 0, brace = 0, paren = 0, bracket = 0, prev = ":";
+      let j = colonHead[0].length;
+      for (; j < after.length; j++) {
+        const ch = after[j];
+        if (ch === "<") angle++;
+        else if (ch === ">") angle = Math.max(0, angle - 1);
+        else if (ch === "(") paren++;
+        else if (ch === ")") paren--;
+        else if (ch === "[") bracket++;
+        else if (ch === "]") bracket--;
+        else if (ch === "}") brace--;
+        else if (ch === "{") {
+          // 本体の `{` は「型が閉じきった直後」に来る。型を開く `{` は `:` `|` `&` `<` `,` の後に来る。
+          if (angle === 0 && brace === 0 && paren === 0 && bracket === 0 && /[>\]) }\w]/.test(prev)) break;
+          brace++;
+        }
+        if (!/\s/.test(ch)) prev = ch;
+      }
+      returns = after.slice(colonHead[0].length, j).trim();
+    }
     out.push({
       name: m[1],
       line: source.slice(0, m.index).split("\n").length,
-      returns: colon === -1 ? null : between.slice(colon + 1).trim(),
+      returns,
     });
   }
   return out;
@@ -157,6 +185,12 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
   const cases = [
     ["③ Promise<FileRow> と名乗る", 'export async function zzSelfTest(id: string): Promise<FileRow> {\n  return null as never;\n}\n\n'],
     ["④ 返り値の型を書かない", 'export async function zzSelfTest2(id: string) {\n  return null as never;\n}\n\n'],
+    // 🚨 **⑤ は、この検査が 2026-08-16 まで見逃していた形**（実測で確認した穴）。
+    //    返り値の型の中に `{` があると、以前は**そこで型を切っていた**ので `Promise<` になり、
+    //    中の `FileRow` を 1 件も拾えなかった。**囮に残す**——直したことを忘れて戻さないため。
+    //    🚨 見つけたきっかけは「拾った例」を出力に足したこと（`compressImage → Promise<` が見えた）。
+    ["⑤ 🚨 返り値の型の中に { がある（Promise<{ row: FileRow }>）",
+      'export async function zzSelfTest4(id: string): Promise<{ row: FileRow }> {\n  return null as never;\n}\n\n'],
   ];
   let ok = true;
   for (const [label, probe] of cases) {
@@ -251,6 +285,14 @@ for (const t of TARGETS) {
   const a = assertionsIn(src, t.pub);
   const exportCount = exportsOf(src).length;
   console.log(`  ${t.file}  外向き ${exportCount} 本 / 違反 ${bad.length} 件`);
+  // 🚨 **数だけを出さない。拾った行の実物を添える**（司令塔・2026-08-16）。
+  //    由来: `error.message` の数え違い。**`?.` が入った書き方**を見落としたのに、
+  //    数（12 と 10）が偶然そろってしまい、3 回ひっくり返した。
+  //    🚨 **行を見れば `?.` は目に入る。数を見ていても入らない。**
+  //    ここは「拾えている」の証拠なので、違反が 0 件でも必ず出す。
+  for (const e of exportsOf(src).slice(0, 3)) {
+    console.log(`      拾った例 ${t.file}:${e.line} ${e.name} → ${e.returns ?? "(返り値の型を書いていない)"}`);
+  }
   // 🚨 **規則 G: 対象を1件も拾えていないのに緑、を防ぐ。**
   //    解析が壊れて 0 本になったとき、この検査は「違反 0 件」と言って通ってしまう。
   //    **見ていない 0 と、異常が無い 0 は別**（司令塔・2026-08-15）。
@@ -343,6 +385,24 @@ function directTableUsesIn(raw) {
     }
   }
   console.log(`  app/ 配下 ${routes.length} ファイル / 直接読み ${bad} 件（承認 ${allowed} 件・うち🟡未決 ${undecided} 件）`);
+  // 🚨 **「直接読み 0 件」の顔を割る**（司令塔・2026-08-16）。
+  //    0 には ①無い 0 ②見ていない 0 ③落ちた 0 の 3 つがあり、見た目が同じ。
+  //    そこで「**この検査が実際に読んだ生の行**」を 1〜3 本出す。
+  //    🚨 見張っている表そのものではなく、**同じ探し方に当たった `db(` の行**を出す
+  //    ——**表が 0 件でも、探し方が動いていれば必ず何か出る**。何も出ないなら計器が壊れている。
+  const 走査例 = [];
+  for (const f of routes) {
+    for (const [i, line] of withoutComments(readFileSync(f, "utf8")).split("\n").entries()) {
+      const m = /\b(?:db|trx|knex)\(\s*["'`]([^"'`]+)/.exec(line);
+      if (m) 走査例.push(`      読んだ例 ${f}:${i + 1} 表 "${m[1]}"`);
+      if (走査例.length >= 3) break;
+    }
+    if (走査例.length >= 3) break;
+  }
+  for (const l of 走査例) console.log(l);
+  if (走査例.length === 0) {
+    console.log("      🚨 表を触っている行を 1 本も読めていません（見張り対象が 0 件なのではなく、探し方が当たっていない疑い）");
+  }
   // 🚨 規則 G（上と同じ）。`git ls-files` が空を返したら「違反なし」ではなく「見ていない」。
   if (routes.length === 0) {
     violation(`    🚨 [R0] app/ 配下のファイルを 1 件も拾えていない。走っていないのと同じ`);

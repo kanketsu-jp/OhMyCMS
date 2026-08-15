@@ -63,6 +63,28 @@ if (seeded.length === 0) {
   process.exit(2);
 }
 console.log(`  種まき ${seeded.length} 件 / 部品の分岐 ${cases.length} 件`);
+// 🚨 **数だけを出さない。拾ったものの実物を出す**（司令塔・2026-08-16）。
+//    由来: 同じ日に `error.message` の数え違いが 3 回転した。**数は合っていたのに根拠が違った。**
+//    実物を出せば、書き方の揺れ（`?.` の有無・表記ゆれ）が**目に入る**。
+//    🚨 同じ日、もう 1 本の検査（check-raw-row-exports）では、
+//    これを足した瞬間に**返り値の型を途中で切っていた実在の穴**が見えた。
+console.log(`      拾った例 種まき: ${seeded.join(", ")}`);
+console.log(`      拾った例 分岐:   ${cases.join(", ") || "(なし)"}`);
+// 🚨 **辞書側も「読めている」ことを見せる**（0 件の顔を割る）。
+//    辞書が空でも「不足なし」にはならないが、**読めていないのか鍵が無いのか**は数だけでは分からない。
+for (const d of DICTS) {
+  const keys = dictOf(d).filter((k) => k.startsWith("system_"));
+  // 🚨 **内訳を割って出す。** 割らずに「system_* が 5 件」とだけ出すと、
+  //    種まきが 3 件なのに 5 件あるように読め、**「2 件余っている」と誤読する**
+  //    （2026-08-16、私自身が自分の出力でそう読んで調べ直した）。
+  //    余りの 2 件は `system_badge` / `system_hint` ＝ **画面の飾り**で、ラベルの名前ではない。
+  const forLabels = keys.filter((k) => seeded.includes(k.slice("system_".length)));
+  const other = keys.filter((k) => !forLabels.includes(k));
+  console.log(
+    `      読んだ例 ${d}: ラベル名 ${forLabels.length} 件（${forLabels.join(", ") || "🚨 1 件も無い"}）` +
+      ` ／ ラベル名でない system_* ${other.length} 件（${other.join(", ") || "なし"}）`,
+  );
+}
 
 let bad = 0;
 for (const key of seeded) {
