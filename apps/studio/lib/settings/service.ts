@@ -40,6 +40,7 @@ export const SETTINGS_DEFAULTS = {
   project_color: "#111111",
   default_locale: "ja",
   public_note: "",
+  update_feed_url: "",
   tenant_name: "",
   s3_endpoint: "",
   s3_bucket: "",
@@ -59,6 +60,7 @@ export type Settings = {
   project_color: string;
   default_locale: string;
   public_note: string;
+  update_feed_url: string;
   tenant_name: string;
   s3_endpoint: string;
   s3_bucket: string;
@@ -88,6 +90,7 @@ export type SettingsKey =
   | "project_color"
   | "default_locale"
   | "public_note"
+  | "update_feed_url"
   | "tenant_name"
   | "s3_endpoint"
   | "s3_bucket"
@@ -131,6 +134,7 @@ const WRITABLE_KEYS: SettingsKey[] = [
   "project_color",
   "default_locale",
   "public_note",
+  "update_feed_url",
   "tenant_name",
   "s3_endpoint",
   "s3_bucket",
@@ -158,6 +162,8 @@ function fromEnvironment(): Partial<Record<SettingsKey, string>> {
     project_name: pick("OHMYCMS_PROJECT_NAME"),
     project_color: pick("OHMYCMS_PROJECT_COLOR"),
     default_locale: pick("OHMYCMS_DEFAULT_LOCALE"),
+    // 🚨 env は**初期値**。GUI で保存された DB の値が正（projectLogo と同じ順序）。
+    update_feed_url: pick("OHMYCMS_UPDATE_FEED_URL"),
     s3_endpoint: pick("S3_ENDPOINT"),
     s3_bucket: pick("S3_BUCKET"),
     s3_region: pick("S3_REGION"),
@@ -181,6 +187,7 @@ type SettingsRow = {
   project_color: string | null;
   default_locale: string | null;
   public_note: string | null;
+  update_feed_url: string | null;
   tenant_name: string | null;
   s3_endpoint: string | null;
   s3_bucket: string | null;
@@ -246,6 +253,7 @@ export async function getSettings(): Promise<Settings> {
   const color = resolve("project_color", SETTINGS_DEFAULTS.project_color);
   const locale = resolve("default_locale", SETTINGS_DEFAULTS.default_locale);
   const note = resolve("public_note", SETTINGS_DEFAULTS.public_note);
+  const updateFeed = resolve("update_feed_url", SETTINGS_DEFAULTS.update_feed_url);
   const tenant = resolve("tenant_name", SETTINGS_DEFAULTS.tenant_name);
   const s3Endpoint = resolve("s3_endpoint", SETTINGS_DEFAULTS.s3_endpoint);
   const s3Bucket = resolve("s3_bucket", SETTINGS_DEFAULTS.s3_bucket);
@@ -271,6 +279,7 @@ export async function getSettings(): Promise<Settings> {
     project_color: color.value,
     default_locale: locale.value,
     public_note: note.value,
+    update_feed_url: updateFeed.value,
     tenant_name: tenant.value,
     s3_endpoint: s3Endpoint.value,
     s3_bucket: s3Bucket.value,
@@ -293,6 +302,7 @@ export async function getSettings(): Promise<Settings> {
       project_color: color.source,
       default_locale: locale.source,
       public_note: note.source,
+      update_feed_url: updateFeed.source,
       tenant_name: tenant.source,
       s3_endpoint: s3Endpoint.source,
       s3_bucket: s3Bucket.source,

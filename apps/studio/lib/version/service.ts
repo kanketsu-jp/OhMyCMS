@@ -15,6 +15,7 @@
  */
 
 /** package.json から読む現在のバージョン。ビルド時に埋め込まれる。 */
+import { getSettings } from "@/lib/settings/service";
 import packageJson from "../../package.json" with { type: "json" };
 
 export type VersionInfo = {
@@ -44,11 +45,28 @@ export type BuildVersion = {
 };
 
 /**
- * 環境変数から更新確認先を読む。
+ * 更新確認先を読む。**DB → 環境変数**の順（`projectLogo()` と同じ順序）。
+ *
+ * 由来: 堀池さん「**環境変数は最小にする。基本全て GUI、MCP、CLI で設定する。**」（2026-08-15）。
+ * 環境変数は**初期値**として残す。GUI で保存された DB の設定が正なので先に読む。
+ *
  * **空文字は未設定として扱う**（compose が空文字を渡してくるため。
  * ここを `!== undefined` で判定すると、compose 経由で必ず通信しに行ってしまう）。
+ *
+ * 🚨 **同期→非同期に変えた**（2026-08-16）。呼び出しは `checkForUpdate()` の 1 箇所だけで、
+ *    そこは `/api/version` のリクエストの中なので、要求のたびに DB を読める（実測で確認）。
+ * 🚨 DB が読めないときは**環境変数へ落ちる**。ここで例外を投げると、
+ *    「更新確認が使えない」ではなく**版の画面ごと落ちる**（health の同期パスとは別だが、
+ *    落とす価値は無い）。
  */
-export function updateFeedUrl(): string | null {
+export async function updateFeedUrl(): Promise<string | null> {
+  try {
+    const settings = await getSettings();
+    const fromDb = settings.update_feed_url?.trim();
+    if (fromDb) return fromDb;
+  } catch {
+    // DB へ届かないときは環境変数だけで判断する（下へ落ちる）
+  }
   const raw = process.env.OHMYCMS_UPDATE_FEED_URL?.trim();
   return raw ? raw : null;
 }
@@ -107,7 +125,7 @@ export function isNewer(latest: string, current: string): boolean {
 export async function checkForUpdate(
   { timeoutMs = 3000 }: { timeoutMs?: number } = {},
 ): Promise<UpdateCheck> {
-  const url = updateFeedUrl();
+  const url = await updateFeedUrl();
 
   // 🚨 ここが受入基準9 の本体。**未設定なら即 return し、fetch へ到達しない。**
   if (!url) return { checked: false, reason: "not_configured" };
