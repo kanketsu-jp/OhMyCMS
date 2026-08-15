@@ -26,6 +26,7 @@
   "settings_s3_key_prefix": "Storage key prefix",
   "page_collections": "Collections",
   "page_files": "Files",
+  "page_labels": "Labels",
   "page_folders": "Folders",
   "page_notifications": "Notifications",
   "page_reports": "Report a problem",

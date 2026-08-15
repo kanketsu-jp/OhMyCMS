@@ -107,6 +107,7 @@ const PAGE_ENTRIES: StaticEntry[] = [
   { labelKey: "page_collections", href: "/admin/collections" },
   { labelKey: "page_files", href: "/admin/files" },
   { labelKey: "page_folders", href: "/admin/folders" },
+  { labelKey: "page_labels", href: "/admin/labels" },
   { labelKey: "page_notifications", href: "/admin/notifications" },
   { labelKey: "page_reports", href: "/admin/reports" },
   { labelKey: "page_settings_general", href: "/admin/settings/general" },
