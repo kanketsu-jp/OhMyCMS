@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 
 import type { FieldResult } from "@/lib/schema/models";
 import { PageAction } from "@/components/admin/page-action";
+import { FormDraft } from "@/components/admin/form-draft";
 import { FilePicker } from "@/components/admin/file-picker";
 import { RichTextField } from "@/components/admin/rich-text-field";
 import { getT } from "@/i18n/server";
@@ -60,6 +61,7 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
       method="post"
       className="space-y-5"
     >
+      <FormDraft formId="item-form" />
       {visibleFields.map((field) => {
         const required = field.schema?.is_nullable === false && !field.schema?.is_primary_key;
         const readonly = isEdit && field.schema?.is_primary_key === true;

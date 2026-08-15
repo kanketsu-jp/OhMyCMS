@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
 import { isFileField } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { PageAction } from "@/components/admin/page-action";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -99,89 +100,92 @@ export default async function ContentPage({ params, searchParams }: Props) {
   }
 
   return (
-    <div className="max-w-7xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <>
+      <PageAction
+        href={`/admin/content/${encoded}/new`}
+        role="primary"
+        label={t("new_item")}
+        icon={<Plus />}
+      />
+      <div className="max-w-7xl space-y-6">
         <div>
           <Link href={`/admin/collections/${encoded}`} className="text-sm text-muted-foreground hover:text-foreground">
             {tFields("manage_link")}
           </Link>
         </div>
-        <Link href={`/admin/content/${encoded}/new`} className={cn(buttonVariants())}>
-          {t("new_item")}
-        </Link>
-      </div>
-      <ErrorBanner
-        message={
-          errorMessage ??
-          (!fieldsResult.ok ? fieldsResult.message : null) ??
-          (!itemsResult.ok ? itemsResult.message : null)
-        }
-      />
-      <Surface>
-        <SurfaceTitle>{t("list_title")}</SurfaceTitle>
-        {itemsResult.ok ? (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {columns.map((field) => (
-                    <TableHead key={field.field}>{field.field}</TableHead>
-                  ))}
-                  <TableHead className="w-44">{t("actions_header")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {itemsResult.data.data.map((item, index) => {
-                  const id = String(item[pk] ?? "");
-                  return (
-                    <TableRow key={id || index}>
-                      {columns.map((field) => (
-                        <TableCell key={field.field} className="max-w-64 truncate">
-                          <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
+        <ErrorBanner
+          message={
+            errorMessage ??
+            (!fieldsResult.ok ? fieldsResult.message : null) ??
+            (!itemsResult.ok ? itemsResult.message : null)
+          }
+        />
+        <Surface>
+          <SurfaceTitle>{t("list_title")}</SurfaceTitle>
+          {itemsResult.ok ? (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {columns.map((field) => (
+                      <TableHead key={field.field}>{field.field}</TableHead>
+                    ))}
+                    <TableHead className="w-44">{t("actions_header")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itemsResult.data.data.map((item, index) => {
+                    const id = String(item[pk] ?? "");
+                    return (
+                      <TableRow key={id || index}>
+                        {columns.map((field) => (
+                          <TableCell key={field.field} className="max-w-64 truncate">
+                            <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
+                          </TableCell>
+                        ))}
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Link
+                              href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
+                              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                            >
+                              {t("edit_button")}
+                            </Link>
+                            <form action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`} method="post">
+                              <input type="hidden" name="_method" value="delete" />
+                              <Button type="submit" variant="destructive-ghost" size="sm" aria-label={t("delete_button")}>
+                                <Trash2 />
+                                <span className="hidden md:inline">{t("delete_button")}</span>
+                              </Button>
+                            </form>
+                          </div>
                         </TableCell>
-                      ))}
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
-                            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                          >
-                            {t("edit_button")}
-                          </Link>
-                          <form action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`} method="post">
-                            <input type="hidden" name="_method" value="delete" />
-                            <Button type="submit" variant="destructive-ghost" size="sm" aria-label={t("delete_button")}>
-                              <Trash2 />
-                              <span className="hidden md:inline">{t("delete_button")}</span>
-                            </Button>
-                          </form>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            <div className="mt-4 flex items-center justify-between text-sm">
-              <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
-              <div className="flex gap-2">
-                <Link
-                  href={`/admin/content/${encoded}?page=${Math.max(1, page - 1)}`}
-                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
-                >
-                  {t("prev_page")}
-                </Link>
-                <Link
-                  href={`/admin/content/${encoded}?page=${Math.min(pageCount, page + 1)}`}
-                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
-                >
-                  {t("next_page")}
-                </Link>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/admin/content/${encoded}?page=${Math.max(1, page - 1)}`}
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
+                  >
+                    {t("prev_page")}
+                  </Link>
+                  <Link
+                    href={`/admin/content/${encoded}?page=${Math.min(pageCount, page + 1)}`}
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
+                  >
+                    {t("next_page")}
+                  </Link>
+                </div>
               </div>
-            </div>
-          </>
-        ) : null}
-      </Surface>
-    </div>
+            </>
+          ) : null}
+        </Surface>
+      </div>
+    </>
   );
 }

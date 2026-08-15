@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 
+import { FormDraft } from "@/components/admin/form-draft";
+import { PageAction } from "@/components/admin/page-action";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n/client";
@@ -76,6 +78,7 @@ export function FieldCreateForm({ collection }: Props) {
       method="post"
       className="flex flex-col gap-4"
     >
+      <FormDraft formId="field-create-form" />
       <input type="hidden" name="type" value={resolvedType} />
       <input type="hidden" name="interface" value={resolvedInterface} />
 
@@ -112,7 +115,6 @@ export function FieldCreateForm({ collection }: Props) {
           <input type="checkbox" name="required" value="true" className="size-4" />
           {t("required_label")}
         </label>
-        <Button type="submit">{t("add_button")}</Button>
       </div>
 
       <Accordion className="border-0">
@@ -158,6 +160,12 @@ export function FieldCreateForm({ collection }: Props) {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+      <PageAction
+        form="field-create-form"
+        role="primary"
+        label={t("add_button")}
+        icon={<Check />}
+      />
     </form>
   );
 }

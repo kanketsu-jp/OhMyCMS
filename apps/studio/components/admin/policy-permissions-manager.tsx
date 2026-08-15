@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
+import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -150,6 +151,20 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
 
   return (
     <div className="space-y-6">
+      {/* 🚨 このページの `<form>` は無い（ボタンの onClick で送っている）ので、
+          ヘッダーへは `form=` ではなく `onClick` で出す（`page-actions.ts` の kind: "button"）。
+          文字は状態で変わる: 行を選んでいなければ「追加」、選んでいれば「更新」。
+          🚨 コレクションが 1 つも無いときは出さない。押しても足せないため
+          （面の中のボタンは `disabled` で表せるが、ヘッダーの枠には disabled が無い）。 */}
+      {collection ? (
+        <PageAction
+          onClick={() => void save.run()}
+          pending={save.pending}
+          label={editing ? t("update_button") : t("add_button")}
+          icon={<Save />}
+          role="primary"
+        />
+      ) : null}
       {error ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
@@ -228,15 +243,14 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           <p className="text-xs leading-5 text-muted-foreground">{t("filter_json_help_variables")}</p>
           <p className="text-xs leading-5 text-muted-foreground">{t("filter_json_help_combination")}</p>
         </div>
-        <div className="flex gap-2">
-          <Button type="button" onClick={() => void save.run()} disabled={save.pending || !collection}>
-            <Save />
-            {editing ? t("update_button") : t("add_button")}
-          </Button>
-          {editing ? (
+        {/* 追加・更新はヘッダー（`PageAction`）へ移した。ここに残すと入口が 2 つになる。
+            編集をやめる操作は「いま編集中である」という**この場の状態**を戻すものなので、
+            ヘッダーへは上げずにここへ残す。 */}
+        {editing ? (
+          <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={resetForm}>{t("cancel_edit_button")}</Button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
       <div className="divide-y border-t">
         {permissions.map((row) => (

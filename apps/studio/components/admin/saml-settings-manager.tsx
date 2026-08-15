@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
+import { PageAction } from "@/components/admin/page-action";
 import { toast } from "@/components/ui/toast";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -59,11 +61,6 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   });
 
   const [error, setError] = useState<string | null>(null);
-
-  // 🚨 §3c「未入力なら確定を無効にする」。
-  //    どちらの入力方法を選んでいるかで、何が揃っていれば足りるかが変わる。
-  const ready =
-    mode === "metadata" ? metadataXml.trim().length > 0 : Boolean(entityId && ssoUrl && certificate);
 
   const save = useSubmitOnce(async () => {
     setError(null);
@@ -134,6 +131,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
         void save.run();
       }}
     >
+      <FormDraft formId="saml-settings-form" />
       {error ? (
         <p className="rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive">
           {error}
@@ -277,15 +275,18 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
       </section>
 
       <div className="flex items-center gap-3">
-        {/* 🚨 §3c: 未入力なら確定できない。 */}
-        <Button type="submit" loading={save.pending} disabled={!ready}>
-          {t("save_button")}
-        </Button>
         <span className="text-xs text-muted-foreground">
           {t("updated_at")}:{" "}
           {settings.updatedAt ? format.dateTime(new Date(settings.updatedAt)) : t("never_updated")}
         </span>
       </div>
+      <PageAction
+        form="saml-settings-form"
+        role="primary"
+        pending={save.pending}
+        label={t("save_button")}
+        icon={<Check />}
+      />
     </form>
   );
 }

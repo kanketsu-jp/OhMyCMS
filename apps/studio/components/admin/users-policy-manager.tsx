@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserMinus } from "lucide-react";
+import { Plus, UserMinus } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
+import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
@@ -95,6 +97,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         </div>
       ) : null}
       <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+        <FormDraft formId="user-policy-assign-form" />
         <div className="space-y-1.5">
           <label htmlFor="user" className="text-sm font-medium">{t("user_label")}</label>
           <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
@@ -111,7 +114,13 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
             ))}
           </select>
         </div>
-        <Button type="submit" disabled={assign.pending || users.length === 0 || policies.length === 0}>{t("assign_button")}</Button>
+        <PageAction
+          form="user-policy-assign-form"
+          role="primary"
+          pending={assign.pending}
+          label={t("assign_button")}
+          icon={<Plus />}
+        />
       </form>
       <div className="divide-y border-t">
         {access.map((row) => (

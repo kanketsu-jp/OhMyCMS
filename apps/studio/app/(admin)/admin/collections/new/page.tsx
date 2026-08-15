@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Check } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { PageAction } from "@/components/admin/page-action";
+import { FormDraft } from "@/components/admin/form-draft";
 import { Input } from "@/components/ui/input";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { Label } from "@/components/ui/label";
@@ -43,6 +46,7 @@ export default async function NewCollectionPage({ searchParams }: Props) {
       <ErrorBanner message={errorMessage} />
       <Surface>
         <form id="collection-create-form" action="/admin/actions/collections" method="post" className="grid gap-4">
+          <FormDraft formId="collection-create-form" />
           <div className="space-y-1.5">
             <Label htmlFor="collection">{t("name_label")}</Label>
             <Input id="collection" name="collection" required pattern="[A-Za-z_][A-Za-z0-9_]*" />
@@ -52,7 +56,6 @@ export default async function NewCollectionPage({ searchParams }: Props) {
             <Input id="note" name="note" />
           </div>
           <div className="flex items-center gap-2">
-            <Button type="submit">{t("create_button")}</Button>
             <Link
               href="/admin/collections"
               className={cn(buttonVariants({ variant: "ghost" }))}
@@ -60,6 +63,12 @@ export default async function NewCollectionPage({ searchParams }: Props) {
               {t("cancel_button")}
             </Link>
           </div>
+          <PageAction
+            form="collection-create-form"
+            role="primary"
+            label={t("create_button")}
+            icon={<Check />}
+          />
         </form>
       </Surface>
     </div>

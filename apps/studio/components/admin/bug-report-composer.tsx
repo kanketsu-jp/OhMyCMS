@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { FormDraft } from "@/components/admin/form-draft";
 import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
@@ -142,6 +143,7 @@ export function BugReportComposer({ onDone }: Props) {
         void submit.run();
       }}
     >
+      <FormDraft formId="bug-report-form" />
       <div className="grid gap-2">
         <Label htmlFor="report-title">{t("report_title_label")}</Label>
         <Input

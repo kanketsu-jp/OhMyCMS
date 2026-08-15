@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, KeyRound, Ban } from "lucide-react";
+import { Copy, KeyRound, Ban, Plus } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
+import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -231,6 +233,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         </div>
       ) : null}
       <form id="agent-issue-form" action={create.run} className="space-y-4">
+        <FormDraft formId="agent-issue-form" />
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>
@@ -319,7 +322,13 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <Textarea id="tenant_scope" name="tenant_scope" className="min-h-28 font-mono" />
           </div>
         </div>
-        <Button type="submit" disabled={create.pending}>{t("issue_button")}</Button>
+        <PageAction
+          form="agent-issue-form"
+          role="primary"
+          pending={create.pending}
+          label={t("issue_button")}
+          icon={<Plus />}
+        />
       </form>
       <div className="divide-y border-t">
         {agents.map((agent) => (

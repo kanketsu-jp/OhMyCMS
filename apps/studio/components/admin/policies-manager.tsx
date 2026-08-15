@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, Trash2 } from "lucide-react";
+import { Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
+import { PageAction } from "@/components/admin/page-action";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,6 +81,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
         </div>
       ) : null}
       <form id="policy-create-form" action={create.run} className="space-y-4">
+        <FormDraft formId="policy-create-form" />
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name_label")}</Label>
@@ -102,7 +105,13 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
             </span>
           </label>
         </div>
-        <Button type="submit" disabled={create.pending}>{t("create_button")}</Button>
+        <PageAction
+          form="policy-create-form"
+          role="primary"
+          pending={create.pending}
+          label={t("create_button")}
+          icon={<Plus />}
+        />
       </form>
       <div className="divide-y border-t">
         {policies.map((policy) => (

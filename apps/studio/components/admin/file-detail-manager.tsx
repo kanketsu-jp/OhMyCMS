@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
+import { FormDraft } from "@/components/admin/form-draft";
+import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +86,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
         </div>
       ) : null}
       <form id="file-detail-form" action={save.run} className="space-y-4">
+        <FormDraft formId="file-detail-form" />
         <div className="space-y-1.5">
           <Label htmlFor="title">{t("title_label")}</Label>
           <Input id="title" name="title" defaultValue={file.title ?? ""} />
@@ -106,15 +109,18 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
           </select>
         </div>
         <div className="flex gap-2">
-          <Button type="submit" disabled={save.pending}>
-            <Save />
-            {t("save_button")}
-          </Button>
           <Button type="button" variant="destructive" disabled={remove.pending} onClick={() => void remove.run()}>
             <Trash2 />
             {t("delete_button")}
           </Button>
         </div>
+        <PageAction
+          form="file-detail-form"
+          role="primary"
+          pending={save.pending}
+          label={t("save_button")}
+          icon={<Check />}
+        />
       </form>
     </div>
   );
