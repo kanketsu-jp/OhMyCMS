@@ -56,7 +56,9 @@ export type PageActionDef = {
   /**
    * 主要か、補助か。
    * 🚨 **主要は 1 ページに 1 つだけ**。2 つ並べると「まずこれ」が消える。
-   *    （守り手: `scripts/check-page-actions.mjs` の「主要ボタン」。0 件でも 2 件でも落ちる）
+   *    （守り手: `scripts/check-page-actions.mjs` の「主要ボタン」。0 件でも 2 件でも落ちる。
+   *      🚨 **見ていない範囲**: この表を**別ファイルで組み立てて import** する形。検査は
+   *      `page-actions.ts` 1 本しか読まないので、構造ごと動かされたら何も見えない）
    */
   role: "primary" | "secondary";
   /** 取り消せない操作（削除）。押し間違いが戻せないものだけ true */

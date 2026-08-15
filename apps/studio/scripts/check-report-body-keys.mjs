@@ -48,7 +48,15 @@ function balanced(source, startIndex) {
 const problems = [];
 
 // ── 画面が送る鍵（JSON.stringify({...}) の最上位） ──────────────────
-const composer = readOrExplain(COMPOSER, "報告フォーム");
+const composerRaw = readOrExplain(COMPOSER, "報告フォーム");
+// 🚨 **コメントを実コードとして読まない。**
+//    この検査自身が踏んだ（2026-08-15）: 冒頭の申し送りに `JSON.stringify({…})` と書いた瞬間、
+//    そのコメントの中括弧を送信 body と誤認し、**画面が送る鍵 0 件**になって落ちた。
+//    ——「コメントが在ることは守られていることではない」の裏で、
+//      **コメントが在ることが検査を壊す**こともある。
+const composer = composerRaw
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/^[ \t]*\/\/.*$/gm, "");
 const at = composer.indexOf("JSON.stringify({");
 if (at < 0) {
   problems.push(
