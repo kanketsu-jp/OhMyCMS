@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FolderPlus, Upload } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { FilesDropUpload } from "@/components/admin/files-drop-upload";
 import { FilesLightboxGrid } from "@/components/admin/files-lightbox-grid";
 import { FolderGrid } from "@/components/admin/folder-grid";
 import { ListPagination } from "@/components/admin/list-pagination";
@@ -142,6 +143,8 @@ export default async function FilesPage({ searchParams }: Props) {
             (!foldersResult.ok ? foldersResult.message : null)
           }
         />
+        {/* 🚨 一覧そのものを受け皿にする。ここへ放り込むと、いま開いているフォルダに入る。 */}
+        <FilesDropUpload folder={currentFolderId}>
         <Surface>
           <SurfaceTitle>{t("list_title")}</SurfaceTitle>
           {filesResult.ok || foldersResult.ok ? (
@@ -162,6 +165,7 @@ export default async function FilesPage({ searchParams }: Props) {
             />
           ) : null}
         </Surface>
+        </FilesDropUpload>
       </div>
     </>
   );

@@ -48,5 +48,9 @@
   "type_label": "Type",
   "upload_button": "Upload",
   "upload_title": "Upload",
-  "uploaded_on": "Uploaded on"
+  "uploaded_on": "Uploaded on",
+  "drop_here": "Drop here to upload",
+  "drop_uploading": "Uploading…",
+  "drop_uploaded": "Uploaded {count} file(s)",
+  "drop_failed": "Could not upload {count} file(s)"
 }

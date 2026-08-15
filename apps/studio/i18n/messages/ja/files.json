@@ -48,5 +48,9 @@
   "type_label": "種類",
   "upload_button": "アップロード",
   "upload_title": "アップロード",
-  "uploaded_on": "アップロード日時"
+  "uploaded_on": "アップロード日時",
+  "drop_here": "ここに放すとアップロードします",
+  "drop_uploading": "アップロードしています…",
+  "drop_uploaded": "{count} 件アップロードしました",
+  "drop_failed": "{count} 件アップロードできませんでした"
 }
