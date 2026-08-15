@@ -81,6 +81,23 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-nav-parity.mjs
 
+    # アクションボタンの宣言（lib/admin/page-actions.ts）が実在するものを指しているか。
+    # 🚨 **2026-08-16 まで、この 2 本は門にもどこにも載っていなかった**
+    #    （lefthook 0 件・autopilot の門にも無し・リポジトリ内の実行者 0 件。実測）。
+    #    未追跡だった strip-comments.mjs に依存していたのが理由だが、
+    #    **それが追跡済みになった後も、載せ直されていなかった。**
+    #    外している理由はどちらのファイルにも書かれていなかったので、**穴と判定して載せる。**
+    # 🚨 rendered のほうは「宣言が正しい」ではなく「宣言どおり画面に出ているか」を見る。
+    #    実際に、宣言はあるのに <PageAction> を描いていない画面が 2 枚あった（2026-08-15）
+    #    ＝ **保存ボタンがどこにも無いのに緑**だった。
+    page-actions:
+      root: "apps/studio"
+      run: node scripts/check-page-actions.mjs
+
+    page-actions-rendered:
+      root: "apps/studio"
+      run: node scripts/check-page-actions-rendered.mjs
+
     # API の生文言を画面へ出す経路（apiMessage）が戻ってこないための見張り。
     # 🚨 i18n ではなく**なりすまし**の話——?error= は利用者が自由に書けるので、
     #    生文言を載せると細工したリンクで任意の文章を公式のエラー枠に出せる。
