@@ -896,6 +896,16 @@ function connect(url) {
     const p = pending.get(msg.id);
     if (!p) return;
     pending.delete(msg.id);
+    // 🚨 CDP の応答に error が入っていたら**必ず止める**（2026-08-15）。
+    //    読まない計器は、**失敗を成功と同じ顔で通す**。
+    //    RED で確かめた: setTouchEmulationEnabled に maxTouchPoints: 0 を渡すと
+    //    CDP が -32602「Touch points must be between 1 and 16」を返し、**exit 1 で止まった**。
+    //    （在ることを読むだけで済ませず、**実際に失敗する呼び方**で落として確認した）
+    //
+    // 🚨 **見ていない範囲: 応答そのものが返ってこない場合（タイムアウト）。**
+    //    ここにタイムアウトは無いので、**相手が黙ったら永久に待つ**。
+    //    いまは「止まったら人が気づく」で運用している。**実測で出た形ではないので直していない。**
+    //    条件: **この計器を自動で回す形（cron / CI）にするなら、その時に塞ぐこと。**
     if (msg.error) p.rej(new Error(JSON.stringify(msg.error)));
     else p.res(msg.result);
   };
