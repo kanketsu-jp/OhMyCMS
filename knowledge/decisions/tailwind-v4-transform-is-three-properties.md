@@ -66,14 +66,31 @@ x_rag_okf:
 ## 3. 実際に起きた 3 件
 
 ```
-① transform ではなく translate    2026-08-16 朝・design
-   Button の「押すと 1px 沈む」を transform で探して見つからなかった
-   （v4 は `active:…translate-y-px` → `translate:` プロパティ）
-② hover: は @media (hover: hover) の中   同日・toast
+① transform ではなく translate    2026-08-15・base2 の実測
+   【測った】/admin/labels の「もどる」ボタン
+     getComputedStyle(el).transform … 🚨 **押しても永久に `none`**
+     getComputedStyle(el).translate … 押下時 **"0px 1px"**
+   🚨 **記録は `components/ui/button.tsx` のコメント**（二重に書かない。あちらが正）
+② hover: は @media (hover: hover) の中   2026-08-16・toast
    → `Emulation.setDeviceMetricsOverride({mobile:true})` だけでは
      `(hover: hover)` は **true のまま**。`setEmulatedMedia` が要る
-🚨 ③ scale-x-* は scale プロパティ        同日・toast / schema
+🚨 ③ scale-x-* は scale プロパティ        同日・toast / schema / design
    トーストのプログレスバーが **幅 0px**。keyframes が `transform: scaleX()` だった
+```
+
+🚨 **①には、測り方の落とし穴が 1 つ付いてくる**（base2 の実測）:
+```
+`transition-all` が効いているので、**遷移が終わるまで待たないと違う値が出る**
+  120ms で読む … PC でも「触れた時＝透明」＝ 🚨 **hover が効いていないように見える**（誤り）
+  700ms 待つ   … PC は「触れた時＝lab(96.52)」＝ **hover は効いている**
+```
+
+🚨 **一部のボタンが沈まないのは、壊れているのではなく仕様**（base2 の実測）:
+```
+base のクラスは `active:**not-aria-[haspopup]**:translate-y-px`
+＝ 🚨 **メニューを開くボタン（`aria-haspopup` を持つ）は、意図的に沈まない**
+   → ▾ の引き金も沈まない。**「▾ だけ手応えが無い」ように見える可能性がある**
+   （🚨 押した感じは誰も測っていない。**気になったら測ること**）
 ```
 
 ## 4. 🚨 いちばん危ない症状 —「測れなかった 0」に見える
@@ -107,6 +124,29 @@ x_rag_okf:
 ✅ transition-property: translate, scale, opacity
    （🟢 実測: `.transition-[translate,scale,opacity]` というクラスが実在する）
 ```
+
+## 5.5 【測った】直したあと（2026-08-16・design が領域の持ち主として確認）
+
+**toast が `0748913` で keyframes を `scale: 0 1 → 1 1` に変えた。報告を写さず自分で測った:**
+
+```
+実物と同じクラスの div（384px 幅）を作って測定
+  通常        直後 0px → 1.2 秒後 **152.01px**（animation=ohmycms-toast-progress）
+  🟢 対照 reduce  直後 0px → 1.2 秒後 **0px**（animation=**none** / scale=0 1）
+  🟢 matchMedia が false / true で切り替わっている（＝ 対照が効いている）
+```
+✅ **幅 > 0** かつ **箱の 384px より小さい**（途中まで伸びている）＝ 受入どおり。
+
+🚨 **1 回目の測定は失敗している（記録として残す）。**
+```
+私は animation を **inline style で直書き**したプローブで測った
+→ reduce でも **151px** 出て、toast の報告と食い違った
+🚨 実物は `motion-safe:animate-[…]`（＝ `@media (prefers-reduced-motion: no-preference)`）
+   **inline style では、その条件を通らない**
+＝ **私が実物と違うものを測っていた。** toast の報告が正しかった
+```
+🚨 **「食い違った」ときに、まず疑うのは自分のプローブが実物と同じ形か。**
+**クラスで効いているものを、style で真似ると条件が消える。**
 
 ## 6. 🚨 この決定が当たらない場面
 
