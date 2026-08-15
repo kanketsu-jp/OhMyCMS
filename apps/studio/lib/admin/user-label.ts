@@ -1,4 +1,5 @@
 import type { MeResult } from "@/lib/admin/api";
+import type { Locale } from "@/i18n/config";
 import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/service";
 
 // アバターに何も無いときの既定の絵文字。
@@ -48,4 +49,27 @@ export function displayUserPicture(me: MeResult | null): string | null {
  */
 export function displayUserAvatarEmoji(me: MeResult | null): string {
   return visibleHuman(me)?.avatarEmoji ?? DEFAULT_AVATAR_EMOJI;
+}
+
+/**
+ * 画面に出してよい表示名。姓名の結合はここ（表示側）でやる。
+ *
+ * 🚨 サーバ側（`/api/auth/me`）で1本の文字列にしない。並び順が言語で変わるため
+ * （ja は 姓→名、それ以外は 名→姓）で、locale を知らないサーバでは直せない。
+ *
+ * 片方しか無ければその片方だけを返す（区切りが余らない）。両方無ければ null
+ * （呼び出し側が辞書の控えを出す）。空白だけの値は無いものとして扱う。
+ */
+export function displayUserName(me: MeResult | null, locale: Locale): string | null {
+  const human = visibleHuman(me);
+  if (!human) return null;
+
+  const first = human.firstName?.trim() || null;
+  const last = human.lastName?.trim() || null;
+
+  if (!first && !last) return null;
+  if (!first) return last;
+  if (!last) return first;
+
+  return locale === "ja" ? `${last} ${first}` : `${first} ${last}`;
 }

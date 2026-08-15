@@ -19,6 +19,8 @@ export type MeResult =
       role: string | null;
       picture: string | null;
       avatarEmoji: string | null;
+      firstName: string | null;
+      lastName: string | null;
     }
   | { type: "agent"; agentId: string; name: string; onBehalfOf: string };
 

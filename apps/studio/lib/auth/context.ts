@@ -10,6 +10,8 @@ export type HumanActor = {
   role: string | null;
   picture: string | null;
   avatarEmoji: string | null;
+  firstName: string | null;
+  lastName: string | null;
 };
 
 export type AgentActor = {
@@ -37,6 +39,8 @@ type SessionUserRow = {
   role: string | null;
   auth_data: unknown;
   avatar_emoji: string | null;
+  first_name: string | null;
+  last_name: string | null;
 };
 
 function authDataPicture(value: unknown): string | null {
@@ -101,6 +105,8 @@ async function resolveHuman(token: string): Promise<HumanActor> {
       role: "directus_users.role",
       auth_data: "directus_users.auth_data",
       avatar_emoji: "directus_users.avatar_emoji",
+      first_name: "directus_users.first_name",
+      last_name: "directus_users.last_name",
     })
     .where("directus_sessions.token", tokenHash)
     .where("directus_sessions.expires", ">", db.fn.now())
@@ -117,6 +123,8 @@ async function resolveHuman(token: string): Promise<HumanActor> {
     role: row.role,
     picture: authDataPicture(row.auth_data),
     avatarEmoji: row.avatar_emoji,
+    firstName: row.first_name,
+    lastName: row.last_name,
   };
 }
 
