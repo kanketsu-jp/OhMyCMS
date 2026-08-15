@@ -56,22 +56,75 @@ const EXCEPTIONS = {
   brand: {
     onlyIn: "LeftSidebar",
     reason: "PCヘッダーのブランド表示用。SPヘッダーはブランド表示を外す設計（堀池 2026-08-15指示）",
+    recordedAt: "2026-08-15",
+    status: "decided",
+    decider: "堀池（指示）",
+    question: "—（決定済み。SPヘッダーにブランドを出さない）",
   },
   logo: {
     onlyIn: "LeftSidebar",
     reason: "同上。SPヘッダーにロゴを出さない設計のため",
+    recordedAt: "2026-08-15",
+    status: "decided",
+    decider: "堀池（指示）",
+    question: "—（決定済み）",
   },
   contentHeading: {
     onlyIn: "MobileNav",
     reason: "SPドロワー内で「コンテンツ」見出しラベルを描画するために必要。PCは left-sidebar.tsx が useT() を直接呼んで自前で用意している",
+    recordedAt: "2026-08-15",
+    status: "decided",
+    decider: "base2（実装上の事実）",
+    question: "—（決定済み。PC は自前で用意している）",
   },
   personalUnreadNotifications: {
     onlyIn: "MobileNav",
     reason:
       "SPのフッターから通知を外した代わりに、☰ に未読バッジを出すため（堀池 2026-08-15指示）。" +
       "PCは左サイドバーの一覧に通知の行が常に見えているので、バッジで知らせる必要がない",
+    recordedAt: "2026-08-15",
+    status: "decided",
+    decider: "堀池（指示）＋司令塔（第1段の承認）",
+    question: "—（決定済み。SP だけに出す）",
   },
 };
+
+// 🚨 例外の行に「いつ・未決か・誰が決めるか・何を決めるか」を必ず持たせる（司令塔の規律13）。
+//    理由: **黙って緑が続くと、決める人が居ることを誰も思い出さない**。
+//    「承認」は多くの場合「いま在ることを記録した」だけで、「これでよい」ではない。
+const REQUIRED_FIELDS = ["onlyIn", "reason", "recordedAt", "status", "decider", "question"];
+
+function assertExceptionsAreComplete() {
+  const bad = [];
+  for (const [prop, entry] of Object.entries(EXCEPTIONS)) {
+    const missing = REQUIRED_FIELDS.filter((f) => !entry[f]);
+    if (missing.length > 0) bad.push(`${prop}: ${missing.join(" / ")} が無い`);
+    if (entry.status && !["decided", "undecided"].includes(entry.status)) {
+      bad.push(`${prop}: status は decided か undecided（いまは "${entry.status}"）`);
+    }
+  }
+  if (bad.length > 0) {
+    console.error("check-nav-parity: FAIL — EXCEPTIONS の行に足りない項目がある\n");
+    for (const b of bad) console.error(`  ${b}`);
+    console.error(
+      "\n  🚨 例外は「いま在ることを記録した」だけのことが多く、「これでよい」とは限らない。" +
+        "\n  黙って緑が続くと、決める人が居ることを誰も思い出さないので、" +
+        "\n  いつ記録したか / 未決か / 決める人 / 何を決めるのか を必ず書く。",
+    );
+    process.exit(1);
+  }
+}
+
+/** 🚨 未決のものは、緑のときも毎回出す（出さないと解決済みとして扱われ始める）。 */
+function reportUndecided() {
+  const undecided = Object.entries(EXCEPTIONS).filter(([, e]) => e.status === "undecided");
+  if (undecided.length === 0) return;
+  console.log(`\n🟡 未決の例外: ${undecided.length} 件（緑ですが、決まっていません）`);
+  for (const [prop, e] of undecided) {
+    console.log(`  ${prop}  記録 ${e.recordedAt} / 決める人: ${e.decider}`);
+    console.log(`    何を決めるのか: ${e.question}`);
+  }
+}
 
 // 🚨 EXCEPTIONS の reason にこれらの語が含まれていたら、それは「設計判断」ではなく
 // 「まだ直していないこと」を書いているだけ。exit 1 で拒否する（上のヘッダーコメント参照）。
@@ -329,6 +382,7 @@ const original = loadSources();
 
 function main() {
   assertExceptionsAreDesignDecisions();
+  assertExceptionsAreComplete();
 
   console.log("■ 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）");
   let selfTestFailed = false;
@@ -400,6 +454,11 @@ function main() {
   if (greenTestFailed) {
     console.error("\n🚨 対照検査（GREEN）に失敗した。壊していない変更で誤検出している（過検出）。");
   }
+
+  // 🚨 **緑のときも未決を出す。** 出さないと「解決済み」として扱われ始める（司令塔の規律13）。
+  //    ここに置くのは、**成功・失敗のどちらの経路でも必ず通る**ため。
+  //    （最初は成功メッセージの隣に足そうとして置換を外し、**定義したのに一度も呼ばれない**状態を作った）
+  reportUndecided();
 
   process.exit(violations.length === 0 && !selfTestFailed && !greenTestFailed ? 0 : 1);
 }
