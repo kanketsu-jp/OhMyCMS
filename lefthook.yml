@@ -106,6 +106,10 @@ pre-commit:
     #    ——「一度も通っていない経路」の検査版。**緑だったが、門は守っていなかった。**
     # 🚨 走るたびに壊し方を3通り（片側のみ×両方向 / spread）と、
     #    誤検出しないことの対照を1本、その場で確かめてから判定を出す。
+    # 🚨 `root:` 配下に staged が 1 つも無いコミットでは**飛びます**（glob の有無に関係なく）。
+    #    例: lefthook.yml / knowledge/ / packages/ だけを触るコミット。
+    #    飛んだことは出力に `(skip) no matching staged files` と出るので、黙って通ることはない。
+    #    🚨 **「コミットが緑だった」は「この検査が通った」を意味しません。** 迷ったら --all-files。
     nav-parity:
       root: "apps/studio"
       run: node scripts/check-nav-parity.mjs
@@ -119,10 +123,18 @@ pre-commit:
     # 🚨 rendered のほうは「宣言が正しい」ではなく「宣言どおり画面に出ているか」を見る。
     #    実際に、宣言はあるのに <PageAction> を描いていない画面が 2 枚あった（2026-08-15）
     #    ＝ **保存ボタンがどこにも無いのに緑**だった。
+    # 🚨 `root:` 配下に staged が 1 つも無いコミットでは**飛びます**（glob の有無に関係なく）。
+    #    例: lefthook.yml / knowledge/ / packages/ だけを触るコミット。
+    #    飛んだことは出力に `(skip) no matching staged files` と出るので、黙って通ることはない。
+    #    🚨 **「コミットが緑だった」は「この検査が通った」を意味しません。** 迷ったら --all-files。
     page-actions:
       root: "apps/studio"
       run: node scripts/check-page-actions.mjs
 
+    # 🚨 `root:` 配下に staged が 1 つも無いコミットでは**飛びます**（glob の有無に関係なく）。
+    #    例: lefthook.yml / knowledge/ / packages/ だけを触るコミット。
+    #    飛んだことは出力に `(skip) no matching staged files` と出るので、黙って通ることはない。
+    #    🚨 **「コミットが緑だった」は「この検査が通った」を意味しません。** 迷ったら --all-files。
     page-actions-rendered:
       root: "apps/studio"
       run: node scripts/check-page-actions-rendered.mjs
