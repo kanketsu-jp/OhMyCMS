@@ -5,6 +5,7 @@ import { PageAction } from "@/components/admin/page-action";
 import { FormDraft } from "@/components/admin/form-draft";
 import { FilePicker } from "@/components/admin/file-picker";
 import { RichTextField } from "@/components/admin/rich-text-field";
+import { CopyButton } from "@/components/ui/copy-button";
 import { getT } from "@/i18n/server";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +72,9 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
         // meta.interface が無い／型に合わない場合だけ、型から既定へ落ちる。
         const ui = resolveFieldInterface(field);
         const widthClass = ui === "json" ? "md:max-w-2xl" : fieldWidthClass(field);
+        const inputValue = field.type === "dateTime" ? dateTimeValue(value) : valueForInput(value);
+        const canCopyReadonly =
+          readonly && ui !== "file" && ui !== "richtext" && ui !== "boolean";
 
         return (
           <div key={field.field} className="space-y-1.5">
@@ -81,10 +85,19 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
               name={`__nullable:${field.field}`}
               value={String(field.schema?.is_nullable !== false)}
             />
-            <Label htmlFor={fieldName}>
-              {field.field}
-              {required ? <span className="text-destructive">*</span> : null}
-            </Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor={fieldName}>
+                {field.field}
+                {required ? <span className="text-destructive">*</span> : null}
+              </Label>
+              {canCopyReadonly ? (
+                <CopyButton
+                  value={ui === "json" ? valueForInput(value) : inputValue}
+                  selectTargetId={fieldName}
+                  data-copy-target={fieldName}
+                />
+              ) : null}
+            </div>
             <div className={widthClass}>
               {ui === "file" && !readonly ? (
                 <FilePicker
@@ -140,7 +153,7 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
                   maxLength={field.type === "string" ? field.schema?.max_length ?? undefined : undefined}
                   required={required}
                   readOnly={readonly}
-                  defaultValue={field.type === "dateTime" ? dateTimeValue(value) : valueForInput(value)}
+                  defaultValue={inputValue}
                 />
               )}
             </div>

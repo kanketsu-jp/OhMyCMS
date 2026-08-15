@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, KeyRound, Ban, Plus } from "lucide-react";
+import { KeyRound, Ban, Plus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollFade } from "@/components/ui/scroll-fade";
@@ -219,12 +220,10 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
           </div>
           <p className="text-sm text-destructive">{t("token_warning")}</p>
           <code
+            id="agent-issued-token"
             className="block overflow-x-auto scroll-fade-x py-2 font-mono text-sm break-all"
           >{token}</code>
-          <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(token)}>
-            <Copy data-icon="inline-start" />
-            {t("copy_button")}
-          </Button>
+          <CopyButton value={token} selectTargetId="agent-issued-token" data-copy-target="agent-issued-token" />
         </div>
       ) : null}
       {error ? (
@@ -336,7 +335,11 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <div>
               <p className="font-medium">
                 {agent.name}
-                {agent.revoked_at ? <span className="ml-2 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t("revoked_badge")}</span> : null}
+                {/* 🚨 塗った箱にしない。面の中なので、背景を持たせると深さ 2 になる
+                    （knowledge/decisions/no-nested-surfaces.md §2-1）。
+                    2026-08-15 実測: bg-muted の chip が 64x21px の面として検出された。
+                    失効は**取り消せない状態**なので、色ではなく赤い文字で示す。 */}
+                {agent.revoked_at ? <span className="ml-2 text-xs font-medium text-destructive">{t("revoked_badge")}</span> : null}
               </p>
               <p className="text-sm text-muted-foreground">
                 on_behalf_of: {agent.on_behalf_of} / expires_at: {agent.expires_at} / revoked_at: {agent.revoked_at ?? "-"}

@@ -3,6 +3,7 @@ import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileDetailManager } from "@/components/admin/file-detail-manager";
 import { FilePreviewLightbox } from "@/components/admin/file-preview-lightbox";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -83,7 +84,13 @@ export default async function FileDetailPage({ params }: Props) {
               )}
             </div>
             <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-              <div><dt className="text-muted-foreground">{t("id_label")}</dt><dd className="break-all">{file.id}</dd></div>
+              <div>
+                <dt className="text-muted-foreground">{t("id_label")}</dt>
+                <dd className="mt-1 flex flex-wrap items-center gap-2">
+                  <span id="file-detail-id" className="break-all">{file.id}</span>
+                  <CopyButton value={file.id} selectTargetId="file-detail-id" data-copy-target="file-detail-id" />
+                </dd>
+              </div>
               <div><dt className="text-muted-foreground">{t("type_label")}</dt><dd>{file.type ?? ""}</dd></div>
               <div><dt className="text-muted-foreground">{t("size_label")}</dt><dd>{format.fileSize(file.filesize)}</dd></div>
               <div><dt className="text-muted-foreground">{t("dimensions_label")}</dt><dd>{file.width && file.height ? `${file.width} x ${file.height}` : "-"}</dd></div>

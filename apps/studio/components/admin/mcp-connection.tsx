@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Copy } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { useT } from "@/i18n/client";
 
 type Props = {
@@ -13,22 +12,19 @@ type Props = {
 function Snippet({
   label,
   value,
+  targetId,
 }: {
   label: string;
   value: string;
+  targetId: string;
 }) {
-  const t = useT("mcp");
-
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-heading text-base leading-snug font-medium">{label}</h2>
-        <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(value)}>
-          <Copy data-icon="inline-start" />
-          {t("copy_button")}
-        </Button>
+        <CopyButton value={value} selectTargetId={targetId} data-copy-target={targetId} />
       </div>
-      <pre className="overflow-x-auto scroll-fade-x rounded-lg bg-muted/60 p-3 text-xs leading-5">
+      <pre id={targetId} className="overflow-x-auto scroll-fade-x py-2 text-xs leading-5">
         <code>{value}</code>
       </pre>
     </div>
@@ -66,18 +62,15 @@ export function McpConnection({ url, entrypoint }: Props) {
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-heading text-base leading-snug font-medium">{t("url_label")}</h2>
-          <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(url)}>
-            <Copy data-icon="inline-start" />
-            {t("copy_button")}
-          </Button>
+          <CopyButton value={url} selectTargetId="mcp-connection-url" data-copy-target="mcp-connection-url" />
         </div>
-        <code className="overflow-x-auto scroll-fade-x rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs">
+        <code id="mcp-connection-url" className="block overflow-x-auto scroll-fade-x py-2 font-mono text-xs">
           {url}
         </code>
       </div>
 
-      <Snippet label={t("cli_heading")} value={cliCommand} />
-      <Snippet label={t("json_heading")} value={clientConfig} />
+      <Snippet label={t("cli_heading")} value={cliCommand} targetId="mcp-cli-command" />
+      <Snippet label={t("json_heading")} value={clientConfig} targetId="mcp-client-config" />
 
       <p className="text-muted-foreground">
         {t("issue_token_prefix")}{" "}

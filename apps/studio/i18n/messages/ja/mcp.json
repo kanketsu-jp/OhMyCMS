@@ -1,6 +1,5 @@
 {
   "cli_heading": "claude mcp add の例",
-  "copy_button": "コピー",
   "description": "OhMyCMS の MCP サーバへ接続するためのURLと設定例です。",
   "issue_token_link": "エージェントトークンを発行",
   "issue_token_prefix": "トークンは発行直後の1回だけ表示されます。",
