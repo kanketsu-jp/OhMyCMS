@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: hrdr による多ペイン運用（司令塔 + トラックA/B/C）
-description: このPJを司令塔1ペイン＋子ペインの体制で並列に進めるための hrdr コマンドの使い方と、トラックA/B/Cの排他ルール。
+description: このPJを司令塔1ペイン＋子ペインの体制で並列に進めるための hrdr コマンドの使い方と、トラックA/B/Cの排他ルール。hrdr inbox は破壊読み出しなのでパイプに繋がない（--peek / tee / cur からの復旧を含む）。
 tags: [ops, hrdr, multi-pane, delegation]
 status: active
 generated:
@@ -42,6 +42,46 @@ Codex / OpenCode へ渡す。
 hrdr ctx      # 自分の PJ・いまの司令塔・同僚を live のペイン一覧から判定
 hrdr inbox    # 自分宛の未読を古い順に読む（既読化する。--peek なら既読にしない）
 ```
+
+#### 🚨 `hrdr inbox` は破壊読み出し。**パイプに繋ぐと本文を失う**
+
+「既読化する」の結果として、**1 回しか出ません**。そこへ出力を減らす道具を挟むと、
+**見なかったぶんは既読になったまま消えます**（2026-08-16・onboard が 3 回、司令塔が常用で踏んだ）。
+
+```
+【測った】1 回に 8〜9 通届き、直近 40 通のうち 30 通が 40 行超
+  `| head -75`  → 4 通のうち 3 通を見ずに既読化
+  `| wc -l`     → 本文を行数に潰した
+  `| head -150` → 司令塔が常用。後半の 4〜5 通が一度も画面に出ていなかった
+```
+
+**使い方は 2 つ。用途が違う:**
+
+```bash
+hrdr inbox --peek                       # 消費しない。まず全文を見たいとき
+hrdr inbox 2>&1 | tee "$S/inbox-$(date +%H%M%S).txt"   # 消費するが控えが残る
+```
+
+```
+【測った】--peek → そのあとも未読のまま ／ 本読み → 「未読はありません」
+🟢 対照 `--zzz-nonexistent` は「未知のオプションです」で弾かれる（＝ --peek は実在する）
+```
+
+🚨 **それでも捨ててしまったら、消えてはいません。** 受信箱は maildir 形式で、
+既読は `cur/` に残る:
+
+```bash
+D=~/.local/state/hrdr-ai-team/inbox/<w..._p...>   # 例: w4A_p2A
+python3 -c "
+import json,glob,os
+for f in sorted(glob.glob('$D/cur/*.json'), key=os.path.getmtime)[-9:]:
+    d=json.load(open(f)); print('---', d['from'], d['at'][11:19]); print(d['text'])"
+```
+
+🚨 **鍵は `text`。`body` は存在しない**（鍵は version / id / from / to / at / **text** / via）。
+`d.get('body') or d.get('text')` と逃げ道を書くと**本文は出てしまい、鍵の誤りに気づけない**
+（実際に onboard がそれで誤った手順を配り、`body` だけで読んだ司令塔が「0 行」を得て発覚した）。
+**配る手順に `or` を書かないこと。**
 
 **司令塔のペイン ID は記憶しない。** 司令塔は交代しうるので、毎回 `hrdr ctx` で
 引き直す。台帳は「名前 → 宛先 ID の対応表」でしかなく、生死・役割・司令塔かどうかを
