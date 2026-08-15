@@ -107,6 +107,33 @@ const dupExcluded = [...new Set(excludedNames.filter((n, i) => excludedNames.ind
 console.log(`  ${dupExcluded.length === 0 ? "✅" : "❌"} 除外の path が一意  ${EXCLUDED.length} 件${dupExcluded.length ? "（重複: " + dupExcluded.join(" / ") + "）" : ""}`);
 if (dupExcluded.length > 0) selfTestFailed = true;
 
+/**
+ * 🚨 **「検出されてはいけないもの」の囮**（2026-08-15・司令塔の指摘を受けて追加）。
+ *
+ * ここまでの囮は**検出される側**しか見ていなかった。**逆方向が無いと、過検出は永久に捕まらない。**
+ * この検査は実際に一度、過検出している:
+ *   `app/(admin)/admin/zz-x/_private/page.tsx` を「巡回漏れ」として報告した
+ *   （Next.js は `_` 始まりの区画と `(…)` の区画を URL にしない）。
+ * コードでは直したが、**囮が無いので、次に誰かが filter を消しても気づけなかった。**
+ */
+const 出てはいけない = [
+  "app/(admin)/admin/zz/_private/page.tsx",   // アンダースコア区画 → URL にならない
+  "app/(admin)/(group)/zz/page.tsx",          // route group → パスに現れない
+];
+{
+  // routesFromDisk と同じ変換を、この 2 本にだけ当てる
+  const 変換 = 出てはいけない
+    .filter((f) => !f.split("/").some((seg) => seg.startsWith("_")))
+    .map((f) =>
+      "/" + f.replace(/^app\/\(admin\)\//, "").replace(/\/page\.tsx$/, "")
+        .split("/").filter((seg) => !(seg.startsWith("(") && seg.endsWith(")"))).join("/"),
+    );
+  // 期待: `_private` は落ちて 0 件、route group は `/zz` に潰れる（＝ 2 本とも「そのままの形」では出ない）
+  const 誤検出 = 変換.filter((p) => p.includes("_") || p.includes("("));
+  console.log(`  ${誤検出.length === 0 ? "✅" : "❌"} 囮2: URL にならない区画  → 誤検出 ${誤検出.length} 件${誤検出.length ? "（" + 誤検出.join(" ") + "）" : ""}`);
+  if (誤検出.length !== 0) selfTestFailed = true;
+}
+
 // 囮: 実在しないページを巡回一覧に混ぜたら「巡回に在るが実在しない」として出るか。
 const decoyMissing = ["/admin/zz-not-a-page"].filter(
   (p) => !routes.some((r) => r.path === p) && !EXCLUDED.some((e) => e.path === p),
