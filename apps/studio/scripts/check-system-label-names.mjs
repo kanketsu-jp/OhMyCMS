@@ -15,7 +15,8 @@
  * **今朝この不具合を直したばかりで、同じものが静かに戻る形だった。**
  * 🚨 **「安全側に倒す」が「静かに消す」になっていた**（司令塔・2026-08-15）。
  *
- * 🚨 **この検査が見ていない範囲**: DB に**手で入れた**システムラベル。
+ * 🚨 **この検査が見ていない範囲**【書いただけ】: DB に**手で入れた**システムラベル。
+ *    （**書いただけ** ＝ 手で入れられても、この検査は何も言わない。塞ぐには DB を見に行く必要がある）
  *    見るのは migration に書かれたものだけ。
  *
  * 使い方: node scripts/check-system-label-names.mjs   （cwd は apps/studio）
@@ -79,7 +80,7 @@ function withoutComments(src) {
     .split("\n")
     .filter((f) => f.endsWith(".ts"));
   const seeding = files.filter((f) => /system_key\s*:/.test(withoutComments(readFileSync(f, "utf8"))));
-  console.log(`  種まきしている migration: ${seeding.length} 本 / 全 ${files.length} 本（🚨 母集合は git の索引。書きかけの未追跡ファイルは見ていません）`);
+  console.log(`  種まきしている migration: ${seeding.length} 本 / 全 ${files.length} 本（🚨 母集合【書いただけ】は git の索引。書きかけの未追跡ファイルは見ていません）`);
   // 🚨 対象を 1 本も読めていないなら、この検査は走っていないのと同じ。
   if (files.length === 0) {
     console.error("🚨 [S0] migration を 1 本も拾えていません。走っていないのと同じです");
@@ -144,7 +145,7 @@ for (const d of DICTS) {
     ["コロンの前に空白", `{ system_key : "archived" }`, "archived"],
     ["ハイフンを含む鍵", `{ system_key: "source-missing" }`, "source-missing"],
   ];
-  console.log("  ── 🚨 この検査が見ていない書き方（**作って通した**。拾えたら ✅ に変わる）");
+  console.log("  ── 🚨 この検査が見ていない書き方【鳴る】（**作って通した**。拾えたら落ちます）");
   let 拾えるようになった = 0;
   for (const [label, probe, 期待] of cases2) {
     const got = 抽出(probe);
