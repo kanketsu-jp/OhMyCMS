@@ -85,8 +85,16 @@ if (at < 0) {
 const bodySrc = at >= 0 ? balanced(composer, composer.indexOf("{", at)) : null;
 if (at >= 0 && !bodySrc) problems.push("解析できません: JSON.stringify({ の括弧が閉じていません");
 
-const sent = [];
-if (bodySrc) {
+/**
+ * 送信 body の**最上位の鍵**を取り出す。
+ * 🚨 **囮も本番もこの関数を通す。** 囮の中に同じ処理を書き写すと、
+ *    本番を壊しても囮は ✅ のままになる（司令塔 2026-08-15）。
+ *    切り出す前は、この処理が**その場に直書き**で、囮を書くと写しになる形だった。
+ */
+function sentKeysOf(bodySrc, sink) {
+  const sent = [];
+  if (!bodySrc) return sent;
+
   // 🚨 **鍵と値を取り違えない。** `title: trimmedTitle,` の `trimmedTitle` は値であって鍵ではない。
   //    最初 `name[:,\n]` で拾ったら値まで数え、`trimmedTitle` `undefined` `pathname` が
   //    「送っている鍵」として並んだ（**過大に数えた**）。
@@ -103,7 +111,7 @@ if (bodySrc) {
     //    `...{ sessionToken: document.cookie }` と書くだけでこの検査を迂回できる
     //    （2026-08-15 実測: 迂回すると exit 0 のまま通っていた）。
     if (c === "." && bodySrc.slice(i, i + 3) === "...") {
-      problems.push(
+      sink?.push(
         "解析できません: 送信 body に spread（...）があります。" +
           "中身を静的に読めないので、鍵が増えていても検出できません（べた書きにしてください）",
       );
@@ -115,7 +123,10 @@ if (bodySrc) {
     if (m) { sent.push(m[1]); i += m[1].length - 1; }
     afterSeparator = false;
   }
+  return sent;
 }
+
+const sent = sentKeysOf(bodySrc, problems);
 
 // ── サーバが読む鍵（validate() の中の input.<key>） ─────────────────
 const service = readOrExplain(SERVICE, "報告のドメイン層");
@@ -126,19 +137,56 @@ const service = readOrExplain(SERVICE, "報告のドメイン層");
 //    `input.` が 1 つも無く**サーバ側 0 件**になる。しかも型注釈は行頭 `} {` で閉じるので、
 //    「行頭の } まで」で切っても**型注釈だけ**を掴む（実際に 2 回とも空振りした）。
 //    → 次の関数宣言までを窓にする。
-const vAt = service.indexOf("function validate(");
-const nextDecl = vAt >= 0
-  ? [service.indexOf("\nfunction ", vAt + 1), service.indexOf("\nexport ", vAt + 1)]
-      .filter((n) => n > 0)
-      .sort((a, b) => a - b)[0] ?? service.length
-  : -1;
-const vBody = vAt >= 0 ? service.slice(vAt, nextDecl) : null;
-if (!vBody) problems.push("解析できません: lib/reports/service.ts の validate() を読めませんでした");
-const accepted = new Set(
-  vBody ? [...vBody.matchAll(/input\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]) : [],
-);
+/** validate() の本体を切り出して、`input.<key>` を集める。**囮も本番もここを通る。** */
+function acceptedKeysOf(serviceSrc, sink) {
+  const vAt = serviceSrc.indexOf("function validate(");
+  const nextDecl = vAt >= 0
+    ? [serviceSrc.indexOf("\nfunction ", vAt + 1), serviceSrc.indexOf("\nexport ", vAt + 1)]
+        .filter((n) => n > 0)
+        .sort((a, b) => a - b)[0] ?? serviceSrc.length
+    : -1;
+  const vBody = vAt >= 0 ? serviceSrc.slice(vAt, nextDecl) : null;
+  if (!vBody) {
+    sink?.push("解析できません: lib/reports/service.ts の validate() を読めませんでした");
+    return new Set();
+  }
+  return new Set([...vBody.matchAll(/input\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
+}
+
+const accepted = acceptedKeysOf(service, problems);
 
 const extra = sent.filter((k) => !accepted.has(k));
+
+// ── 自己検査（囮）。**両方向 + 空振り確認**。本物の関数をそのまま呼ぶ ──────────
+{
+  const sentDecoy = sentKeysOf('{ zzDecoySent: 1, title: t }', null);
+  const acceptedDecoy = acceptedKeysOf(
+    "function validate(input) {\n  const a = input.zzDecoyAccepted;\n}\n", null,
+  );
+  // 🚨 逆方向: **コメントの中**の JSON.stringify。拾ったら、説明文を実装として数えている。
+  const withComment = "/* 例:\n *   JSON.stringify({ zzCommentOnly: 1 })\n */\n" + composerRaw;
+  const strippedAt = stripComments(withComment).indexOf("JSON.stringify({");
+  const strippedBody = strippedAt >= 0
+    ? balanced(stripComments(withComment), stripComments(withComment).indexOf("{", strippedAt)) : null;
+  const negative = sentKeysOf(strippedBody, null).includes("zzCommentOnly");
+  // 🟢 空振り確認: 潰さなければ拾うこと（拾わないなら、この囮は何も試していない）
+  const rawAt = withComment.indexOf("JSON.stringify({");
+  const rawBody = rawAt >= 0 ? balanced(withComment, withComment.indexOf("{", rawAt)) : null;
+  const negativeRaw = sentKeysOf(rawBody, null).includes("zzCommentOnly");
+
+  const okSent = sentDecoy.includes("zzDecoySent");
+  const okAccepted = acceptedDecoy.has("zzDecoyAccepted");
+  const okNegative = !negative && negativeRaw;
+  console.log("■ 自己検査（囮。本物の関数をそのまま呼ぶ）");
+  console.log(`  ${okSent ? "✅" : "🚨"} 囮(+/送る側): { zzDecoySent } → ${okSent ? "検出" : "検出できず"}`);
+  console.log(`  ${okAccepted ? "✅" : "🚨"} 囮(+/読む側): input.zzDecoyAccepted → ${okAccepted ? "検出" : "検出できず"}`);
+  console.log(`  ${okNegative ? "✅" : "🚨"} 囮(-): **コメントの中**の JSON.stringify → ` +
+    `${negative ? "🚨 拾ってしまう" : "拾わない"}（🟢 潰さなければ ${negativeRaw ? "拾う＝空振りではない" : "🚨 拾わない＝囮が効いていない"}）`);
+  if (!okSent || !okAccepted || !okNegative) {
+    console.error("\n🚨 自己検査に失敗しました。**この検査の結果は信用できません**。");
+    process.exit(1);
+  }
+}
 
 console.log("■ 判定（見ているのは不具合報告の送信 1 経路だけ）");
 console.log(`  画面が送る鍵      : ${sent.join(", ") || "(なし)"}`);
