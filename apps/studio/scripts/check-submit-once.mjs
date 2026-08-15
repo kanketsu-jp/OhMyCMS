@@ -67,6 +67,24 @@ const PENDING = [
   },
 ];
 
+/**
+ * classifyMethodValue が返す reason の正本。値は必ずここにだけ書く。
+ *
+ * 🚨 なぜ要るか（2026-08-15 追加）: この定数を作る前は "literal" / "unreadable" という
+ * 文字列を4箇所（reason を作る classifyMethodValue・findMutationLines の同着判定・
+ * 表示する reasonLabel・検査する KNOWN_REASONS）に手で書き写していた。
+ * このうち3箇所（作る・表示する・検査する）は既存の未分類ガード（下の unclassified）が
+ * 食い違いを検出できる。だが findMutationLines の同着判定（`reason === "unreadable"` という
+ * 1回きりの文字列比較）だけは違う——ここは「不明な値と一致するか」を聞いているだけなので、
+ * 誰かが reason を改名・削除して他の3箇所を直しても、この1行を直し忘れると比較が
+ * 黙って一致しなくなるだけでエラーは出ない（「1行が複数の hit を出したら unreadable を
+ * 優先する」というタイブレークが、何も言わずに効かなくなる）。
+ * これはテストで見つけた穴ではなく、この関数を読み返していて気づいた穴なので、そう書いておく。
+ * 値を REASON にだけ書き、4箇所すべてがここを参照する形にすれば、この種の食い違いは
+ * そもそも起こり得なくなる（KNOWN_REASONS も REASON から自動導出する）。
+ */
+const REASON = { LITERAL: "literal", UNREADABLE: "unreadable" };
+
 /** 関数の入口（この行より上に遡って「誰の中か」を決める）。 */
 const DECL = /(?:async\s+function\s+(\w+)\s*\(|const\s+(\w+)\s*=\s*useSubmitOnce\s*\(|useSubmitOnce\s*\(\s*async)/;
 
@@ -95,9 +113,9 @@ function classifyMethodValue(value) {
   const quoted = /^(['"])((?:\\.|(?!\1).)*)\1/.exec(value);
   if (quoted) {
     const isMutation = /^(?:POST|PATCH|DELETE)$/.test(quoted[2]);
-    return isMutation ? { isMutation: true, reason: "literal" } : { isMutation: false, reason: null };
+    return isMutation ? { isMutation: true, reason: REASON.LITERAL } : { isMutation: false, reason: null };
   }
-  return { isMutation: true, reason: "unreadable" };
+  return { isMutation: true, reason: REASON.UNREADABLE };
 }
 
 /**
@@ -123,7 +141,7 @@ function findMutationLines(source) {
     const { isMutation, reason } = classifyMethodValue(value);
     if (!isMutation) continue;
     const line = source.slice(0, m.index).split("\n").length - 1;
-    if (reason === "unreadable" || !hits.has(line)) hits.set(line, reason);
+    if (reason === REASON.UNREADABLE || !hits.has(line)) hits.set(line, reason);
   }
   return [...hits.entries()].map(([line, reason]) => ({ line, reason })).sort((a, b) => a.line - b.line);
 }
@@ -141,8 +159,8 @@ function findMutationLines(source) {
  * 別枠の ■ として exit 1 の理由を明示する。
  */
 function reasonLabel(reason) {
-  if (reason === "literal") return 'method: が POST/PATCH/DELETE（本当に変更系）';
-  if (reason === "unreadable") return "method: の値が読めない（識別子/三項演算子/テンプレート等）ため変更系として扱った（過検出）";
+  if (reason === REASON.LITERAL) return 'method: が POST/PATCH/DELETE（本当に変更系）';
+  if (reason === REASON.UNREADABLE) return "method: の値が読めない（識別子/三項演算子/テンプレート等）ため変更系として扱った（過検出）";
   return `🚨 分類できていない理由: "${reason}"（この検査の不具合）`;
 }
 
@@ -233,7 +251,7 @@ for (const entry of PENDING) {
 // hit 自体が既にこの検査を赤くしているので、reason の破損は赤の中に隠れて見えなくなる
 // （赤の中の赤）。ここで reason の値を独立に検査し、専用の ■ セクションと専用の exit 1
 // 理由で「この検査は自分の記録簿(reasonLabel)を信用できない」ことを明示する。
-const KNOWN_REASONS = new Set(["literal", "unreadable"]);
+const KNOWN_REASONS = new Set(Object.values(REASON));
 const unclassified = [...unguarded, ...guarded, ...pending].filter((h) => !KNOWN_REASONS.has(h.reason));
 
 console.log(`防御済み: ${guarded.length} 件 / 未防御: ${unguarded.length} 件 / 移行待ち: ${pending.length} 件`);
@@ -277,8 +295,13 @@ if (unguarded.length > 0) {
 
 if (unclassified.length > 0) {
   console.error("\n■ この検査自身の記録簿が壊れています（reason を分類できない hit がありました）");
-  console.error("  classifyMethodValue が返す reason に、reasonLabel が知らない値が混ざっています。");
-  console.error("  新しい reason を足したなら reasonLabel も同時に直してください（片方だけ直すと再発します）。");
+  console.error("  reason を作る側（classifyMethodValue）と表示する側（reasonLabel）の認識がずれています。");
+  console.error("  reason を足した／消した／改名した、いずれの場合も次の4箇所を同時に直してください");
+  console.error("  （1箇所でも取り残すと、追加なら気づけますが削除・改名は黙って再発します）:");
+  console.error("    - REASON（正本の定義。値はここにしか書かない）");
+  console.error("    - classifyMethodValue（REASON の値を返す）");
+  console.error("    - findMutationLines の同着判定（`reason === REASON.UNREADABLE` のタイブレーク）");
+  console.error("    - reasonLabel（表示ラベル）");
   for (const h of unclassified) {
     console.error(`  ${h.file}:${h.line}  関数 ${h.owner}  ← ${reasonLabel(h.reason)}`);
   }
