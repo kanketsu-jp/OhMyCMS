@@ -1,6 +1,7 @@
 {
   "actions_label": "Folder actions",
   "create_button": "Create",
+  "deleted": "Deleted",
   "delete_button": "Delete",
   "error_create_failed": "Failed to create folder",
   "error_delete_failed": "Failed to delete folder",

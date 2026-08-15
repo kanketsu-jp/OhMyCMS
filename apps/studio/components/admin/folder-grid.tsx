@@ -81,6 +81,12 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
       );
       return;
     }
+    // 🚨 **成功したら知らせる。** ここは一覧が入れ替わるだけなので、
+    //    知らせが無いと「消えたのか、並びが変わっただけか」が分からない。
+    // 🚨 鍵は **この画面の名前空間（folders）に持つ**。共通鍵にしない——
+    //    戻せる削除と戻せない削除が混ざったとき、**片方だけ文言を変えられなくなる**
+    //    （design の仕様 d04716a §4.5）。
+    toast.success(t("deleted"));
     router.refresh();
   }, (id) => id);
 
