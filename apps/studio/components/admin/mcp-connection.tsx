@@ -56,7 +56,13 @@ export function McpConnection({ url, entrypoint }: Props) {
 
       <p className="text-muted-foreground">
         {t("issue_token_prefix")}{" "}
-        <Link href="/admin/settings/agents" className="font-medium text-primary hover:text-primary/80">
+        {/* 🚨 `hover:` には必ず `active:` を対で書く（堀池 2026-08-15）。
+            タッチの端末に hover は無いので、hover だけだと**押した手応えが消える**。
+            効果は hover と同じにしてある（家の既存 `active:bg-sidebar-accent` と同じ「写す」形）。 */}
+        <Link
+          href="/admin/settings/agents"
+          className="font-medium text-primary hover:text-primary/80 active:text-primary/80"
+        >
           {t("issue_token_link")}
         </Link>
       </p>

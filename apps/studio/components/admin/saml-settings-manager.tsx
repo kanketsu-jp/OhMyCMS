@@ -201,7 +201,9 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
           <p className="text-xs">
             <a
               id="saml-metadata-url"
-              className="break-all text-primary hover:text-primary/80"
+              // 🚨 `hover:` には必ず `active:` を対で書く（堀池 2026-08-15）。
+              // タッチの端末に hover は無いので、hover だけだと**押した手応えが消える**。
+              className="break-all text-primary hover:text-primary/80 active:text-primary/80"
               href={settings.sp.metadataUrl}
             >
               {settings.sp.metadataUrl}
