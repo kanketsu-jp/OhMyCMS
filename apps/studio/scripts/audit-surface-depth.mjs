@@ -1482,8 +1482,17 @@ for (const vp of VIEWPORTS) {
       r.measure = m;
       if (m.invalid) {
         log(`     測定 ${m.selector}: セレクタが不正です（${m.error}）`);
+      } else if (m.count === 0 && renderLivenessReasons.length > 0) {
+        // 🚨 **「ページに無い」と「ページが取れていない」を同じ文言にしない**（2026-08-15）。
+        //    実測: 存在しないパスを測っても、在るページで外れたときと**1バイトも同じ出力**だった。
+        //    生存確認は別の違反として出ていたが、`測定` の行だけを読む人は
+        //    「この要素は無い」と読む。**取りに行けていないのか、行った先に無いのか**は別の話。
+        log(
+          `     測定 ${m.selector}: 🚨 測れていない（ページが描画されていません: ` +
+            `${renderLivenessReasons.join(" / ")}）。**この行を「要素が無い」と読まないこと**`,
+        );
       } else if (m.count === 0) {
-        log(`     測定 ${m.selector}: 当たらなかった（DOM一致 ${m.totalMatches} 件 / 見えている要素 0 件）`);
+        log(`     測定 ${m.selector}: 当たらなかった（ページは描画されている / DOM一致 ${m.totalMatches} 件 / 見えている要素 0 件）`);
       } else {
         log(`     測定 ${m.selector}: ${m.count} 件（DOM一致 ${m.totalMatches} 件）`);
         for (const item of m.items) {
