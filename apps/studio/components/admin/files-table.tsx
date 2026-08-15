@@ -65,7 +65,7 @@ export function FilesTable({
         </thead>
         <tbody>
           {folders.map((folder) => (
-            <tr key={folder.id} className="border-b last:border-0 hover:bg-muted">
+            <tr key={folder.id} className="border-b last:border-0 hover:bg-muted active:bg-muted/80">
               <td className="py-2 pr-4">
                 <Link href={`/admin/files?folder=${folder.id}`} className="flex min-w-0 items-center gap-2">
                   <Folder className="size-4 shrink-0 text-muted-foreground" />
@@ -86,7 +86,7 @@ export function FilesTable({
                 event.dataTransfer.setData(DRAG_FILE_MIME, JSON.stringify([file.id]));
                 event.dataTransfer.effectAllowed = "move";
               }}
-              className="border-b last:border-0 hover:bg-muted"
+              className="border-b last:border-0 hover:bg-muted active:bg-muted/80"
             >
               <td className="py-2 pr-4">
                 <Link href={`/admin/files/${file.id}`} className="flex min-w-0 items-center gap-2">

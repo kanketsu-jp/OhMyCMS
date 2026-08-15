@@ -161,7 +161,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
                   type="button"
                   key={file.id}
                   onClick={() => choose(file)}
-                  className="min-w-0 rounded-md p-2 text-left hover:bg-muted"
+                  className="min-w-0 rounded-md p-2 text-left hover:bg-muted active:bg-muted/80"
                 >
                   {/* 🚨 画像のレターボックス。**背景が要るので面に見えるが、面ではない**。
                       縦横比の違う画像を同じ大きさの枠に収めるための下地で、

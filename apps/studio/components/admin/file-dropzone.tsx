@@ -190,7 +190,7 @@ export function FileDropzone({
           size === "logo" ? "min-h-20 w-full max-w-64" : "min-h-32 w-full",
           over
             ? "text-foreground outline-ring"
-            : "text-muted-foreground outline-input hover:text-foreground",
+            : "text-muted-foreground outline-input hover:text-foreground active:text-foreground",
         )}
       >
         <UploadCloud className="size-6" />

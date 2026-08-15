@@ -160,7 +160,7 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
           className={
             dropTarget === folder.id
               ? "group/tile relative min-w-0 rounded-md p-3 outline-2 outline-offset-[-2px] outline-dashed outline-ring"
-              : "group/tile relative min-w-0 rounded-md p-3 hover:bg-muted"
+              : "group/tile relative min-w-0 rounded-md p-3 hover:bg-muted active:bg-muted/80"
           }
         >
           <Link href={`/admin/files?folder=${folder.id}`} className="block min-w-0 pr-10">

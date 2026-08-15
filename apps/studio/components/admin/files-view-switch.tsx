@@ -43,7 +43,7 @@ export function FilesViewSwitch({
       title={label}
       className={cn(
         "inline-flex size-8 items-center justify-center rounded-md",
-        view === target ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+        view === target ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground active:text-foreground",
       )}
     >
       {icon}

@@ -82,7 +82,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
             <button
               {...dragProps}
               type="button"
-              className="min-w-0 rounded-md p-3 text-left transition-colors hover:bg-muted"
+              className="min-w-0 rounded-md p-3 text-left transition-colors hover:bg-muted active:bg-muted/80"
               onClick={() => openImage(file)}
             >
               <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
@@ -109,7 +109,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
           <Link
             {...dragProps}
             href={`/admin/files/${file.id}`}
-            className="min-w-0 rounded-md p-3 hover:bg-muted"
+            className="min-w-0 rounded-md p-3 hover:bg-muted active:bg-muted/80"
           >
             <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
               <div className="text-center text-muted-foreground">

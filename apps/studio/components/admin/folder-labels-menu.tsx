@@ -69,7 +69,7 @@ export function FolderLabelsMenu({ folderId }: { folderId: string }) {
         type="button"
         disabled={load.pending}
         onClick={() => void load.run()}
-        className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground active:text-foreground"
       >
         <Tag className="size-4" />
         {load.pending ? t("labels_loading") : t("labels_heading")}
@@ -96,7 +96,7 @@ export function FolderLabelsMenu({ folderId }: { folderId: string }) {
               setSelected(next);
               void save.run(next);
             }}
-            className="flex items-center gap-2 text-left text-sm hover:underline"
+            className="flex items-center gap-2 text-left text-sm hover:underline active:underline"
           >
             {on ? <Check className="size-3.5" /> : <Tag className="size-3.5 opacity-50" />}
             <span className="truncate">{labelDisplayName(tl, label)}</span>
