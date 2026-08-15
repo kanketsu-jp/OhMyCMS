@@ -22,10 +22,19 @@
  * 🚨 **対象を2ファイルに絞っている。** 広げると他の担当のコミットを落とすため。
  *    増やすときは、増やした人が RED を測ってから増やすこと。
  *
+ * ── もう1つ見るもの: **ルートがサービスを迂回していないか** ──
+ * 上の守り（`toPublicFile` / `toPublic`）は **サービスの出口**にしか無い。
+ * `app/api/**` が `directus_files` を直接読んで返せば、`compressed_key` はそのまま出る。
+ * 🚨 2026-08-15 時点でそういう経路は **0 件**（コメントを除いて実測。
+ *    🟢 対照(+) 同じ探し方で `lib` 側は 25 件拾える＝探し方は効いている）。
+ *    **0 件のいまのうちに固定する。** 後から 1 件ずつ増えると、もう戻せない。
+ * 逃げ道: どうしても要るときは同じ行に `直接読む理由:` と書く（理由まで書かせる）。
+ *
  * 使い方: node scripts/check-raw-row-exports.mjs
  * 終了コード: 違反があれば 1。
  */
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 const TARGETS = [
   { file: "lib/files/service.ts", raw: "FileRow", pub: "PublicFileRow" },
@@ -154,6 +163,58 @@ for (const t of TARGETS) {
   }
   total += bad.length;
 }
+// ── ルートがサービスを迂回していないか ────────────────────────────────
+const GUARDED_TABLES = ["directus_files", "ohmycms_labels", "ohmycms_label_assignments"];
+
+/** コメントを外す（行数は保つ）。この検査自身の説明文を違反として数えないため。 */
+function withoutComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+}
+
+function directTableUses(file) {
+  const raw = readFileSync(file, "utf8");
+  const lines = raw.split("\n");
+  const clean = withoutComments(raw).split("\n");
+  const found = [];
+  clean.forEach((line, i) => {
+    for (const t of GUARDED_TABLES) {
+      if (!line.includes(`"${t}"`) && !line.includes(`'${t}'`)) continue;
+      // 逃げ道: 同じ行に理由が書いてあれば通す（**理由の文字列は元の行から探す**）
+      if (/直接読む理由:\s*\S/.test(lines[i])) {
+        found.push({ line: i + 1, table: t, allowed: true });
+      } else {
+        found.push({ line: i + 1, table: t, allowed: false });
+      }
+    }
+  });
+  return found;
+}
+
+{
+  const routes = execFileSync("git", ["ls-files", "app"], { encoding: "utf8" })
+    .split("\n")
+    .filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"));
+  let bad = 0;
+  let allowed = 0;
+  for (const f of routes) {
+    for (const u of directTableUses(f)) {
+      if (u.allowed) {
+        allowed++;
+        console.log(`    ・${f}:${u.line} ${u.table}（理由つきで許可）`);
+      } else {
+        bad++;
+        console.log(`    🚨 ${f}:${u.line} ${u.table} をルートが直接読んでいる`);
+        console.log(`       → lib のサービス経由にすること（compressed_key / system_key が素通りする）`);
+        console.log(`       → どうしても要るなら同じ行に「直接読む理由: …」と書く`);
+      }
+    }
+  }
+  console.log(`  app/ 配下 ${routes.length} ファイル / 直接読み ${bad} 件（理由つきの許可 ${allowed} 件）`);
+  total += bad;
+}
+
 if (total > 0) {
   console.log(`\n🚨 違反 ${total} 件`);
   process.exit(1);
