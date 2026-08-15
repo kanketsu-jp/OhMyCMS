@@ -1,22 +1,36 @@
 import { randomUUID } from "node:crypto";
+import type { Knex } from "knex";
 import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
+import { applyFilter, type FilterObject } from "@/lib/items/filter";
+import type { SchemaOverview } from "@/lib/items/relations";
 import { resolvePermission, type PermissionAction } from "@/lib/permissions/resolve";
 import { ApiError } from "@/lib/schema/errors";
+import { getSchemaOverview } from "@/lib/schema/introspect";
+import type { RelationMeta } from "@/lib/schema/models";
 
 /**
  * ファイルとフォルダに付けるラベル。
  *
- * 🚨 **権限は `directus_files` に相乗りしている**（ラベル専用の権限は作っていない）:
- *   ・読む   … `directus_files` の read
- *   ・作る/直す/消す … `directus_files` の update
+ * ラベルの台帳そのもの（listLabels / createLabel / updateLabel / deleteLabel）は
+ * `directus_files` の read / update に相乗りしている（ラベル専用の権限は作っていない）。
  * 理由: ラベルは**ファイル管理の一部**で、単独で意味を持たない。専用の権限を作ると
  * 「ファイルは触れるがラベルは触れない」のような、**説明できない組み合わせ**が増える。
- * 🚨 これは設計判断。フォルダにも付くので `directus_folders` 側の権限も要るのでは、
- *    という指摘はありうる。**司令塔へ報告済み**。
+ *
+ * 🚨 対象に付け外しするほう（labelsForTarget / setLabelsForTarget）は
+ *    **対象のコレクション**を見る: file は `directus_files`、folder は `directus_folders`。
+ * 🚨 許可の有無だけでなく、**その行が本人に見えるか**まで確かめる。
+ *    `permission.rowFilter` を通して対象行を1件引く。以前は許可の有無しか見ておらず、
+ *    見えないファイルのラベルを読み書きできた（2026-08-15 実測で確認して修正）。
+ *    権限そのものが無ければ 403、権限はあるが行が見えなければ 404 にする理由は
+ *    `assertTargetVisible` 側のコメントを参照。
  */
 
 const TARGET_TYPES = new Set(["file", "folder"]);
+const TARGET_COLLECTION = {
+  file: "directus_files",
+  folder: "directus_folders",
+} as const;
 
 type LabelRow = {
   id: string;
@@ -41,6 +55,7 @@ export type PublicLabel = {
 };
 
 export type LabelTargetType = "file" | "folder";
+type TargetCollection = (typeof TARGET_COLLECTION)[LabelTargetType];
 
 function toPublic(row: LabelRow): PublicLabel {
   return { id: row.id, name: row.name, color: row.color, is_system: row.is_system };
@@ -50,6 +65,55 @@ async function assertPermission(actor: Actor, action: PermissionAction): Promise
   const permission = await resolvePermission(actor, "directus_files", action);
   if (!permission.allowed) {
     throw new ApiError(403, "PERMISSION_DENIED", "権限がありません");
+  }
+}
+
+async function relationRows(): Promise<RelationMeta[]> {
+  return db<RelationMeta>("directus_relations").select("*");
+}
+
+function applyRowFilter(
+  query: Knex.QueryBuilder,
+  rowFilter: FilterObject | null,
+  collection: TargetCollection,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+): void {
+  if (!rowFilter) return;
+  applyFilter(
+    query as Knex.QueryBuilder<Record<string, unknown>, unknown[]>,
+    rowFilter,
+    { collection, schemaOverview, relations },
+  );
+}
+
+async function assertTargetVisible(
+  actor: Actor,
+  targetType: LabelTargetType,
+  targetId: string,
+  action: PermissionAction,
+): Promise<void> {
+  const collection = TARGET_COLLECTION[targetType];
+  const permission = await resolvePermission(actor, collection, action);
+  if (!permission.allowed) {
+    throw new ApiError(403, "PERMISSION_DENIED", "権限がありません");
+  }
+
+  const query = db(collection).where({ id: targetId });
+  if (permission.rowFilter) {
+    const schemaOverview = await getSchemaOverview();
+    const relations = await relationRows();
+    applyRowFilter(query, permission.rowFilter, collection, schemaOverview, relations);
+  }
+  const row = await query.first();
+  if (!row) {
+    // 権限そのものが無い場合は 403。権限はあるが行フィルタで見えない場合は 404。
+    // 後者を 403 にすると、攻撃者にその行が存在することを教えてしまう。
+    throw new ApiError(
+      404,
+      targetType === "file" ? "FILE_NOT_FOUND" : "FOLDER_NOT_FOUND",
+      targetType === "file" ? "ファイルが見つかりません" : "フォルダが見つかりません",
+    );
   }
 }
 
@@ -81,6 +145,25 @@ function assertTargetType(value: string): asserts value is LabelTargetType {
   if (!TARGET_TYPES.has(value)) {
     throw new ApiError(400, "INVALID_FIELD", "対象の種類が正しくありません");
   }
+}
+
+async function readLabelsForTarget(
+  targetType: LabelTargetType,
+  targetId: string,
+): Promise<PublicLabel[]> {
+  const rows = await db<LabelRow>("ohmycms_labels")
+    .join(
+      "ohmycms_label_assignments",
+      "ohmycms_labels.id",
+      "ohmycms_label_assignments.label_id",
+    )
+    .where({
+      "ohmycms_label_assignments.target_type": targetType,
+      "ohmycms_label_assignments.target_id": targetId,
+    })
+    .select("ohmycms_labels.*")
+    .orderBy([{ column: "is_system", order: "desc" }, { column: "name", order: "asc" }]);
+  return rows.map(toPublic);
 }
 
 export async function listLabels(actor: Actor): Promise<PublicLabel[]> {
@@ -171,21 +254,9 @@ export async function labelsForTarget(
   targetType: string,
   targetId: string,
 ): Promise<PublicLabel[]> {
-  await assertPermission(actor, "read");
   assertTargetType(targetType);
-  const rows = await db<LabelRow>("ohmycms_labels")
-    .join(
-      "ohmycms_label_assignments",
-      "ohmycms_labels.id",
-      "ohmycms_label_assignments.label_id",
-    )
-    .where({
-      "ohmycms_label_assignments.target_type": targetType,
-      "ohmycms_label_assignments.target_id": targetId,
-    })
-    .select("ohmycms_labels.*")
-    .orderBy([{ column: "is_system", order: "desc" }, { column: "name", order: "asc" }]);
-  return rows.map(toPublic);
+  await assertTargetVisible(actor, targetType, targetId, "read");
+  return readLabelsForTarget(targetType, targetId);
 }
 
 /**
@@ -200,8 +271,8 @@ export async function setLabelsForTarget(
   targetId: string,
   labelIds: unknown,
 ): Promise<PublicLabel[]> {
-  await assertPermission(actor, "update");
   assertTargetType(targetType);
+  await assertTargetVisible(actor, targetType, targetId, "update");
   if (!Array.isArray(labelIds) || labelIds.some((id) => typeof id !== "string")) {
     throw new ApiError(400, "INVALID_FIELD", "ラベルの指定が正しくありません");
   }
@@ -232,7 +303,7 @@ export async function setLabelsForTarget(
     }
   });
 
-  return labelsForTarget(actor, targetType, targetId);
+  return readLabelsForTarget(targetType, targetId);
 }
 
 /**
