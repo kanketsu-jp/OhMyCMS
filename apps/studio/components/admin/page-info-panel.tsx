@@ -38,6 +38,10 @@ import { pageMeta } from "@/lib/admin/page-meta";
  *
  * 🚨 `useEffect` + `setState` にしない（React Compiler の lint が error にする）。
  *    返すのは文字列なので、同じ状態なら同じ値になり再描画も起きない。
+ *    **守り手: `bun run lint`**。2026-08-15 に実測した——`useEffect(() => { setN(1); }, [])`
+ *    を書いたファイルを置くと `exit 1` になり、**ファイル名と行が出る**
+ *    （"Calling setState synchronously within an effect can trigger cascading renders"）。
+ *    願望ではなく、壊すと落ちることを確かめてある。
  */
 function useExistingAnchors(ids: readonly string[]): Set<string> {
   const key = useSyncExternalStore(
