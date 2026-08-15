@@ -8,6 +8,8 @@
   "done_tenant": "Tenant",
   "done_title": "Setup is complete",
   "failed": "Could not save. Please try again later.",
+  "failed_conflict": "Setup is already complete. Continue from the login screen.",
+  "failed_input": "Check your input. Pressing again as-is will give the same result.",
   "go_admin": "Go to admin",
   "hide_password": "Hide password",
   "logo_failed": "Could not upload the logo.",

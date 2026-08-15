@@ -89,7 +89,17 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
     });
 
     if (!response.ok) {
-      setError(t("failed"));
+      // 🚨 全部を「時間をおいてもう一度」にしない。**400 は何度押しても同じ結果**なので、
+      //    その文言は嘘になる（2026-08-15 に実際、tenant_name の 400 に対してこれが出ていた）。
+      //    🚨 サーバの生文言は画面に出さない（?error= で任意の文章を出せてしまう形と同じ理由）。
+      //    出し分けるのは**状態コードだけ**で、中身は辞書から引く。
+      setError(
+        response.status === 409
+          ? t("failed_conflict")
+          : response.status >= 400 && response.status < 500
+            ? t("failed_input")
+            : t("failed"),
+      );
       return;
     }
 

@@ -161,6 +161,19 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-submit-once.mjs
 
+    # オンボーディングの「画面が送る鍵」と「API が必須にする鍵」のずれ。
+    # 🚨 2026-08-15 に実際に壊れた: `7b923d9` がフォームからだけ tenant_name を外し、
+    #    API 側はそのままだったので、**新規インストールで初期設定を一度も終えられなかった**
+    #    （「はじめる」は tenant_name、「あとで」は project_name で 400）。
+    # 🚨 **一日誰も気づかなかった理由が重要**: :3101 / :3102 / :3103 はどれも
+    #    onboarding_completed_at が入っていて /onboarding が 307 になるため、
+    #    **共有環境では誰もこの画面に到達できない**（Storybook の story は API に届かない）。
+    #    ＝ 人が踏めない経路なので、機械で見るしかない。
+    # 🚨 載せる前に自分で回して緑を確認済み（自己検査 4/4 検出・違反 0・exit 0）。
+    onboarding-contract:
+      root: "apps/studio"
+      run: node scripts/check-onboarding-contract.mjs
+
     # packages/* の型。
     # 🚨 2026-08-15 まで **packages は lefthook のどの項目からも見られていなかった**
     #    （root: "apps/studio" の外なので、staged が packages だけだと 12 項目中 10 が飛び、

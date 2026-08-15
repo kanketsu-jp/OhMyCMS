@@ -336,6 +336,21 @@ export async function getSecretSetting(key: SecretSettingsKey): Promise<string |
 /** 保存できるロケール。i18n/config.ts の LOCALES と揃える。 */
 const ALLOWED_LOCALES = ["ja", "en"];
 
+/**
+ * オンボーディングが受け取ってよい設定の鍵。
+ *
+ * 🚨 **ここに並べるのは「受け取ってよい」であって「必須」ではない。**
+ * 送られてこなかった鍵は `completeOnboardingWithAdmin` が落とすので、
+ * 画面が聞くのをやめた項目があっても 400 にならない。
+ * （画面は「あとで」で何も送らないことがある。テナント名は完了画面で「あとで」と案内している側。）
+ */
+export const ONBOARDING_INPUT_KEYS = [
+  "project_name",
+  "default_locale",
+  "tenant_name",
+  "project_logo",
+] as const;
+
 function validate(input: Record<string, unknown>): Partial<Record<SettingsKey, string | null>> {
   const patch: Partial<Record<SettingsKey, string | null>> = {};
 
@@ -534,12 +549,21 @@ export async function completeOnboardingWithAdmin(
     );
   }
 
-  const patch = validate({
-    project_name: input.project_name,
-    default_locale: input.default_locale,
-    tenant_name: input.tenant_name,
-    project_logo: input.project_logo,
-  });
+  // 🚨 **オブジェクトリテラルに並べない。** `validate()` は `key in input` で
+  //    「送られてこなかった鍵」を飛ばす作りだが、リテラルに並べると
+  //    **送られてこなかった鍵も「在る（値は undefined）」になり、その瞬間に全部が必須**になる。
+  //    2026-08-15 に実際にこれで壊れた: `7b923d9` がフォームから tenant_name を外したあと、
+  //    「はじめる」は tenant_name で、「あとで」は project_name で 400 になり、
+  //    **新規インストールで初期設定を一度も終えられなかった**
+  //    （:3101 / :3102 / :3103 はどれも完了済みで /onboarding が 307 になるため、
+  //      共有環境では誰もこの経路に到達できず、一日気づかれなかった）。
+  //    → **送られてきた鍵だけを通す。** 値の検証は今までどおり validate() が行う。
+  //    守り手: scripts/check-onboarding-contract.mjs（フォームが送らない鍵を必須にすると落ちる）
+  const picked: Record<string, unknown> = {};
+  for (const key of ONBOARDING_INPUT_KEYS) {
+    if (key in input) picked[key] = input[key];
+  }
+  const patch = validate(picked);
 
   // 🚨 directus_users.password と ohmycms_settings.setup_password を同じハッシュにする。
   //    別々にハッシュ化すると（scryptはソルトがランダムなので）異なる文字列になり、
