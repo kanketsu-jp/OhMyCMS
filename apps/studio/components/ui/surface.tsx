@@ -117,7 +117,20 @@ export function Surface({
             //    先頭にも引くと、**すぐ上のヘッダの下辺と2本並ぶ**（見出しを外して実測で発覚）。
             //    実際の出し分けは app/globals.css の `[data-slot=surface-container] + …` が持つ
             //    （自分の親の中での順番は、自分自身のクラスでは表現できないため）。
-              "@md/surface:rounded-xl @md/surface:border border-border",
+            //
+            // 🚨 **2026-08-15 反転: PC でもカードにしない。**
+            //    それまで `@md/surface:rounded-xl @md/surface:border` を付けており、
+            //    PC では 3 枚のカードが縦に並ぶだけで **Divider が 1 本も無かった**（schema が両幅で実測）。
+            //    原典（idea.md:66・堀池さん原文）が名指しで否定しているのは、まさにこの形:
+            //    > 「**ボーダー＋Padding はいらない**。親要素にすでに Padding があるのと、
+            //    >   **カードコンポーネントを多用するのはデザインスキルが低い**。
+            //    >   **枠というのは明確な別の領域を表現する**が、…ボーダー＋角丸で
+            //    >   **カードタイプにしてしまう**」
+            //    🚨 design はこれを「PC はカードだから当たり前」として 2 箇所に書いていた
+            //    （globals.css の隣接規則・checks-must-declare-blind-spots）。
+            //    **規約と実装が食い違ったとき、実装の側を正として扱った**のが誤り。
+            //    区切りは **SP と同じく「面と面のあいだに 1 本」** だけ。出し分けは globals.css が持つ。
+              "border-border",
             effectiveTone === "muted" && "@md/surface:rounded-xl @md/surface:bg-muted/40",
             className,
           )}
