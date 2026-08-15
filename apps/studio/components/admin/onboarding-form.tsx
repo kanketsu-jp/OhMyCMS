@@ -135,9 +135,13 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
               // 色 + hover の濃さで足りる。**文中に埋まったリンクなら下線を残す**
               // （色だけが手掛かりになると WCAG 1.4.1 に触れる）。
               // 🚨 `hover:` を書いたら `active:` も書く（堀池・2026-08-15）。
-              // **タッチの端末には hover が無い**ので、hover だけだと
-              // **スマホでは押しても何も変わらない＝押した手応えが消える**。
-              // ここは同じ効果を当てている（押している間だけ薄くなる）。
+              // **実測（2026-08-16・この要素で）**:
+              //   SP（hover:none / pointer:coarse で描かせた）… :hover → **色が変わらない**
+              //                                                :active → 変わる
+              //   PC（hover:hover / pointer:fine）           … :hover → 変わる / :active → 変わる
+              //   ＝ **active: が無ければ、スマホでは押しても何も変わらない**。
+              // 🚨 幅だけ 390 にしても `(hover: hover)` は true のままなので、
+              //    **幅を変えただけの計測では、この差は出ない**（それで一度測り損ねている）。
               className="text-primary hover:text-primary/80 active:text-primary/80"
             >
               {t("done_settings_link")}
