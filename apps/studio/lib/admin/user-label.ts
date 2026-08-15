@@ -1,6 +1,7 @@
 import type { MeResult } from "@/lib/admin/api";
 import type { Locale } from "@/i18n/config";
 import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/service";
+import { isSamlPlaceholderEmail } from "@/lib/auth/saml/placeholder-email";
 
 // アバターに何も無いときの既定の絵文字。
 // 🚨 辞書に入れない: `components/admin/shortcuts.ts` の `MOD_SYMBOL` と同じ理由で、
@@ -25,16 +26,23 @@ function visibleHuman(me: MeResult | null): Extract<MeResult, { type: "human" }>
  * `directus_users.email` が NOT NULL なので**器を埋めるためだけに**入っている値で、
  * 誰かの連絡先ではない。これが画面に出ると、利用者は自分のアカウントだと誤解する。
  *
+ * 🚨 **合成 ID は画面に出さない**（守り手: `displayUserLabel` / `isSamlPlaceholderEmail`）。
+ * ここで塞ぐのは2種類の**合成 ID**——①起動用の固定ユーザー（`local-admin@localhost`）と、
+ * ②メールを送らない IdP のために `verify.ts` が埋める `<uuid>@saml.invalid`（SAML placeholder）。
+ * ②は本物の利用者だが、メールだけが器を埋めるための値なので、`displayUserLabel` だけで弾く
+ * （`visibleHuman` には足さない。足すとその利用者のアカウント行が名前ごと丸ごと消える）。
+ *
  * 🚨 **判定を呼び出し側に置かない。** 呼び出し側で弾く形にすると、
  * 次に `UserMenu` を置く人が必ず素の `me.data.email` を渡して、また漏れる
  * （実際に layout.tsx の2箇所へ同じ式が写されていた）。
  * **値が作られる場所で弾く**ので、ここを通らない限り画面へ出ない。
  *
  * 本物のログイン中の人が、自分のアカウントの行に自分のアドレスを見るのは正常。
- * 塞ぐのは**起動用の合成 ID だけ**で、メールアドレス一般ではない。
+ * 塞ぐのは**起動用の合成 ID と SAML の埋め草だけ**で、メールアドレス一般ではない。
  */
 export function displayUserLabel(me: MeResult | null): string | null {
-  return visibleHuman(me)?.email ?? null;
+  const human = visibleHuman(me);
+  return human && !isSamlPlaceholderEmail(human.email) ? human.email : null;
 }
 
 export function displayUserPicture(me: MeResult | null): string | null {
