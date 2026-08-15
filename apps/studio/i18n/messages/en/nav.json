@@ -1,7 +1,6 @@
 {
   "account": "Account",
   "auth_error": "Authentication error",
-  "avatar_dialog_title": "Choose an icon",
   "avatar_error": "Could not change the icon",
   "breadcrumb_label": "Breadcrumb",
   "breadcrumb_parents": "Go to parent pages",
