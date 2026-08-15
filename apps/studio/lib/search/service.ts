@@ -29,6 +29,7 @@
 
 import type { Actor } from "@/lib/auth/context";
 import { listFiles } from "@/lib/files/service";
+import { targetIdsByLabelName } from "@/lib/labels/service";
 import { listItems } from "@/lib/items/service";
 import { requireAdminAccess, resolvePermission } from "@/lib/permissions/resolve";
 import { getSchemaOverview } from "@/lib/schema/introspect";
@@ -259,12 +260,19 @@ async function searchFiles(actor: Actor, q: string): Promise<SearchHit[]> {
   }
 
   const needle = normalize(q);
+  // 🚨 ラベル名でも引っかかるようにする（要件「ラベルは検索でも引っかかる」）。
+  //    id の集合だけ先に引いて、**行ごとの問い合わせ（N+1）にしない**。
+  const byLabel = await targetIdsByLabelName("file", q);
   return rows
     .filter((row) => {
       const record = row as unknown as Record<string, unknown>;
       const name = typeof record.filename_download === "string" ? record.filename_download : "";
       const title = typeof record.title === "string" ? record.title : "";
-      return normalize(name).includes(needle) || normalize(title).includes(needle);
+      return (
+        normalize(name).includes(needle) ||
+        normalize(title).includes(needle) ||
+        byLabel.has(String(record.id))
+      );
     })
     .slice(0, PER_KIND_LIMIT)
     .map((row) => {

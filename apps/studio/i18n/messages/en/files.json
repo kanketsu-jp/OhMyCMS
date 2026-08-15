@@ -81,5 +81,6 @@
   "filtered_by_label": "Filtered by “{name}”",
   "clear_filter": "Clear filter",
   "labels_loading": "Loading…",
-  "labels_load_failed": "Could not load labels"
+  "labels_load_failed": "Could not load labels",
+  "view_source": "View original"
 }

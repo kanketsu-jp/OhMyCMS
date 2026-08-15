@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileDetailManager } from "@/components/admin/file-detail-manager";
@@ -25,7 +26,26 @@ type FileRow = {
   description: string | null;
   tags: string | null;
   uploaded_on: string;
+  /**
+   * 取り込み元などの付帯情報。ドライブから取り込んだものは `{ drive: {...} }` が入る。
+   * 🚨 形は保証されない（古い行には無い／別の取り込み元が増えるかもしれない）ので、
+   *    **読むときに必ず形を確かめる**。
+   */
+  metadata: unknown;
 };
+
+/**
+ * 取り込み元の「もとのファイル」への URL を、形を確かめてから取り出す。
+ * 🚨 `metadata` は json 列で、**中身の形はデータ次第**。`as` で押し通すと、
+ *    古い行や別形式の行で実行時に落ちる。
+ */
+function sourceLink(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const drive = (metadata as { drive?: unknown }).drive;
+  if (!drive || typeof drive !== "object") return null;
+  const link = (drive as { webViewLink?: unknown }).webViewLink;
+  return typeof link === "string" && link.startsWith("https://") ? link : null;
+}
 
 type FolderRow = {
   id: string;
@@ -104,6 +124,19 @@ export default async function FileDetailPage({ params }: Props) {
           </Surface>
           <Surface>
             <SurfaceTitle>{t("metadata_title")}</SurfaceTitle>
+            {/* 🚨 取り込み元がある行だけ出す。無い行に空のボタンを置かない。 */}
+            {sourceLink(file.metadata) ? (
+              <a
+                href={sourceLink(file.metadata) ?? "#"}
+                target="_blank"
+                // 🚨 別タブで開くリンクには必ず付ける（開いた先から元のページを触られないように）。
+                rel="noopener noreferrer"
+                className="inline-flex w-fit items-center gap-2 text-sm underline"
+              >
+                <ExternalLink className="size-4" />
+                {t("view_source")}
+              </a>
+            ) : null}
             <FileDetailManager file={file} folders={foldersResult.ok ? foldersResult.data.data : []} />
             <FileLabelsEditor
               fileId={file.id}

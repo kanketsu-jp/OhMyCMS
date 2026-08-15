@@ -346,3 +346,31 @@ export async function removeLabelsForTarget(
     .where({ target_type: targetType, target_id: targetId })
     .delete();
 }
+
+/**
+ * **ラベル名で対象を探す**（横断検索から使う）。
+ *
+ * 🚨 要件は「ラベルは**検索でも引っかかる**」。一覧の絞り込み（`?label=`）だけでは、
+ *    **ラベル名を打って探す**という動きにならない。
+ *
+ * 🚨 **権限はここで見ない。** 返すのは「その名前のラベルが付いている対象の id」だけで、
+ *    **その対象を見てよいかは呼び出し側が既存の入口（listFiles 等）で判定する**。
+ *    ここで独自に判定を足すと、判定が2箇所になって食い違う。
+ */
+export async function targetIdsByLabelName(
+  targetType: LabelTargetType,
+  needle: string,
+): Promise<Set<string>> {
+  const trimmed = needle.trim();
+  if (trimmed === "") return new Set();
+  const rows = await db("ohmycms_label_assignments as a")
+    .join("ohmycms_labels as l", "a.label_id", "l.id")
+    .where("a.target_type", targetType)
+    // 🚨 `%` と `_` を打ち消す。打ち消さないと、`_` を含む検索語が
+    //    「任意の1文字」として効いて、関係ないものまで拾う。
+    .whereRaw("lower(l.name) like ? escape '\\'", [
+      `%${trimmed.toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`)}%`,
+    ])
+    .select("a.target_id");
+  return new Set(rows.map((row: { target_id: string }) => row.target_id));
+}
