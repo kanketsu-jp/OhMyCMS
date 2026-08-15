@@ -47,6 +47,30 @@ const EXCLUDED = [
   },
 ];
 
+/**
+ * 🚨 **ファイル → URL の変換を 1 箇所に集める**（2026-08-15）。
+ * それまで囮2 が同じ変換を**書き写して**いた。実測: 本物の `_` filter だけを殺しても
+ * **囮2 は ✅ のまま**で、**他のどの囮も落とさなかった**（いまツリーに `_` 区画が無いため、
+ * 判定側も変化しない＝**まだ出番が来ていない穴**）。
+ * 本物と囮が同じ関数を通るようにして、写しを無くす。
+ */
+/** Next.js が URL にしないファイルなら false（`_` 始まりの区画）。 */
+function isUrlFile(f) {
+  return !f.split("/").some((seg) => seg.startsWith("_"));
+}
+/** `app/(admin)/…/page.tsx` を URL のパスへ（route group は消える）。 */
+function toRoutePath(f) {
+  const p =
+    "/" +
+    f
+      .replace(/^app\/\(admin\)\//, "")
+      .replace(/\/page\.tsx$/, "")
+      .split("/")
+      .filter((seg) => !(seg.startsWith("(") && seg.endsWith(")")))
+      .join("/");
+  return p === "/" ? "/" : p;
+}
+
 /** app/(admin) 配下の page.tsx から実在するルートを作る。`[param]` を含むものは別扱い。 */
 function routesFromDisk() {
   const files = globSync("app/(admin)/**/page.tsx", { cwd: root });
@@ -57,18 +81,10 @@ function routesFromDisk() {
     //      (foo)/ … 丸括弧の区画（route group。パスに現れない）
     //    実測: app/(admin)/admin/zz-x/_private/page.tsx を置くと**巡回漏れとして誤検出**した。
     //    ＝ この検査は「ファイルが在る」を見ていて、「URL が在る」を見ていなかった。
-    .filter((f) => !f.split("/").some((seg) => seg.startsWith("_")))
+    .filter(isUrlFile)
     .map((f) => {
-      const p =
-        "/" +
-        f
-          .replace(/^app\/\(admin\)\//, "")
-          .replace(/\/page\.tsx$/, "")
-          // route group は URL に現れない
-          .split("/")
-          .filter((seg) => !(seg.startsWith("(") && seg.endsWith(")")))
-          .join("/");
-      return { file: f, path: p === "/" ? "/" : p, dynamic: p.includes("[") };
+      const p = toRoutePath(f);
+      return { file: f, path: p, dynamic: p.includes("[") };
     });
 }
 
@@ -122,12 +138,8 @@ const 出てはいけない = [
 ];
 {
   // routesFromDisk と同じ変換を、この 2 本にだけ当てる
-  const 変換 = 出てはいけない
-    .filter((f) => !f.split("/").some((seg) => seg.startsWith("_")))
-    .map((f) =>
-      "/" + f.replace(/^app\/\(admin\)\//, "").replace(/\/page\.tsx$/, "")
-        .split("/").filter((seg) => !(seg.startsWith("(") && seg.endsWith(")"))).join("/"),
-    );
+  // 🚨 **本物と同じ関数を通す**（書き写さない）。
+  const 変換 = 出てはいけない.filter(isUrlFile).map(toRoutePath);
   // 期待: `_private` は落ちて 0 件、route group は `/zz` に潰れる（＝ 2 本とも「そのままの形」では出ない）
   const 誤検出 = 変換.filter((p) => p.includes("_") || p.includes("("));
   console.log(`  ${誤検出.length === 0 ? "✅" : "❌"} 囮2: URL にならない区画  → 誤検出 ${誤検出.length} 件${誤検出.length ? "（" + 誤検出.join(" ") + "）" : ""}`);
