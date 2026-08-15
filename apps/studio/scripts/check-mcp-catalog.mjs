@@ -136,6 +136,17 @@ function stripComments(source) {
 }
 
 /**
+ * 実際に登録されているツール名を返す。
+ *
+ * 🚨 **抽出の式を 1 箇所に寄せてある。** 判定と、下の「実際に走査した数」の報告が
+ *    別々の式を持つと、**片方だけ直したときに数と判定が食い違う**（同じことを 2 箇所に
+ *    書くと片方が腐る、という今日の指摘と同じ）。
+ */
+function registeredNames(text) {
+  return [...stripComments(text).matchAll(/registerTool\(\s*["'](ohmycms_[a-z0-9_]+)["']/g)].map((m) => m[1]);
+}
+
+/**
  * 目録と登録のずれを返す。**ファイルを読まない**ので、囮の文字列をそのまま渡せる。
  * 🚨 判定を関数にしてあるのは、**毎回その場で「検出できること」を確かめる**ため
  *    （この家の check-shortcuts / check-user-label-leak と同じ作法。10/23 本が採用している）。
@@ -151,7 +162,7 @@ function findViolations(sourceText, serverText) {
   for (const t of found.filter((x) => !x.title || !x.description)) {
     out.push({ rule: "文言を取れない", detail: t.name });
   }
-  const names = [...stripComments(serverText).matchAll(/registerTool\(\s*["'](ohmycms_[a-z0-9_]+)["']/g)].map((m) => m[1]);
+  const names = registeredNames(serverText);
   if (names.length === 0) {
     out.push({ rule: "登録を読めない", detail: "server.ts から 0 件" });
     return { tools: found, violations: out };
@@ -192,6 +203,30 @@ if (SERVER_FILES.length === 0) {
   process.exit(1);
 }
 const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.split("/").pop()}）`)).join("\n");
+
+// 🚨 **候補と、実際に走査した数を分けて出す**（司令塔 2026-08-16 / polish の実測）。
+//    「対象 N 本」とだけ出すと、**門が死んで 1 本も見ていなくても大きな数が出る**。
+//    polish の写しでは「133 本を走査」と出しながら、実際は 0 本だった。
+//
+// 🚨 **走査 0 なら落とす。** 「登録が 0 件」は「登録が無い」ではなく「**見ていない**」。
+//    ここで落とさないと、下の自己検査が先に鳴り、読む人には
+//    「囮2 が検出できない」と見えて、**門が死んだこととは分からない**
+//    （2026-08-16 実測。台で server.ts を落としたら、まさにそう出た）。
+{
+  const candidates = readdirSync(MCP_SRC, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile()).length;
+  const registered = registeredNames(serverText).length;
+  console.log(
+    `■ 走査 … 候補 ${candidates} 本 / 読んだ .ts ${SERVER_FILES.length} 本` +
+      `（正の catalog.ts は除く） / 見つけた登録 ${registered} 件`,
+  );
+  if (registered === 0) {
+    console.error("🚨 登録を 1 件も見つけられませんでした。**「登録が無い」ではなく「見ていない」です。**");
+    console.error(`   読んだファイル: ${SERVER_FILES.map((f) => f.split("/").pop()).join(", ") || "（なし）"}`);
+    console.error("   → どのファイルを読むか（collectTs / MCP_SRC）を疑ってください。");
+    process.exit(1);
+  }
+}
 
 // 🚨 自己検査: 囮を仕込んで、**この実行で**検出できることを確かめる。
 //    「違反 0 件」が「異常が無い」なのか「見ていない」なのかを、毎回その場で割るため。
