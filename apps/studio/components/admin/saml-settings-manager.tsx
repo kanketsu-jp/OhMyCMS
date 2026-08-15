@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
+import { CopyButton } from "@/components/ui/copy-button";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -157,22 +158,38 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="saml-sp-entity-id">{t("sp_entity_id_label")}</Label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label htmlFor="saml-sp-entity-id">{t("sp_entity_id_label")}</Label>
+            <CopyButton value={settings.sp.entityId} selectTargetId="saml-sp-entity-id" />
+          </div>
           <Input id="saml-sp-entity-id" readOnly value={settings.sp.entityId} />
           <p className="text-xs text-muted-foreground">{t("sp_entity_id_help")}</p>
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="saml-acs-url">{t("acs_url_label")}</Label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label htmlFor="saml-acs-url">{t("acs_url_label")}</Label>
+            <CopyButton value={settings.sp.acsUrl} selectTargetId="saml-acs-url" />
+          </div>
           <Input id="saml-acs-url" readOnly value={settings.sp.acsUrl} />
           <p className="text-xs text-muted-foreground">{t("acs_url_help")}</p>
         </div>
 
-        <p className="text-xs">
-          <a className="text-primary hover:text-primary/80" href={settings.sp.metadataUrl}>
-            {t("sp_metadata_link")}
-          </a>
-        </p>
+        <div className="grid gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">{t("sp_metadata_link")}</p>
+            <CopyButton value={settings.sp.metadataUrl} selectTargetId="saml-metadata-url" />
+          </div>
+          <p className="text-xs">
+            <a
+              id="saml-metadata-url"
+              className="break-all text-primary hover:text-primary/80"
+              href={settings.sp.metadataUrl}
+            >
+              {settings.sp.metadataUrl}
+            </a>
+          </p>
+        </div>
       </section>
 
       <Separator />
