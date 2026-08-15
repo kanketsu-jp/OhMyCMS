@@ -29,6 +29,7 @@ import { toast } from "@/components/ui/toast"
  *    `error_invalid_kind`、および `apiMessage()`（403 を含む）——**全部が入力の
  *    やり直しを要する「状態」**で、3秒で消えると直す手掛かりが無くなる。
  *    一度トーストへ移して戻した経緯なので、**同じ書き換えを繰り返さないこと。**
+ *    決定: knowledge/decisions/toast-for-events-page-for-what-needs-fixing.md
  */
 export function QueryNoticeToast() {
   const t = useT("notifications")

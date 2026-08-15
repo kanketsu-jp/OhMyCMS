@@ -38,6 +38,7 @@ type Props = {
  * 🚨 **画面の中に結果を出さない**（司令塔 2026-08-15「出来事はトースト、状態はページ」）。
  *   送信の完了は「起きて終わったこと」なのでトースト。入力の不足は
  *   「まだ直す必要があること」なので、その場に出す。
+ *   決定: knowledge/decisions/toast-for-events-page-for-what-needs-fixing.md
  */
 export function BugReportComposer({ onDone }: Props) {
   const t = useT("reports");
