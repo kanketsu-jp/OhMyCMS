@@ -257,6 +257,12 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
         >
           <div className="flex min-w-0 flex-col gap-1.5">
             <Label htmlFor="profile-name">{t("profile_name_label")}</Label>
+            {/* 🚨 幅は **`lib/schema/interfaces.ts` の `fieldWidthClass()` の段**に合わせる（16-1）。
+                氏名は姓・名それぞれ 50 文字が上限（`NAME_PART_MAX_LENGTH`）＝ **60 文字以下の文字列**の段。
+                🚨 **新しい数字を作らない。** 段は 160 / 240 / 448 / 672 の 4 つだけ。
+                🚨 包むのは**操作部品だけ**（`item-form.tsx:101` と同じ形。ラベルまで狭めない）。
+                🚨 `md:` なので **SP は器いっぱいのまま**（実測 358px）。 */}
+            <div className="md:max-w-md">
             <Input
               id="profile-name"
               name="name"
@@ -270,6 +276,7 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
               aria-invalid={nameError !== null || undefined}
               defaultValue={composeDisplayName(firstName, lastName, locale)}
             />
+            </div>
             {nameError !== null ? (
               <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
