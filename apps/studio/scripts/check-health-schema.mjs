@@ -15,7 +15,10 @@
  * 🚨 **この検査は「名前（形）で探している」。別名では見えない**（2026-08-16 実測）。
  *    探しているのは `Response.json({…})` **1 形だけ**。同じ日に repo を数えた:
  *      Response.json(      **5**   ← これを探している
- *      NextResponse.json(  **0**   ← 🚨 **まだ出番が来ていない 0**。使われた瞬間に見えなくなる
+ *      NextResponse.json(  **0**   ← repo にまだ無い。🚨 **ただし穴ではない**:
+ *                                  `NextResponse.json(` は `Response.json(` を**部分文字列として含む**ので、
+ *                                  この検査は**そのまま拾う**（2026-08-16 に囮を作って実測）。
+ *                                  🚨 **私は最初これを「見えなくなる」と書いていた。作って通すまで気づかなかった。**
  *      new Response(      **24**   ← 中身は `new Response(null, { status: 204 })` ばかりで
  *                                     鍵を返す形ではない（いまは実害なし）
  *    🚨 **「0 件」を「別名は無い」と読まないこと。**「いま使われていない」だけ。
@@ -225,6 +228,56 @@ console.log(`  ${decoyDetected ? "✅" : "🚨"} 囮(+): HEALTH_OUTPUT から st
 console.log(`  ${negativeClean && negativeStillSees ? "✅" : "🚨"} 囮(-): **コメントの中**の Response.json({ zzCommentOnlyDecoy }) → ` +
   `${negativeClean ? "拾わない" : "🚨 拾ってしまう"}` +
   `（実コードの鍵は ${negativeKeys.size} 件見えている／🟢 潰さなければ ${negativeRawKeys.has("zzCommentOnlyDecoy") ? "拾う＝空振りではない" : "🚨 拾わない＝囮が効いていない"}）`);
+// ── 🚨 見逃す入力を、自分で作って通す（司令塔 2026-08-16） ────────────────
+//    「見ていない範囲」を**思いつきで書かない**。**作って通してから書く。**
+{
+  // 🚨 **期待を書いておく。** 「見逃す」だけを並べると、
+  //    **拾えるようになった日にも、拒むようになった日にも、誰も気づけない。**
+  //    実際、`NextResponse.json` を「見逃すはず」として並べたら**拾っていた**
+  //    （`NextResponse.json(` は `Response.json(` を部分文字列として含むため）。
+  //    ＝ **作って通すまで、自分が書いた「見ていない範囲」が誤りだと気づかなかった。**
+  const misses = [
+    ["NextResponse.json で返す", 'return NextResponse.json({ zzLeak: 1 });', "caught"],
+    ["new Response(JSON.stringify) で返す", 'return new Response(JSON.stringify({ zzLeak: 1 }));', "missed"],
+    ["補助関数で返す", 'return json({ zzLeak: 1 });', "missed"],
+    ["変数を渡す", 'const body = { zzLeak: 1 }; return Response.json(body);', "refused"],
+  ];
+  // 🚨 **「黙って見逃す」と「読めないと言って落ちる」を分ける。**
+  //    後者は穴ではない（**気づける**）。分けないと、安全な振る舞いを穴として数える。
+  const probe = (src) => {
+    const sink = [];
+    const keys = readResponseBodies(stripComments(src), "囮", sink).flatMap((b) => topLevelKeys(b));
+    return { caught: keys.includes("zzLeak"), refused: sink.length > 0 };
+  };
+  const seen = (src) => probe(src).caught;
+  // 🟢 対照(+): 拾う形。これが false なら、下の「見逃す」は検出器が死んでいるだけ
+  const control = seen('return Response.json({ zzLeak: 1 });');
+  console.log("■ 🚨 見逃す入力（**作って通した結果**。ここに出る形は、この検査では止まりません）");
+  console.log(`  🟢 対照(+): Response.json({ zzLeak }) → ${control ? "拾う（検出器は動いている）" : "🚨 拾わない"}`);
+  const nowCaught = [];
+  for (const [why, src, expect] of misses) {
+    const { caught, refused } = probe(src);
+    const actual = caught ? "caught" : refused ? "refused" : "missed";
+    if (actual !== expect) nowCaught.push(`${why}（${expect} のはずが ${actual}）`);
+    const verdict = { caught: "  拾う  ", refused: "  拒む  ", missed: "🚨 見逃す" }[actual];
+    console.log(`  ${verdict} ${why.padEnd(30)} ${src.slice(0, 52)}`
+      + (actual === "refused" ? "  ← **読めないと言って落ちる（穴ではない）**" : "")
+      + (actual !== expect ? `  🚨 **期待は ${expect}**` : ""));
+  }
+  if (!control) {
+    problems.push("囮の対照が拾えていません。上の「見逃す」は、検出器が死んでいるだけかもしれません");
+  }
+  // 🚨 記述が古くなったら鳴る（design の形）。拾えるようになった形が出たらヘッダを直させる。
+  //    ⚠️ ここは**この一覧に載せた形が拾えるようになったとき**に鳴る。
+  //    載せていない形が拾えるようになっても鳴らない（**一覧そのものは人が足す**）。
+  if (nowCaught.length > 0) {
+    problems.push(
+      `🚨 **囮の結果が、書いてある期待と違います**（${nowCaught.join(" / ")}）。` +
+        "検出器が変わったか、期待の書き方が誤っています。**ヘッダの「見ていない範囲」と、この一覧の両方を直してください**",
+    );
+  }
+}
+
 console.log("");
 console.log("■ 判定（🚨 見ているのは health 1 本だけ。出力スキーマは全部で 14 本ある）");
 console.log(`  /api/health が返す鍵: ${[...healthKeys].join(", ") || "(なし)"}`);
