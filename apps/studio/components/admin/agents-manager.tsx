@@ -217,7 +217,17 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             {t("token_heading")}
           </div>
           <p className="text-sm text-destructive">{t("token_warning")}</p>
-          <CodeBlock value={token} targetId="agent-issued-token" preClassName="text-sm" />
+          {/* 🚨 ここだけ背景を外す。**外の箱が既に面**（destructive の警告箱: 背景 + 罫線 1px + 角丸）
+              なので、CodeBlock の既定の背景をそのまま入れると**背景の中に背景＝面が 2 段**になる
+              （2026-08-15 実測。外 背景あり/罫線1px/角丸8px、中 背景あり/角丸10px）。
+              🚨 静的検査は destructive を例外にしているので**赤くならない**が、規約の意図には反する
+              （`knowledge/decisions/no-nested-surfaces.md`「面は1段まで」）。
+              左右の余白も外す。背景が無ければ、余白は外の箱の p-4 が持っている。 */}
+          <CodeBlock
+            value={token}
+            targetId="agent-issued-token"
+            preClassName="bg-transparent px-0 text-sm"
+          />
         </div>
       ) : null}
       {error ? (
