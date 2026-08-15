@@ -1084,6 +1084,96 @@ async function discoverDynamicPaths(cdp) {
   return { byList, hrefs: uniqueHrefs, found, missing };
 }
 
+/**
+ * 🚨 **行のあるコレクションを必ず測る。**
+ *
+ * 由来（2026-08-15・本番停止級の実例）: `/admin/content/<コレクション>` は
+ * **行があると 500、行が 0 件だと 200** という壊れ方をしていた
+ * （一覧が `<Button>` を出すのは行ごとの削除ボタンだけなので、空だと 1 つも描かれない）。
+ * この監査は当時も緑だった。理由は規則ではなく**測った相手**にある:
+ *
+ *   - `discoverDynamicPaths()` は `uniqueHrefs.find(...)` で **最初に一致した href** を採る
+ *   - たまたま **0 行の `acc_748015_pl`** が先に並んでいた
+ *   - → **毎回「空のコレクション」を測っていた**
+ *
+ * **「全ページ 200」は「データが空のときは 200」しか意味していなかった。**
+ * 開発者の既定（空の DB）と利用者の既定（データがある）が違う、の最も高くついた例。
+ *
+ * だからここで **API に行数を聞き**、`0 行` と `1 行以上` を**別々の画面として**測る。
+ * 🚨 **行のあるコレクションが 1 つも無ければ「測れなかった」として落とす**（緑にしない）。
+ */
+const CONTENT_LIST_PAGE_SIZE = 20; // lib/admin/list-view.ts の DEFAULT_LIST_LIMIT と揃える
+
+async function api(pathname) {
+  const res = await fetch(new URL(pathname, BASE), {
+    headers: SESSION ? { cookie: `session=${SESSION}` } : {},
+  });
+  if (!res.ok) return { ok: false, status: res.status };
+  return { ok: true, status: res.status, body: await res.json() };
+}
+
+async function inspectDataFixtures() {
+  log("\nデータのフィクスチャ:");
+  if (!SESSION) {
+    log("  🚨 --session が無いので行数を聞けません。**測れなかった**として扱います。");
+    return { measured: false, why: "--session が渡されていない", counts: [], targets: [], blocking: true };
+  }
+
+  const list = await api("/api/collections?names=true");
+  if (!list.ok) {
+    log(`  🚨 /api/collections が ${list.status}。**測れなかった**として扱います。`);
+    return { measured: false, why: `/api/collections が ${list.status}`, counts: [], targets: [], blocking: true };
+  }
+  const names = (Array.isArray(list.body) ? list.body : list.body?.data ?? [])
+    .map((row) => (typeof row === "string" ? row : row?.collection))
+    .filter(Boolean);
+  log(`  コレクション ${names.length} 件に行数を聞きます（/api/items/<c>?limit=1&meta=filter_count）`);
+
+  const counts = [];
+  for (const name of names) {
+    const got = await api(`/api/items/${encodeURIComponent(name)}?limit=1&meta=filter_count`);
+    const rows = got.ok ? got.body?.meta?.filter_count ?? null : null;
+    // 🚨 行数が取れなかったものを 0 に丸めない。「0 行」と「聞けなかった」は別。
+    counts.push({ collection: name, rows, firstId: got.ok ? got.body?.data?.[0]?.id ?? null : null });
+    log(`    ${name.padEnd(28)} ${rows === null ? "🚨 行数を聞けませんでした" : `${rows} 行`}`);
+  }
+
+  const withRows = counts.filter((c) => typeof c.rows === "number" && c.rows > 0);
+  const empty = counts.filter((c) => c.rows === 0);
+  const paged = withRows.filter((c) => c.rows > CONTENT_LIST_PAGE_SIZE);
+  // 行が多いものを優先する（ページ送りの操作まで画面に出るため）
+  const primary = paged[0] ?? withRows.sort((a, b) => b.rows - a.rows)[0] ?? null;
+
+  const targets = [];
+  if (primary) {
+    targets.push({ path: `/admin/content/${encodeURIComponent(primary.collection)}`, why: `${primary.rows} 行（行のある一覧）` });
+    if (primary.firstId) {
+      targets.push({ path: `/admin/content/${encodeURIComponent(primary.collection)}/${encodeURIComponent(primary.firstId)}`, why: "行のあるコレクションの 1 件目" });
+    }
+  }
+  if (empty[0]) {
+    // 空の一覧は**別の画面**（「まだありません」の見え方・面の深さが変わる）。両方測る。
+    targets.push({ path: `/admin/content/${encodeURIComponent(empty[0].collection)}`, why: "0 行（空の一覧）" });
+  }
+
+  if (!primary) {
+    log("  🚨 **行のあるコレクションがありません。** この監査は「空のデータについての結果」しか出せません。");
+    log("     直し方: 管理画面か API でコレクションを 1 つ作り、行を 1 件入れてから測り直してください。");
+    log("       curl -X POST <base>/api/collections -H 'content-type: application/json' -d '{\"collection\":\"zz_probe\"}'");
+    log("       curl -X POST <base>/api/items/zz_probe -H 'content-type: application/json' -d '{}'");
+    return { measured: false, why: "行のあるコレクションが 1 つも無い", counts, targets, blocking: true };
+  }
+
+  // 🚨 ページ送りは**落とさない**。落とすと行数の少ない DB で全員が止まる。
+  //    ただし「測っていない」ことは必ず言う（黙って緑にしない）。
+  if (!paged[0]) {
+    log(`  ⚠ ページ送りが起きる行数（${CONTENT_LIST_PAGE_SIZE} 行超）のコレクションはありません。`);
+    log("     → **ページ送りのある一覧は測っていません。** 落とさないのは、行数の少ない DB で全員が止まるため。");
+  }
+  log(`  測る対象: ${targets.map((t) => `${t.path}（${t.why}）`).join(" / ")}`);
+  return { measured: true, why: null, counts, targets, blocking: false, pagedMissing: !paged[0] };
+}
+
 // ── 実行 ────────────────────────────────────────────────────────────────
 const { page } = await launchChrome();
 const cdp = connect(page.webSocketDebuggerUrl);
@@ -1143,20 +1233,29 @@ if (CLIPBOARD) {
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 let discovery = null;
+let fixtures = null;
 if (!HAS_EXPLICIT_PATHS) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
   });
   discovery = await discoverDynamicPaths(cdp);
+  fixtures = await inspectDataFixtures();
   const seen = new Set(PATHS);
-  PATHS = [
-    ...PATHS,
-    ...discovery.found.map((entry) => entry.path).filter((path) => {
-      if (seen.has(path)) return false;
-      seen.add(path);
-      return true;
-    }),
-  ];
+  // 🚨 **`seen` は既に PATHS を全部持っている。** 足すぶんにだけ filter を当てること。
+  //    最初 `[...PATHS, ...足すぶん].filter(...)` と書いて、**静的な 14 ページが全部消えた**
+  //    （18 ページ → 6 ページ）。件数の行を見て気づいた。**件数を出しておいて助かった例。**
+  const added = [
+    // 🚨 **行のある一覧を先に入れる。** discovery が拾う `/admin/content/<c>` は
+    //    「href に最初に出てきたもの」で、**空のコレクションが当たることがある**。
+    //    先に入れても、空のほうは path が違うので別途 measure される（両方測るのが狙い）。
+    ...fixtures.targets.map((t) => t.path),
+    ...discovery.found.map((entry) => entry.path),
+  ].filter((path) => {
+    if (seen.has(path)) return false;
+    seen.add(path);
+    return true;
+  });
+  PATHS = [...PATHS, ...added];
 }
 
 const report = {};
@@ -1522,13 +1621,30 @@ for (const vp of VIEWPORTS) {
 cdp.close();
 cleanupChrome();
 
+// 🚨 **「測れなかった」を緑にしない。**
+//    2026-08-15 まで、この監査は「行のあるコレクションを 1 度も測らずに」違反なしと言えた。
+//    ——それで本番停止級の 500 が居座った。**測れていないなら、そう言って落ちる。**
+const notMeasured = fixtures && fixtures.blocking ? fixtures : null;
+
 if (AS_JSON) {
-  console.log(JSON.stringify({ base: BASE, discovery, report, violations }, null, 2));
+  console.log(JSON.stringify({ base: BASE, discovery, fixtures, report, violations }, null, 2));
+  if (notMeasured) process.exit(1);
 } else {
   console.log(`\n対象: ${PATHS.length} ページ × ${VIEWPORTS.length} 画面幅 = ${PATHS.length * VIEWPORTS.length} 回測定（${BASE}）`);
   if (!SESSION) console.log("⚠ --session を渡していないので、ログインが要るページは /login へ飛んでいる可能性があります。");
+  if (notMeasured) {
+    console.error(`\n🚨 測れませんでした: ${notMeasured.why}`);
+    console.error("   この実行の「違反なし」は **データが空のときの結果** でしかありません。");
+    console.error("   行のあるコレクションを用意してから測り直してください（上の「直し方」を参照）。");
+    if (violations.length > 0) console.error(`   （そのうえで、測れた範囲では違反 ${violations.length} 件が出ています）`);
+    process.exit(1);
+  }
   if (violations.length === 0) {
-    console.log("違反なし。");
+    console.log(
+      fixtures?.pagedMissing
+        ? "違反なし（ただしページ送りのある一覧は測っていません。上の ⚠ を参照）。"
+        : "違反なし。",
+    );
   } else {
     console.error(`\n🚨 違反 ${violations.length} 件\n`);
     for (const v of violations) {
