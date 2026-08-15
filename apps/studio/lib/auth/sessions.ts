@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db/knex";
+import { asJsonObject } from "@/lib/auth/json-object";
 import { sha256Hex, randomToken } from "./crypto";
 import type { GoogleIdentity } from "./google";
 
@@ -24,20 +25,6 @@ type ExistingGoogleUserRow = DirectusUserRow & {
   auth_data: unknown;
 };
 
-function authDataRecord(value: unknown): Record<string, unknown> {
-  if (typeof value === "string") {
-    try {
-      return authDataRecord(JSON.parse(value) as unknown);
-    } catch {
-      return {};
-    }
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  return { ...(value as Record<string, unknown>) };
-}
-
 export async function upsertGoogleUser(identity: GoogleIdentity): Promise<DirectusUserRow> {
   const existing = await db<ExistingGoogleUserRow>("directus_users")
     .select("id", "first_name", "last_name", "email", "role", "status", "auth_data")
@@ -51,7 +38,7 @@ export async function upsertGoogleUser(identity: GoogleIdentity): Promise<Direct
       .update({
         last_access: db.fn.now(),
         auth_data: {
-          ...authDataRecord(existing.auth_data),
+          ...asJsonObject(existing.auth_data),
           email_verified: identity.emailVerified,
           picture: identity.picture,
         },

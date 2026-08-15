@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db/knex";
+import { asJsonObject } from "@/lib/auth/json-object";
 import { ApiError, rethrowAsConflict } from "@/lib/schema/errors";
 import { parseListRange, type ListRangeInput } from "@/lib/list-range";
 
@@ -131,26 +132,6 @@ export async function deleteAllowedEmail(id: string): Promise<void> {
 }
 
 /**
- * `directus_users.auth_data` は複数の書き手が共有する json 列
- * (SAML 自身が `groups`、Google が `picture`、dev-login が `source` を書く。
- * `lib/auth/sessions.ts` の `authDataRecord` と同じ理由・同じ形)。
- * 丸ごと上書きすると他の書き手のキーを消してしまうため、既存の値を安全に読み出してから広げる。
- */
-function authDataRecord(value: unknown): Record<string, unknown> {
-  if (typeof value === "string") {
-    try {
-      return authDataRecord(JSON.parse(value) as unknown);
-    } catch {
-      return {};
-    }
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  return { ...(value as Record<string, unknown>) };
-}
-
-/**
  * 許可リストの判定結果を `directus_users.auth_data` に記録する。
  *
  * 🚨 ここではポリシーの付与・剥奪を一切行わない。一覧に無い人を落とすのは
@@ -174,7 +155,7 @@ export async function recordAllowlistCheck(userId: string, check: AllowlistCheck
     .where("id", userId)
     .update({
       auth_data: {
-        ...authDataRecord(existing?.auth_data),
+        ...asJsonObject(existing?.auth_data),
         saml_allowed: check.allowed,
         saml_allowed_reason: check.reason,
         saml_allowed_email: check.email,
