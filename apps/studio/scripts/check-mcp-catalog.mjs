@@ -28,6 +28,9 @@ import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SOURCE = join(HERE, "..", "..", "..", "packages", "mcp", "src", "catalog.ts");
+// 🚨 **独立した数え先**。目録と同じ書き方の思い込みを共有しないため、
+//    「実際に登録されているツール名」は server.ts から採る（下の理由を読むこと）。
+const SERVER = join(HERE, "..", "..", "..", "packages", "mcp", "src", "server.ts");
 const COPY = join(HERE, "..", "lib", "mcp", "tool-catalog.json");
 const WRITE = process.argv.includes("--write");
 
@@ -39,8 +42,11 @@ function joinedString(raw) {
 
 function parseCatalog(source) {
   const tools = [];
-  // 目録の1件は `  ohmycms_xxx: { … },` の形。次の同じ深さの項目まで、または閉じ括弧まで。
-  const re = /^ {2}(ohmycms_[a-z_]+):\s*\{([\s\S]*?)^ {2}\},/gm;
+  // 目録の1件は `ohmycms_xxx: { … },` の形。
+  // 🚨 **字下げの幅を決め打ちしない。** 2026-08-15 に実測したところ、
+  //    4 スペースで書くだけで抽出から漏れ、**同じ思い込みで数えていた守りも一緒に漏れて**
+  //    「22 本一致」と緑になった（＝検査を迂回できた）。
+  const re = /^[ \t]+(ohmycms_[a-z_]+):\s*\{([\s\S]*?)^[ \t]+\},/gm;
   for (const m of source.matchAll(re)) {
     const [, name, body] = m;
     const title = body.match(/\btitle:\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)/);
@@ -60,7 +66,7 @@ const source = readFileSync(SOURCE, "utf8");
 const tools = parseCatalog(source);
 
 // 🚨 「0 件」は情報を持たない。**拾えていないのか、無いのか**をここで割る。
-const declared = (source.match(/^ {2}ohmycms_[a-z_]+:/gm) ?? []).length;
+const declared = (source.match(/^[ \t]+ohmycms_[a-z_]+:/gm) ?? []).length;
 if (tools.length === 0 || tools.length !== declared) {
   console.error(
     `🚨 目録を読み取れていません（宣言 ${declared} 件 / 抽出 ${tools.length} 件）。\n` +
@@ -71,6 +77,26 @@ if (tools.length === 0 || tools.length !== declared) {
 const missing = tools.filter((t) => !t.title || !t.description);
 if (missing.length > 0) {
   console.error(`🚨 title か description を取れなかったツール: ${missing.map((t) => t.name).join(", ")}`);
+  process.exit(1);
+}
+
+// 🚨 **目録を通さずに登録する迂回**を塞ぐ。2026-08-15 実測: server.ts に直接
+//    `registerTool("ohmycms_zz", {…inline…})` と書くと、目録も写しも 22 本のままで
+//    **検査は緑**だった（＝画面には永久に出ないツールが増える）。
+//    server.ts は**別のファイル・別の書き方**なので、目録側の思い込みを共有しない。
+const registered = [...readFileSync(SERVER, "utf8").matchAll(/registerTool\(\s*"(ohmycms_[a-z_]+)"/g)]
+  .map((m) => m[1]);
+if (registered.length === 0) {
+  console.error(`🚨 server.ts から登録を1件も読み取れていません（${SERVER}）。書き方が変わった可能性があります。`);
+  process.exit(1);
+}
+const catalogNames = new Set(tools.map((t) => t.name));
+const onlyServer = registered.filter((n) => !catalogNames.has(n));
+const onlyCatalog = tools.map((t) => t.name).filter((n) => !registered.includes(n));
+if (onlyServer.length > 0 || onlyCatalog.length > 0) {
+  console.error("🚨 目録と、実際に登録されているツールがずれています。");
+  for (const n of onlyServer) console.error(`  + ${n}（server.ts で登録しているが目録に無い＝画面には出ません）`);
+  for (const n of onlyCatalog) console.error(`  - ${n}（目録にあるが登録されていない＝使えません）`);
   process.exit(1);
 }
 
