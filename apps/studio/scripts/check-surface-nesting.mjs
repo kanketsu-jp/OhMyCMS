@@ -148,10 +148,25 @@ if (unused.length > 0) {
 // 🚨 内訳が実態と合っているか。**合計と行数の両方**を見る。
 //    片方だけだと、規則が潰れても合計は合ってしまう（今回の実測がまさにそれ）。
 const sum = rows.reduce((n, r) => n + r.count, 0);
-const duplicated = new Set(ALLOW.map((r) => r.why)).size !== ALLOW.length;
-if (sum !== allowed.length || rows.length !== ALLOW.length || duplicated) {
-  console.error(`\n🚨 内訳が実態と合いません（合計 ${sum} / 許容 ${allowed.length} ／ 行 ${rows.length} / 規則 ${ALLOW.length}${duplicated ? " ／ **why が重複**" : ""}）。`);
-  console.error("   この内訳は信用できません（規則が潰れているか、種別の付いていない許容があります）。");
+const names = ALLOW.map((r) => r.why);
+const dupes = [...new Set(names.filter((w, i) => names.indexOf(w) !== i))];
+// 🚨 **捕まえることと、正しく名指しすることは別**（design・2026-08-15 の実測）。
+//    以前は「規則が潰れているか、種別の付いていない許容があります」という**両論併記**だった。
+//    赤くはなるが、読んだ人は**存在しない方**を探しに行く。**条件ごとに原因を1つ名指しする。**
+const faults = [];
+if (dupes.length > 0) faults.push(`**規則名が重複しています**: ${dupes.join(" / ")}`);
+if (rows.length !== ALLOW.length) faults.push(`**規則を数え漏らしています**（行 ${rows.length} / 規則 ${ALLOW.length}）`);
+if (sum !== allowed.length) {
+  faults.push(
+    sum < allowed.length
+      ? `**どの規則にも属さない許容があります**（内訳 ${sum} < 許容 ${allowed.length}）`
+      : `**同じ許容を複数の規則が数えています**（内訳 ${sum} > 許容 ${allowed.length}）`,
+  );
+}
+if (faults.length > 0) {
+  console.error(`\n🚨 内訳が実態と合いません（内訳 ${sum} / 許容 ${allowed.length} / 規則 ${ALLOW.length}）:`);
+  for (const f of faults) console.error(`   ${f}`);
+  console.error("   この内訳は信用できません。");
   process.exit(1);
 }
 
