@@ -1460,6 +1460,16 @@ for (const vp of VIEWPORTS) {
    * `pointer: coarse` に依存する寸法（当たり判定の余白など）も同じ。
    *
    * 🚨 これは「幅＝端末」と読んだ思い込み。**幅・入力・書体は別々に設定する**。
+   *
+   * 🚨 **PC 側でも必ず呼び直す**（下で hover:hover / pointer:fine を明示している）。
+   *    `setEmulatedMedia` / `setTouchEmulationEnabled` は**タブ単位で状態が残る override** なので、
+   *    SP で付けた hover:none を PC で上書きしないと、
+   *    **幅だけ 1440 に戻したのに hover:none のまま**という残骸になる。
+   *    実測でそうなっていないことを確認済み: 同じ実行の中で
+   *      sp → hover:hover=false / pointer:coarse=true
+   *      pc → hover:hover=true  / pointer:fine=true   ← **戻っている**
+   *    （空の `features: []` を渡して解除する手もあるが、
+   *     **PC の値を明示するほうが「何を測っているか」が出力から読める**ので、こちらにしている）
    */
   await cdp.send("Emulation.setEmulatedMedia", {
     features: vp.mobile
