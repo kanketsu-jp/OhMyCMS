@@ -283,17 +283,22 @@ export async function updateSamlConfig(
 
   if (Object.keys(patch).length === 0) return getSamlConfig();
 
-  // 🚨 「有効にする」ときだけ、動かせる状態かを確かめる。
-  //    項目が欠けたまま有効にすると、利用者は SSO ボタンを押して 503 に着く。
-  if (patch.enabled === true) {
-    const next = { ...(await getSamlConfig()), ...toConfigShape(patch) };
-    if (!isSamlUsable({ ...next, enabled: true })) {
-      throw new ApiError(
-        400,
-        "SAML_INCOMPLETE",
-        "SSO を有効にするには Entity ID・SSO URL・証明書のすべてが要ります",
-      );
-    }
+  // 🚨 **書いたあとの姿**が「有効なのに動かせない」なら拒む。
+  //    項目が欠けたまま有効だと、利用者は SSO ボタンを押して 503 に着く。
+  //
+  // 🚨 以前は `patch.enabled === true`（＝ enabled を送ってきたとき）だけ見ていた。
+  //    それだと **enabled を送らずに項目だけ消す** 経路が素通りする。実測（2026-08-15）:
+  //      PATCH {"idp_entity_id": ""} → 200 / enabled=true・usable=false
+  //    画面は必ず enabled を送るので画面からは踏めないが、**UI が守っているだけの状態**だった
+  //    （`AGENTS.md §3.5`「フィルタで隠すのでなく、サーバ側で拒否する」）。
+  //    判定を「送られてきた値」から「**書いたあとの姿**」へ移して塞いだ。
+  const next = { ...(await getSamlConfig()), ...toConfigShape(patch) };
+  if (next.enabled && !isSamlUsable(next)) {
+    throw new ApiError(
+      400,
+      "SAML_INCOMPLETE",
+      "SSO を有効にするには Entity ID・SSO URL・証明書のすべてが要ります",
+    );
   }
 
   const existing = await db("ohmycms_saml_config").where({ id: SINGLE_ROW_ID }).first();
@@ -311,6 +316,9 @@ export async function updateSamlConfig(
 /** 上の検査のために、DB の列名から `SamlConfig` の形へ寄せる（一部だけで足りる）。 */
 function toConfigShape(patch: Record<string, unknown>): Partial<SamlConfig> {
   const shaped: Partial<SamlConfig> = {};
+  // 🚨 `enabled` を写し忘れないこと。ここが抜けていると「書いたあとの姿」に
+  //    **これから有効にしようとしている事実**が乗らず、上の判定が素通りする。
+  if ("enabled" in patch) shaped.enabled = patch.enabled as boolean;
   if ("idp_entity_id" in patch) shaped.idpEntityId = patch.idp_entity_id as string | null;
   if ("idp_sso_url" in patch) shaped.idpSsoUrl = patch.idp_sso_url as string | null;
   if ("idp_certificates" in patch) {

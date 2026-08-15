@@ -38,6 +38,15 @@ type Props = {
   role?: "primary" | "secondary";
   /** 取り消せない操作。塗らずに赤い枠線にする（憲章 §3b） */
   destructive?: boolean;
+  /**
+   * まだ押させない。**憲章 §3c「未入力なら確定ボタンを無効にする」**（薄くするのでなく `disabled`）。
+   *
+   * 🚨 `pending` とは別物。`pending` は「いま実行中」、`disabled` は「そもそも内容が足りない」。
+   *    2026-08-15、ヘッダーへ移す作業で **内容に基づく判定が3画面で消えた**
+   *    （SSO の `!ready` / ストレージの `!dirty` / 権限付与の「対象が0件」）。
+   *    prop が無いと表現できないので、置き換え先として足した。
+   */
+  disabled?: boolean;
 };
 
 /**
@@ -68,6 +77,7 @@ export function PageAction({
   pending = false,
   role = "primary",
   destructive = false,
+  disabled = false,
 }: Props) {
   const headerSlot = useSlot("header-primary-action");
   const mobileSlot = useSlot("mobile-primary-action");
@@ -81,7 +91,9 @@ export function PageAction({
   useShortcut(
     SHORTCUTS.save,
     () => {
-      if (!form || role !== "primary" || pending) return;
+      // 🚨 `disabled` はボタンだけでなく**ここでも**見る。見ないと、押せないボタンの
+      //    ぶんまで ⌘S が送ってしまい、「画面では止まっているのに保存される」ことになる。
+      if (!form || role !== "primary" || pending || disabled) return;
 
       const target = document.getElementById(form);
       if (!(target instanceof HTMLFormElement)) return;
@@ -114,11 +126,12 @@ export function PageAction({
     label,
     icon,
     pending,
+    disabled,
     variant,
     order: cn(order, "hidden md:inline-flex"),
     compact: false,
   });
-  const sp = renderAction({ href, form, onClick, label, icon, pending, variant, order, compact: true });
+  const sp = renderAction({ href, form, onClick, label, icon, pending, disabled, variant, order, compact: true });
 
   return (
     <>
@@ -145,6 +158,7 @@ function renderAction({
   label,
   icon,
   pending,
+  disabled,
   variant,
   order,
   compact,
@@ -155,6 +169,7 @@ function renderAction({
   label: string;
   icon: ReactNode;
   pending: boolean;
+  disabled: boolean;
   variant: "default" | "outline" | "destructive";
   order?: string;
   compact: boolean;
@@ -164,6 +179,8 @@ function renderAction({
 
   if (href) {
     // 🚨 リンクに `loading` は無い（押した先で画面が変わるだけなので二重送信が起きない）。
+    // 🚨 `disabled` も同じく効かない。**行き先があるなら押せないという状態は無い**ので、
+    //    リンクに `disabled` を渡す設計にしない（渡しても黙って無視される、を避けるための申し送り）。
     return (
       <Link
         href={href}
@@ -186,6 +203,7 @@ function renderAction({
       variant={variant}
       size={size}
       loading={pending}
+      disabled={disabled}
       aria-label={compact ? label : undefined}
       className={order}
     >

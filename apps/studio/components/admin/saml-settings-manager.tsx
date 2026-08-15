@@ -62,6 +62,17 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
 
   const [error, setError] = useState<string | null>(null);
 
+  // 🚨 §3c「未入力なら確定を無効にする」。
+  //    どちらの入力方法を選んでいるかで、何が揃っていれば足りるかが変わる。
+  //
+  // 🚨 2026-08-15、アクションボタンをヘッダーへ移す作業でこの判定ごと消えた
+  //    （`PageAction` に `disabled` が無く、置き換えようが無かった）。
+  //    見た目の決まりごとではなく、**手入力モードで項目を消して保存すると
+  //    設定済みの IdP が消える**のを止めている。同じ理由でサーバ側にも拒否を置いた
+  //    （`app/api/settings/saml/route.ts`）。UI だけに守らせない（`AGENTS.md §3.5`）。
+  const ready =
+    mode === "metadata" ? metadataXml.trim().length > 0 : Boolean(entityId && ssoUrl && certificate);
+
   const save = useSubmitOnce(async () => {
     setError(null);
 
@@ -284,6 +295,8 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
         form="saml-settings-form"
         role="primary"
         pending={save.pending}
+        // 🚨 §3c: 未入力なら確定できない。
+        disabled={!ready}
         label={t("save_button")}
         icon={<Check />}
       />
