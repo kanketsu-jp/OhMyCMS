@@ -80,7 +80,6 @@ function Button({
   disabled = false,
   asChild = false,
   children,
-  onClick,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
@@ -91,6 +90,17 @@ function Button({
      * 🚨 門は `hooks/use-submit-once.ts`（`useRef` の同期チェック）が持つ。
      *    `loading` は state 由来なので次のレンダーまで反映されず、**素早い2連打には間に合わない**。
      *    ここを門にすると「効いているように見えて漏れる」ものになる。
+     *
+     * 🚨 **この部品は内部で `onClick` を横取りしない。** 押させない働きは
+     *    base の `data-[loading=true]:pointer-events-none`（CSS）だけで持つ。
+     *    由来: 2026-08-15。処理中の押下を止めるために内部ハンドラを足したところ、
+     *    このファイルが `"use client"` を持たないため **Server Component から使えなくなり**、
+     *    `/admin/content/<collection>` が**行が1件でもあると 500**になった
+     *    （行 0 件のコレクションでは 200 なので、空の DB では気づけない）。
+     *    🚨 `"use client"` を足す直し方も試して**失敗している**——同居する `buttonVariants` を
+     *    サーバから呼べなくなり、`/admin/collections` などが軒並み 500 になった。
+     *    **この部品はサーバから使える状態を保つこと。**
+     *    CSS はキーボードの Enter/Space を止めないが、**それでよい**（門は上記のとおり別にある）。
      */
     loading?: boolean
   }) {
@@ -102,14 +112,6 @@ function Button({
     //    中身は場所を占めたまま見えなくして、スピナーは絶対配置で中央に重ねる。
     visualLoading && "relative cursor-progress"
   )
-  const handleClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-    if (loading) {
-      event.preventDefault()
-      event.stopPropagation()
-      return
-    }
-    onClick?.(event)
-  }
   const renderContent = (content: React.ReactNode) => (
     <>
       {visualLoading ? <Spinner className="absolute" /> : null}
@@ -138,7 +140,6 @@ function Button({
         //    呼び出し側が本当に disabled を渡したときは、従来どおり native disabled のグレーにする。
         data-loading={visualLoading || undefined}
         className={buttonClassName}
-        onClick={handleClick}
         {...props}
       >
         {React.cloneElement(
@@ -163,7 +164,6 @@ function Button({
       //    押せなくする働きは pointer-events と click 抑止で残す。二重送信の門は use-submit-once。
       data-loading={visualLoading || undefined}
       className={buttonClassName}
-      onClick={handleClick}
       {...props}
     >
       {renderContent(children)}
