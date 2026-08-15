@@ -20,6 +20,11 @@ export type LabelRow = {
 };
 
 /**
+ * 🚨 **これは注意書きであって、守りではありません**（2026-08-15 実測）。
+ *    組み立てた形（`` `text-${"slate"}-500` ``）に書き換えても
+ *    **`check-undefined-classes` も `tsc` も通ります**。**気づける仕組みはありません。**
+ *    守るのは**書く人の目**だけなので、レビューで見てください。
+ *
  * 🚨 **`text-${color}-500` のように組み立てない。** Tailwind は**書かれた文字列を見て**
  *    CSS を作るので、組み立てた名前は削られて色が出ない（ビルドするまで分からない）。
  *    `folder-grid.tsx` と同じ並びにしてある（フォルダの色とラベルの色が食い違うと、
@@ -48,6 +53,10 @@ const COLOR_CLASS: Record<string, string> = {
 export function LabelsManager({ initial }: { initial: LabelRow[] }) {
   const t = useT("labels");
   /**
+   * 🚨 **これも注意書きであって、守りではありません**（2026-08-15 実測）。
+   *    組み立てた形に書き換えても **`check-i18n-usage` も `check-i18n-keys` も通ります**。
+   *    **辞書から消しても誰も気づきません**（＝画面にキー名がそのまま出る）。
+   *
    * 🚨 **辞書のキーも組み立てない**（`t(\`color_${name}\`)` にしない）。
    *    上の Tailwind と**まったく同じ理由**で、`check-i18n-usage` は
    *    **書かれた文字列を見て**コードと辞書を突き合わせるため、
