@@ -31,11 +31,12 @@
   "page_reports": "Report a problem",
   "page_settings_general": "Settings",
   "page_settings_storage": "Storage settings",
-  "page_settings_version": "Version",
+  "page_settings_sso": "SSO",
   "page_settings_roles": "Roles",
   "page_settings_policies": "Policies",
   "page_settings_users": "Users",
   "page_settings_agents": "Agents",
   "page_settings_mcp": "MCP Connection",
+  "page_settings_version": "Version",
   "shortcut_hint": "⌘K"
 }

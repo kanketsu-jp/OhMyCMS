@@ -90,7 +90,18 @@ const SETTINGS_ENTRIES: StaticEntry[] = [
   { labelKey: "settings_s3_key_prefix", href: "/admin/settings/storage#storage-s3_key_prefix" },
 ];
 
-/** 管理画面そのもの。ナビに出ているものと揃える。 */
+/**
+ * 管理画面そのもの。ナビに出ているものと揃える。
+ *
+ * 🚨 ルートがあっても、ここに足さないもの:
+ *   /admin                  … /admin/collections へリダイレクトする入口で、目的地ではない
+ *   /admin/collections/new  … 親画面のアクションボタンから開く作成フォーム
+ *   /admin/files/new        … 親画面のアクションボタンから開く作成フォーム
+ *   /admin/files/new-folder … 親画面のアクションボタンから開く作成フォーム
+ *   /admin/profile          … 個人ページ。searchStatic() は PAGE_ENTRIES 全体を settings:read で
+ *                              閉じるため、ここへ入れると非管理者の自分の個人ページが隠れる
+ *   /admin/reports/manage   … canManageReports で閉じる画面。settings:read では判定できない
+ */
 const PAGE_ENTRIES: StaticEntry[] = [
   { labelKey: "page_collections", href: "/admin/collections" },
   { labelKey: "page_files", href: "/admin/files" },
@@ -99,12 +110,13 @@ const PAGE_ENTRIES: StaticEntry[] = [
   { labelKey: "page_reports", href: "/admin/reports" },
   { labelKey: "page_settings_general", href: "/admin/settings/general" },
   { labelKey: "page_settings_storage", href: "/admin/settings/storage" },
-  { labelKey: "page_settings_version", href: "/admin/settings/version" },
+  { labelKey: "page_settings_sso", href: "/admin/settings/sso" },
   { labelKey: "page_settings_roles", href: "/admin/settings/roles" },
   { labelKey: "page_settings_policies", href: "/admin/settings/policies" },
   { labelKey: "page_settings_users", href: "/admin/settings/users" },
   { labelKey: "page_settings_agents", href: "/admin/settings/agents" },
   { labelKey: "page_settings_mcp", href: "/admin/settings/mcp" },
+  { labelKey: "page_settings_version", href: "/admin/settings/version" },
 ];
 
 /**

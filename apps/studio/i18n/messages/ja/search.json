@@ -31,11 +31,12 @@
   "page_reports": "不具合の報告",
   "page_settings_general": "全体設定",
   "page_settings_storage": "ストレージ設定",
-  "page_settings_version": "バージョン",
+  "page_settings_sso": "SSO",
   "page_settings_roles": "ロール",
   "page_settings_policies": "ポリシー",
   "page_settings_users": "ユーザー",
   "page_settings_agents": "エージェント",
   "page_settings_mcp": "MCP 接続",
+  "page_settings_version": "バージョン",
   "shortcut_hint": "⌘K"
 }

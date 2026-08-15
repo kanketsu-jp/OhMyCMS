@@ -61,6 +61,12 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-shortcuts.mjs
 
+    # ナビに出した画面を横断検索へ入れ忘れないための検査。
+    # ルート一覧ではなくナビの行き先と比べる（個人設定など、検索へ入れると権限が壊れる画面がある）。
+    search-entries:
+      root: "apps/studio"
+      run: node scripts/check-search-entries.mjs
+
     # 面の入れ子（knowledge/decisions/no-nested-surfaces.md「面は1段まで」）。
     # 🚨 2026-08-15 まで**書いてあるだけで一度も走っていなかった**。lefthook にも CI にも
     #    載っておらず、「面の入れ子は検査されている」と信じる根拠にだけなっていた。
