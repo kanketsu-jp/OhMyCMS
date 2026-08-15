@@ -25,19 +25,46 @@
  *   node scripts/check-submit-once.mjs
  */
 
-import { readFileSync, globSync } from "node:fs";
+import { readFileSync, globSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 
-/** まだ移行していないファイル。🚨 減らすためのリストであり、増やすためのものではない。 */
+/**
+ * まだ移行していないファイル。🚨 減らすためのリストであり、増やすためのものではない。
+ *
+ * 各エントリは「いつ・誰が・何を決めるか」を持つ（2026-08-15 監査で追記。それ以前は
+ * `{ file, owner }` だけで、いつからの例外か・まだ決まっていないことすら書いていなかった）。
+ *
+ * - `recordedAt`: この記録を**確認した**監査日。元々いつからこの例外が置かれていたかは
+ *   分からない（コミット履歴を遡らないと分からず、今回の監査対象でもない）ので、
+ *   「発生日」ではなく「この監査で確認した日」として書く。
+ * - `status`: "未決" 固定（決まったらこの配列からエントリごと削除する。ステータスを
+ *   "済" にして残す運用にはしない — 減らすためのリストという原則に反する）。
+ * - `decidesBy`: 誰が決めるか。
+ * - `decision`: 何を決めるか（決定待ちの内容）。
+ *
+ * 🚨 このリストの「腐敗」は下の自己検査ブロックで毎回検出する:
+ *   - `file` が実在しない → FAIL（存在しないものを免除し続けても誰も気づけない）
+ *   - `file` に該当する検出が 0 件 → FAIL（例外がもう不要なのに残り続けている）
+ */
 const PENDING = [
-  // ui(w4A:p6) の担当。面の移行が終わってから同じ手当てをする
-  { file: "components/admin/bug-report-form.tsx", owner: "ui(p6)" },
-  { file: "components/admin/settings-manager.tsx", owner: "ui(p6)" },
-  { file: "components/admin/notifications-manager.tsx", owner: "ui(p6)" },
+  {
+    file: "components/admin/settings-manager.tsx",
+    decidesBy: "ui(p6)",
+    recordedAt: "2026-08-15",
+    status: "未決",
+    decision: "面の移行が終わってから同じ手当てをする",
+  },
+  {
+    file: "components/admin/notifications-manager.tsx",
+    decidesBy: "ui(p6)",
+    recordedAt: "2026-08-15",
+    status: "未決",
+    decision: "面の移行が終わってから同じ手当てをする",
+  },
 ];
 
 /** 関数の入口（この行より上に遡って「誰の中か」を決める）。 */
@@ -129,9 +156,12 @@ for (const file of files) {
       break;
     }
 
-    const entry = { file, line: i + 1, owner: owner?.name ?? "(不明)", reason };
-    if (skip) pending.push({ ...entry, who: skip.owner });
-    else if (!owner || owner.kind === "bare") unguarded.push(entry);
+    // この呼び出し単独で見て「未防御」になる形か（!owner または bare）を kind として持っておく。
+    // PENDING の例外を外したら実際どうなるか(d)を、通常経路と同じ判定式で出すため。
+    const wouldBeGuarded = owner?.kind === "guarded";
+    const entry = { file, line: i + 1, owner: owner?.name ?? "(不明)", kind: wouldBeGuarded ? "guarded" : "bare", reason };
+    if (skip) pending.push(entry);
+    else if (!wouldBeGuarded) unguarded.push(entry);
     else guarded.push(entry);
   }
 
@@ -145,6 +175,23 @@ for (const file of files) {
   }
 }
 
+// ── PENDING の腐敗検査（このリストが「誰も見ていない免除」にならないようにする）──
+// 🚨 見ていないと気づけない2パターンを両方 FAIL にする:
+//   1. file が実在しない（削除されたのにエントリだけ残っている。今回 bug-report-form.tsx で実際に起きた）
+//   2. file は実在するが該当する検出が0件（もう防御が要らない/例外の意味が無い。放置すると
+//      将来そのファイルに変更系が増えても無条件に免除され続ける）
+const staleExceptions = [];
+for (const entry of PENDING) {
+  if (!existsSync(resolve(root, entry.file))) {
+    staleExceptions.push({ file: entry.file, reason: "ファイルが存在しません（削除された可能性。エントリを消してください）" });
+    continue;
+  }
+  const hitCount = pending.filter((p) => p.file === entry.file).length;
+  if (hitCount === 0) {
+    staleExceptions.push({ file: entry.file, reason: "該当する検出が0件です（例外はもう不要。エントリを消してください）" });
+  }
+}
+
 console.log(`防御済み: ${guarded.length} 件 / 未防御: ${unguarded.length} 件 / 移行待ち: ${pending.length} 件`);
 
 if (suspects.length > 0) {
@@ -154,8 +201,25 @@ if (suspects.length > 0) {
 }
 
 if (pending.length > 0) {
-  console.log("\n■ 移行待ち（担当が別）");
-  for (const p of pending) console.log(`  ${p.file}:${p.line}  ${p.owner}  ← ${p.who}  ｜ ${reasonLabel(p.reason)}`);
+  console.log("\n■ 移行待ち（担当が別・未決）");
+  for (const entry of PENDING) {
+    const hits = pending.filter((p) => p.file === entry.file);
+    if (hits.length === 0) continue; // 0件は上の腐敗検査で FAIL 済み。ここでは二重に出さない。
+    console.log(`  ${entry.file}`);
+    console.log(`    決める人: ${entry.decidesBy} ｜ 状態: ${entry.status} ｜ 記録: ${entry.recordedAt}（この監査で確認した日。元の記録日は不明）`);
+    console.log(`    何を決めるか: ${entry.decision}`);
+    for (const h of hits) {
+      // (d) この例外を外したら実際どうなるか。owner.kind の分類をそのまま流用する。
+      const withoutException = h.kind === "guarded" ? "この例外が無くても防御済み" : "この例外が無ければ未防御";
+      console.log(`    ${h.line}行目  関数 ${h.owner}  ｜ ${withoutException} ｜ ${reasonLabel(h.reason)}`);
+    }
+  }
+}
+
+if (staleExceptions.length > 0) {
+  console.error("\n■ 例外リスト（PENDING）が腐っています");
+  console.error("  存在しない/該当しないファイルを例外として残すと、誰も見ていないまま将来のコードまで無条件に免除します。");
+  for (const s of staleExceptions) console.error(`  ${s.file}  ← ${s.reason}`);
 }
 
 if (unguarded.length > 0) {
@@ -238,4 +302,4 @@ if (selfTestFailed) {
   console.error("\n🚨 自己検査に失敗した。**この検査の結果は信用できない**（緑でも意味を持たない）。");
 }
 
-process.exit(unguarded.length === 0 && !selfTestFailed ? 0 : 1);
+process.exit(unguarded.length === 0 && !selfTestFailed && staleExceptions.length === 0 ? 0 : 1);
