@@ -44,4 +44,13 @@ coverage
 
 # --- Docker 自身 ---
 compose.yml
+# 🚨 compose.dokploy.yml も必ずここに要る（2026-08-15 実測）。
+#    Dokploy は clone 先の compose ファイルを**書き換える**（コメントを落とし、YAML アンカーを
+#    &app-env → &a1 に正規化する）。追跡ファイルが「在るが変わっている」状態でビルド文脈に入ると、
+#    gitinfo の git status がそれを拾って **dirty が毎回 1 に飽和**する。
+#    skip-worktree ループは「消えている」追跡ファイルしか吸収できないので、これは吸収されない。
+#    実測: VPS の clone 先で `git status --porcelain` → `M compose.dokploy.yml` の 1 行だけ。
+#    同じ VPS の他 4 アプリでも、それぞれの compose ファイル 1 本だけが M だった（Dokploy の仕様）。
+#    ❌ 「ビルドに要らないから」ではなく **dirty の旗を生かすため**に外している。消さないこと。
+compose.dokploy.yml
 .dockerignore
