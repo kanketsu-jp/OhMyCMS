@@ -119,7 +119,11 @@ const checks = [
     // 🚨 skip-worktree を **無条件に**掛けると、**本当に消された追跡ファイルまで吸収**して
     //    dirty が 0 のままになる（2026-08-15 実測。docker build で再現済み）。
     //    `git check-ignore --no-index` で .dockerignore に当たるものだけを吸収する。
-    ある: /check-ignore\s+--no-index/.test(実コード),
+    // 🚨 **過検出を避ける**（2026-08-15）。最初は `check-ignore\s+--no-index` と続き文字で見ていたが、
+    //    `git check-ignore -q --no-index` のように**フラグの順を変えただけで違反と言っていた**。
+    //    **正しく書いてあるものを違反と言うのも、計器の故障**（取りこぼしと同じ重さ）。
+    //    → **同じ行に両方在るか**で見る。
+    ある: 実コード.split("\n").some((line) => line.includes("check-ignore") && line.includes("--no-index")),
     対照: /update-index\s+--skip-worktree/.test(実コード),
     対照の説明: "skip-worktree の呼び出し（この検査が Dockerfile を読めている証拠）",
     壊れると: "追跡ファイルを消しても dirty が 0 のままになる（本当に汚れた像を見逃す）",
