@@ -8,5 +8,7 @@
   "error_forbidden": "You do not have permission",
   "name_label": "Folder name",
   "name_placeholder": "Folder name",
-  "title": "Folders"
+  "title": "Folders",
+  "moved": "Moved {count} file(s)",
+  "move_failed": "Could not move {count} file(s)"
 }

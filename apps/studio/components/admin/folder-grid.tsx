@@ -13,7 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
+import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
 import { useT } from "@/i18n/client";
 
 type FolderRow = {
@@ -64,11 +66,69 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
     router.refresh();
   }, (id) => id);
 
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  /**
+   * 掴んできたファイルをこのフォルダへ入れる。
+   * 🚨 サービス層は変えていない。`updateFile` は既に `folder` の変更を許しているので、
+   *    既存の `PATCH /api/files/<id>` をそのまま叩く。
+   */
+  const moveInto = async (folderId: string, fileIds: string[]) => {
+    let moved = 0;
+    let failed = 0;
+    for (const fileId of fileIds) {
+      try {
+        const response = await fetch(`/api/files/${fileId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ folder: folderId }),
+        });
+        if (response.ok) moved += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    // 🚨 何件動いて何件落ちたかを出す。まとめて「失敗」にすると、**一部だけ動いた状態**が見えなくなる。
+    if (moved > 0) toast.success(t("moved", { count: String(moved) }));
+    if (failed > 0) toast.error(t("move_failed", { count: String(failed) }));
+    if (moved > 0) router.refresh();
+  };
+
+  const carriesFile = (event: React.DragEvent): boolean =>
+    Array.from(event.dataTransfer.types).includes(DRAG_FILE_MIME);
+
   return (
     <div className="contents">
       {error ? <p className="col-span-full text-sm text-destructive">{error}</p> : null}
       {folders.map((folder) => (
-        <div key={folder.id} className="group/tile relative min-w-0 rounded-md p-3 hover:bg-muted">
+        <div
+          key={folder.id}
+          // 🚨 ここで受けるのは**画面内から掴んできたファイルだけ**。外から来たファイル
+          //    （アップロード）は上位の層が受けるので、種類で見分けて棲み分ける。
+          onDragOver={(event) => {
+            if (!carriesFile(event)) return;
+            event.preventDefault();
+            // 🚨 上位のドロップ層まで伝わると、アップロードと二重に反応する。
+            event.stopPropagation();
+            setDropTarget(folder.id);
+          }}
+          onDragLeave={() => setDropTarget((current) => (current === folder.id ? null : current))}
+          onDrop={(event) => {
+            if (!carriesFile(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setDropTarget(null);
+            const raw = event.dataTransfer.getData(DRAG_FILE_MIME);
+            const ids = raw ? (JSON.parse(raw) as string[]) : [];
+            if (ids.length > 0) void moveInto(folder.id, ids);
+          }}
+          className={
+            dropTarget === folder.id
+              ? "group/tile relative min-w-0 rounded-md p-3 outline-2 outline-offset-[-2px] outline-dashed outline-ring"
+              : "group/tile relative min-w-0 rounded-md p-3 hover:bg-muted"
+          }
+        >
           <Link href={`/admin/files?folder=${folder.id}`} className="block min-w-0 pr-10">
             <Folder className="mb-3 size-10 text-muted-foreground" />
             <p className="truncate text-sm font-medium">{folder.name}</p>

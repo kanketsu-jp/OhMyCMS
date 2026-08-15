@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FileIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
 import { ImageLightbox } from "@/components/admin/image-lightbox";
 import { useT } from "@/i18n/client";
 
@@ -60,11 +61,25 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     <>
       {files.map((file) => {
         const label = file.title ?? file.filename_download;
+        /**
+         * 掴んで運べるようにする。
+         * 🚨 **画像の `<img>` には `draggable={false}` が要る**（既定で画像だけが
+         *    単独でドラッグされ、こちらの荷物が載らないため）。ここでは外側に持たせる。
+         */
+        const dragProps = {
+          draggable: true,
+          onDragStart: (event: React.DragEvent) => {
+            // 🚨 種類を分けて載せる。素の text/plain だと、外から来たテキストと区別が付かない。
+            event.dataTransfer.setData(DRAG_FILE_MIME, JSON.stringify([file.id]));
+            event.dataTransfer.effectAllowed = "move";
+          },
+        };
 
         if (isImage(file)) {
           return (
             <button
               key={file.id}
+              {...dragProps}
               type="button"
               className="min-w-0 rounded-md p-3 text-left transition-colors hover:bg-muted"
               onClick={() => openImage(file)}
@@ -76,6 +91,8 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
                   width={200}
                   height={200}
                   unoptimized
+                  // 🚨 これが無いと画像だけが単独でドラッグされ、こちらの荷物（ファイル ID）が載らない。
+                  draggable={false}
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -86,7 +103,12 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
         }
 
         return (
-          <Link key={file.id} href={`/admin/files/${file.id}`} className="min-w-0 rounded-md p-3 hover:bg-muted">
+          <Link
+            key={file.id}
+            {...dragProps}
+            href={`/admin/files/${file.id}`}
+            className="min-w-0 rounded-md p-3 hover:bg-muted"
+          >
             <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
               <div className="text-center text-muted-foreground">
                 <FileIcon className="mx-auto mb-2 size-10" />
