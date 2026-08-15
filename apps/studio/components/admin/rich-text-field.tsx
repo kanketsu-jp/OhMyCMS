@@ -14,7 +14,7 @@
 
 import { useRef, useState } from "react";
 import NextImage from "next/image";
-import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import { EditorContent, Extension, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
@@ -149,6 +149,24 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
           // 🚨 危ないスキームは**エディタが作らせない**。保存時の検証と二重にする
           isAllowedUri: (url) => isAllowedLinkHref(url),
           shouldAutoLink: (url) => isAllowedLinkHref(url),
+        },
+      }),
+      // 🚨 **`Mod-Enter` は Tiptap から外す。** アプリ側が「保存」に使っているため。
+      //    実測（2026-08-15・本物のキー入力）: 外す前は **保存されると同時に改行も入り**、
+      //    保存された doc JSON の末尾に `hardBreak` が 1 つ混ざっていた。
+      //    しかも `body_plain`（検索用）には出ないので、**画面と検索でずれる**。
+      //    🚨 これは「どちらの鍵を優先するか」の判断とは別で、**どちらに決めても直す側**。
+      //    改行の代替は残す: **`Shift-Enter` は StarterKit のまま**（実測: `<p>いち<br>に</p>`・段落は割れない）。
+      //    ❌ ここを戻すなら、**保存に改行が混ざらないこと**を先に確かめること。
+      Extension.create({
+        name: "richTextReservedKeys",
+        // StarterKit より先に効かせる（優先度が高い方が先に呼ばれる）
+        priority: 1000,
+        addKeyboardShortcuts() {
+          // true を返すと Tiptap 側はここで止まる（＝改行を入れない）。
+          // 🚨 **アプリの保存は止まらない**——`preventDefault` は伝播を止めないので、
+          //    document で待っているアプリのショートカットはそのまま動く（実測で確かめる）。
+          return { "Mod-Enter": () => true };
         },
       }),
       // 画像は自分のアセット配信経路だけ。外部 URL は入れさせない
