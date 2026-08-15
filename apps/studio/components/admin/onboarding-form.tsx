@@ -222,8 +222,11 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
               <p id="onboarding-logo-label" className="text-sm font-medium">{t("logo_label")}</p>
               {/* 選んだものの見せ方（サムネ・題名）は FileDropzone に任せる。
                   ここで img を出すと Attachment と二重になる。 */}
+              {/* 受けるのはロゴ1枚なので、器もロゴの大きさに寄せる（原典 L94）。
+                  寸法は FileDropzone 側が持つ（min-h-20 / max-w-64）。ここで px を書かない。 */}
               <FileDropzone
                 name="logo"
+                size="logo"
                 labelledBy="onboarding-logo-label"
                 onSelect={uploadLogo.run}
               />
