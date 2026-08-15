@@ -32,6 +32,7 @@ x_rag_okf:
 - [通信路が HTTPS かどうかを NODE_ENV で決めない](./decisions/https-is-not-node-env.md) — `decisions/https-is-not-node-env`
 - [i18n はライブラリを使わず自前実装にする](./decisions/i18n-own-implementation.md) — `decisions/i18n-own-implementation`
 - [i18n は必須（旧PJの方針を反転）](./decisions/i18n-required.md) — `decisions/i18n-required`
+- [文言検査の範囲は「画面に届くか」で決める。lib/ を丸ごと足さない](./decisions/i18n-check-scope-is-what-reaches-the-screen.md) — `decisions/i18n-check-scope-is-what-reaches-the-screen`
 - [設定・スキーマの正本は JSON](./decisions/json-as-source-of-truth.md) — `decisions/json-as-source-of-truth`
 - [画面に置くものには理由が要る（枠・常設・背景・寸法）](./decisions/every-element-must-earn-its-place.md) — `decisions/every-element-must-earn-its-place`
 - [検査は「何を見ていないか」を言えて初めて検査になる](./decisions/checks-must-declare-blind-spots.md) — `decisions/checks-must-declare-blind-spots`
