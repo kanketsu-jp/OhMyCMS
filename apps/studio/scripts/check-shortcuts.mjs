@@ -285,6 +285,12 @@ const TIPTAP_CONFLICT_EXCEPTIONS = {
   //    検査が新しく壊したのではなく、**今まで誰も見ていなかった**ものが見えた形。
   //    どちらも「実害の有無」を実測してから、reason を書き分けてある。
   "mod+b": {
+    recordedAt: "2026-08-15",
+    decided: false,
+    decidedBy: "司令塔（w4A:p1P）",
+    openQuestion:
+      "編集体験の判断が未了。(a) このまま記録として残す（エディタの中では Tiptap が勝ち、外ではアプリが勝つ）/ " +
+      "(b) 割り当てを変える（mod+b は太字が世界標準なので、奪うと書いている人が驚く）——のどちらかを決める",
     reason:
       "左サイドバーの開閉。Tiptap の Mod-b（太字）と当たるが、`left-sidebar.tsx:66` の " +
       "`useShortcut` は `whileTyping` を立てていないので、`isTyping()` が " +
@@ -294,6 +300,12 @@ const TIPTAP_CONFLICT_EXCEPTIONS = {
       "動かすなら堀池の合意が要るので、いまは衝突を認めたうえで据え置く。",
   },
   "mod+enter": {
+    recordedAt: "2026-08-15",
+    decided: false,
+    decidedBy: "司令塔（w4A:p1P）",
+    openQuestion:
+      "編集体験の判断が未了。加えて 🚨 **実測が未了**——保存は whileTyping: true なので Tiptap の編集中も発火する。" +
+      "Tiptap の Mod-Enter と同時に動くかを、WYSIWYG を置いた画面で測る必要がある（担当は未割り当て）",
     reason:
       "保存。堀池の原文が「保存（⌘エンター）」と指定しているので、この検査の都合で動かさない。" +
       "🚨 ただし `mod+b` と違い、保存は `whileTyping: true` で登録されている" +
@@ -518,11 +530,24 @@ for (const entry of entries) {
   const hits = tiptapMap.get(norm);
   const hasHit = hits && hits.length > 0;
   const excepted = hasHit && TIPTAP_CONFLICT_EXCEPTIONS[norm];
-  const mark = !hasHit ? "✅ 衝突なし" : excepted ? "🟡 衝突あり（例外承認済み）" : "🚨 衝突あり（未承認）";
+  // 🚨 「承認済み」は「これでよい」ではなく「いま在ることを記録した」の意味。
+  //    未決のものは**毎回そう出す**（黙って緑が続くと、決める人が居ることを誰も思い出さない）。
+  const mark = !hasHit
+    ? "✅ 衝突なし"
+    : excepted
+      ? excepted.decided === false
+        ? "🟡 衝突あり（記録済み・**未決**）"
+        : "🟡 衝突あり（例外承認済み）"
+      : "🚨 衝突あり（未承認）";
   console.log(
     `  ${entry.name.padEnd(20)} ${entry.combo.padEnd(18)} ${mark}` +
       (hasHit ? `  ← ${hits.map((h) => `${h.raw}(${h.pkgName})`).join(", ")}` : ""),
   );
+  if (excepted && excepted.decided === false) {
+    console.log(
+      `  ${" ".repeat(20)} ${" ".repeat(18)} 記録 ${excepted.recordedAt} / 決める人: ${excepted.decidedBy} / ${excepted.openQuestion}`,
+    );
+  }
 }
 console.log(`\n  Tiptap との衝突（未承認）: ${tiptapConflicts.length} 件`);
 for (const v of tiptapConflicts) {
