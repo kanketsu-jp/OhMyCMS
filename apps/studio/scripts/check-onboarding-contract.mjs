@@ -56,7 +56,32 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+/**
+ * 見にいく先。既定は**このスクリプトの隣**（＝ `apps/studio`）。
+ *
+ * 🚨 **`OHMYCMS_CHECK_ROOT` で別のツリーを指せる。門ごしの RED を測るための口。**
+ *
+ * この検査は `readFileSync` で **作業ツリー**を読む（staged の中身ではない）。
+ * したがって **RED を測るために共有ツリーの `service.ts` を壊すと、戻すまでのあいだ、
+ * 他のペインのコミットまで赤くなる**。実証（2026-08-16・共有 index は汚さず `GIT_INDEX_FILE` の写しで）:
+ * ```
+ * 🟢 壊す前 `apps/studio/next.config.ts` だけを staged → onboarding-contract ✔️ exit 0
+ * 🔴 壊した後 **同じ staged・同じ人** → 🚨 exit 1
+ *    しかも出るのは「対照(-)1 過検出」——**オンボーディングと無関係な人には意味が分かりません**
+ * ```
+ * 私（onboard）は今日これを **7 回**やった。1 回も事故にならなかったのは運です。
+ *
+ * → **門ごしの RED は、切った台の上で測る:**
+ * ```
+ * git worktree add --detach /tmp/red <sha> && <そこで壊す>
+ * OHMYCMS_CHECK_ROOT=/tmp/red/apps/studio node apps/studio/scripts/check-onboarding-contract.mjs
+ * ```
+ * 🚨 **規則そのものの RED は、壊さなくても測れる**（囮が `inspect()` を文字列で呼ぶ）。
+ *    ツリーを壊す必要があるのは「**lefthook が本当に止めるか**」を見るときだけ。
+ */
+const root = process.env.OHMYCMS_CHECK_ROOT
+  ? resolve(process.env.OHMYCMS_CHECK_ROOT)
+  : resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SERVICE = "lib/settings/service.ts";
 const FORM = "components/admin/onboarding-form.tsx";
 
@@ -332,6 +357,12 @@ for (const n of negatives) {
 const { violations, bodyChars } = inspect(serviceSource, formSource);
 console.log(`\n■ 判定`);
 console.log(`  対象: ${SERVICE}（completeOnboardingWithAdmin ${bodyChars} 文字）＋ ${FORM}`);
+// 🚨 **どのツリーを見たかを必ず出す。** 既定に落ちたことが見えないと、
+//    「切った台で測ったつもりが、共有ツリーを測っていた」に気づけない
+//    （V1-E で REF の打ち間違いが PASS のまま隠れたのと同じ形。2026-08-16）。
+console.log(
+  `  見たツリー: ${process.env.OHMYCMS_CHECK_ROOT ? `指定 ${root}` : `既定 ${root}（＝共有の作業ツリー）`}`,
+);
 if (violations.length === 0) {
   console.log("  違反なし（＝画面が送らない鍵を API が必須にしていない）。");
 } else {
