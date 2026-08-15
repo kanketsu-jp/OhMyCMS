@@ -79,6 +79,13 @@ const sources = files.map((file) => ({ file, text: readFileSync(resolve(root, fi
 console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
 let selfTestFailed = false;
 
+// 🚨 **この囮は「探し方」しか検証していない**（2026-08-15・規律2 の追加を自分に当てた）。
+//    囮は scan() に文字列を直接渡すので、**ディスクを読む経路（globSync）は通らない**。
+//    ＝ **本命と同じ出どころではないが、本命の全経路も通っていない**。
+//    実測: glob を壊すと **囮は「✅ 検出 1 件」のまま素通り**し、
+//    落としたのは隣の「対象を拾えている **0 ファイル**」のほうだった。
+//    → **囮と「対象が 0 なら落ちる」は、別々のものを守っている。両方要る。**
+//      囮 = 探し方が当たっているか ／ 0 件ガード = そもそも読めているか
 // 🚨 正の対照。「在るものが在ると出る」側だけが、探し方の正しさを保証する。
 const decoy = scan([{ file: "decoy.tsx", text: `<div className="flex h-8 items-center" />` }]);
 console.log(`  ${decoy.length === 1 ? "✅" : "❌"} 囮1: 素の h-8  → 検出 ${decoy.length} 件`);
