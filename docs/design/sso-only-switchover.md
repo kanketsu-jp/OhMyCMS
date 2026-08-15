@@ -55,6 +55,7 @@
     ポリシーは全部で 2 つ。**その 2 つとも admin_access = true**
       dev-admin      割り当て **197 件**  ← 🚨 こちらが圧倒的に多い
       Administrator  割り当て **3 件**（admin@ohmycms.local / local-admin@localhost / saml-tester@example.com）
+      🚨 **2026-08-15 18:5x に saml-tester の割り当てを外した。いまは 2 件**（下記の理由）
 
 **`dev-admin` の正体（推測ではなく、コードとデータの両方で確定）**:
 
@@ -147,6 +148,29 @@
       local  **admin@ohmycms.local**
       local  **local-admin@localhost**
       saml   saml-tester@example.com（検証用）
+             🚨 **2026-08-15 に外した。** 検証用アカウントが管理者だと、
+             **「一覧に無い人は 403」を測ったときに偽の緑が出る**（saml が発見）。
+             利用者は残してある（受入の往復が IdP 側の `saml-tester` と結びつくため）。
+             **外したあと、SAML の往復が通ることと、代替の管理者口で入れることを動作で確認済み。**
+
+### 🚨 外したことで、初めて測れたもの（2026-08-15・実物の Keycloak）
+
+**`sso-user-provisioning.md` §4 の受入 #1 は「本番では測れない」と書いていたが、
+Studio 側だけで測れた**（IdP は要ったが、本番は要らなかった）:
+
+    一覧 0 件・この人は not_listed の状態で、実物の IdP のセッションを使って:
+      GET /api/auth/me        → **200**   ← セッションはできる
+      GET /api/policies       → **403**   ADMIN_ACCESS_REQUIRED
+      GET /api/settings/saml  → **403**
+    🟢 対照(+) 同じ `/api/settings/saml` を**管理者のセッション**で → **200**
+      （＝「全部 403」ではない。**拒否が効いている**ことの証明）
+
+    さらに: **一覧に載せてから**同じことをしても → `/api/policies` は **403 のまま**
+      （`saml_allowed=true` は記録されている）
+      ＝ 🚨 **一覧は「入場の可否」だけで、権限を与えない。** §5-2 の推奨どおりに分離できている
+
+🚨 **この測定は、saml-tester が管理者のままなら永久にできなかった**（全部 200 になる）。
+**「測れない」と書いたものの一部は、測る条件を作れば測れる。**
 
 🚨 **`localhost` も `ohmycms.local` も実在しないドメイン**で、**IdP がその値を返すことはあり得ない**。
 つまり **いまの管理者2人は、そもそも SSO で入れない**（`sso-user-provisioning.md` の許可リストにも足せない）。
