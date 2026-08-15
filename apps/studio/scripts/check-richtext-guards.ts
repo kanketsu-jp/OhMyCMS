@@ -214,6 +214,10 @@ function stripComments(source: string): string {
   const 見本 = [
     '// Extension.create({ name: "richTextReservedKeys" })   ← 行コメント',
     '/* priority: 1000 とブロックコメントの中 */',
+    // 🚨 **ブロックコメントの「継続行」**（2026-08-15・今日 4 回目の形として追加）。
+    //    行頭の記号でコメントを判定すると、**2 行目以降が実コードとして残る**。
+    '/* 🚨 継続行にも',
+    '   priority: 1000 と書いてある */',
     'const url = "https://example.com//not-a-comment";',
     'const 実装 = { priority: 1000, name: "richTextReservedKeys" };',
   ].join("\n");

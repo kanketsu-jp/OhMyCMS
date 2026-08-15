@@ -81,6 +81,11 @@ const コメントを落とす = (text) => text
   .map((line) => line.split("#")[0])
   .join("\n");
 
+// 🚨 検査#3 の判定そのもの。**自己検査の囮は、この関数を呼ぶ**。
+//    囮が「同じ内容の写し」だと、本物だけ続き文字へ戻されても囮は通ってしまう
+//    （＝**囮が本物を見ていない**）。1 つしか無い形にしておく。
+const 除外判定に当たる行か = (line) => line.includes("check-ignore") && line.includes("--no-index");
+
 // ── コメント除去そのものの自己検査 ─────────────────────────
 // 🚨 **「検出されるべきもの」だけを並べない。「検出されてはいけないもの」を必ず入れる**
 //    （2026-08-15）。逆方向が無いと**過検出は永久に捕まらない**。
@@ -102,17 +107,35 @@ const コメントを落とす = (text) => text
     process.exit(2);
   }
   console.log(`自己検査: コメント除去 OK（見本 3 行中、実コードだけ 1 件を検出）`);
+
+  // 🚨 **一度でも過検出した検査には、必ず囮を残す**（2026-08-15）。
+  //    この検査は `check-ignore\s+--no-index` と**続き文字**で見ていて、
+  //    **`git check-ignore -q --no-index` を違反と言った**（＝正しく書いてあるものを違反と言う）。
+  //    直したが、囮が無いままだと**次に誰かが続き文字へ戻しても気づけない**。
+  const 囮 = [
+    ['          if git check-ignore --no-index -q -- "$tracked"', true],
+    ['          if git check-ignore -q --no-index -- "$tracked"', true],  // 🚨 順が違うだけ。**通らねばならない**
+    ['          if git check-ignore -q -- "$tracked"', false],            // --no-index が無い。**通ってはいけない**
+    ['          # git check-ignore --no-index はコメント', true],         // 判定自体は当たる（除去は上でやる）
+  ];
+  const 誤り = 囮.filter(([line, 期待]) => 除外判定に当たる行か(line) !== 期待);
+  if (誤り.length > 0) {
+    console.error(`✖ 自己検査に失敗: 囮 ${誤り.length} 件で判定がずれています`);
+    for (const [line] of 誤り) console.error(`    ${line.trim()}`);
+    console.error("  🚨 続き文字での照合に戻っている可能性があります。判定は出しません。");
+    process.exit(2);
+  }
+  console.log(`自己検査: 囮 ${囮.length} 件 OK（書き方を変えても通る／足りない形は通さない）`);
 }
 
 const 実コード = コメントを落とす(dockerfile.text);
 
 const 行 = dockerignore.text.split("\n").map((l) => l.trim());
 
-// 🚨 YAML も**同じ切り方**でコメントを落とす（コメントに `GIT_DIRTY` と書いただけで違反にしない）。
+// 🚨 YAML も**同じ関数**でコメントを落とす（YAML も `#` がコメント）。
+//    同じ処理を2回書くと、片方だけ直したときに**静かに食い違う**ので 1 つに寄せてある。
 //    対象行 `--build-arg GIT_SHA=${{ github.sha }}` に `#` は無いので、切っても消えない
 //    （消えたら対照が落ちて検査ごと失敗するので、黙って通ることはない）。
-// 🚨 Dockerfile と**同じ関数**を使う（YAML も `#` がコメント）。
-//    同じ処理を2回書くと、片方だけ直したときに**静かに食い違う**。
 const CI実コード = コメントを落とす(ci.text);
 
 // 🚨 **出どころは人に書かせず、計器に言わせる**（貼り付ける人が毎回書く形は、忙しいときに落ちる）
@@ -165,7 +188,7 @@ const checks = [
     //    `git check-ignore -q --no-index` のように**フラグの順を変えただけで違反と言っていた**。
     //    **正しく書いてあるものを違反と言うのも、計器の故障**（取りこぼしと同じ重さ）。
     //    → **同じ行に両方在るか**で見る。
-    ある: 実コード.split("\n").some((line) => line.includes("check-ignore") && line.includes("--no-index")),
+    ある: 実コード.split("\n").some(除外判定に当たる行か),
     対照: /update-index\s+--skip-worktree/.test(実コード),
     対照の説明: "skip-worktree の呼び出し（この検査が Dockerfile を読めている証拠）",
     壊れると: "追跡ファイルを消しても dirty が 0 のままになる（本当に汚れた像を見逃す）",
