@@ -46,6 +46,9 @@ const VERSION_SERVICE = join(REPO_ROOT, "apps/studio/lib/version/service.ts");
 const MCP_SCHEMAS = join(REPO_ROOT, "packages/mcp/src/schemas.ts");
 
 /** `{ a: ..., b: ... }` の**最上位の鍵**だけを取る。入れ子は数えない。 */
+/** 深さ1に spread があったか。**読めないものを 0 件として通さないため**に持ち帰る。 */
+export const spreadSeen = { any: false };
+
 function topLevelKeys(objectSource) {
   const keys = [];
   let depth = 0;
@@ -61,6 +64,9 @@ function topLevelKeys(objectSource) {
     if (c === "{" || c === "(" || c === "[") { depth += 1; continue; }
     if (c === "}" || c === ")" || c === "]") { depth -= 1; continue; }
     if (depth !== 1) continue;
+    // 🚨 **spread は静的に中身を読めない。** `...{ version: …, zzLeak: … }` と書くだけで
+    //    この検査を迂回できた（2026-08-15 実測: exit 0 のまま通っていた）。
+    if (c === "." && objectSource.slice(i, i + 3) === "...") { spreadSeen.any = true; i += 2; continue; }
     // 深さ1の `name:` を鍵とみなす
     const rest = objectSource.slice(i);
     const m = rest.match(/^([A-Za-z_$][\w$]*)\s*:/);
@@ -105,6 +111,12 @@ if (responses.length === 0) {
   problems.push(`解析できません: ${HEALTH_ROUTE} に Response.json({...}) が 1 つもありません`);
 }
 const healthKeys = new Set(responses.flatMap((body) => topLevelKeys(body)));
+if (spreadSeen.any) {
+  problems.push(
+    "解析できません: Response.json({…}) に spread（...）があります。" +
+      "中身を静的に読めないので、鍵が増えていても検出できません（べた書きにしてください）",
+  );
+}
 
 // version は getBuildVersion() の戻り値。中の鍵も辿る。
 let versionKeys = new Set();

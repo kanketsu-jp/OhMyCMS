@@ -121,6 +121,9 @@ for (const href of new Set(hrefs)) {
 }
 
 // ── ⑤ 主要（primary）は 1 ルートに 1 つだけ ─────────────────
+// 🚨 **この検査の限界**: 読むのは `lib/admin/page-actions.ts` **1 本だけ**。
+//    `PAGE_ACTIONS` を別ファイルで組み立てて import する形にされたら、**何も見えない**。
+//    「読めない形は落とす」は**同一ファイル内でしか効かない**（2026-08-15・迂回の実測より）。
 // 🚨 これは `page-actions.ts` のコメントが「**主要は 1 ページに 1 つだけ**。2 つ並べると
 //    『まずこれ』が消える」と**宣言していたのに、どこも守っていなかった**もの（規律12）。
 //    2026-08-15 時点で偶然 24 ルートすべて 1 件だったが、**守っていたのは規律であって機械ではない**。
@@ -128,6 +131,18 @@ for (const href of new Set(hrefs)) {
 const primaryCounts = [];
 for (const m of src.matchAll(/^ {2}"(\/admin[^"]*)": \[([\s\S]*?)^ {2}\],/gm)) {
   const [, route, block] = m;
+  // 🚨 **リテラル以外の書き方は「読めない」として落とす。**
+  //    `role: PRIMARY` と変数にするだけでこの検査を迂回できた（2026-08-15 実測: exit 0 で素通り）。
+  //    spread（`...{ role: "primary" }`）はテキストとして残るので数に入るが、
+  //    変数・文字列連結は残らない。**数えられない形は、0 件として通さない。**
+  const roleValues = [...block.matchAll(/role:\s*([^,\n}]+)/g)].map((m) => m[1].trim());
+  const unreadable = roleValues.filter((v) => v !== '"primary"' && v !== '"secondary"');
+  if (unreadable.length > 0) {
+    problems.push(
+      `ルート "${route}" の role がリテラルではありません（${unreadable.join(" / ")}）。` +
+        "静的に数えられないので、主要が何件あるか分かりません（\"primary\" / \"secondary\" と直接書いてください）",
+    );
+  }
   const count = (block.match(/role: "primary"/g) ?? []).length;
   primaryCounts.push({ route, count });
   if (count !== 1) {
