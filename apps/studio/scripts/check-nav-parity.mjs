@@ -390,6 +390,75 @@ function main() {
   assertExceptionsAreDesignDecisions();
   assertExceptionsAreComplete();
 
+  // ── 🚨 **見逃す入力を、自分で作って通す**（司令塔 2026-08-16）
+  //    取りこぼしの**数**は数えられない（出てこないので）。
+  //    だが「**この形は取りこぼす**」は、**作れば必ず示せる**。
+  //    🚨 落とさない（落とすと全員のコミットが止まる）。**見逃したことを印字するだけ**。
+  //    🚨 対照（拾える入力）が拾えなければ **exit 1**——
+  //       対照が死んでいると「見逃した」は「検出器が死んでいるだけ」になり、何も言っていない。
+  const 見逃す入力 = [
+    // 🚨 **入れ子の波括弧に注意**。`items={navItems.map(...)}` を `\{[^}]*\}` で狙うと
+    //    途中で切れて JSX が壊れ、**別の理由（onlyLeft）で拾われる**（2026-08-16 に実際にやった）。
+    //    → **タグの手前で切ってから、入れ子の無い prop を狙う**。
+    ["同じ prop 名で、渡している値が違う（片方を空配列にする）",
+     (s) => {
+       const k = s.indexOf("<MobileNav");
+       if (k < 0) return s;
+       return s.slice(0, k) + s.slice(k).replace("groups={navGroups}", "groups={[]}");
+     }],
+    ["同じ prop を 2 回渡す（後ろが勝つので、実質は別の値）",
+     (s) => {
+       const k = s.indexOf("<MobileNav");
+       if (k < 0) return s;
+       return s.slice(0, k) + s.slice(k).replace("groups={navGroups}", "groups={navGroups} groups={[]}");
+     }],
+    ["3 つ目のナビ部品を足す（この検査は 2 つしか見ていない）",
+     (s) => s.replace("<MobileNav", "<TabletNav items={items} />\n      <MobileNav")],
+    ["prop の値だけコメントアウトする（名前は残る）",
+     (s) => {
+       const k = s.indexOf("<MobileNav");
+       if (k < 0) return s;
+       return s.slice(0, k) + s.slice(k).replace("groups={navGroups}", "groups={/* 消した */ navGroups}");
+     }],
+  ];
+
+  const 見逃した = [];
+  const 拾えた = [];
+  for (const [名, 壊す] of 見逃す入力) {
+    const 壊れた = 壊す(original[LAYOUT_FILE]);
+    if (壊れた === original[LAYOUT_FILE]) {
+      // 🚨 置換が当たっていない ＝ **見逃したかどうかを測れていない**
+      見逃した.push(`${名}  🚨 （置換が当たらず、測れていません）`);
+      continue;
+    }
+    const { violations } = judgeParity({ ...original, [LAYOUT_FILE]: 壊れた });
+    if (violations.length === 0) {
+      見逃した.push(名);
+    } else {
+      // 🚨 **拾えた理由を必ず出す。** 別の理由（parse-error 等）で拾っていると、
+      //    「この形は見ている」と誤読する（2026-08-16 に a11y 側で実際にやった）。
+      const 理由 = [...new Set(violations.map((v) => v.rule))].join(",");
+      拾えた.push(`${名}  → rule: ${理由}`);
+    }
+  }
+  // 🟢 対照(+): 拾える入力（片側だけに prop）を 1 つ通す
+  const 対照 = judgeParity({
+    ...original,
+    [LAYOUT_FILE]: original[LAYOUT_FILE].replace("<LeftSidebar", "<LeftSidebar\n        zzControlOnlyLeft={1}"),
+  });
+  if (対照.violations.length === 0) {
+    console.error("🚨 対照の入力すら拾えていません。見逃しの一覧は読めません（検出器が壊れています）。");
+    process.exit(1);
+  }
+  if (見逃した.length > 0) {
+    console.log(`■ 🚨 この検査が**見ていない形** ${見逃した.length} / ${見逃す入力.length} 件（作って通した。落としません）`);
+    for (const n of 見逃した) console.log(`  ・${n}`);
+  }
+  if (拾えた.length > 0) {
+    console.log(`■ 拾えた ${拾えた.length} 件（🚨 **理由を見ること**。狙いと違う理由なら死角のまま）`);
+    for (const n of 拾えた) console.log(`  ・${n}`);
+  }
+
   console.log("■ 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）");
   let selfTestFailed = false;
   for (const test of selfTests) {
