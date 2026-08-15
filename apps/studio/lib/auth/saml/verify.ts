@@ -231,8 +231,8 @@ export async function upsertSamlUser(identity: SamlIdentity): Promise<DirectusUs
   //    衝突しない内部用のアドレスを組み立てる（`settings/service.ts` の
   //    LOCAL_ADMIN_EMAIL と同じ考え方）。**誰かの連絡先ではない。**
   //
-  // 🚨 **画面に出さないのは `lib/admin/user-label.ts` の `displayUserLabel` が
-  //    `isSamlPlaceholderEmail()` で弾いているから**——ここで「見せない」と書くだけでは
+  // 🚨 **画面に出さない**（守り手: `lib/admin/user-label.ts` の `displayUserLabel` が
+  //    `isSamlPlaceholderEmail()` で弾く）——ここで「見せない」と書くだけでは
   //    何も守られない（2026-08-15。**守っているコードを名指しできないコメントは願望**だった）。
   //    組み立ても判定も `saml/placeholder-email.ts` の関数を通す。**文字列で書かない**
   //    （片方の綴りを変えた日に、もう片方が黙って通すため）。
@@ -251,7 +251,10 @@ export async function upsertSamlUser(identity: SamlIdentity): Promise<DirectusUs
     last_access: db.fn.now(),
     provider: "saml",
     external_identifier: identity.nameId,
-    // 🚨 生の Assertion を残さない。groups は権限の判断に使うため名前だけ持つ。
+    // 🚨 **生の Assertion を残さない**（守り手: この行のオブジェクトリテラルと `mapProfileToIdentity`）。
+    //    `identity` は必要な項目だけに整形済みで、ここは**書いた鍵しか入らない**——
+    //    漏らすには**このリテラルを書き換えるしかない**（型でなく構造で止めている）。
+    //    groups は権限の判断に使うため名前だけ持つ。
     auth_data: { groups: identity.groups },
   });
 

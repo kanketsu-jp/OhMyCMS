@@ -9,7 +9,9 @@ import type { Knex } from "knex";
  *   ・IdP の X.509 証明書 … **公開鍵**。秘密鍵ではない
  * したがって `AGENTS.md §3.7`（秘密を残さない）に抵触せず、GUI から設定できる
  * （`knowledge/decisions/auth-methods.md`「設定はユーザーがする」）。
- * 🚨 **SP 側の秘密鍵は v1 では持たない。** 持つときが来たら環境変数に置く（DB には入れない）。
+ * 🚨 **SP 側の秘密鍵は v1 では持たない**（守り手: **その列がこの表に無い**——
+ *    置こうとすると migration を足すことになり、必ず人の目を通る）。
+ *    持つときが来たら環境変数へ。DB には入れない。
  *
  * ── IdP ごとに行を分けない ──
  * `auth-methods.md`「Entra ID / Google Workspace / Okta は同じ SAML」。

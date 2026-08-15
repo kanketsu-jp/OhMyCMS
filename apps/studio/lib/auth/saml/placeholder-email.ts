@@ -23,8 +23,9 @@ export const SAML_PLACEHOLDER_EMAIL_DOMAIN = "saml.invalid";
 /**
  * 利用者 ID から合成アドレスを作る。
  *
- * 🚨 **IdP の識別子（NameID）は入れない。** ここに入れると、**画面へ出たときに
- *    IdP 側の識別子が漏れる**。誰かを特定したいときは `external_identifier` 列を見る。
+ * 🚨 **IdP の識別子（NameID）は入れない**（守り手: 引数が `userId` の1つだけで、
+ *    NameID を渡す口が無い）。入れると**画面へ出たときに IdP 側の識別子が漏れる**。
+ *    誰かを特定したいときは `directus_users.external_identifier` 列を見る。
  */
 export function samlPlaceholderEmail(userId: string): string {
   return `${userId}@${SAML_PLACEHOLDER_EMAIL_DOMAIN}`;
