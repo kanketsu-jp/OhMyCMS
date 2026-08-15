@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { EllipsisIcon } from "lucide-react";
+import { EllipsisIcon, SlashIcon } from "lucide-react";
 
 import {
   Breadcrumb,
@@ -76,13 +76,15 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                       見えている文字（ページ名）を必ず含むので WCAG 2.5.3 を満たす。
                       `aria-label` でボタン全体に名前を付けると**見えている文字を打ち消す**ので使わない。 */}
                   <span className="sr-only">{t("nav.breadcrumb_parents")}</span>
-                  <EllipsisIcon aria-hidden="true" className="size-3.5" />
-                  {/* 🚨 区切りのスラッシュ（堀池・2026-08-15 原文「パンクズは『.../ページ名』にして」）。
+                  <EllipsisIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                  {/* 🚨 区切りのスラッシュ（堀池・2026-08-15「パンクズは『.../ページ名』にして」/「薄くする」）。
+                      🚨 **薄いのは経路の記号だけ。ページ名は薄くしない**（いま居る場所は読ませる）。
                       `...` が**上の階層の省略**であることは、区切りがあって初めて伝わる
                       （隣り合っているだけだと、2つの別々のものに見える）。
-                      🚨 **読み上げさせない**（`aria-hidden`）。文字として読むと「てんてんてんスラッシュ」になる。
+                      🚨 **文字ではなくアイコン**（堀池・2026-08-15「どちらもアイコンを使う。ellipsis slash」）。
+                      アイコンなら文字として読まれないが、`aria-hidden` も併せて付ける（確実にするため）。
                       🚨 **ボタンの中に置く**。外に出すと押せる範囲が2つに割れて見える。 */}
-                  <span aria-hidden="true" className="text-muted-foreground">/</span>
+                  <SlashIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
                   {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
                   <BreadcrumbPage title={current.label} className="block min-w-0 truncate">
                     {shorten(current.label)}
