@@ -39,7 +39,7 @@
  * 使い方: node scripts/check-raw-row-exports.mjs
  * 終了コード: 違反があれば 1。
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const TARGETS = [
@@ -110,6 +110,19 @@ function violationsIn(source, raw) {
     }
   }
   return bad;
+}
+
+// ── 🚨 走る場所の確認（cwd が違うと、生のスタックが出て読み違える）──────────
+//    2026-08-15、私自身がリポジトリ直下から走らせて `node:fs` のスタックを見て、
+//    **「違反が出た」と読みかけた**。**何が起きたかを言葉にする。**
+for (const t of TARGETS) {
+  if (!existsSync(t.file)) {
+    console.error(`🚨 [R7] ${t.file} が見つかりません。`);
+    console.error(`   この検査は **apps/studio を cwd にして**走らせてください。`);
+    console.error(`   いまの cwd: ${process.cwd()}`);
+    console.error(`   例: cd apps/studio && node scripts/check-raw-row-exports.mjs`);
+    process.exit(2);
+  }
 }
 
 // ── 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）──────────
