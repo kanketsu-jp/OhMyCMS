@@ -1,4 +1,5 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { VersionCheckAction } from "@/components/admin/version-check-action";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { apiFetch } from "@/lib/admin/api";
 import { getT } from "@/i18n/server";
@@ -14,8 +15,16 @@ export default async function VersionPage() {
   const t = await getT("version");
   const result = await apiFetch<{ data: VersionInfo }>("/api/version");
 
+  // 確認先が設定されているときだけ「更新を確認」を出す。
+  // 未設定なら `checkForUpdate()` は外部へ出て行かない仕様なので、
+  // ボタンを出すと「押せるのに何も起きない」ものになる。
+  const canCheck =
+    result.ok &&
+    (result.data.data.update.checked || result.data.data.update.reason !== "not_configured");
+
   return (
     <div className="max-w-3xl space-y-6">
+      {canCheck ? <VersionCheckAction /> : null}
 
       {!result.ok ? (
         <ErrorBanner message={result.message} />
