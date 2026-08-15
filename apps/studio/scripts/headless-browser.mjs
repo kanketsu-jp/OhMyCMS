@@ -174,6 +174,25 @@
  *      「0件は単独では情報を持たない」と同じ話）。呼び出し側が
  *      `外した.小さい / clip / ariaHidden / 非表示` の内訳を見れば、
  *      「本当に対象が無かった」のか「除外条件で落ちた」のかを区別できる。
+ *
+ * 8. 🚨 **`setDeviceMetricsOverride({ mobile: true })` だけでは「幅だけ変えた PC」にしかならない。**
+ *    2026-08-15 実測（この駆動器で）: 幅を 390 にしても `matchMedia("(hover: hover)").matches`
+ *    は **true のまま**、`pointer:coarse` は **false のまま**、`navigator.maxTouchPoints` は
+ *    **0 のまま**だった。`mobile: true` が変えるのは `window.innerWidth` や
+ *    `device-width` 系のメディアクエリだけで、**入力方式（hover・pointer・タッチ）は別の
+ *    override**（`Emulation.setEmulatedMedia` / `Emulation.setTouchEmulationEnabled`）が要る。
+ *    Tailwind の `hover:` ユーティリティは `@media (hover: hover)` に包まれるので、
+ *    この2つを足さないまま「SP で測った」と言っても、**本物の SP では効かない hover 挙動が
+ *    測定では効いたまま**になり、測定そのものが嘘になる。
+ *
+ *    **なぜ PC に戻すときに明示的に外す必要があるか**: 同じスクリプトの中で SP → PC と
+ *    切り替えて対照を取る形が実在する。`Emulation.setEmulatedMedia` /
+ *    `Emulation.setTouchEmulationEnabled` は**タブ単位で状態を保持する override**なので、
+ *    SP 用に付けた `hover:none` / タッチ有効化を PC 側で呼び直さずに放置すると、
+ *    「幅だけ 1280 に戻したのに hover:none のまま」という**残骸**が残る。
+ *    実測（`features: []` を渡す）で override 自体が完全に解除され、`hover:hover=true` /
+ *    `pointer:fine=true` / `maxTouchPoints=0`（素の headless Chrome の既定）に戻ることを
+ *    確認済み（sp → pc → sp と往復させても値が一致することも確認済み）。
  */
 
 const PORT = 9333;
@@ -409,7 +428,29 @@ class Session {
     await this.send("Network.setCookie", { name, value, url, path: "/" });
   }
 
-  /** 画面幅を変える。SP は 390x844 / PC は 1280x900 で測っている。 */
+  /**
+   * 画面幅を変える。SP は 390x844 / PC は 1280x900 で測っている。
+   *
+   * 🚨 **幅を SP にしただけでは「触る端末」になりません**（落とし穴8・2026-08-15 実測・この driver で）。
+   *    `setDeviceMetricsOverride({ mobile: true })` だけで幅 390 にすると:
+   *      hover:hover = **true** / pointer:coarse = **false** / maxTouchPoints = **0**
+   *    ＝ **PC を細くしただけ**。Tailwind の `hover:` は `@media (hover: hover)` に包まれるので、
+   *      **本物の SP では効かない装飾が、測定では効いたまま**になります。
+   *    「SP で測った」と書いた測定が、hover やタッチの挙動を含むなら**測れていません**。
+   * 🚨 **幅・入力・書体は別々に設定するもの**（司令塔 2026-08-15）。
+   *    → 幅に加えて `Emulation.setEmulatedMedia` で `hover` / `any-hover` / `pointer` /
+   *    `any-pointer` の media features を、`Emulation.setTouchEmulationEnabled` でタッチ点を
+   *    上書きする（`any-hover`/`any-pointer` は「タッチ機器に外付けマウスが繋がっている」ような
+   *    CSS 判定にも使われるため、`hover`/`pointer` だけでなく必ず4つとも渡す）。
+   * 🚨 **`mobile === false` のときは、前回 sp で付けた override を必ず外す**。
+   *    `Emulation.setEmulatedMedia({ features: [] })` は「空配列を追加する」のではなく
+   *    **override そのものを解除する**動作であることを実測済み（`features:[...]` → `features:[]`
+   *    → 素の headless Chrome の既定値（hover:hover=true / pointer:fine=true /
+   *    maxTouchPoints=0）に戻る。sp → pc → sp と往復させても同じ値に戻ることも確認済み）。
+   *    `setTouchEmulationEnabled({ enabled: false })` も同様に、有効化していた分を明示的に外す。
+   *    同じスクリプトの中で SP → PC と切り替えて測る形が実在するため、外し忘れると
+   *    **PC 側の測定が SP の残骸を引きずって嘘になる**。
+   */
   async setViewport(width, height, mobile = false) {
     await this.send("Emulation.setDeviceMetricsOverride", {
       width,
@@ -417,6 +458,23 @@ class Session {
       deviceScaleFactor: mobile ? 2 : 1,
       mobile,
     });
+    if (mobile) {
+      await this.send("Emulation.setEmulatedMedia", {
+        features: [
+          { name: "hover", value: "none" },
+          { name: "any-hover", value: "none" },
+          { name: "pointer", value: "coarse" },
+          { name: "any-pointer", value: "coarse" },
+        ],
+      });
+      await this.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    } else {
+      // features: [] で override を完全に解除する（「hover:hover を明示指定」ではなく
+      // 「override を外して素の既定に戻す」形。実測でどちらでも同じ値になることは確認済みだが、
+      // 「外す」という意図をコードでも表すため features:[] を使う）。
+      await this.send("Emulation.setEmulatedMedia", { features: [] });
+      await this.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+    }
   }
 
   /**
