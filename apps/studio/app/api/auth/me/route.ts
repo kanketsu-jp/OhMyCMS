@@ -3,7 +3,6 @@ import { resolveActor } from "@/lib/auth/context";
 import { setAvatarEmoji } from "@/lib/auth/profile";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
-import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/service";
 
 export const runtime = "nodejs";
 
@@ -37,11 +36,13 @@ export async function PATCH(request: Request) {
     if (actor.type !== "human") {
       throw new ApiError(403, "HUMAN_AUTH_REQUIRED", "人間のセッション認証が必要です");
     }
-    // 起動用の内部ユーザーは画面に一切出さない決まり（lib/admin/user-label.ts）。
-    // アバターを持たせる意味が無いので、変更も拒否する。
-    if (actor.email === LOCAL_ADMIN_EMAIL) {
-      throw new ApiError(403, "HUMAN_AUTH_REQUIRED", "人間のセッション認証が必要です");
-    }
+    // 🚨 ここに `actor.email === LOCAL_ADMIN_EMAIL` の拒否を置いていた。**本番で堀池さんが
+    //    アイコンを変えられなくなった**（2026-08-15・実測で 403 を再現してから外した）。
+    //    誤りは「**画面に出さない = その利用者は実在しない**」と読み替えたこと。
+    //    `lib/settings/service.ts` の「利用者には一切見せない」は**メールアドレスを表示するな**
+    //    という意味で、**その人が使っていない**という意味ではない。初期設定で作られる唯一の人間
+    //    なので、**実際に操作しているのはこの行の人**。アバターを持ってよい。
+    //    メールを画面に出さない規律は `lib/admin/user-label.ts` 側でそのまま守られる。
 
     const body = await readJsonObject(request);
     const avatarEmoji = body.avatarEmoji;
