@@ -72,7 +72,17 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                   variant="secondary"
                   className="min-w-0"
                 >
+                  {/* 🚨 読み上げ名は「上の階層へ ＋ ページ名」になる。
+                      見えている文字（ページ名）を必ず含むので WCAG 2.5.3 を満たす。
+                      `aria-label` でボタン全体に名前を付けると**見えている文字を打ち消す**ので使わない。 */}
+                  <span className="sr-only">{t("nav.breadcrumb_parents")}</span>
                   <EllipsisIcon aria-hidden="true" className="size-3.5" />
+                  {/* 🚨 区切りのスラッシュ（堀池・2026-08-15 原文「パンクズは『.../ページ名』にして」）。
+                      `...` が**上の階層の省略**であることは、区切りがあって初めて伝わる
+                      （隣り合っているだけだと、2つの別々のものに見える）。
+                      🚨 **読み上げさせない**（`aria-hidden`）。文字として読むと「てんてんてんスラッシュ」になる。
+                      🚨 **ボタンの中に置く**。外に出すと押せる範囲が2つに割れて見える。 */}
+                  <span aria-hidden="true" className="text-muted-foreground">/</span>
                   {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
                   <BreadcrumbPage title={current.label} className="block min-w-0 truncate">
                     {shorten(current.label)}
@@ -100,6 +110,16 @@ export function Breadcrumbs({ brand }: { brand: string }) {
           </BreadcrumbItem>
         ) : (
           <BreadcrumbItem className="min-w-0">
+            {/* 🚨 **上の階層が無いときは、押せる見た目にしない**（ボタンにも secondary にもしない）。
+                押しても開くものが無いのに「押せる」と見せると、堀池さんの指示
+                （「押下できることがわかるように」）と逆になる。スラッシュも出さない。
+
+                🚨 **この分岐は 2026-08-15 時点で画面から到達できない**（実測）。
+                道筋の根は必ず `/admin`（＝ブランド名）が積まれるので、道筋が 1 件になるのは
+                `/admin` そのものだけで、**`/admin` は `/admin/collections` へ転送される**。
+                それでも残すのは、**これが「思いつきの備え」ではなく、道筋が 1 件のときの
+                正しい振る舞い**だから。消すと、開くものが無いのにボタンを出すことになる。
+                （転送をやめた時・`/admin` 以外でパンくずを使った時に、そのまま表に出る） */}
             {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
             <BreadcrumbPage title={current.label} className="truncate">
               {shorten(current.label)}

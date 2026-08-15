@@ -4,6 +4,7 @@
   "avatar_dialog_title": "Choose an icon",
   "avatar_error": "Could not change the icon",
   "breadcrumb_label": "Breadcrumb",
+  "breadcrumb_parents": "Go to parent pages",
   "collections": "Collections",
   "collections_error": "Could not load collections",
   "content_heading": "Content",
