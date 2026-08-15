@@ -6,13 +6,13 @@ tags: []
 status: draft
 generated:
   by: rag-okf
-  at: 2026-08-13
+  at: 2026-08-15
 verified: []
 sources: []
 stale_after: 2027-02-08
 x_rag_okf:
   id: index
-  source_commit: 6ffa5c7
+  source_commit: c513197
   source_digest: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   authorship: deterministic
 ---
@@ -26,17 +26,17 @@ x_rag_okf:
 - [権限と認可（permissions）](./areas/permissions.md) — `areas/permissions`
 - [指示書は AGENTS.md を正本にする](./decisions/agents-md-as-canonical.md) — `decisions/agents-md-as-canonical`
 - [認証は SAML → メール OTP → パスワードの順に使う](./decisions/auth-methods.md) — `decisions/auth-methods`
+- [アバターは絵文字にする。メールの頭文字を出さない](./decisions/avatar-is-emoji-not-initials.md) — `knowledge/decisions/avatar-is-emoji-not-initials.md`
+- [検査は「何を見ていないか」を言えて初めて検査になる](./decisions/checks-must-declare-blind-spots.md) — `decisions/checks-must-declare-blind-spots`
 - [CLI と MCP は REST API 経由（DB 直接アクセス禁止）](./decisions/cli-mcp-over-rest.md) — `decisions/cli-mcp-over-rest`
 - [DB は PostgreSQL（Cloudflare D1 は撤回）](./decisions/db-postgres.md) — `decisions/db-postgres`
+- [画面に置くものには理由が要る（枠・常設・背景・寸法）](./decisions/every-element-must-earn-its-place.md) — `decisions/every-element-must-earn-its-place`
 - [フォルダは「誰かの持ち物」にしない](./decisions/folders-are-not-owned.md) — `decisions/folders-are-not-owned`
 - [通信路が HTTPS かどうかを NODE_ENV で決めない](./decisions/https-is-not-node-env.md) — `decisions/https-is-not-node-env`
+- [文言検査の範囲は「画面に届くか」で決める。lib/ を丸ごと足さない](./decisions/i18n-check-scope-is-what-reaches-the-screen.md) — `decisions/i18n-check-scope-is-what-reaches-the-screen`
 - [i18n はライブラリを使わず自前実装にする](./decisions/i18n-own-implementation.md) — `decisions/i18n-own-implementation`
 - [i18n は必須（旧PJの方針を反転）](./decisions/i18n-required.md) — `decisions/i18n-required`
-- [文言検査の範囲は「画面に届くか」で決める。lib/ を丸ごと足さない](./decisions/i18n-check-scope-is-what-reaches-the-screen.md) — `decisions/i18n-check-scope-is-what-reaches-the-screen`
 - [設定・スキーマの正本は JSON](./decisions/json-as-source-of-truth.md) — `decisions/json-as-source-of-truth`
-- [画面に置くものには理由が要る（枠・常設・背景・寸法）](./decisions/every-element-must-earn-its-place.md) — `decisions/every-element-must-earn-its-place`
-- [検査は「何を見ていないか」を言えて初めて検査になる](./decisions/checks-must-declare-blind-spots.md) — `decisions/checks-must-declare-blind-spots`
-- [アバターは絵文字にする。メールの頭文字を出さない](./decisions/avatar-is-emoji-not-initials.md) — `decisions/avatar-is-emoji-not-initials`
 - [migration を足す人は、直前に「他人の未適用分」を確認する](./decisions/migrations-are-shared.md) — `decisions/migrations-are-shared`
 - [開発サーバを外部へ公開しない（公開するのは本番ビルドだけ）](./decisions/never-expose-dev-server.md) — `decisions/never-expose-dev-server`
 - [Directus をフォークしない](./decisions/no-directus-fork.md) — `decisions/no-directus-fork`
@@ -48,10 +48,10 @@ x_rag_okf:
 - [リレーションを辿るときも、相手側コレクションの権限を必ず通す](./decisions/relation-permission-boundary.md) — `decisions/relation-permission-boundary`
 - [秘密の置き場所は「復元可能性」で決める（ハッシュ化できるものだけ GUI 可）](./decisions/secrets-storage-by-recoverability.md) — `decisions/secrets-storage-by-recoverability`
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
+- [ショートカットはエディタのキーバインドと衝突しない](./decisions/shortcuts-must-not-collide-with-editor.md) — `decisions/shortcuts-must-not-collide-with-editor`
 - [v0.9 は Next.js 単一アプリ、分離時は Hono](./decisions/single-nextjs-app-then-hono.md) — `decisions/single-nextjs-app-then-hono`
 - [手順ドキュメントはステップ式で書く。前提を独立させ、スクリーンショットを使わない](./decisions/stepwise-docs.md) — `decisions/stepwise-docs`
-- [ショートカットはエディタのキーバインドと衝突しない](./decisions/shortcuts-must-not-collide-with-editor.md) — `decisions/shortcuts-must-not-collide-with-editor`
-- [保管先の安全装置は「実装が実際に使う値」で判定する](./decisions/storage-guard-uses-effective-config.md) — `decisions/storage-guard-uses-effective-config`
+- [保管先の安全装置は「実装が実際に使う値」で判定する](./decisions/storage-guard-uses-effective-config.md) — `knowledge/decisions/storage-guard-uses-effective-config.md`
 - [保管先のキー設計を固定する（接頭辞は後から変えない）](./decisions/storage-key-prefix-is-fixed.md) — `decisions/storage-key-prefix-is-fixed`
 - [合成 ID は画面に出さない](./decisions/synthetic-ids-are-not-contacts.md) — `decisions/synthetic-ids-are-not-contacts`
 - [通知は「終わったこと」だけトーストへ。直す必要があるものはその場に残す](./decisions/toast-for-events-page-for-what-needs-fixing.md) — `decisions/toast-for-events-page-for-what-needs-fixing`

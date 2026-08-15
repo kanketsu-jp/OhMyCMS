@@ -6,14 +6,14 @@ tags: []
 status: draft
 generated:
   by: rag-okf
-  at: 2026-08-13
+  at: 2026-08-15
 verified: []
 sources:
   - resource: "repo://README.md"
 stale_after: 2027-02-08
 x_rag_okf:
   id: project
-  source_commit: 6ffa5c7
+  source_commit: c513197
   source_digest: "sha256:04ebfb9c77f191e97bbacfa0aa41745f687a234c507d78a3e360b82ade24ac22"
   authorship: deterministic
 ---
@@ -24,10 +24,10 @@ x_rag_okf:
 <!-- rag-okf:todo -->
 
 ## いま何をしているか
-> 基準日: 2026-08-13
+> 基準日: 2026-08-15
 
-- Recent active areas: apps/studio (75 changes), acceptance/checks (13 changes), packages/sdk (5 changes)
-- HEAD: 6ffa5c7
+- Recent active areas: apps/studio (31 changes), acceptance/checks (2 changes), .claude/worktrees (0 changes)
+- HEAD: c513197
 
 ## 主要な領域
 <!-- rag-okf:todo -->
