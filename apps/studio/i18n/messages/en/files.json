@@ -79,5 +79,7 @@
   "labels_saved": "Labels updated",
   "labels_save_failed": "Could not update labels",
   "filtered_by_label": "Filtered by “{name}”",
-  "clear_filter": "Clear filter"
+  "clear_filter": "Clear filter",
+  "labels_loading": "Loading…",
+  "labels_load_failed": "Could not load labels"
 }

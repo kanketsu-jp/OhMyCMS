@@ -16,6 +16,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
+import { FolderLabelsMenu } from "@/components/admin/folder-labels-menu";
 import { useT } from "@/i18n/client";
 
 type FolderRow = {
@@ -186,6 +187,8 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuGroup>
+                  {/* 🚨 開いた人の分だけ取りに行く（一覧の描画で N+1 にしない）。 */}
+                  <FolderLabelsMenu folderId={folder.id} />
                   {/* 🚨 色は「選ぶ」ものなので、1項目に押し込まず並べる。
                       文字にすると6行になり、削除より目立ってしまう。 */}
                   <div className="flex flex-wrap gap-1 px-2 py-1.5">
