@@ -19,6 +19,7 @@ import { db } from "@/lib/db/knex";
 import { ApiError } from "@/lib/schema/errors";
 import { createSamlClient, purgeExpiredSamlRecords, type SamlEndpoints } from "./client";
 import { ATTRIBUTE_DEFAULTS, isSamlUsable, type SamlConfig } from "./config";
+import { samlPlaceholderEmail } from "./placeholder-email";
 
 export type SamlIdentity = {
   /** IdP がこの人を指す識別子。🚨 **メールとは限らない**。 */
@@ -227,9 +228,15 @@ export async function upsertSamlUser(identity: SamlIdentity): Promise<DirectusUs
 
   const id = randomUUID();
   // 🚨 `directus_users.email` は NOT NULL + unique。メールを送らない IdP のために、
-  //    NameID から衝突しない内部用のアドレスを組み立てる（`settings/service.ts` の
-  //    LOCAL_ADMIN_EMAIL と同じ考え方。**利用者には見せない**）。
-  const email = identity.email ?? `${id}@saml.invalid`;
+  //    衝突しない内部用のアドレスを組み立てる（`settings/service.ts` の
+  //    LOCAL_ADMIN_EMAIL と同じ考え方）。**誰かの連絡先ではない。**
+  //
+  // 🚨 **画面に出さないのは `lib/admin/user-label.ts` の `displayUserLabel` が
+  //    `isSamlPlaceholderEmail()` で弾いているから**——ここで「見せない」と書くだけでは
+  //    何も守られない（2026-08-15。**守っているコードを名指しできないコメントは願望**だった）。
+  //    組み立ても判定も `saml/placeholder-email.ts` の関数を通す。**文字列で書かない**
+  //    （片方の綴りを変えた日に、もう片方が黙って通すため）。
+  const email = identity.email ?? samlPlaceholderEmail(id);
 
   await db("directus_users").insert({
     id,
