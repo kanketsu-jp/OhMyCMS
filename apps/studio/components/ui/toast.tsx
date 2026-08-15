@@ -145,7 +145,9 @@ function ToastList() {
         // 🚨 SP は上から、PC は下から入る。**出てくる向きは置き場所と揃える**
         //    （下に置いたものが上から降ってくると、どこから来たか分からない）。
         className={cn(
-          "group/toast relative isolate w-full overflow-hidden rounded-lg bg-clip-padding text-sm ring-1 shadow-lg transition-all duration-200",
+          // Radix DismissableLayer がモーダル中に body へ pointer-events:none を付けても、
+          // toast 本体の auto で継承を断ち切り、閉じるボタンを押せるようにする。
+          "group/toast pointer-events-auto relative isolate w-full overflow-hidden rounded-lg bg-clip-padding text-sm ring-1 shadow-lg transition-all duration-200",
           // 🚨 色は堀池の指定そのまま（success = emerald-50 → emerald-100）。
           //    error / info は指定が無いので同じ作りで揃えた（design のトークン確定後に差し替える）。
           "data-[type=success]:bg-emerald-50 data-[type=success]:text-emerald-950 data-[type=success]:ring-emerald-600/20",
@@ -221,8 +223,17 @@ export function Toaster() {
   return (
     <div
       data-slot="toast-viewport"
+      /*
+       * Radix Dialog の hideOthers() は `querySelectorAll('[aria-live], script')` に
+       * 一致するノードを aria-hidden 化しない。主目的はトースト viewport に
+       * aria-hidden を付けさせないことで、role="status"/"alert" だけでは
+       * literal な `[aria-live]` 属性セレクタに一致しない。
+       */
+      aria-live="polite"
       className={cn(
-        "fixed z-[100] flex w-full flex-col gap-2 outline-none",
+        // viewport は常時 mounted なので空でも SP 上端のタップを奪う。祖先が pointer-events:none でも
+        // 子の auto は hit-test 可能なため、個別 toast だけクリック可能にする。
+        "fixed z-[100] pointer-events-none flex w-full flex-col gap-2 outline-none",
         // SP: 画面上部。ノッチ／ステータスバーぶんを避ける。
         "top-0 right-0 left-0 px-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]",
         // PC: 画面右下。幅は読み切れる範囲で止める。
