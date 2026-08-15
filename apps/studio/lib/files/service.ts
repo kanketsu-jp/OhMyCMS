@@ -220,7 +220,13 @@ type FileRow = {
  * `Promise<PublicFileRow>` と書いて生の行をそのまま返しても、**構造が合うので型が通る**
  * （`FileRow` は `PublicFileRow` の全項目を持っているため）。
  * 印を付けると**素の行では型が合わなくなる**ので、`toPublicFile` を通すか、
- * `as PublicFileRow` と**自分の手で書く**しかない。後者は `git grep` で見つかる。
+ * `as PublicFileRow` と**自分の手で書く**しかない。
+ *
+ * 🚨 **印だけでは足りない。** 2026-08-15 に 4 通り試したところ、印が止めたのは
+ * 「`PublicFileRow` と名乗って生の行を返す」形**だけ**で、`as` での表明・山括弧での表明・
+ * **生の行の型を名乗る**・**返り値の型を書かない** は**全部 tsc を素通りした**。
+ * 残りは `scripts/check-raw-row-exports.mjs` が止める（lefthook に載せてある）。
+ * 🚨 山括弧を探すとき `<PublicFileRow>` で grep しないこと——**`Promise<PublicFileRow>` まで拾う**。
  *
  * 🚨 **symbol のキーは JSON に出ない**（`JSON.stringify` / `Object.keys` / `Response.json` の
  * どれも symbol キーを無視する。2026-08-15 に実測。文字列キーの `__brand` にすると漏れる）。

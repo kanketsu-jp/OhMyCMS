@@ -90,6 +90,17 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-undefined-classes.mjs
 
+    # 生の行の型（FileRow / LabelRow）が外向きの返り値に出ていないか。
+    # 🚨 型の印（brand）だけでは足りない。2026-08-15 に 4 通り試したところ、
+    #    印が止めたのは「PublicFileRow と名乗って生の行を返す」形だけで、
+    #    ①as で表明 ②<PublicFileRow> の山括弧 ③生の行の型を名乗る
+    #    ④返り値の型を書かない は**全部素通り**した（tsc exit 0 を実測）。
+    # 🚨 対象は 2 ファイルだけに絞ってある。広げると他の担当のコミットを落とす。
+    #    増やすときは、増やした人が RED を測ってから増やすこと。
+    raw-row-exports:
+      root: "apps/studio"
+      run: node scripts/check-raw-row-exports.mjs
+
     # MCP のツール目録（packages/mcp/src/catalog.ts）と、Studio 側の写しが一致すること。
     # 🚨 **写しがあるのは、Studio から正を import できないから**（依存も exports も zod も無い。
     #    理由は check-mcp-catalog.mjs の冒頭に実測つきで書いてある）。写しは手で直さず `--write` で作る。
