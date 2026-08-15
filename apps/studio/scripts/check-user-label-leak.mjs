@@ -728,8 +728,23 @@ console.log(`  違反: ${violations.length} 件`);
 
 if (violations.length > 0) {
   console.error("\n■ 内部識別子が画面のラベルへ届く経路");
+  // 🚨 **拾った行の実物を添える**（司令塔の規律・2026-08-16）。
+  //    説明だけだと、数え方の違いを読む人が確かめられない。
+  //    実例: `error.message` と `error?.message` の差は、**行を見れば目に入るが、
+  //    件数を見ていても入らない**。今日その差で数が 3 回ひっくり返った。
+  //    🚨 行が取れないとき（ファイルが読めない・行番号 0）は、取れないと書く。**黙って空にしない。**
+  const sourceOf = (file, line) => {
+    if (!line || line < 1) return "（行番号なし。ファイル全体に対する指摘）";
+    try {
+      const text = readFileSync(resolve(root, file), "utf8").split("\n")[line - 1];
+      return text === undefined ? "🚨 その行が読めなかった" : text.trim();
+    } catch {
+      return "🚨 ファイルが読めなかった";
+    }
+  };
   for (const v of violations) {
     console.error(`  [${v.rule}] ${v.file}:${v.line}  ${v.detail}`);
+    console.error(`        ${sourceOf(v.file, v.line)}`);
   }
 }
 
