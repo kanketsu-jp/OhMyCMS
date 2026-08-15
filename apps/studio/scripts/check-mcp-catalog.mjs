@@ -72,6 +72,28 @@ function parseCatalog(source) {
 }
 
 /**
+ * コメントを落とす。**登録を数える前に必ず通す。**
+ *
+ * 🚨 通さないと、**コメントに書いた使用例を実際の登録として数える**（2026-08-16 実測。
+ *    `// server.registerTool("ohmycms_zz")` / JSDoc の例 / 文字列リテラル、**3 通りとも拾った**）。
+ *    ＝ 正しく書いてあるものを「登録が目録に無い」と言う**過検出**になる。
+ *    今日この形で 3 人が別々に落ちている（規約の説明文を実装として計上・JSDoc の使用例を
+ *    使用として計上・弱い語での棚卸し）。
+ *
+ * 🚨 **URL を壊さない。** 行コメントは「空白の直後の `//`」だけを落とす
+ *    （`https://…` は `:` の直後なので当たらない）。
+ *
+ * 🚨 **塞げていないもの（宣言）**: **文字列リテラルの中**の `registerTool("ohmycms_…")`。
+ *    落とすには構文解析が要る。**「たぶん書かない」であって、構造上の保証ではない。**
+ *    囮5 でこの経路を明示的に測っており、**拾ってしまうことを承知で残している。**
+ */
+function stripComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")   // ブロック（JSDoc を含む）
+    .replace(/(^|\s)\/\/[^\n]*/g, "$1"); // 行コメント（URL の // は前が `:` なので当たらない）
+}
+
+/**
  * 目録と登録のずれを返す。**ファイルを読まない**ので、囮の文字列をそのまま渡せる。
  * 🚨 判定を関数にしてあるのは、**毎回その場で「検出できること」を確かめる**ため
  *    （この家の check-shortcuts / check-user-label-leak と同じ作法。10/23 本が採用している）。
@@ -87,7 +109,7 @@ function findViolations(sourceText, serverText) {
   for (const t of found.filter((x) => !x.title || !x.description)) {
     out.push({ rule: "文言を取れない", detail: t.name });
   }
-  const names = [...serverText.matchAll(/registerTool\(\s*"(ohmycms_[a-z_]+)"/g)].map((m) => m[1]);
+  const names = [...stripComments(serverText).matchAll(/registerTool\(\s*"(ohmycms_[a-z_]+)"/g)].map((m) => m[1]);
   if (names.length === 0) {
     out.push({ rule: "登録を読めない", detail: "server.ts から 0 件" });
     return { tools: found, violations: out };
@@ -150,10 +172,26 @@ if (!WRITE) {
     //    **4 スペースで足された項目だけ生き残って囮が成立しなくなった**
     //    （＝本体で直したのと同じ思い込みを、囮の側に残していた）。
     ["囮3: 目録を丸ごと読めなくする", source.replaceAll("ohmycms_", "zzz_"), serverText, "抽出できていない"],
+    // 🚨 **ここから下は「検出されてはいけない」側。**
+    //    2026-08-16 まで、囮は 3 本とも「検出されること」だけだった。
+    //    **逆方向が無いと、過検出は永久に捕まらない**（司令塔 2026-08-16）。
+    //    実際、この 2 つは**塞ぐ前は拾っていた**（＝正しく書いてあるものを違反と言っていた）。
+    ["囮4: コメントに書いた使用例（拾ってはいけない）", source,
+      serverText + '\n// server.registerTool("ohmycms_zz_incomment", …) と書く\n', null],
+    ["囮5: JSDoc の使用例（拾ってはいけない）", source,
+      serverText + '\n/**\n * 例: server.registerTool("ohmycms_zz_injsdoc", {})\n */\n', null],
   ];
   let alive = 0;
   console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
   for (const [name, src, srv, wantRule] of probes) {
+    // wantRule が null の囮は「**何も出ないこと**」が期待。
+    if (wantRule === null) {
+      const violations = findViolations(src, srv).violations;
+      const quiet = violations.length === 0;
+      console.log(`  ${quiet ? "✅" : "🚨"} ${name}  → ${quiet ? "拾わない（過検出なし）" : `**拾ってしまう**: ${violations.map((v) => v.detail).join(" / ")}`}`);
+      if (quiet) alive++;
+      continue;
+    }
     const hit = findViolations(src, srv).violations.some((v) => v.rule === wantRule);
     console.log(`  ${hit ? "✅" : "🚨"} ${name}  → ${hit ? `検出（${wantRule}）` : "**検出できない**"}`);
     if (hit) alive++;
