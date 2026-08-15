@@ -453,8 +453,23 @@ const pending = [];
 // この検査は form を「見ていない」ので、ここは**検出ではなく計数**。落とさない（報告だけ）。
 const formActions = { total: 0, unguarded: [] };
 
+// 🚨 「候補」と「実際に判定が働いた数」を分ける（2026-08-16・司令塔の指示）。
+//    ゼロ件ガード（上）は `files.length`＝**globSync の候補**しか見ていなかった。
+//    候補が 133 件あっても、検出器が死んでいれば**1 件も判定されないまま緑になる**。
+//    そこで「`findMutationLines` が 1 件以上返したファイル」を数え、0 なら落とす。
+//    🚨 これは「異常が無い 0」ではなく「**見ていない 0**」を捕まえるための数。
+//
+// 🚨 **0 だけを見てはいけない**（2026-08-16・design の指摘）。
+//    「0 なら落とす」は **30 → 1 に減っても通る**。「見ていない 0」は塞げても
+//    「**ほとんど見ていない**」は塞げない。そこで下限をラチェットにする（MAX_PENDING と同じ形）。
+//    実測 2026-08-16: **30 本**。ここに実測値をそのまま書き、下回ったら落とす。
+//    🚨 **自動導出しない**——導出すると、減った日に下限も一緒に下がって何も言わなくなる。
+const MIN_SCANNED = 30;
+let scannedWithHits = 0;
+
 for (const file of files) {
   const source = readFileSync(resolve(root, file), "utf8");
+  if (findMutationLines(source).length > 0) scannedWithHits += 1;
   for (const m of source.matchAll(/<form[^>]{0,300}?action=\{([^}]{1,80})\}/g)) {
     formActions.total += 1;
     // `.run`（useSubmitOnce が返す形）を通っていないものを未防御として数える
@@ -870,6 +885,21 @@ const BLIND_SPOTS = [
 ];
 const blindBase = findMutationLines(BASELINE).length;
 let blindDrift = false;
+console.log(
+  `\n■ 走査の実数  候補 ${files.length} 本 / 🚨 **判定が働いた（method: を含む）のは ${scannedWithHits} 本**`,
+);
+if (scannedWithHits === 0) {
+  console.error("🚨 判定が 1 本も働いていません。候補が何本あっても、この検査は何も見ていません。");
+  console.error("  （検出器が壊れた／走査対象の形が変わった、のどちらか。**緑にしてはいけない状態です**）");
+} else if (scannedWithHits < MIN_SCANNED) {
+  console.error(`🚨 判定が働いた本数が下限を下回りました（${scannedWithHits} 本 < 下限 ${MIN_SCANNED} 本）。`);
+  console.error("  0 ではないので「何も見ていない」ではありませんが、**ほとんど見ていない**状態です。");
+  console.error("  検出器が部分的に壊れたか、対象が本当に減ったか。減ったのなら MIN_SCANNED を下げてください。");
+} else if (scannedWithHits > MIN_SCANNED) {
+  console.log(
+    `  🚨 下限より多いです（${scannedWithHits} > ${MIN_SCANNED}）。MIN_SCANNED を ${scannedWithHits} へ上げてください（ラチェットは締め続けないと意味を持ちません）。`,
+  );
+}
 console.log("\n■ 死角の見張り（見逃すはずの形が、拾えるようになっていないか）");
 for (const [name, code, shouldMiss, exists] of BLIND_SPOTS) {
   const got = findMutationLines(`${BASELINE}\n${code}`).length - blindBase;
@@ -896,7 +926,8 @@ process.exit(
     staleExceptions.length === 0 &&
     unclassified.length === 0 &&
     !pendingExceeded &&
-    !blindDrift
+    !blindDrift &&
+    scannedWithHits >= MIN_SCANNED
     ? 0
     : 1,
 );
