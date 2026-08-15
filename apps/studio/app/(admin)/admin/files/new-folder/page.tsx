@@ -17,7 +17,7 @@ export default async function NewFolderPage({ searchParams }: Props) {
   return (
     <div className="flex max-w-2xl flex-col gap-6">
       <div>
-        <Link href={backHref} className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href={backHref} className="text-sm text-muted-foreground hover:text-foreground active:text-foreground">
           {tFiles("back_to_list")}
         </Link>
       </div>
