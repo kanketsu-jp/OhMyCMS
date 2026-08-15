@@ -215,8 +215,15 @@ console.log(`許容した面: ${allowed.length} 件`);
 const byIndex = new Map();
 for (const a of allowed) byIndex.set(a.ruleIndex, (byIndex.get(a.ruleIndex) ?? 0) + 1);
 const rows = ALLOW.map((rule, index) => ({ rule, index, count: byIndex.get(index) ?? 0 }));
-for (const { rule, count } of rows.filter((r) => r.count > 0).sort((a, b) => b.count - a.count)) {
+// 🚨 **数だけを出さない。拾った行を 1〜2 本添える**（司令塔 2026-08-16・design の形）。
+//    件数だけだと「なぜその数なのか」を他人が確かめられず、
+//    数え方の違いが出たときに**言い張るしかなくなる**（同じ日に、別の検査の 12 と 10 が 3 回転した）。
+//    🚨 **行を見れば目に入るものが、数を見ていると入らない。**
+for (const { rule, index, count } of rows.filter((r) => r.count > 0).sort((a, b) => b.count - a.count)) {
   console.log(`    ${String(count).padStart(3)} 件  ${rule.why}  [${rule.decided ?? "🚨 決定の記録が無い"}]`);
+  for (const a of allowed.filter((x) => x.ruleIndex === index).slice(0, 2)) {
+    console.log(`          例 ${a.file}:${a.line}  ${a.snippet}`);
+  }
 }
 // 🚨 一度も効かなかった例外も出す。**ただし「死んだ行」ではない。**
 //    例外は「違反になりかけたもの」にしか効かないので、**候補が出ていなければ 0 件が健全**。

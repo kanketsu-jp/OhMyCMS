@@ -28,6 +28,12 @@
  *    アイテムの保存は `item-form.tsx` の中で描いている。
  *    page.tsx だけ数えると、**出ているものを「出ていない」と誤って数える**。
  *
+ * 🚨 **この検査は `<PageAction` という名前で探している**（2026-08-16 実測）。
+ *    `<PageAction` を持つファイル **23** ／ それを**包んで描く部品** **3**
+ *    （`version-check-action.tsx` など）。いまは `reachableFrom` が import を辿るので
+ *    包まれていても拾えているが、**名前で探していることに変わりはない**。
+ *    🚨 部品の名前が変わる・別名で再輸出される、で**静かに 0 件**になりうる。
+ *
  * `kind:"submit"` は、たどり着いた範囲に **その `form` の id を持つ呼び出し**が
  * あることまで見る（id を書き間違えると、押しても黙って何も起きないため）。
  */
@@ -133,6 +139,7 @@ const problems = [];
 let inspectedRoutes = 0;
 let inspectedFiles = 0;
 let foundCallSites = 0;
+const samples = [];
 
 for (const { route, entries, forms } of declarations) {
   const page = resolve(root, `app/(admin)${route}/page.tsx`);
@@ -153,6 +160,10 @@ for (const { route, entries, forms } of declarations) {
     //    実装行を消しても検査が緑のままだった（メモリ上で再現済み）。
     const found = callSitesIn(stripComments(readFileSync(file, "utf8")));
     if (found.calls === 0 && found.forms.length === 0) continue;
+    if (found.calls > 0 && samples.length < 3) {
+      samples.push(`${file.replace(root + "/", "")}  <PageAction> ${found.calls} 件` +
+        (found.forms.length > 0 ? ` / form=${[...new Set(found.forms)].join(",")}` : ""));
+    }
     calls += found.calls;
     for (const id of found.forms) formsSeen.add(id);
   }
@@ -220,6 +231,12 @@ for (const { route, entries, forms } of declarations) {
 
 console.log(`宣言のあるルート: ${declarations.length} 件 / page.tsx があり検査したもの: ${inspectedRoutes} 件`);
 console.log(`辿ったファイル: のべ ${inspectedFiles} 件 / 見つけた <PageAction>: のべ ${foundCallSites} 件`);
+// 🚨 **数だけを出さない。拾った実物を 3 本添える**（司令塔 2026-08-16）。
+//    「のべ N 件」だけでは、**何を数えたのか**を読んだ人が確かめられない。
+if (samples.length > 0) {
+  console.log("  拾った実物（先頭 3 本。**数ではなく中身を見るため**）:");
+  for (const s of samples.slice(0, 3)) console.log(`    ${s}`);
+}
 
 // 🚨 **緑を「全部照合した結果」と読ませない。**
 //    form の id で一致まで見られるのは submit だけ。link と button は静的に結びつけられない。
