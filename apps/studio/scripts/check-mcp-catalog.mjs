@@ -17,15 +17,26 @@
  *   node scripts/check-mcp-catalog.mjs          検査（ずれていたら exit 1）
  *   node scripts/check-mcp-catalog.mjs --write   写しを作り直す
  *
- * ## 🚨 この検査が見ていない形（**見逃す入力を自分で作って通した**・2026-08-16）
+ * ## 🚨 この検査が見ていない形（**書き置きではなく、毎回その場で通して出しています**）
  * ```
  * ❌ 名前を変数で組み立てて登録する   server.registerTool(n, {})
- *    → 🚨 **見逃します**（実測）。落とすには構文解析が要る
- * ❌ 文字列リテラルの中の registerTool("ohmycms_…")（同上）
+ *    → **見逃します**。落とすには構文解析が要る
+ * ⚠️ 文字列リテラルの中の registerTool("ohmycms_…")
+ *    → **拾ってしまいます**（過検出）。承知で残している
  * ```
+ * 🚨 **この2つは 2026-08-16 まで「どちらも見逃す」と書いていました。通したら逆でした。**
+ *    ＝ **見ていない範囲を書いても、確かめていなければ、それ自体が思いつきです**（司令塔 2026-08-16）。
+ *    → 書き置きをやめ、**実行のたびに通して出す**形にした（下の「見ていない形」節）。
+ *
  * 塞いだ形（**どれも見逃していたものを、作って確かめてから塞いだ**）:
  *   単一引用符で登録 / `src` の下の階層に置く / 目録の鍵を引用符で書く /
- *   目録の文言をテンプレートリテラルで書く
+ *   目録の文言をテンプレートリテラルで書く /
+ *   🚨 **名前に数字が入るツール**（`ohmycms_items_v2` のような形）。
+ *      抽出が `ohmycms_[a-z_]+` だったため、**目録側と登録側の両方から同時に消えて釣り合い、
+ *      違反 0 件で緑**になっていた（実測 2026-08-16: 数字なしなら 23 本、数字ありは 22 本のまま）。
+ *      ＝ **写しからツールが 1 本落ちても、この検査は何も言いませんでした。**
+ *      🚨 見つかった経緯: **囮の名前に数字を使ってしまい、囮が別の理由で外れた**。
+ *         対照だけが数字なしの名前だったので通り、**囮 2 本が「見逃す」に見えていた**
  * 🟢 対照(+) 素直な登録は拾う（＝検出器が動いていることを毎回確認）
  * 🚨 実演の道具: `scratchpad/miss-probe.mjs`（共有ツリーは 1 バイトも触りません）
  *
@@ -77,7 +88,10 @@ function parseCatalog(source) {
   // 🚨 **字下げの幅を決め打ちしない。** 2026-08-15 に実測したところ、
   //    4 スペースで書くだけで抽出から漏れ、**同じ思い込みで数えていた守りも一緒に漏れて**
   //    「22 本一致」と緑になった（＝検査を迂回できた）。
-  const re = /^[ \t]+["']?(ohmycms_[a-z_]+)["']?:\s*\{([\s\S]*?)^[ \t]+\},/gm;
+  // 🚨 **数字を許すこと。** `[a-z_]` だけにすると `ohmycms_items_v2` のような名前が
+  //    ここと下の登録側の**両方から同時に消え、釣り合って違反 0 件（緑）**になる
+  //    （2026-08-16 実測。囮6/囮7 が守っている）。
+  const re = /^[ \t]+["']?(ohmycms_[a-z0-9_]+)["']?:\s*\{([\s\S]*?)^[ \t]+\},/gm;
   for (const m of source.matchAll(re)) {
     const [, name, body] = m;
     const title = body.match(/\btitle:\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)/);
@@ -122,7 +136,7 @@ function stripComments(source) {
  */
 function findViolations(sourceText, serverText) {
   const found = parseCatalog(sourceText);
-  const declaredCount = (sourceText.match(/^[ \t]+["']?ohmycms_[a-z_]+["']?:/gm) ?? []).length;
+  const declaredCount = (sourceText.match(/^[ \t]+["']?ohmycms_[a-z0-9_]+["']?:/gm) ?? []).length;
   const out = [];
   if (found.length === 0 || found.length !== declaredCount) {
     out.push({ rule: "抽出できていない", detail: `宣言 ${declaredCount} 件 / 抽出 ${found.length} 件` });
@@ -131,7 +145,7 @@ function findViolations(sourceText, serverText) {
   for (const t of found.filter((x) => !x.title || !x.description)) {
     out.push({ rule: "文言を取れない", detail: t.name });
   }
-  const names = [...stripComments(serverText).matchAll(/registerTool\(\s*["'](ohmycms_[a-z_]+)["']/g)].map((m) => m[1]);
+  const names = [...stripComments(serverText).matchAll(/registerTool\(\s*["'](ohmycms_[a-z0-9_]+)["']/g)].map((m) => m[1]);
   if (names.length === 0) {
     out.push({ rule: "登録を読めない", detail: "server.ts から 0 件" });
     return { tools: found, violations: out };
@@ -206,6 +220,14 @@ if (!WRITE) {
       serverText + '\n// server.registerTool("ohmycms_zz_incomment", …) と書く\n', "ohmycms_zz_incomment"],
     ["囮5: JSDoc の使用例（拾ってはいけない）", source,
       serverText + '\n/**\n * 例: server.registerTool("ohmycms_zz_injsdoc", {})\n */\n', "ohmycms_zz_injsdoc"],
+    // 🚨 **名前に数字が入る形**。2026-08-16 まで抽出が `[a-z_]` だったため、
+    //    目録側と登録側の**両方から同時に消えて釣り合い、違反 0 件で緑**になっていた。
+    //    ＝ 片側だけを見る囮では捕まらない（**両方を別々に囮にする**）。
+    ["囮6: 目録に数字入りの名前（登録には無い）",
+      source.replace(/\n\} as const/, '\n  ohmycms_zz_v2: {\n    title: "x",\n    description: "y",\n    annotations: { readOnlyHint: true },\n  },\n} as const'),
+      serverText, "目録が登録に無い"],
+    ["囮7: 登録に数字入りの名前（目録には無い）", source,
+      serverText + '\nserver.registerTool("ohmycms_zz_v3", {});\n', "登録が目録に無い"],
   ];
   let alive = 0;
   console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
@@ -226,6 +248,30 @@ if (!WRITE) {
   if (alive !== probes.length) {
     console.error(`🚨 自己検査に失敗しました（${alive}/${probes.length}）。この検査は信用できません。`);
     process.exit(1);
+  }
+
+  // 🚨 **見ていない形も、書き置きにせず毎回その場で通す。**（司令塔 2026-08-16・polish の形）
+  //    ヘッダに「この形は見ません」と**書いた**だけでは、**今も本当かを確かめられない**。
+  //    polish は書いてあった形を実際に通したら **5/5 見逃していた**。
+  //    🚨 私も同じでした: ヘッダは「文字列リテラルの中も見逃す」と書いていたのに、
+  //       通したら**拾って**いた（過検出）。**逆向きの誤りを書いたまま配っていた。**
+  //
+  // 🚨 **ここでは落としません。** 塞がるのは改善であり、赤くするのは間違い。
+  //    記録と食い違った日に「変わりました」と出て、ヘッダを直せるようにするだけ。
+  const blind = [
+    ["名前を変数で組み立てて登録する",
+      serverText + '\nconst n = "ohmycms_zz_var";\nserver.registerTool(n, {});\n', "ohmycms_zz_var", "見逃す"],
+    ["文字列リテラルの中の registerTool",
+      serverText + "\nconst s = 'server.registerTool(\"ohmycms_zz_instr\", {})';\n", "ohmycms_zz_instr", "拾ってしまう"],
+  ];
+  console.log("■ この検査が見ていない形（**毎回その場で通しています**。落としません）");
+  for (const [label, srv, probe, recorded] of blind) {
+    const caught = findViolations(source, srv).violations.some((v) => v.detail.includes(probe));
+    const actual = caught ? "拾ってしまう" : "見逃す";
+    console.log(
+      `  ${actual === recorded ? "▫️" : "🔔"} ${label} → **${actual}**` +
+        (actual === recorded ? "" : `（記録は「${recorded}」。**変わりました。冒頭の注記を直してください**）`),
+    );
   }
 }
 
