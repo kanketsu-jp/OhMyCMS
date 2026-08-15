@@ -128,11 +128,22 @@ function findMutationLines(source) {
   return [...hits.entries()].map(([line, reason]) => ({ line, reason })).sort((a, b) => a.line - b.line);
 }
 
-/** 検出理由を短い日本語ラベルにする（既存の path:line 出力と同じ行に添える用）。 */
+/**
+ * 検出理由を短い日本語ラベルにする（既存の path:line 出力と同じ行に添える用）。
+ *
+ * 🚨 未分類の reason を "" で握りつぶさない（2026-08-15 追加）。
+ * 分類できない hit（reason が "literal" / "unreadable" のどちらでもない）が来ても、
+ * この関数が "" を返すと出力は「関数 save  ←」のように矢印の後が空で終わり、見た目は
+ * ただの表示崩れにしか見えない。しかもその hit 自体は unguarded に積まれて exit 1 になる
+ * ため、**exit コードだけでは「検査の分類が壊れた」ことが分からない**（unguarded が
+ * あるから落ちているのか、reason が読めなくなったから落ちているのか区別できない）＝
+ * 赤の中に赤が隠れる。ここで生の値を含む目立つ印を返し、下の自己検査ブロックで
+ * 別枠の ■ として exit 1 の理由を明示する。
+ */
 function reasonLabel(reason) {
   if (reason === "literal") return 'method: が POST/PATCH/DELETE（本当に変更系）';
   if (reason === "unreadable") return "method: の値が読めない（識別子/三項演算子/テンプレート等）ため変更系として扱った（過検出）";
-  return "";
+  return `🚨 分類できていない理由: "${reason}"（この検査の不具合）`;
 }
 
 const files = globSync("{app,components}/**/*.tsx", { cwd: root }).sort();
@@ -215,6 +226,16 @@ for (const entry of PENDING) {
   }
 }
 
+// 🚨 reason が分類できていない hit の検査（reasonLabel 自身が壊れていないかの自己検査）。
+// なぜ要るか: 分類できない hit は「変更系かもしれない」側に倒すため必ず unguarded にも
+// 積まれ、そちらの exit 1 だけで検査は落ちる。だが exit コードは「未防御があるから落ちた」
+// のか「reason 表示そのものが壊れて何が起きたか説明できないから落ちた」のかを区別しない。
+// hit 自体が既にこの検査を赤くしているので、reason の破損は赤の中に隠れて見えなくなる
+// （赤の中の赤）。ここで reason の値を独立に検査し、専用の ■ セクションと専用の exit 1
+// 理由で「この検査は自分の記録簿(reasonLabel)を信用できない」ことを明示する。
+const KNOWN_REASONS = new Set(["literal", "unreadable"]);
+const unclassified = [...unguarded, ...guarded, ...pending].filter((h) => !KNOWN_REASONS.has(h.reason));
+
 console.log(`防御済み: ${guarded.length} 件 / 未防御: ${unguarded.length} 件 / 移行待ち: ${pending.length} 件`);
 
 if (suspects.length > 0) {
@@ -252,6 +273,15 @@ if (unguarded.length > 0) {
   for (const h of unguarded) console.error(`  ${h.file}:${h.line}  関数 ${h.owner}  ← ${reasonLabel(h.reason)}`);
 } else {
   console.log("未防御なし。");
+}
+
+if (unclassified.length > 0) {
+  console.error("\n■ この検査自身の記録簿が壊れています（reason を分類できない hit がありました）");
+  console.error("  classifyMethodValue が返す reason に、reasonLabel が知らない値が混ざっています。");
+  console.error("  新しい reason を足したなら reasonLabel も同時に直してください（片方だけ直すと再発します）。");
+  for (const h of unclassified) {
+    console.error(`  ${h.file}:${h.line}  関数 ${h.owner}  ← ${reasonLabel(h.reason)}`);
+  }
 }
 
 // ── 自己検査（この検査が本当に検出できるかを毎回その場で確かめる。check-user-label-leak.mjs と同じ書式）──
@@ -325,4 +355,6 @@ if (selfTestFailed) {
   console.error("\n🚨 自己検査に失敗した。**この検査の結果は信用できない**（緑でも意味を持たない）。");
 }
 
-process.exit(unguarded.length === 0 && !selfTestFailed && staleExceptions.length === 0 ? 0 : 1);
+process.exit(
+  unguarded.length === 0 && !selfTestFailed && staleExceptions.length === 0 && unclassified.length === 0 ? 0 : 1,
+);
