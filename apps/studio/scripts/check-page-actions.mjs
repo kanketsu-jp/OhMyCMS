@@ -141,6 +141,21 @@ function hasFormWithId(source, id) {
   }
 }
 
+// 🚨 **「全部が無い」は、14 個の退行より「読めていない」を疑う**（単一原因の診断）。
+{
+  const ids = [...new Set(formIds)];
+  const missingAll = ids.length > 1 && ids.every((id) => !hasFormWithId(code, id));
+  if (missingAll) {
+    console.error(`\n🚨 **宣言された form の id が 1 つも見つかりません**（${ids.length} 件すべて）。`);
+    console.error(`   走査したソースの文字数は ${code.length} です。`);
+    // 🚨 ここは最初 `"..."` の中に `${ids.length}` と書いていて、**そのまま文字として出た**。
+    //    ＝ **書いたものと、出たものが違う**（自分の出力でやった。テンプレートリテラルに直した）
+    console.error(`   **${ids.length} 個の <form> が同時に消えた**より、**読み込みか走査の範囲が壊れている**`);
+    console.error("   ほうが起きやすい形です。**先にそちらを疑ってください。**");
+    process.exit(1);
+  }
+}
+
 for (const id of new Set(formIds)) {
   if (!hasFormWithId(code, id)) {
     problems.push(`[form] id "${id}" を持つ <form> が無い（ヘッダーの送信ボタンが黙って効かなくなる）`);
@@ -210,7 +225,11 @@ if (primaryCounts.length === 0) {
 // ── 結果 ────────────────────────────────────────────────────
 console.log(`ルート: ${routes.length} 件 / labelKey: ${labelKeys.length} 件（ja・en で実在確認）`);
 console.log(`form id: ${formIds.length} 件（<form> に付いているかを確認）/ href: ${hrefs.length} 件`);
-console.log(`走査したソース: ${sources.length} ファイル`);
+// 🚨 **ファイル数だけでは「読めているか」が分からない**（2026-08-16 実測）。
+//    読み込みを空にした写しで測ったら、**「走査したソース: 395 ファイル」と出したまま**
+//    form の違反 14 件を並べた。＝ **読んだ人は 14 個の <form> を探しに行く**（実際は 0 文字）。
+//    → **文字数も出す**。0 なら数字が明らかにおかしいと分かる。
+console.log(`走査したソース: ${sources.length} ファイル（**読めた文字数 ${code.length}**）`);
 console.log(`主要ボタン: ${primaryCounts.length} ルートで数えた（各 1 件であること）`);
 // 🚨 **数だけを出さない。拾った実物を 3 本ずつ添える**（司令塔 2026-08-16）。
 //    「labelKey 27 件」だけでは、**何を数えたのか**を読んだ人が確かめられない。
