@@ -1342,12 +1342,25 @@ for (const vp of VIEWPORTS) {
     let clickFailed = false;
     for (const raw of CLICK ? CLICK.split(">>").map((s) => s.trim()).filter(Boolean) : []) {
       const optional = raw.endsWith("?");
-      const step = optional ? raw.slice(0, -1).trim() : raw;
+      let step = optional ? raw.slice(0, -1).trim() : raw;
+      // 🚨 `セレクタ @2` で「見えているもののうち 2 番目」を押せる（1 始まり）。
+      //    由来: 2026-08-15。右パネルにアコーディオンが 3 つ並んでおり、
+      //    3 つ目（ログ・履歴）だけを開く手段が無く、**中身を一度も測れなかった**。
+      let nth = 1;
+      const atMatch = step.match(/\s+@(\d+)$/);
+      if (atMatch) { nth = Number(atMatch[1]); step = step.slice(0, atMatch.index).trim(); }
       const clicked = await cdp.send("Runtime.evaluate", {
         expression: `(() => {
           const all = [...document.querySelectorAll(${JSON.stringify(step)})];
-          const el = all.find((e) => e.checkVisibility() && e.getBoundingClientRect().width > 0);
-          if (!el) return all.length ? "HIDDEN_ONLY(" + all.length + ")" : "NOT_FOUND";
+          const shown = all.filter((e) => e.checkVisibility() && e.getBoundingClientRect().width > 0);
+          const el = shown[${nth} - 1];
+          if (!el) return all.length ? "HIDDEN_ONLY(" + all.length + "/見えている " + shown.length + ")" : "NOT_FOUND";
+          // 🚨 **Radix は pointerdown で開く。** el.click() だけではメニュー・ダイアログが開かない
+          //    （2026-08-15 実測: トリガーは見えているのに dropdown-menu-content が 0 件のままだった）。
+          //    そのせいで **メニューとダイアログの中は、監査が一度も見ていない領域**になっていた。
+          const o = { bubbles: true, cancelable: true, composed: true, pointerId: 1, isPrimary: true, button: 0 };
+          try { el.dispatchEvent(new PointerEvent("pointerdown", o)); } catch {}
+          try { el.dispatchEvent(new PointerEvent("pointerup", o)); } catch {}
           el.click();
           return el.tagName + ":" + (el.textContent || "").trim().slice(0, 20); })()`,
         returnByValue: true,
