@@ -189,6 +189,8 @@ const checks = [
     対照: 行.includes("compose.yml"),
     対照の説明: "compose.yml の行（同じ探し方で必ず見つかるもの）",
     壊れると: "Dokploy が clone 先で書き換える compose が文脈に入り、dirty が毎回 1 に戻る",
+    証拠: () => 行.find((l) => l === "compose.dokploy.yml") ?? "(見つからない)",
+
   },
   {
     名前: "gitinfo が skip-worktree で「文脈から外れた追跡ファイル」を吸収している",
@@ -197,6 +199,8 @@ const checks = [
     対照: /FROM base AS gitinfo/.test(実コード),
     対照の説明: "gitinfo ステージの宣言（同じ読み方で必ず見つかるもの）",
     壊れると: "綺麗なツリーでも 19 本が \" D\" で残り、dirty が常に 1 になる",
+    証拠: () => 実コード.split("\n").find((l) => /update-index\s+--skip-worktree/.test(l))?.trim() ?? "(見つからない)",
+
   },
   {
     名前: "gitinfo が「除外されたから無い」と「本当に消された」を区別している",
@@ -212,6 +216,8 @@ const checks = [
     対照: /update-index\s+--skip-worktree/.test(実コード),
     対照の説明: "skip-worktree の呼び出し（この検査が Dockerfile を読めている証拠）",
     壊れると: "追跡ファイルを消しても dirty が 0 のままになる（本当に汚れた像を見逃す）",
+    証拠: () => 実コード.split("\n").find(除外判定に当たる行か)?.trim() ?? "(見つからない)",
+
   },
   {
     名前: ".dockerignore を文脈に残している（区別の材料）",
@@ -221,6 +227,8 @@ const checks = [
     対照: 行.includes("compose.yml"),
     対照の説明: "compose.yml の行（同じ読み方で必ず見つかるもの）",
     壊れると: "check-ignore が判定できず、消された追跡ファイルを吸収してしまう",
+    証拠: () => `.dockerignore を外す行は ${行.filter((l) => l === ".dockerignore").length} 件（0 が正しい）`,
+
   },
   {
     名前: "gitinfo が git status で dirty を判定している",
@@ -229,6 +237,8 @@ const checks = [
     対照: /DETECTED_DIRTY/.test(実コード),
     対照の説明: "DETECTED_DIRTY の宣言",
     壊れると: "判定そのものが消え、外から渡された値がそのまま出る（ツリーについて何も言わない値になる）",
+    証拠: () => 実コード.split("\n").find((l) => /git status --porcelain/.test(l))?.trim() ?? "(見つからない)",
+
   },
   {
     名前: "dirty=1 のとき、内訳と出どころをビルドログへ出している",
@@ -237,6 +247,8 @@ const checks = [
     対照: /gitinfo:/.test(実コード),
     対照の説明: "gitinfo のログ出力",
     壊れると: "旗が立った理由が誰にも分からなくなる（今朝の状態へ戻る）",
+    証拠: () => 実コード.split("\n").find((l) => /dirty の出どころ/.test(l))?.trim() ?? "(見つからない)",
+
   },
   {
     名前: "CI が dirty を「宣言」していない（GIT_DIRTY を渡していない）",
@@ -250,6 +262,9 @@ const checks = [
     対照: /--build-arg\s+GIT_SHA/.test(CI実コード),
     対照の説明: "ci.yml の `--build-arg GIT_SHA`（同じ読み方で必ず見つかるもの。これが落ちたら ci.yml を読めていない）",
     壊れると: "CI が焼いたイメージの dirty が、測った値でなく**宣言した値**になる（旗が意味を失う）",
+    証拠: () => `GIT_DIRTY を渡す行 ${CI実コード.split("\n").filter((l) => /--build-arg\s+GIT_DIRTY/.test(l)).length} 件（0 が正しい）`
+      + ` / 🟢 対照: ${CI実コード.split("\n").find((l) => /--build-arg\s+GIT_SHA/.test(l))?.trim() ?? "(GIT_SHA が無い)"}`,
+
   },
 ];
 
@@ -265,6 +280,10 @@ for (const c of checks) {
   }
   if (c.ある) {
     console.log(`  ✅ ${c.名前}`);
+    // 🚨 **数と名前だけを出さない。拾った行そのものを添える**（2026-08-16・design の形）。
+    //    「なぜその判定になったか」を読む人が自分で確かめられる。
+    //    実際、件数だけを出していたせいで、同じ数が 3 回ひっくり返った例が今日あった。
+    if (c.証拠) console.log(`     根拠: ${c.証拠()}`);
   } else {
     console.error(`  ✖ ${c.名前}`);
     if (c.原因) console.error(`     何が起きているか: ${c.原因()}`);
