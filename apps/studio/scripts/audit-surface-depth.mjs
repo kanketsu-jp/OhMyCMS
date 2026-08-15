@@ -1418,6 +1418,21 @@ for (const vp of VIEWPORTS) {
           const all = [...document.querySelectorAll(${JSON.stringify(step)})];
           const shown = all.filter((e) => e.checkVisibility() && e.getBoundingClientRect().width > 0);
           const el = shown[${nth} - 1];
+          // 🚨 **押すと書き込むものは押さない**（2026-08-15）。
+          //    --click は本物のクリック（pointerdown/up + click）を送るので、
+          //    保存・送信・削除に当たると**共有の DB や設定を書き換える**。
+          //    今日、別ペインが計測で共有設定を書き換えて戻せなくなった事故が起きている
+          //    （「計測は読むだけ」と思われがちだが、フォームを触る計測は書き込む）。
+          //    ここで止めるのは**広いセレクタを渡したときの事故**（例: --click 'button' が
+          //    たまたま submit に当たる）。開く/閉じるを狙う用途は妨げない。
+          if (el) {
+            const t = (el.getAttribute("type") || "").toLowerCase();
+            const inForm = !!el.closest("form");
+            const label = (el.textContent || "").trim().slice(0, 20);
+            if (t === "submit" || (inForm && el.tagName === "BUTTON" && t !== "button")) {
+              return "WRITE_GUARD(" + (el.tagName + ":" + label) + ")";
+            }
+          }
           if (!el) return all.length ? "HIDDEN_ONLY(" + all.length + "/見えている " + shown.length + ")" : "NOT_FOUND";
           // 🚨 **Radix は pointerdown で開く。** el.click() だけではメニュー・ダイアログが開かない
           //    （2026-08-15 実測: トリガーは見えているのに dropdown-menu-content が 0 件のままだった）。
@@ -1435,6 +1450,17 @@ for (const vp of VIEWPORTS) {
         continue;
       }
       log(`     押した要素: ${v}`);
+      if (String(v).startsWith("WRITE_GUARD")) {
+        log(`     押した要素: （🚨 押していません: ${v}）`);
+        violations.push({
+          key: `${vp.name} ${path}`,
+          rule: "測定が書き込みかけた",
+          detail: `--click が **送信ボタン**に当たりました（${v}）。押すと共有の DB / 設定が変わります。` +
+            ` 開く/閉じるだけを狙うセレクタに変えてください（例: [data-slot=…-trigger]）。`,
+        });
+        clickFailed = true;
+        break;
+      }
       if (v === "NOT_FOUND" || String(v).startsWith("HIDDEN_ONLY")) {
         violations.push({
           key, rule: "測定不能",
