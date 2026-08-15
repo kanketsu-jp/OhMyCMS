@@ -30,6 +30,7 @@ export const ERROR_KEYS = [
   "not_found",
   "invalid_body",
   "invalid_field",
+  "invalid_interface",
   "conflict",
   // 取りこぼしの受け皿
   "unexpected",
@@ -63,6 +64,7 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   INVALID_FIELD: "invalid_field",
   INVALID_BODY: "invalid_body",
   INVALID_JSON: "invalid_json",
+  INVALID_INTERFACE: "invalid_interface",
   INVALID_SCHEMA: "invalid_body",
   INVALID_FILTER: "invalid_body",
   COLLECTION_NOT_FOUND: "not_found",

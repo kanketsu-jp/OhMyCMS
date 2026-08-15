@@ -15,6 +15,7 @@ import type {
   RelationResult,
 } from "./models";
 import { deriveFieldType, sqlTypeForField } from "./types";
+import { isInterfaceAllowedForType } from "@/lib/schema/interfaces";
 import { plainColumnName } from "@/lib/richtext/document";
 import { assertSafeIdentifier, isSystemTableName } from "./validate";
 
@@ -441,6 +442,7 @@ export async function createCollection(
   const meta = pickAllowed(body.meta, COLLECTION_META_COLUMNS, "UNSUPPORTED_COLLECTION_META");
   const fields = parseFields(body.fields);
 
+  assertInterfacesAllowedInSpecs(fields);
   assertPlainColumnsFreeInSpecs(fields);
 
   await db.transaction(async (trx) => {
@@ -579,6 +581,28 @@ function isRichTextMeta(meta: Record<string, unknown> | undefined): boolean {
   return meta?.interface === "richtext";
 }
 
+function assertInterfaceAllowed(
+  type: string,
+  meta: Record<string, unknown> | undefined,
+): void {
+  const declared = meta?.interface;
+  if (declared === undefined || declared === null) return;
+  if (typeof declared !== "string" || !isInterfaceAllowedForType(declared, type)) {
+    throw new ApiError(
+      400,
+      "INVALID_INTERFACE",
+      `この型では選べない編集のしかたです。type=${type}, interface=${String(declared)}`,
+    );
+  }
+}
+
+function assertInterfacesAllowedInSpecs(fields: FieldSpec[] | undefined): void {
+  if (!fields) return;
+  for (const spec of fields) {
+    assertInterfaceAllowed(spec.type, spec.meta);
+  }
+}
+
 /**
  * まとめて作る経路（createCollection の fields）の衝突を、**テーブルを作る前に**見る。
  *
@@ -702,6 +726,7 @@ export async function createField(
       if (await columnExists(trx, collection, field)) {
         throw new ApiError(409, "FIELD_EXISTS", "フィールドはもう作られています");
       }
+      assertInterfaceAllowed(body.type as string, meta);
       await assertPlainColumnFree(trx, collection, field, meta);
 
       await addColumn(trx, collection, field, body.type as string, schema);

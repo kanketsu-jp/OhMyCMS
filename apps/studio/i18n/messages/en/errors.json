@@ -9,6 +9,7 @@
   "not_found": "The target was not found.",
   "invalid_body": "The submitted content could not be processed.",
   "invalid_field": "The field is not valid.",
+  "invalid_interface": "This editing interface is not available for the selected type. Change the type or editing interface.",
   "conflict": "Could not save because of a conflicting change.",
   "unexpected": "Could not complete the request. Please try again later.",
   "relation_partial_failure": "The column was created, but the relation could not be created."

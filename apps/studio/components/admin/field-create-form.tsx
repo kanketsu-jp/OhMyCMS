@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check } from "lucide-react";
 
 import { FormDraft } from "@/components/admin/form-draft";
@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n/client";
-import { FIELD_INTERFACE_IDS, type FieldInterfaceId } from "@/lib/schema/interfaces";
+import { interfacesForType, type FieldInterfaceId } from "@/lib/schema/interfaces";
 
 const fieldTypes = [
   "string",
@@ -70,7 +70,21 @@ export function FieldCreateForm({ collection }: Props) {
   const [advancedInterface, setAdvancedInterface] = useState("");
   const selectedKind = fieldKinds[kindId];
   const resolvedType = advancedType || selectedKind.type;
-  const resolvedInterface = advancedInterface || selectedKind.interface;
+  const interfaceOptions = useMemo(() => interfacesForType(resolvedType), [resolvedType]);
+  const selectedAdvancedInterface = interfaceOptions.includes(advancedInterface as FieldInterfaceId)
+    ? advancedInterface
+    : "";
+  const resolvedInterface = selectedAdvancedInterface
+    || (interfaceOptions.includes(selectedKind.interface) ? selectedKind.interface : "");
+
+  function keepInterfaceIfAllowed(type: string) {
+    if (
+      advancedInterface
+      && !interfacesForType(type).includes(advancedInterface as FieldInterfaceId)
+    ) {
+      setAdvancedInterface("");
+    }
+  }
 
   return (
     <form id="field-create-form"
@@ -93,7 +107,11 @@ export function FieldCreateForm({ collection }: Props) {
             id="field_kind"
             className={selectClassName}
             value={kindId}
-            onChange={(event) => setKindId(event.target.value as FieldKindId)}
+            onChange={(event) => {
+              const nextKindId = event.target.value as FieldKindId;
+              setKindId(nextKindId);
+              keepInterfaceIfAllowed(advancedType || fieldKinds[nextKindId].type);
+            }}
           >
             <option value="short_text">{t("kind_short_text")}</option>
             <option value="long_text">{t("kind_long_text")}</option>
@@ -130,7 +148,11 @@ export function FieldCreateForm({ collection }: Props) {
                   id="advanced_type"
                   className={selectClassName}
                   value={advancedType}
-                  onChange={(event) => setAdvancedType(event.target.value)}
+                  onChange={(event) => {
+                    const nextAdvancedType = event.target.value;
+                    setAdvancedType(nextAdvancedType);
+                    keepInterfaceIfAllowed(nextAdvancedType || selectedKind.type);
+                  }}
                 >
                   <option value="">{t("advanced_type_auto")}</option>
                   {fieldTypes.map((type) => (
@@ -145,11 +167,11 @@ export function FieldCreateForm({ collection }: Props) {
                 <select
                   id="advanced_interface"
                   className={selectClassName}
-                  value={advancedInterface}
+                  value={selectedAdvancedInterface}
                   onChange={(event) => setAdvancedInterface(event.target.value)}
                 >
                   <option value="">{t("interface_auto")}</option>
-                  {FIELD_INTERFACE_IDS.map((id) => (
+                  {interfaceOptions.map((id) => (
                     <option key={id} value={id}>
                       {t(`interface_${id}`)}
                     </option>
