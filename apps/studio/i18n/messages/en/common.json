@@ -1,4 +1,5 @@
 {
+  "action_options": "Options",
   "app_description": "A self-hosted CMS where collections are added from the admin UI",
   "app_name": "OhMyCMS",
   "back": "Back",

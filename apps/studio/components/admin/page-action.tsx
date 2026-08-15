@@ -1,12 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronDownIcon } from "lucide-react";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
@@ -47,6 +56,24 @@ type Props = {
    *    prop が無いと表現できないので、置き換え先として足した。
    */
   disabled?: boolean;
+  /**
+   * ▾ の中に入れる操作。**空/未指定なら chevron は出ない**（ボタン 1 つのまま）。
+   *
+   * 由来: 堀池さん 2026-08-15「アクションボタンは一つのボタン＋右に chevron-down アイコン。
+   * これを押下するとオプションが表示される」／規約 `knowledge/decisions/action-button-and-edit-mode.md`。
+   *
+   * 🚨 入れるもの: **たまにしか使わない操作**と**破壊的な操作**（削除は必ずここ）。
+   *    入れないもの: その画面の**主目的**（それは主ボタン）。
+   */
+  options?: ActionOption[];
+};
+
+export type ActionOption = {
+  label: string;
+  onSelect?: () => void;
+  href?: string;
+  /** 取り消せない操作。赤く出す（規約 §3「破壊的な操作は必ず ▾ の中」） */
+  destructive?: boolean;
 };
 
 /**
@@ -78,7 +105,9 @@ export function PageAction({
   role = "primary",
   destructive = false,
   disabled = false,
+  options,
 }: Props) {
+  const t = useT("common");
   const headerSlot = useSlot("header-primary-action");
   const mobileSlot = useSlot("mobile-primary-action");
 
@@ -130,8 +159,13 @@ export function PageAction({
     variant,
     order: cn(order, "hidden md:inline-flex"),
     compact: false,
+    options,
+    optionsLabel: t("action_options"),
   });
-  const sp = renderAction({ href, form, onClick, label, icon, pending, disabled, variant, order, compact: true });
+  const sp = renderAction({
+    href, form, onClick, label, icon, pending, disabled, variant, order, compact: true,
+    options, optionsLabel: t("action_options"),
+  });
 
   return (
     <>
@@ -162,6 +196,8 @@ function renderAction({
   variant,
   order,
   compact,
+  options,
+  optionsLabel,
 }: {
   href?: string;
   form?: string;
@@ -173,6 +209,8 @@ function renderAction({
   variant: "default" | "outline" | "destructive";
   order?: string;
   compact: boolean;
+  options?: ActionOption[];
+  optionsLabel: string;
 }) {
   const size = "sm";
   // 🚨 SP だけ 11px にする（PC のヘッダは触らない。同じ部品から出ているため）。
@@ -184,6 +222,7 @@ function renderAction({
   const text = <span className={cn(compact && "min-w-0 truncate text-[11px]")}>{label}</span>;
   const compactClassName = compact ? "w-full min-w-0 overflow-hidden px-1" : undefined;
 
+  const 主 = (() => {
   if (href) {
     // 🚨 リンクに `loading` は無い（押した先で画面が変わるだけなので二重送信が起きない）。
     // 🚨 `disabled` も同じく効かない。**行き先があるなら押せないという状態は無い**ので、
@@ -215,5 +254,46 @@ function renderAction({
       {icon}
       {text}
     </Button>
+  );
+  })();
+
+  if (!options?.length) return 主;
+
+  // 🚨 ▾ は **`Button`** で作る（素の <button> にしない）。
+  //    規約 §1: base の `active:not-aria-[haspopup]:translate-y-px` を継承するため。
+  //    ただし引き金は `aria-haspopup` を持つので、**この 1 本だけ沈まない**（意図された除外）。
+  // 🚨 大きさは `icon-sm`。SP では `size-(--control-h)` ＝ **44px**（規約の受入）。
+  // 🚨 角の丸めは `ButtonGroup` が持つ（自分で rounded-l-none を書かない。2 箇所に散る）。
+  return (
+    <ButtonGroup className={cn(order, compact && "w-full min-w-0")}>
+      {主}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant={variant} size="icon-sm" disabled={disabled}>
+            <span className="sr-only">{optionsLabel}</span>
+            <ChevronDownIcon aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {options.map((o) =>
+            o.href ? (
+              // 🚨 行き先が在るなら**本物のリンク**にする（Cmd+クリックで新しいタブに開ける）。
+              //    2026-08-15 にパンくずで同じ直しをしている。
+              <DropdownMenuItem key={o.label} variant={o.destructive ? "destructive" : "default"} asChild>
+                <Link href={o.href}>{o.label}</Link>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                key={o.label}
+                variant={o.destructive ? "destructive" : "default"}
+                onSelect={o.onSelect}
+              >
+                {o.label}
+              </DropdownMenuItem>
+            ),
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ButtonGroup>
   );
 }
