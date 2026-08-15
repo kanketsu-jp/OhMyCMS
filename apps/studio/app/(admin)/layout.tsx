@@ -96,6 +96,14 @@ export default async function AdminLayout({
   const collections = me.ok
     ? await apiFetch<{ collection: string }[]>("/api/collections?names=true")
     : null;
+  // 🚨 **`category=personal` は base2 の仮定であって、まだ決まっていない**（2026-08-15 時点）。
+  //    決める人: 堀池さん（司令塔から照会中）／ 何を決めるのか:
+  //      **バッジの件数を「自分宛て（personal）」だけにするか、system のお知らせも数えるか。**
+  //    私の考え: personal だけにする。system まで数えると、
+  //    **バッジが「自分に用がある」の合図でなくなる**（全員に同じ数が常に点く）。
+  //    🚨 **実装はこの仮定で先に動いている。** 記録だけ「未決」にしておくと、
+  //    後から読む人が「まだどちらでもない」と誤解するので、ここに書いておく
+  //    （決まったら、この注記を消して決定の日付と理由に置き換えること）。
   const personalNotifications = me.ok
     ? await apiFetch<{ data: unknown[]; unread: number }>("/api/notifications?category=personal&limit=1")
     : null;
