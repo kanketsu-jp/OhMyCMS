@@ -197,7 +197,20 @@ pre-commit:
     #    onboarding_completed_at が入っていて /onboarding が 307 になるため、
     #    **共有環境では誰もこの画面に到達できない**（Storybook の story は API に届かない）。
     #    ＝ 人が踏めない経路なので、機械で見るしかない。
-    # 🚨 載せる前に自分で回して緑を確認済み（自己検査 4/4 検出・違反 0・exit 0）。
+    # 🚨 「手で叩いた緑」と「門が出した緑」を分けて書く（2026-08-16 の規律）。
+    #    載せる前: **手で叩いた緑**（自己検査 4/4 検出・違反 0・exit 0）
+    #      → 🚨 これは「載った」の証拠になりません。staged が無いと lefthook は
+    #        `(skip) no matching staged files` で **走らずに exit 0** になるためです。
+    #    2026-08-16 追測: **門が出した緑・赤**（HEAD 8d63018 / `--all-files`）
+    #      🟢 GREEN  ✔️ onboarding-contract 0.16s（**(skip) が出ない**＝走った）
+    #      🔴 RED1   退行そのものの形（validate に literal）へ戻す
+    #                → 🥊 / lefthook exit=1 / 違反 2 件 [literal-to-validate][no-omit-guard]
+    #      🔴 RED2   ループは残し `key in input` の門番だけ外す（一見それらしい形）
+    #                → 🥊 / lefthook exit=1 / 違反 1 件 [no-omit-guard]
+    #      🟢 戻すと exit=0 に戻る（＝赤が壊しに追随していた）
+    #    🚨 RED のとき、自己検査も「囮の置換が当たらない」と申告して赤になります。
+    #      実物が既にその形なので囮を作れないためで、**正しい挙動**です
+    #      （規則の違反 2 件は別に名指しされています。両方読んでください）。
     onboarding-contract:
       root: "apps/studio"
       run: node scripts/check-onboarding-contract.mjs
