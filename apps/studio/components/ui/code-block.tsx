@@ -31,6 +31,12 @@ type CodeBlockProps = {
  * 横スクロールは **この `pre` の中だけ**で起きる（`overflow-x: auto`）。
  * 🚨 **ページ全体が横に動いてはいけない。** 実測で確かめること
  * （`documentElement.scrollWidth - clientWidth` が 0 のまま）。
+ *
+ * 🚨 **`overflow-x-auto` を外すと壊れる。数字で残す**（2026-08-15 実測）:
+ *   外した状態  SP の `/admin/settings/mcp` で **あふれ = 217px**（ページが横に伸びた）
+ *   戻した状態  `/admin/settings/mcp`・`/settings/agents`・`/settings/policies/<id>`
+ *               すべて SP / PC とも **あふれ = 0px**
+ *   ＝ 外れていても**その画面を開かなければ気づかない**ので、消す前にこの数字を思い出すこと。
  */
 export function CodeBlock({
   value,
