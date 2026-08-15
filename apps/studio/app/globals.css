@@ -100,6 +100,34 @@
      design が「既知の例外」として管理しているので、他へ広げないこと。 */
   --control-h-xs: 1.5rem; /* 24px = h-6 */
 
+  /* ── ツリーの接続線 ───────────────────────────────────────────
+     階層を「線」で見せるときの寸法（2026-08-15・ui-rules の規約 + design の判断）。
+
+     🚨 **角丸は `--radius` を流用しない。** 面の角丸は**面の大きさ**に比例し、
+        線の曲がりは**枝の長さ**に拘束される。**制約が別物**なので、流用すると
+        面のデザインを変えた瞬間に**曲がりが黙って切れる**。
+     🚨 **太さ・濃さで階層を表さない。** 階層は字下げが表す（二重符号化しない）。
+        濃さを深さで決めると、**何段まで薄くするかの上限が決められない**（段数は無限に増えうる）。
+     🚨 **`em` 連動にしない。** フォントで 0.26〜0.33em とばらつき、字下げ(px)とズレて
+        **階層が下がるほど縦線が揃わなくなる**。
+
+     🚨 `--tree-indent` を `calc(--tree-branch + --tree-label-gap)` と**導出しない**。
+        `var()` は**宣言した要素で解決されてから継承される**ので、あとから
+        `--tree-label-gap` だけを上書きしても**字下げが変わらない**
+        （ui-rules が実測。密度違いを作るときに必ず踏む）。**独立した値として持つ。** */
+  --tree-branch: 1rem; /* 16px  枝の水平長 */
+  --tree-turn: 0.5rem; /* 8px   曲がり半径。r ≤ 枝長 / r ≤ 行高÷2 / r ≤ 枝長÷2 */
+  --tree-label-gap: 0.25rem; /* 4px  罫線↔テキスト。半角スペースの実測(3.79〜5.33px)から */
+  --tree-indent: 1.25rem; /* 20px  1段の字下げ。🚨 導出しない（上記の理由） */
+  /* 行の高さは**新しい段を作らず**、いまナビの入れ子がそう描かれている値に合わせる
+     （実測 2026-08-15: sidebar-menu-sub-button は PC 32px）。
+     🚨 24px(--control-h-xs) は採らない——「言語切替だけの暫定・v1.0 で消える」枠なので、
+        **消える予定の値に依存を増やすと消せなくなる**。
+     🚨 切替はクラス側の `md:` で行う（このファイルの他のトークンと同じ流儀）。
+        トークンの中でメディアクエリを持たない——**素が SP、`md:` から PC へ下げる**向き。 */
+  --tree-row-h: var(--control-h); /* 44px  SP の既定 */
+  --tree-row-h-pc: var(--control-h-pc-sm); /* 32px  PC。ナビの入れ子の実測値と同じ */
+
   /* 角丸のトークンは作っていない。`rounded-lg` が既に `--radius` を経由しているので、
      操作部品の角丸は `--radius` を動かせば変わる（knob を二重に作らない）。
      🚨 dimensions-v2.md は `--control-radius: 0.5rem` を「いまの rounded-lg 相当」としているが、
@@ -239,5 +267,67 @@
 @media (width < 48rem) {
   [data-slot="surface-container"] + [data-slot="surface-container"] > [data-slot="surface"] {
     border-top: 1px solid var(--border);
+  }
+}
+
+/* ── ツリーの接続線 ─────────────────────────────────────────────
+   使い方（base2 へ）:
+     <ul data-slot="tree">                     ← 縦線の基準。字下げもここが持つ
+       <li data-slot="tree-item">…</li>        ← 途中の行（縦線が通り抜け、枝が出る）
+       <li data-slot="tree-item">…</li>        ← 最後の行は :last-child で自動的に曲がる
+     </ul>
+   **クラスを覚えなくてよいように data-slot だけで効く**形にしてある。
+
+   🚨 罫線文字（├ └ ┣）は使わない。**読み上げに乗る**し、字幅がフォントで変わる。
+   🚨 曲がるのは **最後の1本だけ**。途中は「分岐」であって「曲がり」ではないので、
+      丸めると縦線か枝のどちらかが途切れる（堀池さんの「角丸」指示との差分。司令塔が伝達済み）。 */
+[data-slot="tree"] {
+  padding-inline-start: var(--tree-indent);
+}
+[data-slot="tree-item"] {
+  position: relative;
+  min-height: var(--tree-row-h);
+  /* 枝のぶんだけ本文を寄せる。🚨 枝長と間隔を足した値を字下げに使わない
+     （--tree-indent は独立した値。理由は :root のコメント）。 */
+  padding-inline-start: calc(var(--tree-branch) + var(--tree-label-gap));
+}
+/* 縦線: 行の上端から下端まで通り抜ける（＝分岐しても途切れない）。 */
+[data-slot="tree-item"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-inline-start: 1px solid var(--border);
+}
+/* 枝: 行の縦中央から右へ伸びる。 */
+[data-slot="tree-item"]::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(var(--tree-row-h) / 2);
+  width: var(--tree-branch);
+  border-block-start: 1px solid var(--border);
+}
+/* 🚨 最後の1本だけ曲がる。縦線を中央で止め、そこに半径を付ける。 */
+[data-slot="tree-item"]:last-child::before {
+  block-size: calc(var(--tree-row-h) / 2);
+  inset-block-end: auto;
+  border-end-start-radius: var(--tree-turn);
+  border-block-end: 1px solid var(--border);
+  inline-size: var(--tree-turn);
+}
+[data-slot="tree-item"]:last-child::after {
+  inset-inline-start: var(--tree-turn);
+  width: calc(var(--tree-branch) - var(--tree-turn));
+}
+@media (width >= 48rem) {
+  [data-slot="tree-item"] {
+    min-height: var(--tree-row-h-pc);
+  }
+  [data-slot="tree-item"]::after {
+    top: calc(var(--tree-row-h-pc) / 2);
+  }
+  [data-slot="tree-item"]:last-child::before {
+    block-size: calc(var(--tree-row-h-pc) / 2);
   }
 }

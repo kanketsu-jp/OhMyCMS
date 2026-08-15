@@ -945,6 +945,7 @@ function measureExpression(selector) {
           if (tr && tr.height > 0) {
             textRect = {
               top: rounded(tr.top),
+              left: rounded(tr.left),
               height: rounded(tr.height),
               width: rounded(tr.width),
             };
@@ -964,6 +965,10 @@ function measureExpression(selector) {
           space: textRect ? {
             top: rounded(textRect.top - boxRect.top),
             bottom: rounded(boxRect.bottom - (textRect.top + textRect.height)),
+            // 🚨 左の余白も出す（2026-08-15）。字下げ・枝の長さ・罫線とテキストの間隔は
+            //    **横方向**の値なので、上下だけでは確かめられなかった。
+            //    ツリーの受入が「罫線↔テキスト 4px が em でないこと」を求めている。
+            left: rounded(textRect.left - boxRect.left),
           } : null,
           fontSize: rounded(px(textStyle.fontSize)),
           lineHeight: textStyle.lineHeight,
@@ -1523,7 +1528,7 @@ for (const vp of VIEWPORTS) {
             ? `文字 top=${item.textBox.top}px h=${item.textBox.height}px`
             : "文字 なし";
           const space = item.space
-            ? `余白 上=${item.space.top}px 下=${item.space.bottom}px`
+            ? `余白 上=${item.space.top}px 下=${item.space.bottom}px 左=${item.space.left}px`
             : "余白 不明";
           log(
             `       - ${item.sel} "${item.text}" ` +
