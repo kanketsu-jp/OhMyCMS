@@ -22,6 +22,17 @@
  * 手で RED を採り直すこと。
  * やり方: labelsForTarget から assertTargetVisible の呼び出しを一時的に外す →
  * この検査が #3 と #6 で FAIL・exit 1 になることを見る → 戻す。
+ *
+ * 🚨 「検出されてはいけない」側も入っている（過検出を捕まえる向き）:
+ *   #1 #2 attacker が **自分の** ファイルを読む・書く → 例外が出てはいけない
+ *   #8 #9 admin が他人のファイル・フォルダを触る     → 例外が出てはいけない
+ * ＝ 守りを「全部拒否」に壊すと #1/#2/#8/#9 が落ち、
+ *    「全部許可」に壊すと #3/#4/#6/#7 が落ちる。**両方向から挟んである。**
+ *    （これは**コードを読んで言えること**で、「全部拒否」に壊して測ってはいない。）
+ *
+ * 🚨 この検査は**共有 DB に一時的な利用者・ファイル・ポリシーを作る**（走っている間だけ）。
+ *    他のペインが同じ瞬間に「利用者の件数」を数えると、その数がずれる。
+ *    数を測っている人が居るときは、声を掛けてから走らせること。
  */
 import { randomUUID } from "node:crypto";
 import type { Actor } from "../lib/auth/context";
@@ -99,34 +110,18 @@ async function cleanupAuthzFixture(): Promise<void> {
     .whereIn("target_id", [attackerFileId, victimFileId, folderId])
     .delete();
 
-  const authzFiles = await db("directus_files")
-    .select<{ id: string }[]>("id")
-    .whereLike("filename_download", "authz-%");
-  if (authzFiles.length > 0) {
-    await db("ohmycms_label_assignments")
-      .whereIn("target_id", authzFiles.map((file) => file.id))
-      .delete();
-    await db("directus_files")
-      .whereIn("id", authzFiles.map((file) => file.id))
-      .delete();
-  }
-
-  const authzFolders = await db("directus_folders")
-    .select<{ id: string }[]>("id")
-    .whereLike("name", "authz-%");
-  if (authzFolders.length > 0) {
-    await db("ohmycms_label_assignments")
-      .whereIn("target_id", authzFolders.map((folder) => folder.id))
-      .delete();
-    await db("directus_folders")
-      .whereIn("id", authzFolders.map((folder) => folder.id))
-      .delete();
-  }
+  // 🚨 消すのは **この検査が作った固定 ID の行だけ**。名前や email の前方一致で消さない。
+  //    DB は全ペインの共有物なので、`LIKE 'authz-%'` のような掃き方をすると
+  //    **他のペインが同じ接頭辞で作ったものまで巻き込む**（起きてからでは復元できない）。
+  //    ID は作成時からずっと固定（a001〜a007）なので、残骸も必ずこの ID を持つ。
+  //    ＝ 前方一致は掃除の役に立っておらず、危険だけが残っていた。
+  await db("directus_files").whereIn("id", [attackerFileId, victimFileId]).delete();
+  await db("directus_folders").where({ id: folderId }).delete();
 
   await db("directus_permissions").where({ policy: policyId }).delete();
   await db("directus_access").where({ policy: policyId }).delete();
   await db("directus_policies").where({ id: policyId }).delete();
-  await db("directus_users").whereLike("email", "authz-%").delete();
+  await db("directus_users").whereIn("id", [attackerId, victimId]).delete();
 }
 
 async function adminActor(): Promise<Actor | null> {
