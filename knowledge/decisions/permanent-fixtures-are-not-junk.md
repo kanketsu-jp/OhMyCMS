@@ -77,9 +77,24 @@ grep -rn "<その名前>" knowledge/ docs/ apps/studio/scripts/
 |---|---|---|
 | `zz_probe_actions` | **行のあるコレクションが 1 つも無いと、行が要る検査が「測れなかった」になる。** 一度これが消え、その形の 500 が誰にも再現できない時間帯があった | [checks-must-declare-blind-spots](./checks-must-declare-blind-spots.md) |
 | `acc_748015_pl` | 受入ハーネスが既定値として使っている（`--richtext-collection` の既定） | `apps/studio/scripts/audit-surface-depth.mjs` |
+| `zz_probe_dialog` | **ファイル型のフィールドを持つコレクションが 1 つも無いと、ファイル選択ダイアログに到達できない。** 開かないと mount されないので、検査は「違反 0 件」を返し続ける。実際 2026-08-15 まで §1 面の入れ子（pc）と §6 scroll-fade（sp）の 2 件が誰にも見えていなかった | `apps/studio/components/admin/file-picker.tsx` / 実測 `audit-surface-depth.mjs --paths /admin/content/zz_probe_dialog/new --click '[data-file-picker-trigger]'` |
 
 🚨 **この表に足すのは、常設にすると決めた人の仕事。** 足さずに常設にすると、
 **次の掃除で消える**（今回まさにそうなりかけた）。
+
+### `zz_probe_dialog` の名乗り（2026-08-15・storage）
+
+**使った。作ってはいない**（誰かが私のために作ってくれたものを、私が使った）。
+司令塔から「使い終わったら常設にするかどうかを返せ」と言われたので、**常設にすると決めた**。
+
+🚨 **消すと、同じ穴に戻る。しかも「違反 0 件」は出続ける。**
+ダイアログの中の要素は**開くまで存在しない**ので、到達できないことと
+違反が無いことが**同じ顔で出る**（この文書が生まれた事故と同じ形）。
+
+**依存している検査**: `audit-surface-depth.mjs` を
+`--paths /admin/content/zz_probe_dialog/new --click '[data-file-picker-trigger]'` で走らせる。
+🚨 `--click '[data-slot=dialog-trigger]'` は使わないこと——**PC では別のダイアログを先に掴み、
+この箱を開けないまま「違反なし」が出る**（SP は並びが畳まれているので、たまたま開けていた）。
 
 ## これから常設にするものの名前
 
