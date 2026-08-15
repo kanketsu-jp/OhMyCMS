@@ -150,6 +150,8 @@ async function teardown(details) {
 export async function check(context) {
   const startedAt = Date.now();
   const details = [];
+  // 🚨 何を測ったか。worktree を作る直前に確定させ、**PASS の行にも出す**（下の positive を参照）。
+  let measuredRef = `既定 HEAD`;
   const repro = [
     "手順の全文と落とし穴: docs/verify/first-run-environment.md",
     `node acceptance/run.mjs --v1 --only ${ID}`,
@@ -207,6 +209,22 @@ export async function check(context) {
       if (ready.code === 0) break;
       await sleep(1000);
     }
+
+    // 🚨 **何を測ったかを、必ず報告に出す。**
+    //    `REF` の既定は `|| "HEAD"` なので、**環境変数名を打ち間違えると黙って HEAD を測る**。
+    //    実測（2026-08-16）: `OHMYCMS_FIRSTRUN_REF=deadbeef`（`_` の位置違い）→ REF は **HEAD**。
+    //      🟢 対照 `OHMYCMS_FIRST_RUN_REF=7b923d9` → REF は **7b923d9**
+    //    ＝ 🚨 **RED を測ったつもりで HEAD を測り、PASS を見て「退行を捕まえられない」と読む。**
+    //       この検査を信じてよいかの根拠が、そこで壊れる。
+    //    そこで **解決後の sha と、既定に落ちたかどうか**を毎回 details へ出す。
+    const refSha = await run("git", ["-C", REPO, "rev-parse", "--short", REF]);
+    measuredRef = process.env.OHMYCMS_FIRST_RUN_REF
+      ? `指定 ${REF}${refSha.code === 0 ? `=${refSha.stdout.trim()}` : ""}`
+      : `既定 HEAD${refSha.code === 0 ? `=${refSha.stdout.trim()}` : ""}`;
+    details.push(
+      `測る対象: ${measuredRef}` +
+        (process.env.OHMYCMS_FIRST_RUN_REF ? "" : "（RED を測るなら OHMYCMS_FIRST_RUN_REF を設定）"),
+    );
 
     const wt = await run("git", ["-C", REPO, "worktree", "add", WORKTREE, REF, "--detach"]);
     if (wt.code !== 0) {
@@ -346,7 +364,11 @@ export async function check(context) {
     id: ID,
     title: TITLE,
     status: verdict.status,
-    positive: `初回 /onboarding 到達・「あとで」「はじめる」とも 200・auth_method=onboarding`,
+    // 🚨 **何を測ったか（`measuredRef`）を、PASS のときにも見える列へ出す。**
+    //    `details` は **FAIL / BLOCKED のときしか表示されない**（実測 2026-08-16）。
+    //    ところが「REF を打ち間違えて HEAD を測ってしまった」は **PASS で終わる**ので、
+    //    details に書いても**いちばん要る場面で見えない**。だからここに置く。
+    positive: `[${measuredRef}] 初回 /onboarding 到達・「あとで」「はじめる」とも 200・auth_method=onboarding`,
     negative: `二度目は 409 ／ 完了後の /onboarding は 200 にならない`,
     details: [...details, ...verdict.details],
     repro,
