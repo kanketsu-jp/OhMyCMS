@@ -24,8 +24,13 @@
  *
  * 🚨 **この検査で分からないこと**（緑でも保証していない範囲。書いておかないと過信される）:
  *   - `userLabel={someVariable}` の `someVariable` は、**同じファイルに**
- *     `const/let/var someVariable = ...` があれば規則Hで右辺まで追う。無ければ
- *     （別ファイル・関数引数由来など）これまでどおり追わない。
+ *     `const/let/var someVariable = ...`（通常の代入）、または
+ *     `const { email } = ...` / `const { email: someVariable } = ...`（分割代入）が
+ *     あれば規則Hで右辺まで追う（2026-08-16 分割代入にも対応。それまでは
+ *     `const { email: x } = me.data; … userLabel={x}` の形が1件も写らなかった）。
+ *     無ければ（別ファイル・関数引数由来など）これまでどおり追わない。
+ *   - 分割代入は**フラット（1階層）だけ**を追う。デフォルト値付き（`{ email = "x" }`）や
+ *     入れ子（`{ data: { email } }`）までは追わない（やりすぎない）。
  *   - `UserMenu` 以外の場所へメールを描く新しい経路は見ていない
  *   - object literal の入れ子（`{...{ userLabel: { nested: X } }}` のような二重の `{`）までは追わない
  *   - 実行時の値は見ていない。**画面で出ていないことの確認はブラウザで別途行う**
@@ -101,6 +106,55 @@ function escapeRegExp(text) {
 }
 
 /**
+ * `const/let/var { email } = 式;` や `const/let/var { email: 別名 } = 式;` のような
+ * **分割代入**の中から、識別子 `identifier` が束縛されているものを探し、
+ * その実体を `式.プロパティ名` の形へ合成して返す（式は静的な文字列として組み立てるだけで、
+ * 実際には評価しない。TS として正しいかどうかも問わない）。
+ *
+ * 🚨 2026-08-16 追加。**それまではフラットな `const 識別子 = 式;` しか追っておらず、
+ *    `const { email: x } = me.data; … userLabel={x}` の形が1件も写らなかった**
+ *    （実測。同じファイル内で生のメールを取り出しているので、呼び出し元が別ファイルにある
+ *    正当な素通しとは違う。塞ぐべき穴だった）。
+ * 🚨 対応するのは**フラットな分割代入（1階層）だけ**。デフォルト値付き（`{ email = "x" }`）や
+ *    入れ子（`{ data: { email } }`）までは追わない（やりすぎない。実際の書き方に対して
+ *    正しく動けばよい）。
+ *
+ * 見つからなければ null を返す。呼び出し側はそれを「同じファイルに定義が見つからない」
+ * ＝別ファイル由来などの正当な素通し、として扱う（通常代入の declMatch と同じ扱い）。
+ */
+function findDestructuredRhs(source, identifier) {
+  const pattern = /\b(?:const|let|var)\s*\{\s*([^{}]*?)\s*\}\s*=\s*([^;]+);/g;
+  let m;
+  while ((m = pattern.exec(source)) !== null) {
+    const propsText = m[1];
+    const exprSrc = m[2].trim();
+    for (const rawProp of propsText.split(",")) {
+      const prop = rawProp.trim();
+      if (!prop) continue;
+      // `email: alias`（リネーム）か `email`（ショートハンド）のどちらか。
+      // それ以外（デフォルト値・入れ子・rest 等）は対象外として飛ばす。
+      const aliasMatch = /^([A-Za-z_$][\w$]*)\s*:\s*([A-Za-z_$][\w$]*)$/.exec(prop);
+      const shorthandMatch = /^([A-Za-z_$][\w$]*)$/.exec(prop);
+      let key = null;
+      let boundName = null;
+      if (aliasMatch) {
+        key = aliasMatch[1];
+        boundName = aliasMatch[2];
+      } else if (shorthandMatch) {
+        key = shorthandMatch[1];
+        boundName = shorthandMatch[1];
+      } else {
+        continue;
+      }
+      if (boundName === identifier) {
+        return `${exprSrc}.${key}`;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * `userLabel` に渡された式1つを判定する。呼び出し元は3通り:
  *   - A/B: `userLabel={式}`（JSX 属性として直接）
  *   - F  : `userLabel: 式`（object literal。spread や変数化で隠れている）
@@ -108,8 +162,11 @@ function escapeRegExp(text) {
  *
  *   1. 式に生のメール（`.email`）が直接入っていたら違反（emailRule）
  *   2. 式が識別子1つだけ（素通し）なら、**同じファイル**に
- *      `const/let/var <識別子> = …;` があるか探す。
- *        - 見つかれば、その右辺へ同じ判定（1・3）を当てる（passThroughRule = H）。
+ *      `const/let/var <識別子> = …;`（通常の代入）、または
+ *      `const/let/var { email } = …;` / `const/let/var { email: <識別子> } = …;`
+ *      （分割代入）があるか探す。
+ *        - 見つかれば、その右辺（分割代入は `式.email` に合成した右辺）へ同じ判定（1・3）を
+ *          当てる（passThroughRule = H）。
  *        - 見つからなければ、呼び出し元が別ファイル（関数引数など）にある正当な
  *          素通しとして扱い、違反にしない（既存の isPassThrough 設計を踏襲）。
  *   3. それ以外（式が複合的）で `displayUserLabel(` を通っていなければ違反（missingRule）
@@ -126,25 +183,40 @@ function checkLabelExpression(violations, file, source, expression, line, rules)
   if (isPassThrough) {
     const declPattern = new RegExp(`\\b(?:const|let|var)\\s+${escapeRegExp(expression)}\\s*=\\s*([^;]+);`);
     const declMatch = declPattern.exec(source);
-    // 🚨 同じファイルに定義が見つかったときだけ規則Hを当てる。見つからなければ、
-    //    呼び出し元が別ファイル（例: 関数の引数として渡ってくる）にある正当な素通しとして扱う
-    //    （そう扱っていることが分かるよう、ここにコメントを残す。値を作っているのは呼び出し元で、
-    //    そこで A/B/F のいずれかが見ている）。
+
+    let rhs = null;
+    let viaDestructuring = false;
     if (declMatch) {
-      const rhs = declMatch[1].trim();
+      rhs = declMatch[1].trim();
+    } else {
+      // 🚨 通常の `const 識別子 = 式;` に見つからなければ、**分割代入**も同じファイル内で探す
+      //    （2026-08-16 追加。findDestructuredRhs のコメント参照）。
+      const destructured = findDestructuredRhs(source, expression);
+      if (destructured !== null) {
+        rhs = destructured;
+        viaDestructuring = true;
+      }
+    }
+
+    // 🚨 同じファイルに定義（通常の代入 or 分割代入）が見つかったときだけ規則Hを当てる。
+    //    見つからなければ、呼び出し元が別ファイル（例: 関数の引数として渡ってくる）にある正当な
+    //    素通しとして扱う（そう扱っていることが分かるよう、ここにコメントを残す。値を作っているのは
+    //    呼び出し元で、そこで A/B/F のいずれかが見ている）。
+    if (rhs !== null) {
+      const originNote = viaDestructuring ? "（分割代入）" : "";
       if (/\.email\b/.test(rhs)) {
         violations.push({
           file,
           line,
           rule: passThroughRule,
-          detail: `素通しの識別子 '${expression}' の定義に生のメールが直接入っている`,
+          detail: `素通しの識別子 '${expression}' の定義${originNote}に生のメールが直接入っている（${rhs}）`,
         });
       } else if (!rhs.includes("displayUserLabel(")) {
         violations.push({
           file,
           line,
           rule: passThroughRule,
-          detail: `素通しの識別子 '${expression}' の定義が displayUserLabel() を通していない`,
+          detail: `素通しの識別子 '${expression}' の定義${originNote}が displayUserLabel() を通していない（${rhs}）`,
         });
       }
     }
@@ -300,8 +372,10 @@ function checkUserMenuVisibility(sources) {
  *      `const p = { userLabel: X }`）にも、A/B と同じ判定を当てているか
  *   G. `<UserMenu ...>` の呼び出し側で、userLabel の出どころがこの検査から
  *      見える形（`userLabel=` / `userLabel:`）で渡っているか
- *   H. `userLabel={識別子}` の素通しを、同じファイルに `const 識別子 = …` があれば
- *      その右辺まで追っているか（無ければこれまでどおり素通しとして扱う）
+ *   H. `userLabel={識別子}` の素通しを、同じファイルに `const 識別子 = …`（通常の代入）、
+ *      または `const { email } = …` / `const { email: 識別子 } = …`（分割代入）が
+ *      あればその右辺まで追っているか（無ければこれまでどおり、呼び出し元が別ファイルに
+ *      ある正当な素通しとして扱う）
  */
 function findViolations(sources) {
   const violations = [];
@@ -615,10 +689,14 @@ for (const test of greenTests) {
   if (!clean) greenTestFailed = true;
 }
 
-// ── 1c) 見ていない範囲の診断: 免除①②を毎回その場で作って通す ─────────────
+// ── 1c) 見ていない範囲の診断 / 見逃す入力の実演: 毎回その場で作って通す ─────────
 // 🚨 ファイル冒頭のJSDocに書いた「この検査で分からないこと」は、書いた時点の実装を
-//    写しただけで、今もそのとおりかは保証しない。毎回ここで①②の形をメモリ上に作り、
+//    写しただけで、今もそのとおりかは保証しない。毎回ここで各パターンをメモリ上に作り、
 //    findViolations に通して実測する（ディスクは書き換えない）。
+//
+// 🚨 **自分の検出器が見逃す入力を、自分で作って通す**（司令塔の規律・2026-08-16）。
+//    在るかどうか分からないものを探すのではなく、**作れば必ず在る**。
+//    各行は「拾う／見逃す」の実測結果と、見逃す場合は理由（免除か・未対応か）を出す。
 //
 //   ① 別ファイルの関数を経由（zzLeakyLabel が生のメールを返す）
 //      規則Bは呼び出し元がどのファイルかを見ておらず、式が `displayUserLabel(` を
@@ -630,10 +708,23 @@ for (const test of greenTests) {
 //      正当な免除と同じ形。塞ぐのではなく、毎回「見ていない」と言わせるのがここの役目
 //      （急に「拾える」に変わったら、その免除が効かなくなった可能性があるので出力に出す。
 //      ただし left-sidebar.tsx 側の正当な素通しを壊す変更かもしれないので、これは失敗にしない）。
+//   ③ テンプレートリテラルで直接埋め込む（`${me.data.email}`）
+//      式のテキストに `.email` がそのまま出るので、規則A/Fの最初の判定（`/\.email\b/`）で
+//      拾える（識別子1つの素通しではないので規則Hは通らない）。
+//   ④ 同じファイルで分割代入してから渡す（`const { email: x } = me.data; … userLabel={x}`）
+//      🚨 これが今回塞いだ穴そのもの。findDestructuredRhs を足す前は1件も写らなかった
+//      （実測。堀池の報告どおり）。修正後は**拾う**side に入っていること自体が退行検知になる。
+//   ⑤ 角括弧で読む（`me.data["email"]`）
+//      規則Fの `.email` 判定は文字どおり `.email` を探すので、`["email"]` はそこに一致しない。
+//      ただしこの式は識別子1つの素通しでもないので、「displayUserLabel( を通していない」規則Bで
+//      別ルートから拾える。**期待値を決め打ちせず、実測した結果をそのまま出す**（observe）。
+//   🟢 対照(+) 素で渡す（displayUserLabel を通さず直接 `.email` を渡す）
+//      これが拾えなければ検出器そのものが壊れている。**必ず拾う**側で、拾えなければ失敗にする。
 
 const BLIND_SPOT_LAYOUT_FILE = "app/(admin)/layout.tsx";
 const BLIND_SPOT_PROBE_FILE = "lib/admin/zz-leak-probe.ts";
 const BLIND_SPOT_NEEDLE = "userLabel={displayUserLabel(me.ok ? me.data : null)}";
+const BLIND_SPOT_DECL_ANCHOR = 'const leftSidebarDefaultOpen = sidebarCookie !== "false";';
 const BLIND_SPOT_PROBE_SOURCE =
   "// 診断専用のメモリ上の写し。ディスクには書かない（check-user-label-leak.mjs の自己診断）。\n" +
   "export function zzLeakyLabel(user) {\n" +
@@ -641,38 +732,74 @@ const BLIND_SPOT_PROBE_SOURCE =
   "}\n\n" +
   'export const zzLeakedLabel = "leaked@example.com";\n';
 
-/** 先頭1件だけ置換する（壊し方5/6 と同じ理由。全部置き換えると他の的と区別が付かなくなる）。 */
-function buildBlindSpotSources(replacement) {
+/**
+ * 免除・実演プローブ共通のビルダー。layout.tsx の `userLabel={displayUserLabel(...)}` を
+ * **先頭1件だけ**（壊し方5/6 と同じ理由。全部置き換えると他の的と区別が付かなくなる）置き換える。
+ *
+ * `extraDecl` を渡すと、`leftSidebarDefaultOpen` の宣言の直後に1行足してから置き換える
+ * （④の「同じファイルで分割代入」のように、使う手前に宣言が要るプローブ用）。
+ * `withProbeFile` を渡すと、①②が参照する `zz-leak-probe.ts` の写しも sources に足す。
+ */
+function buildBlindSpotSources({ replacement, extraDecl, withProbeFile }) {
   const before = original[BLIND_SPOT_LAYOUT_FILE];
-  const count = countOccurrences(before, BLIND_SPOT_NEEDLE) > 0 ? 1 : 0;
-  const after = before.replace(BLIND_SPOT_NEEDLE, replacement);
-  return {
-    sources: {
-      ...original,
-      [BLIND_SPOT_LAYOUT_FILE]: after,
-      [BLIND_SPOT_PROBE_FILE]: BLIND_SPOT_PROBE_SOURCE,
-    },
-    count,
-  };
+  const needleFound = countOccurrences(before, BLIND_SPOT_NEEDLE) > 0;
+
+  let anchorFound = true;
+  let afterLayout = before;
+  if (extraDecl) {
+    anchorFound = countOccurrences(before, BLIND_SPOT_DECL_ANCHOR) > 0;
+    afterLayout = afterLayout.replace(BLIND_SPOT_DECL_ANCHOR, `${BLIND_SPOT_DECL_ANCHOR}\n  ${extraDecl}`);
+  }
+  afterLayout = afterLayout.replace(BLIND_SPOT_NEEDLE, replacement);
+
+  const count = needleFound && anchorFound ? 1 : 0;
+
+  const sources = { ...original, [BLIND_SPOT_LAYOUT_FILE]: afterLayout };
+  if (withProbeFile) sources[BLIND_SPOT_PROBE_FILE] = BLIND_SPOT_PROBE_SOURCE;
+  return { sources, count };
 }
 
 const blindSpotProbes = [
   {
     label: "① 別ファイルの関数を経由（zzLeakyLabel が生のメールを返す）",
-    expectDetected: true,
+    mode: "true",
+    withProbeFile: true,
     replacement: "userLabel={zzLeakyLabel(me.ok ? me.data : null)}",
   },
   {
     label: "② 別ファイルの const を素の識別子で渡す（zzLeakedLabel。left-sidebar.tsx の正当な素通しと同じ形の免除）",
-    expectDetected: false,
+    mode: "false",
+    withProbeFile: true,
     replacement: "userLabel={zzLeakedLabel}",
+  },
+  {
+    label: "③ テンプレートリテラルで直接埋め込む（`${me.data.email}`）",
+    mode: "true",
+    replacement: "userLabel={`${me.data.email}`}",
+  },
+  {
+    label:
+      "④ 同じファイルで分割代入してから渡す（const { email: leaked } = me.data; … userLabel={leaked}）",
+    mode: "true",
+    extraDecl: "const { email: leakedByDestructure } = me.ok ? me.data : { email: null };",
+    replacement: "userLabel={leakedByDestructure}",
+  },
+  {
+    label: '⑤ 角括弧で読む（me.data["email"]）',
+    mode: "observe",
+    replacement: 'userLabel={me.ok ? me.data["email"] : null}',
+  },
+  {
+    label: "🟢 対照(+) 素で渡す（displayUserLabel を通さず直接 .email を渡す）",
+    mode: "true",
+    replacement: "userLabel={me.ok ? me.data.email : null}",
   },
 ];
 
-console.log("\n■ 見ていない範囲の診断（毎回その場で測る。静的な文言ではない）");
+console.log("\n■ 見ていない範囲の診断 / 見逃す入力の実演（毎回その場で測る。静的な文言ではない）");
 let blindSpotRegression = false;
 for (const probe of blindSpotProbes) {
-  const { sources, count } = buildBlindSpotSources(probe.replacement);
+  const { sources, count } = buildBlindSpotSources(probe);
   if (count === 0) {
     console.error(`  ❌ ${probe.label}  置換 0 件（壊せていない。判定できない）`);
     blindSpotRegression = true;
@@ -683,13 +810,25 @@ for (const probe of blindSpotProbes) {
   const detected = probeViolations.length > 0;
   const detectedRules = [...new Set(probeViolations.map((v) => v.rule))].join(",") || "-";
 
-  if (detected === probe.expectDetected) {
+  if (probe.mode === "observe") {
+    // 🚨 期待値を決め打ちしない。実測した結果をそのまま「拾う／見逃す」で出す
+    //    （どちらでも失敗にはしない。判断材料として出すだけ）。
+    const mark = detected ? "✅ 拾う" : "⚠️ 見逃す（未対応。免除としては決めていない。実測しただけ）";
+    console.log(
+      `  ${mark}  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）`,
+    );
+    continue;
+  }
+
+  const expectDetected = probe.mode === "true";
+
+  if (detected === expectDetected) {
     // 🚨 「毎回出るのに誰も決めない」を作らない（司令塔の規律・2026-08-16）。
     //    exit 0 のまま出し続けるものには、**いつ決めたか / 未決か / 決めた人 / 何を決めたか**を添える。
     //    添えないと、次に読む人は「まだ誰かが決める途中」と読み、毎日出続けて風景になる。
     const mark = detected
       ? "✅ 拾える"
-      : "⚠️ 拾えない（決定 2026-08-16 / shell / **塞がない**——"
+      : "⚠️ 拾えない（決定 2026-08-16 / **塞がない**——"
         + "`left-sidebar.tsx` が親から受けた prop を素の識別子で渡すのは正当で、"
         + "塞ぐとその形まで違反になるため。**未決ではありません**）";
     console.log(
@@ -698,8 +837,8 @@ for (const probe of blindSpotProbes) {
     continue;
   }
 
-  if (probe.expectDetected && !detected) {
-    // ①はいま拾えているので、緑であることを保証する対象。拾えなくなったのは退行。
+  if (expectDetected && !detected) {
+    // 拾えている前提のプローブ（①③④🟢）が拾えなくなった。緑であることを保証する対象なので退行。
     console.error(`  🚨 退行  ${probe.label}  置換 ${count} 件 → 検出 0 件`);
     console.error("     ↑ これまで拾えていた経路が拾えなくなった（findViolations の変更を疑う）。");
     blindSpotRegression = true;
