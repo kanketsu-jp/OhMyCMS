@@ -102,11 +102,28 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button type="button" variant="outline" onClick={() => void loadFiles()}>
+            {/* 🚨 `data-file-picker-trigger` は**測るための手掛かり**。
+                `[data-slot=dialog-trigger]` で掴もうとすると、PC では左の並びにある
+                別のダイアログ（不具合報告など）を先に掴んでしまい、**この箱を開けないまま
+                「違反なし」が出る**（2026-08-15 実測。SP は並びが畳まれているので開けていた）。
+                `data-slot` を使わないのは、`asChild` で `DialogTrigger` 側の値と
+                取り合いになるため。
+                使い方: audit-surface-depth.mjs --click '[data-file-picker-trigger]' */}
+            <Button
+              type="button"
+              variant="outline"
+              data-file-picker-trigger
+              onClick={() => void loadFiles()}
+            >
               {t("select_file_button")}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[84vh] overflow-y-auto sm:max-w-3xl">
+          {/* 🚨 `scroll-fade-y` は **スクロールする要素そのもの**（ここでは DialogContent）に当てる。
+              外側に巻かない・影で代用しない（影は面なので深さが1段増える）。
+              憲章 §6「スクロールできる所は、できると分かる」。SP では一覧が確実に画面を超える。
+              `ScrollFade` で包まないのは、包むとスクロールするのが内側の div になり、
+              ダイアログの余白の外にマスクが乗って端が切れるため（作法は components/ui/scroll-fade.tsx）。 */}
+          <DialogContent className="max-h-[84vh] overflow-y-auto scroll-fade-y sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>{t("select_file_title")}</DialogTitle>
               <DialogDescription>
@@ -138,7 +155,15 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
                   onClick={() => choose(file)}
                   className="min-w-0 rounded-md p-2 text-left hover:bg-muted"
                 >
-                  <div className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-muted">
+                  {/* 🚨 画像のレターボックス。**背景が要るので面に見えるが、面ではない**。
+                      縦横比の違う画像を同じ大きさの枠に収めるための下地で、
+                      中身（画像 or 拡張子の表示）が枠より小さいときに素通しになるのを防いでいる。
+                      例外を検査スクリプト側に隠さず、コードに書いて見えるようにしている
+                      （file-dropzone.tsx / app/(admin)/admin/files/page.tsx と同じ作法）。 */}
+                  <div
+                    data-surface-exempt
+                    className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-muted"
+                  >
                     {file.type?.startsWith("image/") ? (
                       <Image
                         src={`/api/assets/${file.id}?width=200&fit=cover`}
