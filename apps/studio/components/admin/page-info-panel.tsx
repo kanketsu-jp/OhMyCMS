@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/accordion";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { PanelDisplay } from "@/components/admin/panel-display";
+import { PanelLogs } from "@/components/admin/panel-logs";
 import { useT } from "@/i18n/client";
 import { pageMeta } from "@/lib/admin/page-meta";
 
@@ -110,12 +111,9 @@ export function PageInfoPanel() {
         <AccordionContent className="text-muted-foreground">{t("todo")}</AccordionContent>
       </AccordionItem>
 
-      {/* ⑤ ログ・履歴。
-          TODO: 権限の「ログ・履歴」に対応する。全記事をバージョン管理し、前の版の確認と上書き。 */}
-      <AccordionItem value="history">
-        <AccordionTrigger>{t("history")}</AccordionTrigger>
-        <AccordionContent className="text-muted-foreground">{t("todo")}</AccordionContent>
-      </AccordionItem>
+      {/* ⑤ ログ・履歴。中身は `components/admin/panel-logs.tsx`。
+          🚨 権限が無い / 一覧・詳細ページ以外では `null` を返すので、ここに枠は残らない。 */}
+      <PanelLogs />
     </Accordion>
   );
 }
