@@ -82,6 +82,17 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
     }
   });
 
+  // 🚨 **`keyOf` は渡さない。渡すと壊れる。**
+  //    `check-submit-once.mjs` の「行ごとの操作で keyOf を忘れている疑い」に**毎回出る**が、
+  //    ここは**誤検出**（引数つきで呼んでいるだけで、行ごとの操作ではない）。
+  //
+  //    「はじめる」と「あとで」は**同じ初期設定を送る 2 つのボタン**なので、
+  //    **片方が実行中は、もう片方も落ちるのが正しい**。鍵を分けると両方走る。
+  //
+  //    実測（2026-08-16・Storybook。fetch を 1.5 秒かかる形にして実行中の窓を作った）:
+  //      「はじめる」を押した直後に「あとで」を押す
+  //      → **走った本数 1**（内訳: 詳細つき）＝ **2 本目は落ちた。これが正しい**
+  //    記録 2026-08-16 ／ 決めた人: onboard(w4A:p2A) ／ 状態: **決定済み（keyOf は不要）**
   const submit = useSubmitOnce(async (includeDetails: boolean) => {
     setError(null);
 
