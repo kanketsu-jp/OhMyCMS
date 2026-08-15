@@ -61,6 +61,14 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-shortcuts.mjs
 
+    # API の生文言を画面へ出す経路（apiMessage）が戻ってこないための見張り。
+    # 🚨 i18n ではなく**なりすまし**の話——?error= は利用者が自由に書けるので、
+    #    生文言を載せると細工したリンクで任意の文章を公式のエラー枠に出せる。
+    #    関数は 2026-08-15 に削除済み。**無いと次の人が作り直す**ので機械で見る。
+    no-api-message:
+      root: "apps/studio"
+      run: node scripts/check-no-api-message.mjs
+
     # ナビに出した画面を横断検索へ入れ忘れないための検査。
     # ルート一覧ではなくナビの行き先と比べる（個人設定など、検索へ入れると権限が壊れる画面がある）。
     search-entries:

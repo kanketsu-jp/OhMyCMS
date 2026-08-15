@@ -135,8 +135,11 @@ export function FieldCreateForm({ collection }: Props) {
         </label>
       </div>
 
-      <Accordion className="border-0">
-        <AccordionItem value="advanced" className="border-0">
+      {/* 🚨 `border-0` を外した。accordion.tsx が既定で罫線を引かなくなったため
+          （2026-08-15。堀池「アコーディオンの上にある divider はいらない」）。
+          打ち消しを残すと、次に罫線が要るとき「なぜ 0 にしているのか」が読めなくなる。 */}
+      <Accordion>
+        <AccordionItem value="advanced">
           <AccordionTrigger className="py-0">
             {t("advanced_title")}
           </AccordionTrigger>

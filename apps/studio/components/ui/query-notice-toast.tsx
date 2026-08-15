@@ -26,8 +26,11 @@ import { toast } from "@/components/ui/toast"
  *    ユーザーが対処を要するものはタイマーに載せない」。
  *    実際に `?error=` が運ぶのは `error_invalid_input` / `error_field_required` /
  *    `error_related_collection_required` / `error_delete_target_required` /
- *    `error_invalid_kind`、および `apiMessage()`（403 を含む）——**全部が入力の
- *    やり直しを要する「状態」**で、3秒で消えると直す手掛かりが無くなる。
+ *    `error_invalid_kind`（403 を含む）——**全部が入力のやり直しを要する「状態」**で、
+ *    3秒で消えると直す手掛かりが無くなる。
+ *    🚨 ここには `apiMessage()`（API の生文言）も挙げていたが、**その関数は 2026-08-15 に
+ *    削除した**（生文言を `?error=` に載せると、細工したリンクで任意の文章を
+ *    公式のエラー枠に出せるため）。いま `?error=` が運ぶのは**許可リストの code だけ**。
  *    一度トーストへ移して戻した経緯なので、**同じ書き換えを繰り返さないこと。**
  *    決定: knowledge/decisions/toast-for-events-page-for-what-needs-fixing.md
  */
