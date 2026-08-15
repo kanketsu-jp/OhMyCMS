@@ -34,5 +34,9 @@
   "source_default": "既定値",
   "source_environment": "環境変数の初期値",
   "title": "ストレージ設定",
-  "updated_at": "最終更新"
+  "updated_at": "最終更新",
+  "drive_heading": "Google ドライブ連携",
+  "drive_description": "ドライブからファイルを取り込むための設定です。取り込むと、そのファイルはこのCMSに複製されます。",
+  "drive_client_id_label": "クライアント ID",
+  "drive_client_id_help": "Google Cloud で「デスクトップアプリ」として作ったクライアントの ID。秘密鍵は要りません（設定しても使いません）。空のあいだは連携の導線を出しません。"
 }

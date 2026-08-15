@@ -34,5 +34,9 @@
   "source_default": "Built-in default",
   "source_environment": "From an environment variable",
   "title": "Storage settings",
-  "updated_at": "Last updated"
+  "updated_at": "Last updated",
+  "drive_heading": "Google Drive",
+  "drive_description": "Settings for importing files from Drive. Imported files are copied into this CMS.",
+  "drive_client_id_label": "Client ID",
+  "drive_client_id_help": "The ID of a client created as a Desktop app in Google Cloud. No client secret is needed. While this is empty, the connect action stays hidden."
 }

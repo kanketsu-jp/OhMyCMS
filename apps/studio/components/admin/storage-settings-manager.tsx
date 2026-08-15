@@ -22,6 +22,8 @@ type StorageSettings = {
   s3_secret_access_key_set: boolean;
   s3_force_path_style: string;
   s3_key_prefix: string;
+  /** Google ドライブ連携の client_id。🚨 PKCE なので秘密ではない（伏せ字にしない）。 */
+  drive_client_id: string;
   sources: Record<string, SettingsSource>;
   updated_at: string | null;
 };
@@ -34,6 +36,7 @@ type Draft = {
   s3_secret_access_key: string;
   s3_force_path_style: boolean;
   s3_key_prefix: string;
+  drive_client_id: string;
 };
 
 export function StorageSettingsManager({ settings }: { settings: StorageSettings }) {
@@ -48,12 +51,28 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       s3_access_key_id: "",
       s3_secret_access_key: "",
       s3_force_path_style: settings.s3_force_path_style === "true",
+      drive_client_id: settings.drive_client_id,
       s3_key_prefix: settings.s3_key_prefix,
     }),
     [settings],
   );
   const [draft, setDraft] = useState<Draft>(initial);
   const [error, setError] = useState<string | null>(null);
+
+  // 🚨 何も変えていないなら保存させない（憲章 §3c）。
+  //    秘密の 2 つは**読み出せない**ので、`initial` は常に空文字で始まる。
+  //    だから「入力されたか（length > 0）」で見る。他と同じ「値が違うか」にすると
+  //    空のまま常に dirty になる。
+  //    由来: `19e6f3c` でヘッダーへ移したとき、この判定ごと落としていた（saml が実測で検出）。
+  const dirty =
+    draft.s3_endpoint !== initial.s3_endpoint ||
+    draft.s3_bucket !== initial.s3_bucket ||
+    draft.s3_region !== initial.s3_region ||
+    draft.s3_access_key_id.trim().length > 0 ||
+    draft.s3_secret_access_key.trim().length > 0 ||
+    draft.s3_force_path_style !== initial.s3_force_path_style ||
+    draft.s3_key_prefix !== initial.s3_key_prefix ||
+    draft.drive_client_id !== initial.drive_client_id;
 
   const sourceLabel = (key: string) => {
     const source = settings.sources?.[key] ?? "default";
@@ -73,6 +92,8 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       s3_region: draft.s3_region,
       s3_force_path_style: draft.s3_force_path_style ? "true" : "false",
       s3_key_prefix: draft.s3_key_prefix,
+      // 🚨 秘密ではないので、他の設定と同じようにそのまま送る（伏せ字の口を通さない）。
+      drive_client_id: draft.drive_client_id,
     };
     if (draft.s3_access_key_id.trim().length > 0) {
       patch.s3_access_key_id = draft.s3_access_key_id;
@@ -105,7 +126,10 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
   });
 
   const textField = (
-    key: keyof Pick<Draft, "s3_endpoint" | "s3_bucket" | "s3_region" | "s3_key_prefix">,
+    key: keyof Pick<
+      Draft,
+      "s3_endpoint" | "s3_bucket" | "s3_region" | "s3_key_prefix" | "drive_client_id"
+    >,
     type = "text",
   ) => (
     <div className="grid gap-2">
@@ -205,6 +229,16 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
         {textField("s3_key_prefix")}
       </section>
 
+      <Separator />
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">{t("drive_heading")}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t("drive_description")}</p>
+        </div>
+        {textField("drive_client_id")}
+      </section>
+
       <div className="flex items-center gap-3">
         <span className="text-xs text-muted-foreground">
           {t("updated_at")}:{" "}
@@ -217,6 +251,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
         form="storage-settings-form"
         role="primary"
         pending={save.pending}
+        disabled={!dirty}
         label={t("save_button")}
         icon={<Check />}
       />
