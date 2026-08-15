@@ -5,6 +5,16 @@
 #   tsc --noEmit  2.6 秒  → pre-commit に入れる
 #   eslint        数秒    → 変更された apps/studio のファイルだけに絞る
 # 秘密の混入検査とナレッジ鮮度検査は 1 秒未満。
+#
+# 🚨 **`root:` を書いた検査は「毎回走る」ではない**（2026-08-16 実測）。
+#    staged に `root` 配下のファイルが 1 つも無いコミットでは **(skip) で緑**になる。
+#    実測: lefthook.yml だけを staged にしてコミットした結果
+#      root 在り 20 本 → **全部 skip**  ／  root 無し 7 本 → 全部走った
+#      （root 無しで skip された 1 本は `syntax`。こちらは glob で外れた別の理由）
+#    ＝ `glob:` を書かなければ毎回走る、ではない。**`root:` だけでも絞られる。**
+#    🚨 したがって「門で確かめた」と言うときは、**root 配下を staged にしたコミット**か
+#      `bun x lefthook run pre-commit --all-files` で確かめること。
+#      素の `lefthook run pre-commit` は staged が無いと (skip) で緑になる。
 
 pre-commit:
   parallel: true
@@ -31,7 +41,10 @@ pre-commit:
     # i18n（AGENTS.md §3.8 の CRITICAL）。4本まとめて 0.14〜0.23 秒（2026-08-16 実測・3 回）なので
     # pre-commit の「速いものだけ」方針に収まる（4 本目を足して +0.02〜0.11 秒）。
     # 全体を見る検査（keys/usage/placeholders は辞書集合の一致を見るため staged_files に絞れない）
-    # なので glob は付けず毎回走らせる。
+    # なので glob は付けない。
+    # 🚨 ただし **`root:` があるので「毎回」ではない**（冒頭の注記）。apps/studio の外だけを
+    #    触るコミット（lefthook.yml / knowledge/ / packages/ など）では走らない。
+    #    辞書もコードも apps/studio の中に在るので実害は無いが、**走ったと思い込まないこと。**
     #   hardcoded … 日本語・英語のハードコード（素の grep でなく専用検査。誤検出と英語見逃しを防ぐ）
     #   keys      … ja / en のキー集合一致
     #   usage     … コードが呼ぶキーと辞書の突き合わせ（両方向）
