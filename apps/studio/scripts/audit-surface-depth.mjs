@@ -1791,6 +1791,43 @@ if (AS_JSON) {
   if (notMeasured) process.exit(1);
 } else {
   console.log(`\n対象: ${PATHS.length} ページ × ${VIEWPORTS.length} 画面幅 = ${PATHS.length * VIEWPORTS.length} 回測定（${BASE}）`);
+  /**
+   * 🚨 **数だけを貼り付けても意味を持たないので、出どころを同じブロックに出す**
+   *    （司令塔 2026-08-15。schema が「面 16px/16px」をページ名なしで渡し、
+   *      実際は別ページの値だった事故を受けて）。
+   *
+   * 出す 4 つ: **どの HEAD で / どこへ繋いで / どの画面幅で / どの言語で**。
+   * この行が無いと、貼られた数字を読んだ人は**自分のツリーの値だと思い込む**。
+   * ページ名は違反行と `--measure` の行が持っているので、ここでは重複させない。
+   *
+   * 🚨 HEAD だけでなく「**描画に効くファイル**が未コミットか」まで出す。
+   *    未コミットの変更があるツリーの数字は、HEAD からは再現できない。
+   *
+   * 🚨 ただし `git status --porcelain` をそのまま見ない。**共有ツリーなので常に汚れている**
+   *    （他ペインが同時に書いている）。**常時点灯する警告は風景になる**——
+   *    司令塔「警告が出続けているのに緑なら、全員がその警告を風景として扱い始めます」。
+   *    そこで **描画に効く場所（app/ components/ i18n/ 直下の css）だけ**を数える。
+   *    自分の scripts/ や knowledge/ の編集では鳴らない。
+   *
+   * 🚨 これは煙感知器であって診断ではない。「壊れています」と書かない
+   *    （正当な理由で作業中のことがある）。**「確認してください」までにする**。
+   */
+  let head = "不明";
+  try {
+    const sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
+    const porcelain = execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" });
+    // 先頭 3 文字は状態コードなので落として、パスだけを見る。
+    const paths = porcelain.split("\n").map((l) => l.slice(3).trim()).filter(Boolean);
+    const rendering = paths.filter((f) => /apps\/studio\/(app|components|i18n)\//.test(f) || /globals\.css$/.test(f));
+    head =
+      rendering.length > 0
+        ? `${sha} 🚨 描画に効くファイルが未コミット ${rendering.length} 件（この数字は HEAD からは再現できません。` +
+          `例: ${rendering.slice(0, 2).join(" / ")}）`
+        : `${sha}（描画に効くファイルの未コミット変更なし。他の未コミット ${paths.length} 件は描画に効きません）`;
+  } catch {
+    head = "不明（git を引けませんでした）";
+  }
+  console.log(`採取: HEAD ${head} / 画面幅 ${VIEWPORTS.map((v) => `${v.name} ${v.width}`).join(" · ")} / lang ${LOCALE}`);
   // 🚨 **測っていないものは、末尾の集計に1行で出す**（design 指示 2026-08-15）。
   //    途中のログに出すだけでは `missing` の 🚨見つからず と同じで、誰にも読まれずに exit 0 で流れる。
   //    **違反の有無に関わらず出す**（これは合否ではなく「どこまで見たか」の話なので）。
