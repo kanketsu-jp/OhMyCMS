@@ -138,6 +138,15 @@ pre-commit:
     report-body-keys:
       run: node apps/studio/scripts/check-report-body-keys.mjs
 
+    # `/api/health` の `dirty` を意味のある旗のまま保つ（.dockerignore と docker/Dockerfile）。
+    # 🚨 root を付けない。**リポジトリ直下の 2 ファイル**を読む検査なので。
+    # 🚨 これは「コメントに **消さないこと** と書いてあるだけ」だったものを検査にしたもの（規律12）。
+    #    1 行消えると dirty が毎回 1 に戻り、**旗が常に立つので誰も見なくなる**。
+    #    見ているのは**その 2 ファイルの中身だけ**で、**実際にビルドして 0 が出るかは見ていない**
+    #    （それは push 後の `/api/health` でしか分からない）。
+    build-info-guards:
+      run: node apps/studio/scripts/check-build-info-guards.mjs
+
     # ナレッジ索引の鮮度。**警告のみでコミットは止めない**（理由はスクリプト内）。
     knowledge:
       run: bash .lefthook/rokf-doctor.sh

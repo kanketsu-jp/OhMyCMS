@@ -74,6 +74,7 @@ WORKDIR /app
 #        🚨 .gitignore を数え忘れると 18 本になる）。
 #    ❌ 穴を埋めるつもりで skip-worktree を消さないこと。消すとその 19 本が全部 " D" で復活し、
 #      **綺麗なツリーでも常に dirty=1** になる（＝旗が常に立ち、誰も見なくなる）。
+#      （守り手: apps/studio/scripts/check-build-info-guards.mjs ／ lefthook の build-info-guards）
 COPY . .
 RUN set -eu; \
     if [ -e .git ]; then \

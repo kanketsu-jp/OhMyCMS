@@ -51,6 +51,7 @@ compose.yml
 #    skip-worktree ループは「消えている」追跡ファイルしか吸収できないので、これは吸収されない。
 #    実測: VPS の clone 先で `git status --porcelain` → `M compose.dokploy.yml` の 1 行だけ。
 #    同じ VPS の他 4 アプリでも、それぞれの compose ファイル 1 本だけが M だった（Dokploy の仕様）。
-#    ❌ 「ビルドに要らないから」ではなく **dirty の旗を生かすため**に外している。消さないこと。
+#    ❌ 「ビルドに要らないから」ではなく **dirty の旗を生かすため**に外している。
+#       （守り手: apps/studio/scripts/check-build-info-guards.mjs ／ lefthook の build-info-guards）
 compose.dokploy.yml
 .dockerignore
