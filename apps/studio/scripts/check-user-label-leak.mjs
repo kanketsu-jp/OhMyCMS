@@ -684,7 +684,14 @@ for (const probe of blindSpotProbes) {
   const detectedRules = [...new Set(probeViolations.map((v) => v.rule))].join(",") || "-";
 
   if (detected === probe.expectDetected) {
-    const mark = detected ? "✅ 拾える" : "⚠️ 拾えない（既知の免除。設計上の限界。塞いでいない）";
+    // 🚨 「毎回出るのに誰も決めない」を作らない（司令塔の規律・2026-08-16）。
+    //    exit 0 のまま出し続けるものには、**いつ決めたか / 未決か / 決めた人 / 何を決めたか**を添える。
+    //    添えないと、次に読む人は「まだ誰かが決める途中」と読み、毎日出続けて風景になる。
+    const mark = detected
+      ? "✅ 拾える"
+      : "⚠️ 拾えない（決定 2026-08-16 / shell / **塞がない**——"
+        + "`left-sidebar.tsx` が親から受けた prop を素の識別子で渡すのは正当で、"
+        + "塞ぐとその形まで違反になるため。**未決ではありません**）";
     console.log(
       `  ${mark}  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）`,
     );
