@@ -487,7 +487,17 @@ const PROBE = String.raw`(() => {
     const r = el.getBoundingClientRect();
     if (srOnly(el)) continue;                                  // 読み上げ専用（正しい実装）
     const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join("");
-    if (own.length < 4) continue;
+    // 🚨 **文字数を String.length で数えない**（2026-08-15・auth の実測で発覚）。
+    //    🚨 この関数はブラウザへ送るテンプレートリテラルの中。**コメントにもバッククォートを書かない**
+    //       （今日 2 度目。書くと文字列が途中で終わって構文エラーになる）。
+    //    .length は UTF-16 の単位数なので、合成絵文字（ZWJ）は **1 文字なのに 5** と数える:
+    //      "🧑‍💻"  codeUnits **5** / graphemes **1**
+    //      🟢 対照 "Home"  codeUnits 4 / graphemes 4（ラテン文字は影響なし）
+    //    この関門は「短いラベルは飛ばす」ためのものだが、**絵文字 1 文字が通り抜けて**
+    //    そのあと**正方形のアイコンボタンは寸法の条件を必ず満たす**ので、
+    //    /admin/profile のアバター（53x53・fs24）を「文字が縦積み」と誤報していた。
+    //    🚨 **数えている値が、意図したものを数えていなかった。**
+    if ([...new Intl.Segmenter("ja", { granularity: "grapheme" }).segment(own)].length < 4) continue;
     // 🚨 「40px 未満」という絶対値で見ない。**文字の大きさを見ていなかった**（2026-08-13 base2 の指摘）。
     //    下部ナビのラベルは 10px なので、"Home" は 28px でも**1行に収まる**。それを縦積みと誤報していた。
     //    → **症状そのもの（本当に折り返しているか）**を測る:
