@@ -17,12 +17,15 @@
  *   node scripts/check-mcp-catalog.mjs          検査（ずれていたら exit 1）
  *   node scripts/check-mcp-catalog.mjs --write   写しを作り直す
  *
- * ## 🚨 この検査が見ていない形（**書き置きではなく、毎回その場で通して出しています**）
+ * ## 🚨【鳴る】この検査が見ていない形（**書き置きではなく、毎回その場で通して出しています**）
+ *
+ * 🚨 **下の2行は、下のコードの `blind` 配列と一字一句そろえてあります。**
+ *    そろっていなければこの検査は落ちます（`assertHeaderMatchesBlind`）。
+ *    ＝ **同じことが散文とコードの2箇所にありますが、片方だけ腐ることはできません。**
+ *    （二重に書くと片方が必ず腐る、という指摘への対処。司令塔 2026-08-16 / base2）
  * ```
- * ❌ 名前を変数で組み立てて登録する   server.registerTool(n, {})
- *    → **見逃します**。落とすには構文解析が要る
- * ⚠️ 文字列リテラルの中の registerTool("ohmycms_…")
- *    → **拾ってしまいます**（過検出）。承知で残している
+ * 名前を変数で組み立てて登録する → **見逃す**（`registerTool(n, {})`。落とすには構文解析が要る）
+ * 文字列リテラルの中の registerTool → **拾ってしまう**（過検出。承知で残している）
  * ```
  * 🚨 **この2つは 2026-08-16 まで「どちらも見逃す」と書いていました。通したら逆でした。**
  *    ＝ **見ていない範囲を書いても、確かめていなければ、それ自体が思いつきです**（司令塔 2026-08-16）。
@@ -318,7 +321,24 @@ if (!WRITE) {
     ["文字列リテラルの中の registerTool",
       serverText + "\nconst s = 'server.registerTool(\"ohmycms_zz_instr\", {})';\n", "ohmycms_zz_instr", "拾ってしまう"],
   ];
-  console.log("■ この検査が見ていない形（**毎回その場で通しています**）");
+  // 🚨 **散文（冒頭の注記）と、この配列がずれていないことを先に確かめる。**
+  //    突き合わせているのが配列だけだと、**配列を直して注記を直し忘れても緑**になり、
+  //    次に読む人は**注記のほうを信じます**（司令塔 2026-08-16 / base2 の指摘）。
+  {
+    const self = readOrStop(fileURLToPath(import.meta.url), "この検査自身");
+    const header = self.slice(0, self.indexOf("*/"));
+    const missing = blind
+      .map(([label, , , recorded]) => `${label} → **${recorded}**`)
+      .filter((phrase) => !header.includes(phrase));
+    if (missing.length > 0) {
+      console.error("🚨 冒頭の注記と、コードの記録（blind）がずれています。");
+      for (const m of missing) console.error(`  注記に見つからない行: ${m}`);
+      console.error("  → 冒頭「この検査が見ていない形」の行を、この形のまま書いてください。");
+      process.exit(1);
+    }
+  }
+
+  console.log("■【鳴る】この検査が見ていない形（**毎回その場で通しています**）");
   const stale = [];
   for (const [label, srv, probe, recorded] of blind) {
     const caught = findViolations(source, srv).violations.some((v) => v.detail.includes(probe));
