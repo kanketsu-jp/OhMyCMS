@@ -35,6 +35,7 @@ x_rag_okf:
 - [通信路が HTTPS かどうかを NODE_ENV で決めない](./decisions/https-is-not-node-env.md) — `decisions/https-is-not-node-env`
 - [文言検査の範囲は「画面に届くか」で決める。lib/ を丸ごと足さない](./decisions/i18n-check-scope-is-what-reaches-the-screen.md) — `decisions/i18n-check-scope-is-what-reaches-the-screen`
 - [i18n はライブラリを使わず自前実装にする](./decisions/i18n-own-implementation.md) — `decisions/i18n-own-implementation`
+- [原典（idea.md）から意図的に外した 3 件](./decisions/intentional-deviations-from-idea-md.md) — `decisions/intentional-deviations-from-idea-md`
 - [i18n は必須（旧PJの方針を反転）](./decisions/i18n-required.md) — `decisions/i18n-required`
 - [設定・スキーマの正本は JSON](./decisions/json-as-source-of-truth.md) — `decisions/json-as-source-of-truth`
 - [migration を足す人は、直前に「他人の未適用分」を確認する](./decisions/migrations-are-shared.md) — `decisions/migrations-are-shared`
