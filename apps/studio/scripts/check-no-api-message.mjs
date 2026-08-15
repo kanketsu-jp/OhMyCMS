@@ -39,7 +39,10 @@ function scan(files) {
     lines.forEach((line, i) => {
       if (!line.includes(NEEDLE)) return;
       if (isComment(line)) return;
-      hits.push({ file, line: i + 1, text: line.trim().slice(0, 100) });
+      // 🚨 **何の規則で赤くなったか**を持たせる（2026-08-15・司令塔）。
+      //    「赤くなった」と「狙ったものを捕まえた」は別。種別が無いと、
+      //    別の理由（自己検査の的が消えた等）で落ちたときに読み分けられない。
+      hits.push({ file, line: i + 1, rule: "画面側からの呼び出し", text: line.trim().slice(0, 100) });
     });
   }
   return hits;
@@ -83,7 +86,7 @@ console.log(`  違反: ${hits.length} 件`);
 if (hits.length === 0) process.exit(0);
 
 console.error(`\n🚨 画面側から \`${NEEDLE}\` を呼んでいます。**API の生文言は画面へ出さないこと。**`);
-for (const h of hits) console.error(`  ${h.file}:${h.line}  ${h.text}`);
+for (const h of hits) console.error(`  [${h.rule}] ${h.file}:${h.line}  ${h.text}`);
 console.error(
   "\n  直し方: `apiErrorKey()` を使う（code を辞書の鍵へ写し、知らない code は unexpected へ倒す）。" +
     "\n  🚨 生文言を `?error=` に載せると、細工したリンクで任意の文章を公式のエラー枠に出せます。",
