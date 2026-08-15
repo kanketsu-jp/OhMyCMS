@@ -66,7 +66,7 @@ function UpdateStatus({
       <div className="space-y-2">
         <p>{t("outdated", { latest: update.latest })}</p>
         {update.url ? (
-          <a href={update.url} className="text-primary hover:text-primary/80" rel="noreferrer noopener">
+          <a href={update.url} className="text-primary hover:text-primary/80 active:text-primary/80" rel="noreferrer noopener">
             {t("release_link")}
           </a>
         ) : null}
