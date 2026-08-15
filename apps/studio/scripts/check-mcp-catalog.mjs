@@ -47,8 +47,9 @@
  *    それでも「完全一致」と出る（2026-08-15 実測。私自身がこの穴に落ちた）。
  */
 
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -231,8 +232,51 @@ if (!WRITE) {
     ["囮7: 登録に数字入りの名前（目録には無い）", source,
       serverText + '\nserver.registerTool("ohmycms_zz_v3", {});\n', "登録が目録に無い"],
   ];
+  // ■ 入口の囮
+  //
+  // 🚨 **囮は、実物と同じ入口から入れる**（司令塔 2026-08-16）。
+  //    下の囮1〜7 は `findViolations` に**文字列を直接渡している**。
+  //    ＝ **どのファイルを読むか（`collectTs`）を飛ばして入っている。**
+  //    ＝ `collectTs` が壊れても、囮 7 本は**全部緑のまま**。
+  //    実際 2026-08-16 に「再帰しない」穴が在り、**囮は 1 本も鳴らず**、
+  //    台（`scratchpad/miss-probe.mjs`）で実ファイルを置いて初めて見つかった。
+  //    → **入口そのものを囮にする。** ここだけは本物のディレクトリを渡す。
+  {
+    // 🟢 対照(+) 本物の入口。ここが空なら、下の囮は何を測っても意味が無い。
+    const real = collectTs(MCP_SRC).map((p) => p.split("/").pop());
+    const realOk = real.length > 0 && real.includes("server.ts") && !real.includes("catalog.ts");
+    console.log(`■ 入口の囮（どのファイルを読むか）`);
+    console.log(`  ${realOk ? "✅" : "🚨"} 対照(+) 本物の ${MCP_SRC.split("/").slice(-2).join("/")} → ${real.length} 本` +
+      `（server.ts ${real.includes("server.ts") ? "在り" : "**無し**"} / catalog.ts は正なので除外 ${real.includes("catalog.ts") ? "**できていない**" : "済み"}）`);
+
+    // 囮: 下の階層と拡張子。**実物と同じくディレクトリを渡す**（配列へ直接足さない）。
+    const d = mkdtempSync(join(tmpdir(), "mcp-catalog-probe-"));
+    let entryOk = false;
+    let got = [];
+    try {
+      mkdirSync(join(d, "sub"), { recursive: true });
+      writeFileSync(join(d, "server.ts"), "");
+      writeFileSync(join(d, "sub", "extra.ts"), "");
+      writeFileSync(join(d, "skip.js"), ""); // .ts でないものは拾わない
+      got = collectTs(d).map((p) => p.slice(d.length + 1)).sort();
+      entryOk = JSON.stringify(got) === JSON.stringify(["server.ts", "sub/extra.ts"]);
+    } finally {
+      // 🚨 **片付けの失敗を、測定の失敗にしない**（2026-08-16 に踏んだ形）。
+      try { rmSync(d, { recursive: true, force: true }); }
+      catch (e) { console.log(`  ⚠️ 台の片付けに失敗（測定の結果とは無関係）: ${e.code ?? e.message}`); }
+    }
+    console.log(`  ${entryOk ? "✅" : "🚨"} 囮: 下の階層と拡張子 → ${JSON.stringify(got)}` +
+      (entryOk ? "" : ' **期待は ["server.ts","sub/extra.ts"]**'));
+    if (!realOk || !entryOk) {
+      console.error("🚨 入口が壊れています。**下の囮が全部緑でも、この検査は何も見ていません。**");
+      process.exit(1);
+    }
+  }
+
   let alive = 0;
   console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
+  // 🚨 ここから下の囮は **findViolations に文字列を直接渡している**＝入口を飛ばしている。
+  //    入口は上の「入口の囮」で別に測る（迂回していることを、迂回している行に書く）。
   for (const [name, src, srv, wantRule] of probes) {
     // `ohmycms_` で始まる wantRule は「**その名前が出ないこと**」が期待（過検出の囮）。
     if (wantRule.startsWith("ohmycms_")) {
