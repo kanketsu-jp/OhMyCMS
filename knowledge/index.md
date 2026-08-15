@@ -57,6 +57,7 @@ x_rag_okf:
 - [保管先の根（STORAGE_LOCAL_ROOT）は環境変数に残す](./decisions/storage-local-root-is-fixed.md) — `decisions/storage-local-root-is-fixed`
 - [保管先のキー設計を固定する（接頭辞は後から変えない）](./decisions/storage-key-prefix-is-fixed.md) — `decisions/storage-key-prefix-is-fixed`
 - [合成 ID は画面に出さない](./decisions/synthetic-ids-are-not-contacts.md) — `decisions/synthetic-ids-are-not-contacts`
+- [ゴミ箱と復元の画面（箱の形は決める。中に何が並ぶかは未決）](./decisions/trash-and-restore-ui.md) — `decisions/trash-and-restore-ui`
 - [通知は「終わったこと」だけトーストへ。直す必要があるものはその場に残す](./decisions/toast-for-events-page-for-what-needs-fixing.md) — `decisions/toast-for-events-page-for-what-needs-fixing`
 - [ツリーの接続線は「肘」と「通し線」を分けて描く](./decisions/tree-connector-lines.md) — `decisions/tree-connector-lines`
 - [二階建て認証（人間とエージェントを分ける）](./decisions/two-tier-auth.md) — `decisions/two-tier-auth`
