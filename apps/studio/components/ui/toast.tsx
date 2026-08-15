@@ -192,12 +192,16 @@ function ToastList() {
             ) : null}
           </div>
           {/* 44px の当たり判定は縮めず、負の縦マージンで行の高さへの寄与だけを本文1行ぶんに抑える。 */}
+          {/* 堀池さん指示: hover: には必ず active: も付ける。 */}
+          {/* タッチ端末には hover が無く、押した手応えが出ないため。 */}
+          {/* 濃さは hover と同じ。押し込みは Button base の 1px 沈みが担当する。 */}
+          {/* dark: 側も対にする（design 指摘・2026-08-15）。 */}
           <Button
             type="button"
             data-slot="toast-close"
             variant="ghost"
             size="icon-sm"
-            className="-my-3 shrink-0 hover:bg-black/5 dark:hover:bg-white/10"
+            className="-my-3 shrink-0 hover:bg-black/5 active:bg-black/5 dark:hover:bg-white/10 dark:active:bg-white/10"
             onClick={() => close(item.id)}
           >
             <XIcon />
