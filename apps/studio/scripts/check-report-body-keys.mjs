@@ -225,6 +225,18 @@ const extra = sent.filter((k) => !accepted.has(k));
     console.log(`  ${ok ? "  拾う  " : "🚨 見逃す"} ${why.padEnd(24)} ${src.slice(0, 60)}`);
   }
   console.log(`  ＝ **${missed.length} / ${misses.length} 通りを見逃します**（この検査は JSON.stringify({…}) の 1 形だけを見ます）`);
+  // 🚨 **「見ていない範囲」の記述が古くなったときに、検査自身が鳴る**（design の形・2026-08-16）。
+  //    誰かが FormData も拾えるように広げたら、この一覧の「見逃す」が「拾う」に変わる。
+  //    そのとき**ヘッダのコメントは古いまま**なので、次の人は「まだ見ていない」と読む。
+  //    → **拾えるようになった形が出たら、その場で「ヘッダを直せ」と言う。**
+  const nowCaught = misses.filter(([, src]) => seen(src)).map(([why]) => why);
+  if (nowCaught.length > 0) {
+    problems.push(
+      `🚨 **見ていないはずの形を拾えるようになりました**（${nowCaught.join(" / ")}）。` +
+        "この検査のヘッダに書いてある「JSON.stringify の 1 形だけを見ます」が**古くなっています**。" +
+        "ヘッダと、この一覧の両方を直してください",
+    );
+  }
   if (!control) {
     console.error("🚨 対照が拾えていません。上の「見逃す」は、検出器が死んでいるだけかもしれません。");
     process.exit(1);
