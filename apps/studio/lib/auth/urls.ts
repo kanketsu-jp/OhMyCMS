@@ -27,6 +27,20 @@ import { isSecureRequest } from "./cookies";
  *   2. `x-forwarded-proto` + `x-forwarded-host`（プロキシ越し）
  *   3. `host` ヘッダ + `isSecureRequest`
  *   4. `request.url`（最後の手段）
+ *
+ * 🚨 `OHMYCMS_PUBLIC_URL` は GUI/DB へ移さない。**起動時に要るからではない**
+ *    （実測 2026-08-16: 読んでいるのはこの関数の中だけで、要求ごとに読んでいる。
+ *    「要求のたびに DB から読めるか」という基準では移せてしまう）。
+ *    移さない理由は、**外部サービスに登録済みの値と一致していなければならない**から:
+ *    Google の戻り先 URI（`app/api/auth/google/callback`）、
+ *    SAML の Entity ID / ACS URL（`lib/auth/saml/urls.ts`）。
+ *    管理者が画面から1文字変えた瞬間に SSO が通らなくなる。
+ *    🚨 SSO が通らない ＝ 締め出し（`docs/design/sso-only-switchover.md`）。
+ *    前例: `sp_entity_id`（画面に出していない設定）を 2026-08-14 に受入が書き換え、
+ *    :3102 のログインが全部落ちた。同じ性質の値。
+ *    判断条件（司令塔・2026-08-16 確定）: 要求ごとに読めても、
+ *    **利用者に変えさせてはいけないものは env に残す**。理由は「起動時に要る」ではなく
+ *    「**変えさせないため**」と書く。
  */
 export function publicBaseUrl(request: Request): string {
   const configured = process.env.OHMYCMS_PUBLIC_URL?.trim();
