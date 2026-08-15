@@ -1,5 +1,8 @@
 {
+  "action_cancel": "やめる",
+  "action_edit": "編集する",
   "action_options": "オプション",
+  "action_save": "保存",
   "app_description": "コレクションを管理画面から増やせる自作の CMS",
   "app_name": "OhMyCMS",
   "back": "もどる",

@@ -23,7 +23,6 @@
   "profile_load_error": "個人設定を取得できません",
   "profile_name_error": "名前を保存できませんでした",
   "profile_name_label": "氏名",
-  "profile_name_save": "名前を保存",
   "profile_name_saved": "名前を保存しました",
   "profile_name_section": "名前",
   "profile_name_too_long": "姓・名はそれぞれ50文字までです",

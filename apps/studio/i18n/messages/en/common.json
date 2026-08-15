@@ -1,5 +1,8 @@
 {
+  "action_cancel": "Cancel",
+  "action_edit": "Edit",
   "action_options": "Options",
+  "action_save": "Save",
   "app_description": "A self-hosted CMS where collections are added from the admin UI",
   "app_name": "OhMyCMS",
   "back": "Back",

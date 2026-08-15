@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { AvatarEmojiGrid } from "@/components/admin/avatar-emoji-picker";
@@ -132,6 +132,18 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
   // 🚨 入力の不足・上限超過は欄の近くに出す（トーストにしない。消えると直せなくなる。
   //    knowledge/decisions/toast-for-events-page-for-what-needs-fixing.md と同じ考え方）。
   const [nameError, setNameError] = React.useState<string | null>(null);
+  /**
+   * 🚨 **表示モードと編集モードを分ける**（堀池さん 2026-08-15・原文）:
+   * 「`/admin/profile` などでは「名前を保存」としているが、**それは廃止**。
+   *  アクションボタンで「編集する」を押下する。**全てにおいて基本は編集モードと表示を分ける**」
+   * 規約: `knowledge/decisions/action-button-and-edit-mode.md`
+   *
+   * 🚨 境目は「**保存されていない変更を持ちうるか**」（規約 §2）。
+   *    表示モードでは欄を `readOnly` にする（`disabled` にしない。
+   *    **読めるが変えられない**が規約の言葉で、`disabled` は読み上げからも外れる）。
+   */
+  const [editing, setEditing] = React.useState(false);
+  const nameInputRef = React.useRef<HTMLInputElement>(null);
 
   const saveName = useSubmitOnce(async (form: HTMLFormElement) => {
     const formData = new FormData(form);
@@ -171,6 +183,7 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
     //    **「保存されている内容と、いま見えている内容が一致している」は事実**なので嘘にならない。
     if (!nameChanged) {
       toast.success(t("profile_name_saved"));
+      setEditing(false);
       return;
     }
 
@@ -196,6 +209,7 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
 
     setNameError(null);
     toast.success(t("profile_name_saved"));
+    setEditing(false);
     router.refresh();
   });
 
@@ -246,7 +260,12 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
             <Input
               id="profile-name"
               name="name"
+              ref={nameInputRef}
               autoComplete="name"
+              // 🚨 表示モードは `readOnly`。`disabled` にしない
+              //    （規約 §2「読めるが変えられない」。`disabled` だと読み上げから外れ、
+              //     値をコピーすることもできなくなる）
+              readOnly={!editing}
               onChange={() => setNameError(null)}
               aria-invalid={nameError !== null || undefined}
               defaultValue={composeDisplayName(firstName, lastName, locale)}
@@ -255,12 +274,43 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
               <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
           </div>
-          <PageAction
-            form="profile-name-form"
-            label={t("profile_name_save")}
-            icon={<Check />}
-            pending={saveName.pending}
-          />
+          {/* 🚨 **主ボタンはモードで変わる**（規約 §2）。固定の「名前を保存」は**廃止**した
+              （鍵 `nav.profile_name_save` も消してある。移すのではなく廃止がご指示）。 */}
+          {editing ? (
+            <>
+              {/* 🚨 抜け道は **▾ の中ではなく主ボタンの隣**（規約 §4）。
+                  隠すと、変更を捨てたい人が保存してしまう。
+                  `role="secondary"` は部品が**必ず主の左**へ出す（描く順に依らない）。
+                  ⚠️ これでボタンが 2 つ並ぶ。ご指示は「一つのボタン＋chevron」なので、
+                     司令塔がユーザーへ確認中。**▾ の中へ移すなら 1 行で移せる形にしてある**。 */}
+              <PageAction
+                role="secondary"
+                label={tCommon("action_cancel")}
+                icon={<X />}
+                onClick={() => {
+                  setNameError(null);
+                  setEditing(false);
+                }}
+              />
+              <PageAction
+                form="profile-name-form"
+                label={tCommon("action_save")}
+                icon={<Check />}
+                pending={saveName.pending}
+              />
+            </>
+          ) : (
+            <PageAction
+              label={tCommon("action_edit")}
+              icon={<Pencil />}
+              onClick={() => {
+                setEditing(true);
+                // 🚨 押した直後に欄へ焦点を移す。移さないと、キーボードだけの人は
+                //    「編集する」を押したあと自分で欄まで辿ることになる。
+                requestAnimationFrame(() => nameInputRef.current?.focus());
+              }}
+            />
+          )}
         </form>
       </section>
 

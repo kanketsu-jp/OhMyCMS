@@ -336,11 +336,20 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
   ],
   // ユーザーメニューから来る個人ページなので、ナビ項目の最後に置く。
   "/admin/profile": [
+    // 🚨 **この表にはモードの概念がありません。** 2026-08-15 に個人設定を
+    //    「表示モード / 編集モード」に分けた（規約 `decisions/action-button-and-edit-mode.md`）。
+    //    画面を開いた直後に出るのは **「編集する」だけ**なので、ここにはそれを書く。
+    //
+    // 🚨 **この表が見ていない範囲**（塞げないものは隠さず書く）:
+    //    ・**編集モードの「保存」「やめる」は、ここに宣言できない**
+    //      （表は 1 ルート＝1 組の宣言で、**状態で入れ替わるもの**を表せない）
+    //    ・＝ **その 2 つが壊れても、`check-page-actions` / `-rendered` は気づかない**
+    //    ・**モードを持つ画面が増えるなら、表に「いつ出るか」を持たせる必要がある**
+    //      （対象は 15 画面なので、次に誰かが当たる）
     {
-      kind: "submit",
-      labelKey: "nav.profile_name_save",
-      icon: "Check",
-      form: "profile-name-form",
+      kind: "button",
+      labelKey: "common.action_edit",
+      icon: "Pencil",
       role: "primary",
     },
   ],
