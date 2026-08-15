@@ -1017,7 +1017,47 @@ function measureExpression(selector) {
           }
           if (textNode.parentElement) textStyle = getComputedStyle(textNode.parentElement);
         }
-        const text = (el.innerText || el.textContent || "").replace(/\\s+/g, " ").trim();
+        /**
+         * 🚨 **innerText で画面の文字を数えない**（2026-08-15・自分の誤検出から）。
+         *
+         * innerText は **読み上げ専用の文字（sr-only）も返す**。
+         * 実害: 「本文の保存ボタン」を数えたとき、パンくずの sr-only「上の階層へ」を拾い、
+         * /admin/collections/new のボタンを「上の階層へ **新規作成**」と読んで
+         * **保存系の語に当て、誤検出を 2 件作った**。
+         * 🚨 **base2 の実装は正しく、計器のほうが間違っていた。**
+         * 「実装を直すか計器を直すか」は、**測って切り分けてから決める。**
+         *
+         * ここでは**見えている文字だけ**を集める:
+         *   aria-hidden="true" ／ display:none ／ visibility:hidden ／
+         *   sr-only の形（clip: rect(0,0,0,0) / clip-path: inset(50%) / 箱が 1px 以下）
+         * の**祖先を持つ文字は落とす**。
+         *
+         * 🚨 この関数はブラウザへ渡すテンプレートリテラルの中。
+         *    コメントにバッククォートを書くと構文が壊れる（今日3回やった）。
+         */
+        const hiddenForSight = (node) => {
+          for (let n = node; n && n !== el.parentElement; n = n.parentElement) {
+            if (n.nodeType !== 1) continue;
+            if (n.getAttribute && n.getAttribute("aria-hidden") === "true") return true;
+            const st = getComputedStyle(n);
+            if (st.display === "none" || st.visibility === "hidden") return true;
+            if (st.clip === "rect(0px, 0px, 0px, 0px)" || st.clipPath === "inset(50%)") return true;
+            const rr = n.getBoundingClientRect();
+            if (rr.width <= 1 && rr.height <= 1 && st.overflow === "hidden") return true;
+          }
+          return false;
+        };
+        let text = "";
+        {
+          const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          let t;
+          while ((t = w.nextNode())) {
+            if (!t.nodeValue || !t.nodeValue.trim()) continue;
+            if (hiddenForSight(t.parentElement)) continue;
+            text += (text ? " " : "") + t.nodeValue.trim();
+          }
+          text = text.replace(/\\s+/g, " ").trim();
+        }
         return {
           sel: sel(el),
           box: {
