@@ -181,6 +181,13 @@ const 見逃すはず = [
   ["変数へ入れる", 'const e = payload.error; setError(e.message);'],
   ["別名で分割代入", 'const { message: m } = payload.error ?? {};'],
 ];
+// 🚨 対照が先。**対照が死んでいると「見逃した」は「検出器が死んでいるだけ」で、何も言っていない。**
+//    由来: 2026-08-16 [w4A:p1H / polish]。同日 toast も「4 本とも出ず、3 本見逃したと書きかけた」。
+const 囮3の対照 = Object.keys(scan([{ file: "決め打ち.tsx", text: "payload.error.message" }]).counts).length > 0;
+if (!囮3の対照) {
+  console.error("  ❌ 囮3 の対照が拾えない。**この先の「見逃した」は意味を持たない**（検出器が死んでいる）。");
+  selfTestFailed = true;
+}
 const 実は拾えた = 見逃すはず.filter(([, t]) => Object.keys(scan([{ file: "決め打ち.tsx", text: t }]).counts).length > 0);
 console.log(
   `  ⚪ 囮3: **見逃すはず** ${見逃すはず.length} 通り  → 実際に見逃した ${見逃すはず.length - 実は拾えた.length} 件` +

@@ -114,6 +114,13 @@ const 見逃すはず = [
   ["全角の波括弧", "「｛name｝」を削除", "Delete this"],
   ["別記法 %s", "「%s」を削除", "Delete this"],
 ];
+// 🚨 対照が先。**対照が死んでいると「見逃した」は「検出器が死んでいるだけ」で、何も言っていない。**
+//    由来: 2026-08-16 [w4A:p1H / polish]。同日 toast も「4 本とも出ず、3 本見逃したと書きかけた」。
+const 囮3の対照 = 囮("「{name}」を削除", "Delete this").length > 0;
+if (!囮3の対照) {
+  console.error("  ❌ 囮3 の対照が拾えない。**この先の「見逃した」は意味を持たない**（検出器が死んでいる）。");
+  selfTestFailed = true;
+}
 const 実は拾えた = 見逃すはず.filter(([, a, b]) => 囮(a, b).length > 0);
 console.log(
   `  ⚪ 囮3: **見逃すはず** ${見逃すはず.length} 通り  → 実際に見逃した ${見逃すはず.length - 実は拾えた.length} 件` +
