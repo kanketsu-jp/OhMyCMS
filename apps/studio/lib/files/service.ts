@@ -914,6 +914,28 @@ export async function updateFolder(
     if (parent === id) {
       throw new ApiError(400, "INVALID_FIELD", "自分自身を親フォルダにできません");
     }
+    // 🚨 **自分の子孫の中へは入れられない。** 入れると輪ができて、
+    //    **その枝ごと一覧から消えます**（互いの親が相手を指すので、ルートに出ない）。
+    //    2026-08-16 実測: A の子 B に対して A の parent を B にすると **200 で通り**、
+    //    A も B も一覧から消えた
+    //    （🟢 対照: 自分自身を親にする方は INVALID_FIELD で弾けていた）。
+    //    🚨 深さを決め打ちにしない。**辿れなくなるまで登る**。
+    if (parent !== null) {
+      let cursor: string | null = parent;
+      const seen = new Set<string>();
+      while (cursor) {
+        if (cursor === id) {
+          throw new ApiError(400, "INVALID_FIELD", "自分の中のフォルダへは移動できません");
+        }
+        // 🚨 既に輪が在るデータでも止まる（無限に登らない）
+        if (seen.has(cursor)) break;
+        seen.add(cursor);
+        const up: Pick<FolderRow, "parent"> | undefined = await db<FolderRow>("directus_folders")
+          .where({ id: cursor })
+          .first("parent");
+        cursor = up?.parent ?? null;
+      }
+    }
     update.parent = parent;
   }
   if ("color" in body) {
