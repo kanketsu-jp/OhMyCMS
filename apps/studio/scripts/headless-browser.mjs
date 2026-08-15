@@ -193,6 +193,30 @@
  *    実測（`features: []` を渡す）で override 自体が完全に解除され、`hover:hover=true` /
  *    `pointer:fine=true` / `maxTouchPoints=0`（素の headless Chrome の既定）に戻ることを
  *    確認済み（sp → pc → sp と往復させても値が一致することも確認済み）。
+ *
+ * 9. 🚨 **算出スタイルを「文字列で比べて」変化を判定しない。表記が違うだけで同じ色がある。**
+ *    2026-08-15 実測（schema・w4A:p27 が自分の測定で踏んだ）。`:active` が効いているかを
+ *    `CSS.forcePseudoState` で調べ、`通常 !== 押下` で判定したところ **✅ が出たが嘘だった**:
+ *
+ *      通常 = `rgba(0, 0, 0, 0)`   押下 = `oklab(0 0 0 / 0)`   ← **どちらも透明。同じ色。**
+ *
+ *    Chrome は同じ色を文脈によって `rgba()` / `lab()` / `oklab()` と**別の記法**で返す。
+ *    文字列比較は「変わっていないのに変わった」と言う。**必ず数値へ正規化してから比べる**:
+ *
+ *      const c = document.createElement("canvas"); c.width = c.height = 1;
+ *      const x = c.getContext("2d"); x.clearRect(0,0,1,1);
+ *      x.fillStyle = <算出値>; x.fillRect(0,0,1,1);
+ *      [...x.getImageData(0,0,1,1).data].join(",")   // → "115,115,115,255"
+ *
+ *    **もう一つ同時に踏んだ**: 対象に `transition-*` が付いていると、pseudo を強制した
+ *    **直後**に読んだ値は**遷移の途中**（始点に近い値）になる。**遷移が終わるまで待ってから読む。**
+ *    この2つを直したら、同じ要素が `115,115,115,255 → 10,10,10,255` と**正しく変化して見えた**。
+ *
+ * 10. 🚨 **「要素が無い」と「効いていない」を同じ結果にしない。**
+ *    同じ測定で、直した対象が**ダイアログの中にしか存在しない**要素だった。閉じたまま測ると
+ *    `querySelector` が null を返し、**「変わらなかった」と読みかけた**（実際は開けば ✅ だった）。
+ *    → 要素が取れなかったときは**変化なしと書かず、「この測定は何も言っていません」と出す**。
+ *    このファイルの `visibleTexts` が「外した件数」を返すのと同じ理由（落とし穴7）。
  */
 
 const PORT = 9333;
@@ -683,6 +707,59 @@ class Session {
       })(${JSON.stringify(selector)})
     `;
     return await this.eval(script);
+  }
+
+  /**
+   * 🚨 **`:hover` / `:active` が本当に効いているかを測る**（落とし穴9・10 をここに集約した）。
+   *
+   * 各自で `CSS.forcePseudoState` を書くと**必ず割れる**（落とし穴7 で `visibleTexts` を
+   * 集約したのと同じ理由）。実際 2026-08-15 に、複数のペインが同時に `active:` の有無を
+   * 測っていて、**文字列比較で嘘の ✅ を出した例**が出た。
+   *
+   * 返すもの: `{ 見つかった, 通常, 押下, 触れ, 変わった, 対 }`
+   *   - 色は **`"r,g,b,a"` の数値文字列に正規化**して返す（`rgba()` と `oklab()` の表記差で
+   *     「変わった」と誤判定しないため。落とし穴9）
+   *   - 要素が無いときは `見つかった: false` を返し、**`変わった` を `null` にする**。
+   *     🚨 **「要素が無い」を「変化なし」と同じ顔にしない**（落とし穴10）
+   *   - `対` は「`:hover` と `:active` が同じ値か」。**片方だけ入っている**のを見つけるため
+   *
+   * @param {string} selector 対象。**最初の1件**だけを見る
+   * @param {string} prop `"color"` / `"background-color"` など
+   * @param {number} settleMs 遷移が終わるまでの待ち（`transition-*` が付いていると
+   *   強制直後は**途中の値**が返る。落とし穴9）
+   */
+  async pseudoStyle(selector, prop, settleMs = 400) {
+    await this.send("DOM.enable");
+    await this.send("CSS.enable");
+    const doc = await this.send("DOM.getDocument", { depth: -1 });
+    const q = await this.send("DOM.querySelector", {
+      nodeId: doc.result.root.nodeId,
+      selector,
+    });
+    const nodeId = q.result.nodeId;
+    if (!nodeId) {
+      // 🚨 ここで 0 や "変化なし" を返さない。**測れていない**ことを呼び出し側へ返す
+      return { 見つかった: false, 通常: null, 押下: null, 触れ: null, 変わった: null, 対: null };
+    }
+    const 読む = async (pseudos) => {
+      await this.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: pseudos });
+      await new Promise((r) => setTimeout(r, settleMs));
+      const r = await this.send("CSS.getComputedStyleForNode", { nodeId });
+      const 生 = r.result.computedStyle.find((x) => x.name === prop)?.value ?? null;
+      if (生 === null) return null;
+      // ブラウザ自身に換算させる（記法の違いを潰す唯一確実な手）
+      return await this.eval(`(() => {
+        const c = document.createElement("canvas"); c.width = c.height = 1;
+        const x = c.getContext("2d"); x.clearRect(0, 0, 1, 1);
+        x.fillStyle = ${JSON.stringify(生)}; x.fillRect(0, 0, 1, 1);
+        return [...x.getImageData(0, 0, 1, 1).data].join(",");
+      })()`);
+    };
+    const 通常 = await 読む([]);
+    const 押下 = await 読む(["active"]);
+    const 触れ = await 読む(["hover"]);
+    await this.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: [] });
+    return { 見つかった: true, 通常, 押下, 触れ, 変わった: 通常 !== 押下, 対: 触れ === 押下 };
   }
 
   /**
