@@ -15,12 +15,28 @@
  * 見ているのは「不具合報告の送信」1 経路だけ。**他のフォームは見ていない。**
  */
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
+import { stripComments } from "./strip-comments.mjs";
 
 const REPO_ROOT = new URL("../../../", import.meta.url).pathname;
 const COMPOSER = join(REPO_ROOT, "apps/studio/components/admin/bug-report-composer.tsx");
 const SERVICE = join(REPO_ROOT, "apps/studio/lib/reports/service.ts");
+
+// 🚨 **採取した HEAD と作業ツリーの状態を出す**（司令塔 2026-08-15）。
+//    共有ツリーでは HEAD が数分で動く（実測: 同じ夜に 9df2aca → cb3a5ba → 3d49196）。
+//    出力だけを渡された人が「いつのツリーの話か」を知れるようにする。
+// 🚨 見ていない範囲: 数えるのは **この 2 ファイルの未コミット変更だけ**。
+{
+  const rel = ["apps/studio/components/admin/bug-report-composer.tsx", "apps/studio/lib/reports/service.ts"];
+  const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: REPO_ROOT, encoding: "utf8" }).trim();
+  const dirty = execFileSync("git", ["status", "--porcelain", "--", ...rel],
+    { cwd: REPO_ROOT, encoding: "utf8" }).split("\n").filter(Boolean).length;
+  console.log(`採取: HEAD ${head} / この検査が見る 2 ファイルの未コミット変更 ${dirty} 件`);
+  console.log(`  見る範囲: ${rel.join(" / ")}`);
+}
 
 function readOrExplain(path, why) {
   try {
@@ -54,9 +70,11 @@ const composerRaw = readOrExplain(COMPOSER, "報告フォーム");
 //    そのコメントの中括弧を送信 body と誤認し、**画面が送る鍵 0 件**になって落ちた。
 //    ——「コメントが在ることは守られていることではない」の裏で、
 //      **コメントが在ることが検査を壊す**こともある。
-const composer = composerRaw
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/^[ \t]*\/\/.*$/gm, "");
+// 🚨 **コメントの潰し方を、この検査だけ独自に持たない**（2026-08-15）。
+//    もとは正規表現 2 本で潰していたが、**文字列の中の `/* */` まで潰す**うえ、
+//    同じ仕事の実装が repo に 2 つある状態になる（＝片方だけ直る形）。
+//    `strip-comments.mjs` に寄せた。**寄せた後も鍵 6 件が変わらないことを実測済み。**
+const composer = stripComments(composerRaw);
 const at = composer.indexOf("JSON.stringify({");
 if (at < 0) {
   problems.push(

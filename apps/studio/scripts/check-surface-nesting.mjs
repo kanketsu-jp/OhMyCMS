@@ -13,6 +13,9 @@
  *   node scripts/check-surface-nesting.mjs
  */
 
+import { execFileSync } from "node:child_process";
+
+import { stripComments } from "./strip-comments.mjs";
 import { readFileSync, globSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,38 +86,120 @@ function rendersInsideSurface(file, source) {
 }
 
 const files = globSync("{app,components}/**/*.tsx", { cwd: root }).sort();
+
+// 🚨 **採取した HEAD と作業ツリーの状態を出す**（司令塔 2026-08-15）。
+//    共有ツリーでは **数分で HEAD も件数も動く**。出力だけを貼られた人は、
+//    それが「いつのツリーの話か」を知る手段が無い（監査ツールには入れていたのに、
+//    静的検査には入れていなかった）。**出どころは人に書かせず、計器に出させる。**
+// 🚨 見ていない範囲: ここが数えるのは **この検査が見る範囲の未コミット変更だけ**。
+//    他の範囲が汚れていても 0 と出る（「ツリーが綺麗」の意味ではない）。
+{
+  const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  const dirty = execFileSync("git", ["status", "--porcelain", "--", "app", "components"],
+    { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean).length;
+  console.log(`採取: HEAD ${head} / cwd ${process.cwd()} / この検査が見る範囲の未コミット変更 ${dirty} 件`);
+  console.log(`  見る範囲: app/**/*.tsx と components/**/*.tsx（${files.length} ファイル）`);
+}
+
 const hits = [];
 const allowed = [];
 
-for (const file of files) {
-  const source = readFileSync(resolve(root, file), "utf8");
-  if (!rendersInsideSurface(file, source)) continue;
-
-  source.split("\n").forEach((line, i) => {
+/**
+ * 1 行を見て、面のクラスが在れば entry を返す（許容判定つき）。
+ * 🚨 **囮と本番で同じ関数を通すために切り出した**（別々に書くと、囮が本番の道を試さない）。
+ */
+function scanLine(file, line, lineNumber) {
     // 🚨 className={cn("...", "...")} を読めるようにする。
     // 以前は /className=\{?["'`]/ で「= の次が引用符」しか見ておらず、
     // cn( が挟まる 50箇所 / 16ファイルが**丸ごとノーチェック**だった（design 番人の指摘・実証済み）。
     // → className= 以降に現れる**すべての文字列リテラルを連結**して判定する。
-    if (!line.includes("className")) return;
-    const after = line.slice(line.indexOf("className"));
-    const literals = [...after.matchAll(/["'`]([^"'`]*)["'`]/g)].map((m) => m[1]);
-    if (literals.length === 0) return;
-    const classAttr = [null, literals.join(" ")];
-    // 🚨 状態つきのクラス（focus-visible: / hover: / dark: / aria-invalid: など）は面ではない。
-    // フォーカスリングやホバーの色を「罫線」「背景」と数えると誤検出になる（実測で判明）。
-    const cls = classAttr[1]
-      .split(/\s+/)
-      .filter((token) => !token.includes(":"))
-      .join(" ");
-    for (const { name, re } of SURFACE_PATTERNS) {
-      if (!re.test(cls)) continue;
-      const why = allowedFor(file, line);
-      const entry = { file, line: i + 1, kind: name, snippet: cls.slice(0, 70) };
-      if (why) allowed.push({ ...entry, why: why.rule.why, decided: why.rule.decided, ruleIndex: why.index });
-      else hits.push(entry);
-      break;
-    }
+  if (!line.includes("className")) return null;
+  const after = line.slice(line.indexOf("className"));
+  const literals = [...after.matchAll(/["'`]([^"'`]*)["'`]/g)].map((m) => m[1]);
+  if (literals.length === 0) return null;
+  const classAttr = [null, literals.join(" ")];
+  // 🚨 状態つきのクラス（focus-visible: / hover: / dark: / aria-invalid: など）は面ではない。
+  // フォーカスリングやホバーの色を「罫線」「背景」と数えると誤検出になる（実測で判明）。
+  const cls = classAttr[1]
+    .split(/\s+/)
+    .filter((token) => !token.includes(":"))
+    .join(" ");
+  for (const { name, re } of SURFACE_PATTERNS) {
+    if (!re.test(cls)) continue;
+    const why = allowedFor(file, line);
+    const entry = { file, line: lineNumber, kind: name, snippet: cls.slice(0, 70) };
+    return why
+      ? { ...entry, allowed: true, why: why.rule.why, decided: why.rule.decided, ruleIndex: why.index }
+      : { ...entry, allowed: false };
+  }
+  return null;
+}
+
+for (const file of files) {
+  // 🚨 **コメント行の className を判定に入れない**（2026-08-15 実測: 6 件が入っていた）。
+  //    いま違反 0 件なのは**まだ誰も面のクラスをコメントに書いていないから**で、
+  //    「`rounded-lg border bg-card` は面なので中に置かない」と**説明を書いた瞬間に赤くなる**。
+  //    ＝ **まだ出番が来ていない過検出**。しかも**経緯を残すほど赤くなる**という向きなので、
+  //    「消さずに経緯を残す」という決定と正面から衝突する。
+  //    stripComments は**行数を保つ**ので、報告する行番号はずれない。
+  const source = stripComments(readFileSync(resolve(root, file), "utf8"));
+  if (!rendersInsideSurface(file, source)) continue;
+
+  source.split("\n").forEach((line, i) => {
+    const found = scanLine(file, line, i + 1);
+    if (!found) return;
+    if (found.allowed) allowed.push(found);
+    else hits.push(found);
   });
+}
+
+// ── 自己検査（囮）。**両方向を置く**（検出できること／検出してはいけないこと）──────
+{
+  // 🚨 **規則ごとに囮を分ける**（司令塔 2026-08-15・分類⑤「安全網が受け止めている」）。
+  //    実測: 囮を 1 本にして `rounded-lg border bg-card p-4` を使っていたとき、
+  //    **「囲む罫線」だけを殺しても「面の背景」が同じ文字列を拾い、検査は緑のまま**だった
+  //    （出力の種別は「囲む罫線」→「面の背景」に変わったが、**✅ と exit=0 は動かなかった**）。
+  //    ＝ **規則が 3 つあるのに囮が 1 本しか無ければ、2 つ死んでも気づけない。**
+  //    各囮は**その規則だけに当たる文字列**にしてある。
+  const PROBES = [
+    { rule: "囲む罫線", cls: "rounded-lg border p-4" },
+    { rule: "面の背景", cls: "bg-card p-4" },
+    { rule: "影", cls: "shadow-md p-4" },
+  ];
+  const probe = 'className="rounded-lg border bg-card p-4"';
+  const positive = scanLine("zz-probe.tsx", `  <div ${probe} />`, 1);
+  const perRule = PROBES.map((p) => {
+    const hit = scanLine("zz-probe.tsx", `  <div className="${p.cls}" />`, 1);
+    return { ...p, hit, ok: Boolean(hit) && hit.kind === p.rule && hit.allowed === false };
+  });
+  // 🚨 逆方向: **コメントの中に同じ文字列**。拾ったら、経緯の説明文を違反として数えている。
+  const negative = scanLine("zz-probe.tsx", stripComments(`  // 面の例: <div ${probe} />`), 1);
+  // 🚨 **囮(-)が空振りでないことも確かめる。** 潰す前の生のコメント行を同じ関数に通して
+  //    **拾うこと**を見ておかないと、「拾わない」が「そもそも何も見ていない」と区別できない。
+  const negativeRaw = scanLine("zz-probe.tsx", `  // 面の例: <div ${probe} />`, 1);
+  // 🚨 **囮(+) は「検出された」だけでなく「違反として報告される」まで見る。**
+  //    「検出されたが許容された」でも Boolean(positive) は真になるので、
+  //    **ALLOW を壊しても囮(+) が落ちない**＝この囮だけを落とす壊し方が無い状態だった
+  //    （司令塔 2026-08-15「その囮だけが落ちる壊し方が別に 1 つでも在るか」）。
+  //    `allowed === false` まで見ると、**ALLOW を全一致にする壊し方で囮(+) だけが落ちる。**
+  const ok = Boolean(positive) && positive.allowed === false && !negative && Boolean(negativeRaw)
+    && perRule.every((r) => r.ok);
+  console.log("自己検査:");
+  console.log(`  ${positive && positive.allowed === false ? "✅" : "🚨"} 囮(+): 実コードの ${probe} → ` +
+    `${positive ? `検出（${positive.kind}）${positive.allowed ? "🚨 だが許容された" : "・違反として報告"}` : "検出できず"}`);
+  // 🚨 **否定の囮は、実装が死ぬと「✅ 拾わない」と表示されてしまう**（司令塔 2026-08-15）。
+  //    実測: SURFACE_PATTERNS を空にした写しで、囮(+) は 🚨 になったが**囮(-) は ✅ のまま**だった。
+  //    → **空振りでないこと（潰さなければ拾う）まで満たしたときだけ ✅ にする。**
+  for (const r of perRule) {
+    console.log(`  ${r.ok ? "✅" : "🚨"} 囮(+/${r.rule}): className="${r.cls}" → ` +
+      `${r.hit ? `検出（${r.hit.kind}）${r.hit.allowed ? "🚨 だが許容された" : ""}` : "🚨 検出できず"}`);
+  }
+  console.log(`  ${!negative && negativeRaw ? "✅" : "🚨"} 囮(-): **コメントの中**の同じ文字列 → ${negative ? "🚨 拾ってしまう" : "拾わない"}` +
+    `（🟢 潰さなければ ${negativeRaw ? "拾う＝この囮は空振りではない" : "🚨 拾わない＝囮が効いていない"}）`);
+  if (!ok) {
+    console.error("🚨 自己検査に失敗しました。**この検査の結果は信用できません**。");
+    process.exit(1);
+  }
 }
 
 console.log(`対象: 面の中で描かれる ${files.length} 本を走査`);

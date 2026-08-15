@@ -15,6 +15,9 @@
  *      同じ見た目になる）。対象が 0 件なら、それ自体を失敗として扱う。
  */
 
+import { execFileSync } from "node:child_process";
+
+import { stripComments } from "./strip-comments.mjs";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,7 +31,15 @@ if (!existsSync(actionsPath)) {
   process.exit(1);
 }
 
-const src = readFileSync(actionsPath, "utf8");
+// 🚨 **検出器は 2 つある。両方に当てる**（司令塔 2026-08-15）。
+//    ①「呼び出し側のソース」（下の `code`）には先にコメント除去を入れたが、
+//    ②「この表そのもの」には当てていなかった。
+//    実測（囮を**表の中**に置いて確認）: コメントアウトした定義を 1 件足すと
+//      生ソース … labelKey **28 件（拾う）** ／ 除去後 … 27 件（拾わない）
+//    ＝ **コメントアウトした定義を、生きている定義として数えていた**。
+//    いま差 0 なのは、まだ誰もコメントアウトしていないだけ（＝まだ出番が来ていない過検出）。
+//    🚨 囮を最初 `export const PAGE_ACTIONS` の**前**に置いて、**範囲外で何も試していなかった**。
+const src = stripComments(readFileSync(actionsPath, "utf8"));
 
 // ── 定義を取り出す ──────────────────────────────────────────
 // 🚨 `PAGE_ACTIONS` の中だけを見る。型定義（PageActionDef）や docstring の
@@ -85,8 +96,21 @@ const sources = [];
   }
 })(root);
 
-const code = sources.map((f) => readFileSync(f, "utf8")).join("\n");
+// 🚨 **コメントを実装として数えない**（2026-08-15 実測。詳細は strip-comments.mjs）。
+const code = sources.map((f) => stripComments(readFileSync(f, "utf8"))).join("\n");
 if (sources.length === 0) problems.push("[空振り] 走査対象のソースが 0 件");
+
+// 🚨 **採取した HEAD と作業ツリーの状態を出す**（司令塔 2026-08-15）。
+//    共有ツリーでは数分で HEAD も件数も動く。出力だけを渡された人が
+//    「いつのツリーの話か」を知る手段が無いと、**別の場所を直す**。
+// 🚨 見ていない範囲: 数えるのは **この検査が見る範囲の未コミット変更だけ**（ツリー全体ではない）。
+{
+  const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  const dirty = execFileSync("git", ["status", "--porcelain", "--", "app", "components", "lib/admin"],
+    { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean).length;
+  console.log(`採取: HEAD ${head} / cwd ${process.cwd()} / この検査が見る範囲の未コミット変更 ${dirty} 件`);
+  console.log(`  見る範囲: lib/admin/page-actions.ts・lib/admin/page-meta.ts と ${sources.length} 本の .ts/.tsx`);
+}
 
 for (const id of new Set(formIds)) {
   // <form の直後から、最初の > までの間に id="<id>" があること

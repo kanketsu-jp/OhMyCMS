@@ -32,6 +32,9 @@
  * あることまで見る（id を書き間違えると、押しても黙って何も起きないため）。
  */
 
+import { execFileSync } from "node:child_process";
+
+import { stripComments } from "./strip-comments.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,6 +45,17 @@ const actionsPath = resolve(root, "lib/admin/page-actions.ts");
 if (!existsSync(actionsPath)) {
   console.error("■ lib/admin/page-actions.ts が無い");
   process.exit(1);
+}
+
+// 🚨 **採取した HEAD と作業ツリーの状態を出す**（司令塔 2026-08-15）。
+//    共有ツリーでは HEAD が数分で動く（実測: 同じ夜に 9df2aca → cb3a5ba → 3d49196）。
+// 🚨 見ていない範囲: 数えるのは **この検査が見る範囲の未コミット変更だけ**。
+{
+  const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  const dirty = execFileSync("git", ["status", "--porcelain", "--", "lib/admin", "app", "components"],
+    { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean).length;
+  console.log(`採取: HEAD ${head} / この検査が見る範囲の未コミット変更 ${dirty} 件`);
+  console.log("  見る範囲: lib/admin/page-actions.ts と app/・components/ 配下の呼び出し");
 }
 
 const src = readFileSync(actionsPath, "utf8");
@@ -121,7 +135,10 @@ for (const { route, entries, forms } of declarations) {
   let calls = 0;
   const formsSeen = new Set();
   for (const file of files) {
-    const body = readFileSync(file, "utf8");
+    // 🚨 **コメントを実装として数えない**（2026-08-15 実測）。
+    //    `form="collection-delete-form"` を**コメントが供給**していて、
+    //    実装行を消しても検査が緑のままだった（メモリ上で再現済み）。
+    const body = stripComments(readFileSync(file, "utf8"));
     const hits = body.match(/<PageAction\b/g);
     if (!hits) continue;
     calls += hits.length;
