@@ -45,6 +45,30 @@ jobs:
           fi
           rm -f .env
 
+  checks:
+    # 🚨 lefthook の検査を CI でも走らせる（2026-08-15・schema）。
+    #    実測: これを足すまで **CI は lefthook の 19 本を1つも走らせていなかった**
+    #    （`ci.yml` の `check-` は `git check-ignore` の1件・`lefthook` はコメント1件だけ）。
+    #    そして開発者の PC 側も、`node_modules` に lefthook が無いと
+    #    `Can't find lefthook in PATH` の1行を出して **exit 0 で通る**（フックを /tmp へ複製して実測）。
+    #    ＝ **検査が「どこでも走っていない」状態が作れてしまう**ので、押した先で必ず走る場所に置く。
+    # 🚨 一覧をここに書かない。`lefthook.yml` が唯一の正のままにして、
+    #    **足した検査が自動で CI にも載る**ようにする（二重管理にすると必ず片方が腐る）。
+    # 実測（ローカル）: `bunx lefthook run pre-commit --all-files` → exit 0 / 5 秒 / 21 項目すべて ✔️
+    name: リポジトリの検査（lefthook）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: pre-commit の検査を全ファイルへ
+        run: bun x lefthook run pre-commit --all-files
+
   build:
     name: ビルドと lint
     runs-on: ubuntu-latest
