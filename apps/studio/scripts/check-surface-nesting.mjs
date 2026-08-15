@@ -38,14 +38,19 @@ const SURFACE_PATTERNS = [
  */
 const ALLOW = [
   // 警告・エラーの箱。色で意味を持つので面1つとして許容（ページ直下に置く前提）
-  { file: /error-banner\.tsx$/, why: "エラー表示。色で意味を持つ箱" },
-  { pattern: /destructive/, why: "警告色の箱（エラー・失効トークン等）" },
+  { file: /error-banner\.tsx$/, why: "エラー表示。色で意味を持つ箱",
+    decided: "決定/2026-08-13/design（色で意味を持つ箱は面1つぶんとして数える）" },
+  { pattern: /destructive/, why: "警告色の箱（エラー・失効トークン等）",
+    decided: "決定/2026-08-13/design（同上）" },
   // メディアの受け皿。画像のレターボックスに背景が要る
-  { pattern: /aspect-square|min-h-80|object-contain/, why: "メディアの受け皿" },
+  { pattern: /aspect-square|min-h-80|object-contain/, why: "メディアの受け皿",
+    decided: "決定/2026-08-13/design（画像のレターボックスに背景が要る）" },
   // モーダルは面が1段重なってよい（surface-rules §4）
-  { file: /dialog\.tsx$/, why: "モーダル。面が重なってよい唯一の例外" },
+  { file: /dialog\.tsx$/, why: "モーダル。面が重なってよい唯一の例外",
+    decided: "決定/2026-08-13/design（surface-rules §4。**唯一の例外**と明記されている）" },
   // 素材（shadcn の部品そのもの）
-  { file: /components\/ui\/(?!surface)/, why: "UI 部品そのものの見た目" },
+  { file: /components\/ui\/(?!surface)/, why: "UI 部品そのものの見た目",
+    decided: "決定/2026-08-13/design（shadcn の素材そのもの。面の判断はページ側で行う）" },
   // 🚨 画面に固定されたバー。position:fixed は out of flow なので、
   // DOM 上どこに書かれていても**面の中には入らない**（親の面の上に重なるのではなく、画面に貼られる）。
   // かつ不透明でないと下の内容が透けるため、背景は必須。ページ本体と同じ bg-background を使う。
@@ -55,13 +60,14 @@ const ALLOW = [
   {
     pattern: /\bfixed\b[^"']*\binset-x-0\b|\binset-x-0\b[^"']*\bfixed\b/,
     why: "画面に固定されたバー（out of flow なので面の中に入らない）",
+    decided: "決定/2026-08-13/design（SP の下部ナビで**正解を違反と報告した**ため。憲章 §1）",
   },
 ];
 
 function allowedFor(file, line) {
   for (const rule of ALLOW) {
-    if (rule.file && rule.file.test(file)) return rule.why;
-    if (rule.pattern && rule.pattern.test(line)) return rule.why;
+    if (rule.file && rule.file.test(file)) return rule;
+    if (rule.pattern && rule.pattern.test(line)) return rule;
   }
   return null;
 }
@@ -102,7 +108,7 @@ for (const file of files) {
       if (!re.test(cls)) continue;
       const why = allowedFor(file, line);
       const entry = { file, line: i + 1, kind: name, snippet: cls.slice(0, 70) };
-      if (why) allowed.push({ ...entry, why });
+      if (why) allowed.push({ ...entry, why: why.why, decided: why.decided });
       else hits.push(entry);
       break;
     }
@@ -110,7 +116,20 @@ for (const file of files) {
 }
 
 console.log(`対象: 面の中で描かれる ${files.length} 本を走査`);
-console.log(`許容した面: ${allowed.length} 件（エラー箱・メディア・モーダル・UI部品）`);
+// 🚨 **内訳を出す。** 件数だけだと、8 行目の例外が足されて違反を飲み込み始めても
+//    「許容した面: N 件」が増えるだけで、**緑のまま気づけない**。
+//    どの例外が何件効いたかを毎回出せば、増えたものが目に入る。
+console.log(`許容した面: ${allowed.length} 件`);
+const byRule = new Map();
+for (const a of allowed) byRule.set(a.why, (byRule.get(a.why) ?? 0) + 1);
+for (const [why, count] of [...byRule].sort((a, b) => b[1] - a[1])) {
+  const rule = ALLOW.find((r) => r.why === why);
+  console.log(`    ${String(count).padStart(3)} 件  ${why}  [${rule?.decided ?? "🚨 決定の記録が無い"}]`);
+}
+// 🚨 一度も効かなかった例外も出す（**使われていない例外は、消せる／根拠が古い可能性がある**）。
+for (const rule of ALLOW) {
+  if (!byRule.has(rule.why)) console.log(`      0 件  ${rule.why}  [${rule.decided ?? "🚨 決定の記録が無い"}]`);
+}
 console.log(`🚨 面の中の生の面: ${hits.length} 件`);
 
 if (hits.length > 0) {
