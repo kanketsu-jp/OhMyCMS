@@ -1,6 +1,7 @@
 {
   "app_description": "A self-hosted CMS where collections are added from the admin UI",
   "app_name": "OhMyCMS",
+  "back": "Back",
   "close": "Close",
   "copy_button": "Copy",
   "copy_button_copied": "Copied",

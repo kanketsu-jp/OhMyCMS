@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronDownIcon } from "lucide-react";
+import { EllipsisIcon } from "lucide-react";
 
 import {
   Breadcrumb,
@@ -9,6 +9,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,23 +52,32 @@ export function Breadcrumbs({ brand }: { brand: string }) {
   if (!current) return null;
 
   return (
+    // 🚨 **ここに `flex-1` を足さないこと。** 一度足して、design の実測で外した（2026-08-15）。
+    //    「SP でパンくずが潰れる」の対策として提案されていたが、**1 変更ずつ戻して測ると 1 件も減らなかった**:
+    //      両方とも修正前                → 幅0 が 4 件
+    //      breadcrumbs の flex-1 のみ    → 幅0 が 4 件（**変わらない**）
+    //      page-action のみ              → 幅0 が 0 件
+    //    真因は `babb715` で修正済み——`#header-primary-action` が SP でも出ていて、
+    //    PC 用の文字ボタンが下部ナビと二重になり、**パンくずより先に幅を取っていた**。
+    //    名前の長さは無関係（63 文字＝識別子の上限でも潰れ 0）。
+    //    もし将来レイアウトの都合で `flex-1` が要るなら、**「潰れの対策ではない」と書いて足すこと**。
     <Breadcrumb aria-label={t("nav.breadcrumb_label")} className="min-w-0">
       <BreadcrumbList className="flex-nowrap gap-1">
         {parents.length > 0 ? (
-          <BreadcrumbItem>
+          <BreadcrumbItem className="min-w-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
+                <Button
                   type="button"
-                  aria-label={t("nav.breadcrumb_parents")}
-                  // 🚨 **指で押せる大きさを持たせる**（憲章 §7 の 44px）。
-                  //    アイコンは小さいままでよいが、**当たり判定は縦も横も 44px**にする。
-                  //    `size-6`（24px）だと SP で押せない（design が14ページ分を実測）。
-                  //    アイコンを大きくするのではなく、箱を広げるのが正しい。
-                  className="flex min-h-(--control-h) min-w-(--control-h) items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:min-h-(--control-h-pc) md:min-w-(--control-h-pc)"
+                  variant="secondary"
+                  className="min-w-0"
                 >
-                <ChevronDownIcon className="size-3.5" />
-                </button>
+                  <EllipsisIcon aria-hidden="true" className="size-3.5" />
+                  {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
+                  <BreadcrumbPage title={current.label} className="block min-w-0 truncate">
+                    {shorten(current.label)}
+                  </BreadcrumbPage>
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuGroup>
@@ -88,14 +98,14 @@ export function Breadcrumbs({ brand }: { brand: string }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </BreadcrumbItem>
-        ) : null}
-
-        <BreadcrumbItem className="min-w-0">
-          {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
-          <BreadcrumbPage title={current.label} className="truncate">
-            {shorten(current.label)}
-          </BreadcrumbPage>
-        </BreadcrumbItem>
+        ) : (
+          <BreadcrumbItem className="min-w-0">
+            {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
+            <BreadcrumbPage title={current.label} className="truncate">
+              {shorten(current.label)}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        )}
       </BreadcrumbList>
     </Breadcrumb>
   );

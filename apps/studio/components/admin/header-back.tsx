@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
+import { Undo2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
@@ -18,7 +18,7 @@ import { useT } from "@/i18n/client";
  *
  * 🚨 ショートカットの表示は **PC だけ**。SP にキーボードは無い。
  * 🚨 組み合わせは `shortcuts.ts` から読む（ここに書かない）。
- * 🚨 名前は辞書（`common.shortcut_back`）、記号は `formatShortcut`（辞書ではなく実行環境で決まる）。
+ * 🚨 名前は辞書（`common.back`）、記号は `formatShortcut`（辞書ではなく実行環境で決まる）。
  */
 export function HeaderBack() {
   const t = useT("common");
@@ -32,12 +32,11 @@ export function HeaderBack() {
     <Button
       type="button"
       variant="ghost"
-      size="sm"
       onClick={goBack}
-      aria-label={t("shortcut_back")}
-      className="text-muted-foreground"
+      className="min-w-0 text-muted-foreground"
     >
-      <ArrowLeftIcon />
+      <Undo2Icon aria-hidden="true" />
+      <span className="truncate">{t("back")}</span>
       <Kbd className="hidden md:inline-flex">{formatShortcut(SHORTCUTS.back, isMac)}</Kbd>
     </Button>
   );
