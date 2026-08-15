@@ -58,7 +58,7 @@ export function AvatarEmojiGrid({ current }: GridProps) {
           type="button"
           disabled={select.isPending(emoji)}
           onClick={() => void select.run(emoji)}
-          className="relative flex aspect-square items-center justify-center rounded-lg text-2xl hover:bg-accent disabled:opacity-50"
+          className="relative flex aspect-square items-center justify-center rounded-lg text-2xl hover:bg-accent active:bg-accent disabled:opacity-50"
         >
           {emoji}
           {/* 🚨 現在地は塗りでなく `✓`（憲章 §3b）。塗ると面が増える。 */}
