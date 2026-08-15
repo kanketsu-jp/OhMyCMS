@@ -16,6 +16,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { globSync } from "node:fs";
 import { resolve } from "node:path";
 import { ROOT as root, flatten, loadDictionary } from "./i18n-load.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 // 辞書は名前空間ごとのファイル。組み立ては i18n-load.mjs に集約している。
 const defined = flatten(loadDictionary("ja"));
@@ -27,7 +28,14 @@ const missing = [];
 const dynamic = []; // 静的に解決できない呼び出し
 
 for (const file of files) {
-  const source = readFileSync(resolve(root, file), "utf8");
+  // 🚨 コメントを潰してから探す。潰さないと両方向に壊れる（2026-08-16 実測）:
+  //    ・JSDoc に書いた使用例 `t("…")` を「呼んでいるのに辞書に無い」として **exit=1**
+  //      → 例を書いた 1 人が、全員のコミットを止める
+  //    ・コメントに鍵を書くと「使われている」に数えられ、**死んだ鍵が掃除候補から消える**
+  //      （実測: 未使用 20 → 19。**exit は 0 のまま**なので誰も気づけない）
+  //    後者のほうが重い（前者はうるさいだけ、後者は黙って隠す）。
+  //    行番号は保たれる（stripComments は空白へ潰すだけ）ので、報告の file:line は変わらない。
+  const source = stripComments(readFileSync(resolve(root, file), "utf8"));
 
   // 1) 名前空間の束縛を集める: const X = await getT("ns") / const X = useT("ns")
   //    名前空間なしの場合は "" を入れる。
