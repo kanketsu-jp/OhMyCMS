@@ -381,6 +381,46 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+/**
+ * 行ごとの操作で keyOf を忘れていないか（1行を消している間に他の行が押せなくなる）を疑う。
+ * `NAME.run(引数あり)` を使っているのに `NAME.isPending(` が一度も出てこない名前を、
+ * ファイル内で重複を除いて返す。
+ *
+ * 🚨 このスキャンには comment 対応が漏れていた（2026-08-16 発覚）。1つ目のスキャン
+ * （method: を探す findMutationLines）を computeCommentRanges で直したとき、同じファイルに
+ * ある2つ目のこのスキャンには適用し忘れていた——レキサ自体は既にこのファイルにあるのに、
+ * 呼び忘れただけ。生ソースのまま読むと**両方向**で壊れる:
+ *   - `NAME.run(` がコメント（この検査の使用例を書いた JSDoc 等）の中にあると、
+ *     実装ではないものを「疑い」として報告する（誤報）。
+ *   - `NAME.isPending(` がコメントアウトされた／説明用に書かれたコードの中にあると、
+ *     単純な文字列一致（旧実装の `source.includes(...)`）がそれを「防御あり」と誤認し、
+ *     本物の疑いを黙って握りつぶす（検出漏れ。誤報より悪い——「疑いが無い」と言われたら
+ *     誰も見に行かない）。
+ * そのため commentRanges を再利用し、`run(` 側はコメント内ならスキップ、`isPending(` 側は
+ * 「コード内に1つでもあれば防御あり」とし、コメント内の出現だけでは防御ありと見なさない。
+ * 関数化したのは、この振る舞いを自己検査（下の壊し方6）から独立に呼べるようにするため。
+ */
+function findKeyOfSuspects(source) {
+  const commentRanges = computeCommentRanges(source);
+  const names = [];
+  for (const m of source.matchAll(/\b(\w+)\.run\(\s*[^)\s]/g)) {
+    if (isInsideCommentRanges(m.index, commentRanges)) continue; // コメントの中は実装ではない
+    const name = m[1];
+    if (names.includes(name)) continue;
+    const isPendingRe = new RegExp(`\\b${name}\\.isPending\\(`, "g");
+    let hasRealIsPending = false;
+    let pm;
+    while ((pm = isPendingRe.exec(source))) {
+      if (!isInsideCommentRanges(pm.index, commentRanges)) {
+        hasRealIsPending = true;
+        break;
+      }
+    }
+    if (!hasRealIsPending) names.push(name);
+  }
+  return names;
+}
+
 const unguarded = [];
 const guarded = [];
 const suspects = [];
@@ -410,11 +450,7 @@ for (const file of files) {
     else guarded.push(entry);
   }
 
-  // 🚨 行ごとの操作で keyOf を忘れていないか（1行を消している間に他の行が押せなくなる）。
-  // `NAME.run(引数あり)` を使っているのに `NAME.isPending(` が一度も出てこないものを疑う。
-  for (const m of source.matchAll(/\b(\w+)\.run\(\s*[^)\s]/g)) {
-    const name = m[1];
-    if (source.includes(`${name}.isPending(`)) continue;
+  for (const name of findKeyOfSuspects(source)) {
     if (suspects.some((s) => s.file === file && s.name === name)) continue;
     suspects.push({ file, name });
   }
@@ -611,6 +647,45 @@ for (const test of selfTests) {
   console.log(`  ${ok ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${detected} 件（期待 ${expected} 件）`);
   if (count === 0) {
     console.error("     ↑ 置換が 0 件。壊せていないので、この結果は何も確かめていない。");
+  }
+  if (!ok) selfTestFailed = true;
+}
+
+// 🚨 壊し方6: 2つ目の検出（keyOf 忘れ疑い・findKeyOfSuspects）の自己検査（2026-08-16 追加）。
+// 1つ目の検出（method:）を直したときにこちらへの適用を忘れていた実例そのものなので、
+// 「1つ目を直したら5つの自己検査は全部通っていたのに、2つ目は誰も測っていなかった」を
+// 二度と繰り返さないよう、専用のベースラインと壊し方でここに固定する。
+// ここで確かめたいのは壊し方1〜5とは逆方向: 「コメントアウトされた isPending( が、
+// 本物の疑い（コード側の run(）を黙って消してしまわないか」。ベースラインは
+// isPending が一切無い＝1件検出されるはずの最小形。そこへコメントアウトした
+// isPending( を足しても、検出件数が変わらない（＝コメントは防御として数えない）ことを期待する。
+const KEYOF_BASELINE = [
+  "export function RemoveButton() {",
+  "  async function handleRemove(id) {",
+  "    await remove.run(id);",
+  "  }",
+  "  return null;",
+  "}",
+  "",
+].join("\n");
+const KEYOF_NEEDLE = "  return null;";
+const keyofBaselineDetections = findKeyOfSuspects(KEYOF_BASELINE).length; // isPending が無いので 1 のはず
+
+console.log("\n■ 自己検査（keyOf 忘れ疑いの検出・コメント対応）");
+{
+  const name = "壊し方6: コメントアウトした isPending( を足す → 検出件数は変わらない（防御と誤認しない）";
+  const count = countOccurrences(KEYOF_BASELINE, KEYOF_NEEDLE);
+  const after = KEYOF_BASELINE.replaceAll(KEYOF_NEEDLE, `    // remove.isPending(id);\n${KEYOF_NEEDLE}`);
+  const detected = findKeyOfSuspects(after).length - keyofBaselineDetections;
+  const expected = 0; // コメント内の isPending は防御として数えないので、追加前後で検出件数は不変
+  const ok = count > 0 && keyofBaselineDetections === 1 && detected === expected;
+
+  console.log(`  ${ok ? "✅" : "❌"} ${name}  ベースライン ${keyofBaselineDetections} 件 → 追加後の差分 ${detected} 件（期待 ${expected} 件）`);
+  if (count === 0) {
+    console.error("     ↑ 置換が 0 件。壊せていないので、この結果は何も確かめていない。");
+  }
+  if (keyofBaselineDetections !== 1) {
+    console.error(`     ↑ ベースライン自体が1件検出のはずが ${keyofBaselineDetections} 件だった。ベースラインが壊れている。`);
   }
   if (!ok) selfTestFailed = true;
 }
