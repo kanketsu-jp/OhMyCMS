@@ -80,6 +80,8 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   "/admin/reports/manage": { titleKey: "reports.nav_manage" },
   "/admin/reports/[id]": { titleKey: "reports.title" },
 
+  "/admin/profile": { titleKey: "nav.profile" },
+
   "/admin/settings/general": { titleKey: "settings.title", descriptionKey: "settings.description" },
   "/admin/settings/agents": { titleKey: "agents.title", descriptionKey: "agents.description" },
   "/admin/settings/mcp": { titleKey: "mcp.title", descriptionKey: "mcp.description" },
