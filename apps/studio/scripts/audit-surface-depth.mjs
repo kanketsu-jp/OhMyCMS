@@ -859,6 +859,23 @@ function connect(url) {
   };
 }
 
+/**
+ * 🚨 **接続できていないのか、別のページへ飛ばされたのかを分ける**（2026-08-15）。
+ *
+ * Chrome は**接続不可でも自前のエラーページへ遷移して load が発火する**ので、
+ * 着地先だけを見ると「別の場所に着いた」に見える。実測: `--base http://localhost:3199`
+ * （何も待ち受けていないポート）で「**別の場所に着きました: /**」と出ていた。
+ * 🚨 **サーバが落ちていても、ブラウザは「読み込めた」と言う。**
+ * これが base2 の「パンくずが見つからない → 実装が壊れた」と読みかけた形の正体。
+ */
+function landingReason(landed) {
+  if (typeof landed === "string" && landed.startsWith("chrome-error://")) {
+    return "🚨 サーバへ接続できていません（Chrome のエラーページに着いています）。--base のポートで待ち受けているか確かめてください";
+  }
+  if (landed === "/login") return "ログインしていません（--session のトークンが切れている可能性）";
+  return `別の場所に着きました: ${landed}`;
+}
+
 async function navigateAndSettle(cdp, path) {
   await cdp.send("Page.navigate", { url: BASE + path });
   // 🚨 固定待ちにしない。dev サーバは初回アクセスでルートをコンパイルするので、
@@ -869,7 +886,10 @@ async function navigateAndSettle(cdp, path) {
   let landed = target;
   for (let i = 0; i < 40; i++) {
     const { result } = await cdp.send("Runtime.evaluate", {
-      expression: `({ ready: document.readyState, path: location.pathname })`,
+      // 🚨 `location.pathname` だけを見ない。**Chrome のエラーページでは `/` になる**ので、
+      //    接続不可が「別の場所に着いた」と同じ顔になる（2026-08-15 実測）。
+      //    `protocol` を一緒に採ると `chrome-error:` で見分けられる。
+      expression: `({ ready: document.readyState, path: location.protocol === "chrome-error:" ? "chrome-error://" + location.pathname : location.pathname })`,
       returnByValue: true,
     });
     landed = result.value.path;
@@ -1063,7 +1083,7 @@ async function discoverDynamicPaths(cdp) {
     if (!nav.settled) {
       const why = nav.landed === "/login"
         ? "ログインしていません（--session のトークンが切れている可能性）"
-        : `別の場所に着きました: ${nav.landed}`;
+        : landingReason(nav.landed);
       byList.push({ path: listPath, ok: false, hrefs: [], why });
       log(`  検索元: ${listPath} → 🚨 開けず（${why}）。この一覧の href は検索していません`);
       continue;
@@ -1326,9 +1346,7 @@ for (const vp of VIEWPORTS) {
     cdp.clearEvents();
     const { settled, landed } = await navigateAndSettle(cdp, path);
     if (!settled) {
-      const why = landed === "/login"
-        ? "ログインしていません（--session のトークンが切れている可能性）"
-        : `別の場所に着きました: ${landed}`;
+      const why = landingReason(landed);
       console.error(`  🚨 ${vp.name} ${path}: ${why} → この行は測定していません`);
       report[`${vp.name} ${path}`] = { skipped: true, landed };
       violations.push({ key: `${vp.name} ${path}`, rule: "測定不能", detail: why });
