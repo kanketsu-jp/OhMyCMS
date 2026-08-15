@@ -1170,6 +1170,9 @@ async function inspectDataFixtures() {
   if (!primary) {
     log("  🚨 **行のあるコレクションがありません。** この監査は「空のデータについての結果」しか出せません。");
     log("     直し方: 管理画面か API でコレクションを 1 つ作り、行を 1 件入れてから測り直してください。");
+    // ここで作る zz_* は、あとから「検証用のゴミ」に見える。
+    // 常設にするなら knowledge/decisions/permanent-fixtures-are-not-junk.md の表に足すこと
+    // （表に無いものは次の掃除で消える。消す前の手順も同じ文書にある）。
     log("       curl -X POST <base>/api/collections -H 'content-type: application/json' -d '{\"collection\":\"zz_probe\"}'");
     log("       curl -X POST <base>/api/items/zz_probe -H 'content-type: application/json' -d '{}'");
     return { measured: false, why: "行のあるコレクションが 1 つも無い", counts, targets, blocking: true };
