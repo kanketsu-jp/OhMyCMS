@@ -76,20 +76,44 @@ const ci = read(".github/workflows/ci.yml");
  *   `DETECTED_DIRTY` / `dirty の出どころ`）に `#` は含まれないので、切っても消えない
  *   （**含まれていたら対照が落ちて検査ごと失敗する**ので、黙って通ることはない）。
  */
-const 実コード = dockerfile.text
+const コメントを落とす = (text) => text
   .split("\n")
   .map((line) => line.split("#")[0])
   .join("\n");
+
+// ── コメント除去そのものの自己検査 ─────────────────────────
+// 🚨 **「検出されるべきもの」だけを並べない。「検出されてはいけないもの」を必ず入れる**
+//    （2026-08-15）。逆方向が無いと**過検出は永久に捕まらない**。
+//    私はこの検査で実際に過検出を出している（`check-ignore\s+--no-index` の続き文字で
+//    見ていて、`git check-ignore -q --no-index` を違反と言った）。
+{
+  const 見本 = [
+    "# update-index --skip-worktree ← 行まるごとコメント",
+    "  RUN true # update-index --skip-worktree ← 行の途中から",
+    "  RUN git update-index --skip-worktree -- \"$tracked\"",
+  ].join("\n");
+  const 除去後 = コメントを落とす(見本);
+  const 回数 = (除去後.match(/update-index\s+--skip-worktree/g) ?? []).length;
+  // 🚨 検出されて**はいけない**もの（コメントの中の、それらしい文字列）が 2 件ある。
+  //    実コードは 1 行だけなので、正しく落ちていれば **ちょうど 1**。
+  if (回数 !== 1) {
+    console.error(`✖ 自己検査に失敗: コメントの中まで数えています（期待 1・実際 ${回数}）`);
+    console.error("  🚨 この検査は「コメントに書いただけ」を実装として通します。判定は出しません。");
+    process.exit(2);
+  }
+  console.log(`自己検査: コメント除去 OK（見本 3 行中、実コードだけ 1 件を検出）`);
+}
+
+const 実コード = コメントを落とす(dockerfile.text);
 
 const 行 = dockerignore.text.split("\n").map((l) => l.trim());
 
 // 🚨 YAML も**同じ切り方**でコメントを落とす（コメントに `GIT_DIRTY` と書いただけで違反にしない）。
 //    対象行 `--build-arg GIT_SHA=${{ github.sha }}` に `#` は無いので、切っても消えない
 //    （消えたら対照が落ちて検査ごと失敗するので、黙って通ることはない）。
-const CI実コード = ci.text
-  .split("\n")
-  .map((line) => line.split("#")[0])
-  .join("\n");
+// 🚨 Dockerfile と**同じ関数**を使う（YAML も `#` がコメント）。
+//    同じ処理を2回書くと、片方だけ直したときに**静かに食い違う**。
+const CI実コード = コメントを落とす(ci.text);
 
 // 🚨 **出どころは人に書かせず、計器に言わせる**（貼り付ける人が毎回書く形は、忙しいときに落ちる）
 const head = (() => {

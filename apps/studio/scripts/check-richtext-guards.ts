@@ -205,6 +205,40 @@ function stripComments(source: string): string {
   return out;
 }
 
+// ── コメント除去そのものの自己検査 ─────────────────────────
+// 🚨 **「検出されるべきもの」だけを並べない。「検出されてはいけないもの」を必ず入れる**
+//    （2026-08-15）。逆方向が無いと、**過検出は永久に捕まらない**。
+//    実際、私は今日 `check-build-info-guards.mjs` で
+//    「正しく書いてあるものを違反と言う」過検出を出している。
+{
+  const 見本 = [
+    '// Extension.create({ name: "richTextReservedKeys" })   ← 行コメント',
+    '/* priority: 1000 とブロックコメントの中 */',
+    'const url = "https://example.com//not-a-comment";',
+    'const 実装 = { priority: 1000, name: "richTextReservedKeys" };',
+  ].join("\n");
+  const 除去後 = stripComments(見本);
+
+  // 🚨 検出されて**はいけない**もの（コメントの中の、それらしい文字列）
+  check(
+    !除去後.includes("Extension.create"),
+    "自己検査: 行コメントの中の `Extension.create` を実コードとして数えている（過検出）",
+  );
+  check(
+    (除去後.match(/priority: 1000/g) ?? []).length === 1,
+    "自己検査: ブロックコメントの中の `priority: 1000` まで数えている（過検出）",
+  );
+  // 🚨 検出されて**ほしい**もの（＝除去が効きすぎて実コードを消していないこと）
+  check(
+    除去後.includes('name: "richTextReservedKeys" };'),
+    "自己検査: 実コードまで消している（除去が効きすぎ。これでは常に違反と出る）",
+  );
+  check(
+    除去後.includes("https://example.com//not-a-comment"),
+    "自己検査: 文字列の中の `//` をコメントとして切っている（実コードを消す）",
+  );
+}
+
 const editorSource = stripComments(editorSourceRaw);
 // 🟢 対照(+): コメント除去そのものが空振りしていないこと。
 //    除去して**必ず短くなる**（このファイルにはコメントが在る）。同じにしかならないなら
