@@ -21,7 +21,7 @@
  * 使い方: node scripts/check-system-label-names.mjs   （cwd は apps/studio）
  * 終了コード: 不足があれば 1 ／ 検査自体が壊れていれば 2
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const MIGRATION = "lib/db/migrations/20260815010000_create_labels_and_folder_color.ts";
@@ -51,6 +51,35 @@ function withoutComments(src) {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
     .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+}
+
+// 🚨 **決め打ちした 1 本の外で種まきされたら、この検査は何も言わない**（2026-08-16）。
+//    見逃す入力を自分で作って通したときに気づいた: 別の migration に `system_key` を
+//    書けば、**この検査は 1 行も読まないので緑のまま**になる。
+//    → 注記で済ませずに塞ぐ。**種まきしているファイルを数え、決め打ち以外が出たら落とす。**
+//    🚨 引用符の種類を問わない形で探す（`"` だけを見ていると、`'` で書かれた瞬間に見えない）。
+{
+  // 🚨 **`git ls-files` を使わない**（2026-08-16 実測）。台の上で RED を測ったら
+  //    **落ちなかった**——追加した migration が**未追跡**で、`git ls-files` に出なかったため。
+  //    種まきは「まだコミットしていない新しい migration」で入ってくるほうが普通なので、
+  //    **ディスクをそのまま読む**。（`.next` などの写しは、この 1 ディレクトリには入らない）
+  const dir = "lib/db/migrations";
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".ts"))
+    .map((f) => `${dir}/${f}`);
+  const seeding = files.filter((f) => /system_key\s*:/.test(withoutComments(readFileSync(f, "utf8"))));
+  console.log(`  種まきしている migration: ${seeding.length} 本 / 全 ${files.length} 本`);
+  // 🚨 対象を 1 本も読めていないなら、この検査は走っていないのと同じ。
+  if (files.length === 0) {
+    console.error("🚨 [S0] migration を 1 本も拾えていません。走っていないのと同じです");
+    process.exit(2);
+  }
+  const 外 = seeding.filter((f) => f !== MIGRATION);
+  for (const f of 外) {
+    console.error(`  🚨 [S3] ${f} でも system_key を種まきしています。**この検査は読んでいません**`);
+    console.error(`     → 27 行目の MIGRATION を配列にして、両方を読むようにしてください`);
+  }
+  if (外.length > 0) process.exit(1);
 }
 
 const seeded = [...new Set([...withoutComments(readFileSync(MIGRATION, "utf8")).matchAll(/system_key:\s*"(\w+)"/g)].map((m) => m[1]))];
@@ -84,6 +113,34 @@ for (const d of DICTS) {
     `      読んだ例 ${d}: ラベル名 ${forLabels.length} 件（${forLabels.join(", ") || "🚨 1 件も無い"}）` +
       ` ／ ラベル名でない system_* ${other.length} 件（${other.join(", ") || "なし"}）`,
   );
+}
+
+// ── 🚨 見逃す入力を、自分で作って通す（2026-08-16・design の形） ──────────
+//    RED / GREEN は「拾えるもの」しか確かめられない。**取りこぼしは数えられない**が、
+//    **作れば必ず在る**ので実演はできる。**思いつきで「見ていない範囲」を書かない。**
+//    🚨 [S3] は**別のファイル**での種まきを塞いだ。ここで残るのは
+//    **同じファイルの中で、書き方が違うとき**。
+{
+  const 抽出 = (src) =>
+    [...withoutComments(src).matchAll(/system_key:\s*"(\w+)"/g)].map((m) => m[1]);
+  const cases2 = [
+    ["単引用符で書く", `{ system_key: 'archived' }`],
+    ["変数から入れる", `const k = "archived";\n{ system_key: k }`],
+    ["コロンの前に空白", `{ system_key : "archived" }`],
+    ["ハイフンを含む鍵", `{ system_key: "source-missing" }`],
+  ];
+  console.log("  ── 🚨 この検査が見ていない書き方（**作って通した**。拾えたら ✅ に変わる）");
+  for (const [label, probe] of cases2) {
+    const n = 抽出(probe).length;
+    console.log(`     ${n > 0 ? "✅ 拾えた" : "🚨 見逃す"}  ${label}`);
+  }
+  // 🚨 対照が無いと、上の「見逃す」は「抽出そのものが動いていない」と区別が付かない。
+  const 対照 = 抽出(`{ system_key: "imported" }`).length;
+  console.log(`     ${対照 > 0 ? "🟢" : "❌"} 対照(+) 素直な形は拾う → ${対照} 件`);
+  if (対照 === 0) {
+    console.error("🚨 [S0] 対照が拾えていません。抽出が壊れています");
+    process.exit(2);
+  }
 }
 
 let bad = 0;

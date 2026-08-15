@@ -22,6 +22,25 @@
  * 🚨 **対象を2ファイルに絞っている。** 広げると他の担当のコミットを落とすため。
  *    増やすときは、増やした人が RED を測ってから増やすこと。
  *
+ * ── 🚨 **この検査が見ていない形**（2026-08-16。**思いつきでなく、作って通して確かめた**）──
+ *
+ * `export function` / `export async function` の**宣言だけ**を拾うので、次は**素通りする**:
+ * ```
+ * 🚨 export const zzLeak = async (): Promise<FileRow> => …   矢印関数を const で外へ出す
+ * 🚨 export default async function (): Promise<FileRow> …    名前の無い既定の書き出し
+ * 🚨 async function inner(): Promise<FileRow> …              別名を付けて書き出す
+ *    export { inner as zzLeak };
+ * 🚨 type ZzRow = FileRow;                                    型に別名を付けて隠す
+ *    export async function zzLeak(): Promise<ZzRow> …        （**返り値の字面が違う**ので
+ *                                                              関数は拾えても規則が当たらない）
+ * 🚨 export class ZzFiles { async get(): Promise<FileRow> … } class のメソッドとして出す
+ * ```
+ * **自己検査の中で毎回この 5 つを流している**（🟢 対照つき）。
+ * 拾えるようになったら表示が ✅ に変わるので、**そのとき上の一覧からも消すこと**。
+ *
+ * 🚨 **「取りこぼしの数」は出せない**（出てこないものは数えられない）。
+ *    出せるのは「**この形は取りこぼす**」という実演だけ。**それで十分に範囲を示せる。**
+ *
  * ── もう1つ見るもの: **ルートがサービスを迂回していないか** ──
  * 上の守り（`toPublicFile` / `toPublic`）は **サービスの出口**にしか無い。
  * `app/api/**` が `directus_files` を直接読んで返せば、`compressed_key` はそのまま出る。
@@ -263,6 +282,41 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
     }
   }
 
+
+  // ── 🚨 見逃す入力を、自分で作って通す（2026-08-16・design の形） ──────────
+  //
+  //    RED / GREEN / 1 対 1 は「**拾えるもの**」しか確かめられない。
+  //    🚨 **取りこぼしは出てこないので数えられない**——が、**作れば必ず在る**ので
+  //    「取りこぼす」ことは実演できる。**思いつきで「見ていない範囲」を書かない。**
+  //
+  //    🚨 ここが ✅ になったら（＝拾えるようになったら）、その行を消して構わない。
+  //    **残っている行が、この検査の穴の一覧**。
+  {
+    const cases = [
+      ["矢印関数を const で外へ出す",
+        "export const zzLeak = async (id: string): Promise<FileRow> => null as never;"],
+      ["名前の無い既定の書き出し",
+        "export default async function (id: string): Promise<FileRow> { return null as never; }"],
+      ["別名を付けて書き出す",
+        "async function zzInner(id: string): Promise<FileRow> { return null as never; }\nexport { zzInner as zzLeak };"],
+      ["型に別名を付けて隠す",
+        "type ZzRow = FileRow;\nexport async function zzLeak(id: string): Promise<ZzRow> { return null as never; }"],
+      ["class のメソッドとして出す",
+        "export class ZzFiles { async get(id: string): Promise<FileRow> { return null as never; } }"],
+    ];
+    console.log("  ── 🚨 この検査が見ていない形（**作って通した**。拾えたら ✅ に変わる）");
+    for (const [label, probe] of cases) {
+      const n = violationsIn(probe, "FileRow").length;
+      console.log(`     ${n > 0 ? "✅ 拾えた" : "🚨 見逃す"}  ${label}`);
+    }
+    // 🚨 **対照が無いと、上の「見逃す」は「関数が動いていない」と区別が付かない。**
+    const 対照 = violationsIn(
+      "export async function zzLeak(id: string): Promise<FileRow> { return null as never; }",
+      "FileRow",
+    ).length;
+    console.log(`     ${対照 > 0 ? "🟢" : "❌"} 対照(+) 素直な形は拾う → 違反 ${対照} 件`);
+    if (対照 === 0) ok = false;
+  }
 
   // 🚨 R5 / R6 の囮。**本物の `directTableUsesIn` を呼ぶ**（写しを書かない）。
   {
