@@ -16,7 +16,13 @@ import { setLocaleAction } from "@/i18n/actions";
 import { LOCALES } from "@/i18n/config";
 
 type Props = {
-  /** いま入っている人。取れなければ null */
+  /**
+   * いま入っている人の表示名（1行目）。取れなければ null。
+   * 🚨 省略可（`?`）にしない。`userAvatarEmoji` と同じ理由で、省略できると
+   * 渡し忘れた呼び出し側で `tsc` が黙って通り、画面だけ変わらない事故になる。
+   */
+  userName: string | null;
+  /** いま入っている人のメールアドレス（2行目）。取れなければ null（その行ごと出さない） */
   userLabel: string | null;
   /** SSO のプロフィール画像。取れなければ null */
   userPicture: string | null;
@@ -43,14 +49,16 @@ type Props = {
  *
  * 🚨 PC のサイドバー末尾も SP のドロワー末尾も画面の下端なので、メニューは常に上へ開く。
  */
-export function UserMenu({ userLabel, userPicture, userAvatarEmoji }: Props) {
+export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: Props) {
   const t = useT("nav");
   const tCommon = useT("common");
   const locale = useLocale();
   // 🚨 名前が出せないときの控えは「メニュー」ではなく「アカウント」。
   //    この行は**人のアカウントの行**なので、器の名前（メニュー）を出すと何の行か分からない。
   //    名前が出せない例: エージェント／起動用の内部ユーザー（`lib/admin/user-label.ts`）。
-  const label = userLabel ?? t("account");
+  //    🚨 控えは辞書の固定文言であって、メールアドレス（`userLabel`）を代用しない
+  //       （判断ボード 設問211。1行目＝名前・2行目＝メールという役割を保つ）。
+  const name = userName ?? t("account");
 
   return (
     <div className="shrink-0 border-t px-2 py-2">
@@ -67,7 +75,14 @@ export function UserMenu({ userLabel, userPicture, userAvatarEmoji }: Props) {
               ) : null}
               <AvatarFallback>{userAvatarEmoji}</AvatarFallback>
             </Avatar>
-            <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+            {/* 2行構成（判断ボード 設問211）: 1行目＝表示名（固定文言の控え）/ 2行目＝メール（無ければ行ごと省略）。
+                どちらも `truncate` + 親の `min-w-0` で、長い値でも 16rem のサイドバーからはみ出さない。 */}
+            <span className="flex min-w-0 flex-1 flex-col text-left">
+              <span className="truncate">{name}</span>
+              {userLabel ? (
+                <span className="truncate text-xs text-muted-foreground">{userLabel}</span>
+              ) : null}
+            </span>
             <ChevronsUpDown />
           </Button>
         </DropdownMenuTrigger>

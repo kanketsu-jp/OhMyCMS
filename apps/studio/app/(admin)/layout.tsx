@@ -165,6 +165,10 @@ export default async function AdminLayout({
         }
         collectionsError={collections?.ok ? null : t("collections_error")}
         reports={reportsNav}
+        // 🚨 表示名はまだ無い。auth が `displayUserName(me, locale)` を供えたら、
+        //    ここを null からその呼び出しに差し替えるだけで1行目に本名が出るようになる
+        //    （`UserMenu` 側は既に「表示名 → 無ければ辞書の控え」で組んである）。
+        userName={null}
         userLabel={displayUserLabel(me.ok ? me.data : null)}
         userPicture={displayUserPicture(me.ok ? me.data : null)}
         userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null)}
@@ -240,6 +244,10 @@ export default async function AdminLayout({
             : []
         }
         contentHeading={t("content_heading")}
+        // 🚨 表示名はまだ無い。auth が `displayUserName(me, locale)` を供えたら、
+        //    ここを null からその呼び出しに差し替えるだけで1行目に本名が出るようになる
+        //    （`UserMenu` 側は既に「表示名 → 無ければ辞書の控え」で組んである）。
+        userName={null}
         userLabel={displayUserLabel(me.ok ? me.data : null)}
         userPicture={displayUserPicture(me.ok ? me.data : null)}
         userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null)}

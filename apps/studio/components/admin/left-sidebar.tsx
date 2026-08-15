@@ -90,7 +90,9 @@ type Props = {
   collectionsError: string | null;
   /** 下部の「不具合報告」。中身は E 群が差し替える */
   reports: ReactNode;
-  /** いま入っている人。出せないなら null */
+  /** いま入っている人の表示名。出せないなら null */
+  userName: string | null;
+  /** いま入っている人のメールアドレス。出せないなら null */
   userLabel: string | null;
   /** SSO のプロフィール画像。出せないなら null */
   userPicture: string | null;
@@ -220,6 +222,7 @@ export function LeftSidebar({
   collections,
   collectionsError,
   reports,
+  userName,
   userLabel,
   userPicture,
   userAvatarEmoji,
@@ -283,7 +286,12 @@ export function LeftSidebar({
             "group-data-[collapsible=icon]:[&_[data-slot=button]>svg]:hidden",
           )}
         >
-          <UserMenu userLabel={userLabel} userPicture={userPicture} userAvatarEmoji={userAvatarEmoji} />
+          <UserMenu
+            userName={userName}
+            userLabel={userLabel}
+            userPicture={userPicture}
+            userAvatarEmoji={userAvatarEmoji}
+          />
         </div>
       </SidebarFooter>
 

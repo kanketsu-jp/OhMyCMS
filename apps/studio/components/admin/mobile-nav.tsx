@@ -34,7 +34,9 @@ type Props = {
   groups: NavGroup[];
   /** ドロワーの中の「コンテンツ」見出し */
   contentHeading: string;
-  /** メニュー最下部に出す、いま入っている人。取れなければ null */
+  /** メニュー最下部に出す、いま入っている人の表示名。取れなければ null */
+  userName: string | null;
+  /** メニュー最下部に出す、いま入っている人のメールアドレス。取れなければ null */
   userLabel: string | null;
   /** SSO のプロフィール画像。出せなければ null */
   userPicture: string | null;
@@ -67,6 +69,7 @@ export function MobileNav({
   groups,
   collections,
   contentHeading,
+  userName,
   userLabel,
   userPicture,
   userAvatarEmoji,
@@ -147,7 +150,12 @@ export function MobileNav({
                 ) : null}
               </div>
             </div>
-            <UserMenu userLabel={userLabel} userPicture={userPicture} userAvatarEmoji={userAvatarEmoji} />
+            <UserMenu
+              userName={userName}
+              userLabel={userLabel}
+              userPicture={userPicture}
+              userAvatarEmoji={userAvatarEmoji}
+            />
           </SheetContent>
         </Sheet>
 
