@@ -46,6 +46,13 @@ async function caught(fn: () => Promise<unknown>): Promise<{ status?: number; co
   }
 }
 
+// 赤くなったときに何が起きたかを名指しする。ただし detail は事実だけを書く（『素通り』のような判断を混ぜると、通ってよい対照が違反に読める）。
+function detail(r: { status?: number; code?: string } | null): string {
+  return r === null
+    ? "例外なし"
+    : `${r.status ?? "(status なし)"} ${r.code ?? "(code なし)"}`;
+}
+
 type UserRow = {
   id: string;
   email: string;
@@ -274,7 +281,7 @@ async function runChecks(fixture: Fixture): Promise<void> {
   const ownRead = await caught(() =>
     labelsForTarget(fixture.attackerActor, "file", fixture.attackerFileId),
   );
-  check("1: attacker は自分のファイルのラベルを読める", ownRead === null, `${ownRead?.status} ${ownRead?.code}`);
+  check("1: attacker は自分のファイルのラベルを読める", ownRead === null, detail(ownRead));
 
   const ownWrite = await caught(() =>
     setLabelsForTarget(fixture.attackerActor, "file", fixture.attackerFileId, [fixture.labelId]),
@@ -282,7 +289,7 @@ async function runChecks(fixture: Fixture): Promise<void> {
   check(
     "2: attacker は自分のファイルのラベルを置き換えられる",
     ownWrite === null,
-    `${ownWrite?.status} ${ownWrite?.code}`,
+    detail(ownWrite),
   );
 
   const victimRead = await caught(() =>
@@ -291,7 +298,7 @@ async function runChecks(fixture: Fixture): Promise<void> {
   check(
     "3: attacker は他人のファイルのラベルを読めない",
     victimRead?.status === 404 && victimRead.code === "FILE_NOT_FOUND",
-    `${victimRead?.status} ${victimRead?.code}`,
+    detail(victimRead),
   );
 
   const beforeDeniedWrite = await assignmentCount();
@@ -301,7 +308,7 @@ async function runChecks(fixture: Fixture): Promise<void> {
   check(
     "4: attacker は他人のファイルのラベルを置き換えられない",
     victimWrite?.status === 404 && victimWrite.code === "FILE_NOT_FOUND",
-    `${victimWrite?.status} ${victimWrite?.code}`,
+    detail(victimWrite),
   );
   const afterDeniedWrite = await assignmentCount();
   check(
@@ -316,7 +323,7 @@ async function runChecks(fixture: Fixture): Promise<void> {
   check(
     "6: attacker は権限の無いフォルダのラベルを読めない",
     folderRead?.status === 403 && folderRead.code === "PERMISSION_DENIED",
-    `${folderRead?.status} ${folderRead?.code}`,
+    detail(folderRead),
   );
 
   const folderWrite = await caught(() =>
@@ -325,13 +332,13 @@ async function runChecks(fixture: Fixture): Promise<void> {
   check(
     "7: attacker は権限の無いフォルダのラベルを置き換えられない",
     folderWrite?.status === 403 && folderWrite.code === "PERMISSION_DENIED",
-    `${folderWrite?.status} ${folderWrite?.code}`,
+    detail(folderWrite),
   );
 
   const adminWrite = await caught(() =>
     setLabelsForTarget(fixture.adminActor, "file", fixture.victimFileId, [fixture.labelId]),
   );
-  check("8: admin は他人のファイルのラベルを置き換えられる", adminWrite === null, `${adminWrite?.status} ${adminWrite?.code}`);
+  check("8: admin は他人のファイルのラベルを置き換えられる", adminWrite === null, detail(adminWrite));
 
   const adminFolderRead = await caught(() =>
     labelsForTarget(fixture.adminActor, "folder", fixture.folderId),
@@ -339,7 +346,7 @@ async function runChecks(fixture: Fixture): Promise<void> {
   check(
     "9: admin はフォルダのラベルを読める",
     adminFolderRead === null,
-    `${adminFolderRead?.status} ${adminFolderRead?.code}`,
+    detail(adminFolderRead),
   );
 }
 
