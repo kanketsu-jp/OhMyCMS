@@ -20,6 +20,7 @@ import { ApiError } from "@/lib/schema/errors";
 import { createSamlClient, purgeExpiredSamlRecords, type SamlEndpoints } from "./client";
 import { ATTRIBUTE_DEFAULTS, isSamlUsable, type SamlConfig } from "./config";
 import { samlPlaceholderEmail } from "./placeholder-email";
+import { asJsonObject } from "./json-object";
 
 export type SamlIdentity = {
   /** IdP がこの人を指す識別子。🚨 **メールとは限らない**。 */
@@ -190,8 +191,8 @@ type DirectusUserRow = {
  *    ここを外部の未検証な情報源（一般の OAuth 等）へ広げないこと。
  */
 export async function upsertSamlUser(identity: SamlIdentity): Promise<DirectusUserRow> {
-  const byNameId = await db<DirectusUserRow>("directus_users")
-    .select("id", "email", "status")
+  const byNameId = await db<DirectusUserRow & { auth_data?: unknown }>("directus_users")
+    .select("id", "email", "status", "auth_data")
     .where("provider", "saml")
     .where("external_identifier", identity.nameId)
     .first();
@@ -205,6 +206,18 @@ export async function upsertSamlUser(identity: SamlIdentity): Promise<DirectusUs
         ...(identity.email ? { email: identity.email } : {}),
         ...(identity.firstName ? { first_name: identity.firstName } : {}),
         ...(identity.lastName ? { last_name: identity.lastName } : {}),
+        // 🚨 **groups も IdP が正。** ここが無いと、**IdP 側でグループが変わっても
+        //    既存の利用者は永久に古いまま**になる（作成時にしか書いていなかった）。
+        //    実測 2026-08-15: IdP が `Role` を 2 値送り、対応づけも合わせたのに、
+        //    既存の利用者の `groups` は `[]` のままだった。
+        //    🚨 いま実害は無い（「全員権限付与」は groups を読まない）が、
+        //    **IdP のグループで権限を決める日には、ここが最初に壊れる。**
+        //
+        // 🚨 **丸ごと代入しない。** この列は**複数の書き手が共有する**
+        //    （`allowlist.ts` が `saml_allowed_*` を、Google が `picture` を書く）。
+        //    代入すると**他人の記録を消す**ので、読んでから混ぜる
+        //    （`auth_data` は `json` 型なので `||` は使えない。`allowlist.ts` と同じ形）。
+        auth_data: { ...asJsonObject(byNameId.auth_data), groups: identity.groups },
       });
     return byNameId;
   }
