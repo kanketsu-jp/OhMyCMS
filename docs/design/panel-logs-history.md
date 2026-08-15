@@ -69,7 +69,7 @@
   → **「機能した 0」と「動く 0」を画面で区別**する。同じ見た目にしない。
 - 文言は**リテラル禁止（英語も）**。`i18n/messages/{ja,en}/panel.json` に両方。新名前空間なら `i18n/messages.ts` に登録。
 
-## 4. 🚨 security 設計フラグ（4つ・C 分割で消さない）
+## 4. 🚨 security 設計フラグ（5つ・C 分割で消さない）
 
 1. **【C 引継ぎ】revisions は記事データの複製。** C で版スナップショットを積むと、記事の秘密/PII が
    **版という新しいコピー**になる（`secrets-storage-by-recoverability` の「バックアップに写る」と同型）。
@@ -77,7 +77,20 @@
 2. **【C 引継ぎ】復元（上書き）は特権的な書込。** C の復元 API は `updateItem` と**同じ行フィルタ（`resolve.ts`）を必ず通す**。
    🚨 すり抜けると**編集できないはずの記事を旧版で上書きできる**（v1 攻撃演習「リレーション経由/直接」と同型）。復元も「ログ・履歴」でなく**update 権限**で gate すべきか、C で決める。
 3. **【B で実装】「ログ・履歴」を権限アクションに追加**し、読取をそれで gate（§3-3）。
+   🚨 **ただし collection 単位までしか守れていない（→ フラグ5）。**
 4. **【B で守る】保存経路は共有ファイル**（items/service.ts）→ 排他（宣言順・`--only`）。
+5. **【B の穴・2026-08-15 security 実測】gate は `resolution.rowFilter` を適用していない。**
+   `GET /api/activity` は `resolvePermission(actor, collection, "log").allowed` しか見ず、
+   rowFilter を無視して**そのコレクションの全 item の活動を返す**（`route.ts:63-75`）。
+   → **行フィルタ付き "log" を配ると、読めない item の活動（item_id / action / 時刻 / 編集者）が漏れる**。
+   実測（隔離した sec_probe_ で resolvePermission を実呼び）: rowFilter=`{owner:{_eq:"keepme"}}` 非 null /
+   route 相当=**2 件** / 正=**1 件** / `leaked_item2=true`。
+   🚨 現状は **latent**（`directus_permissions`=0 行＝フィルタ付き "log" 未配布なので**アクティブな漏洩は無い**。
+   `filtered_log=0` は「安全な 0」でなく「まだ出番が来ていない 0」）。
+   **直し方**: `activity.item` を対象コレクションの実テーブルへ結合し `resolution.rowFilter` を適用（item READ と同じ強制。`lib/items/filter`）。
+   番人が無い（このリポジトリは `*.test.ts`=0）ので、直すなら受入ハーネスに
+   「ip/user_agent 非露出・"log" 無しで 403・フィルタ付き log で no-leak」を足す。
+   **状態: 司令塔の a(既知の制限として文書化＋番人化) / b(先回りで直す) 判断待ち。権限機能にフィルタ運用が入る前に閉じる。**
 
 ## 5. 受入基準（🚨 security が実測。委譲不可）
 
