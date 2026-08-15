@@ -1448,6 +1448,35 @@ for (const vp of VIEWPORTS) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: vp.width, height: vp.height, deviceScaleFactor: vp.dsf, mobile: vp.mobile,
   });
+  /**
+   * 🚨 **画面幅を変えても、入力の種類は変わらない**（2026-08-15・base2 の発見を自分の計器へ）。
+   *
+   * `setDeviceMetricsOverride({ mobile: true })` だけでは **`(hover: hover)` が true のまま**。
+   * 実測: 幅 390 で `matchMedia("(hover: hover)").matches` → **true** ／ `pointer: coarse` → **false**。
+   * ＝ **「SP で測った」と言いながら、ずっとマウスのある端末として描かせていた。**
+   *
+   * Tailwind v4 の `hover:` は `@media (hover: hover)` の中に入るので、
+   * **触るだけの端末では効かない**。それを再現できていなかった。
+   * `pointer: coarse` に依存する寸法（当たり判定の余白など）も同じ。
+   *
+   * 🚨 これは「幅＝端末」と読んだ思い込み。**幅・入力・書体は別々に設定する**。
+   */
+  await cdp.send("Emulation.setEmulatedMedia", {
+    features: vp.mobile
+      ? [
+          { name: "hover", value: "none" },
+          { name: "any-hover", value: "none" },
+          { name: "pointer", value: "coarse" },
+          { name: "any-pointer", value: "coarse" },
+        ]
+      : [
+          { name: "hover", value: "hover" },
+          { name: "any-hover", value: "hover" },
+          { name: "pointer", value: "fine" },
+          { name: "any-pointer", value: "fine" },
+        ],
+  });
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: !!vp.mobile });
   for (const path of PATHS) {
     cdp.clearEvents();
     const { settled, landed } = await navigateAndSettle(cdp, path);

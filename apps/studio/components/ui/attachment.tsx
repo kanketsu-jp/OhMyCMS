@@ -18,8 +18,12 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
+// 🚨 `hover:` には必ず `active:` を対で書く（堀池さん 2026-08-15）。
+//    ここは **中に a か button が在るときだけ**色が変わる形なので、`active:` にも同じ条件を付ける
+//    （`has-[>a,>button]:` を落とすと、押せない添付まで押した色になる）。
+//    濃さは hover と同じ。理由は message-scroller.tsx の同じコメントを参照。
 const attachmentVariants = cva(
-  "group/attachment relative flex w-fit max-w-full min-w-0 shrink-0 flex-wrap rounded-xl border bg-card text-card-foreground transition-colors focus-within:ring-1 focus-within:ring-ring/50 has-[>a,>button]:hover:bg-muted/50 data-[state=error]:border-destructive/30 data-[state=idle]:border-dashed",
+  "group/attachment relative flex w-fit max-w-full min-w-0 shrink-0 flex-wrap rounded-xl border bg-card text-card-foreground transition-colors focus-within:ring-1 focus-within:ring-ring/50 has-[>a,>button]:hover:bg-muted/50 has-[>a,>button]:active:bg-muted/50 data-[state=error]:border-destructive/30 data-[state=idle]:border-dashed",
   {
     variants: {
       size: {
