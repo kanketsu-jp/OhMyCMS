@@ -46,6 +46,8 @@ type FolderRow = {
   id: string;
   name: string;
   parent: string | null;
+  /** 見分けるための色（Tailwind のトークン名）。付いていなければ null。 */
+  color: string | null;
 };
 
 function filesHref(folderId: string | null): string {

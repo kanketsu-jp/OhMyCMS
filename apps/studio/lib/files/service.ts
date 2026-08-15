@@ -153,6 +153,13 @@ export async function createBlurDataUrl(
   }
 }
 
+/**
+ * フォルダに付けられる色。**画面と API で同じ集合を使う**ため、ここが正本。
+ * 🚨 増やすときは**辞書（`folders.color_*`）も一緒に足す**。片方だけ増やすと、
+ *    選べるのに名前が出ない（または名前だけあって選べない）状態になる。
+ */
+export const FOLDER_COLORS = new Set(["slate", "red", "amber", "emerald", "sky", "violet"]);
+
 type ResizeFit = "cover" | "contain" | "inside" | "outside";
 
 type FileRow = {
@@ -205,6 +212,11 @@ type FolderRow = {
   id: string;
   name: string;
   parent: string | null;
+  /**
+   * 見分けるための色。**Tailwind のトークン名**（`amber` など）を入れる。
+   * 🚨 生の色コードを持たない。持つと**テーマを変えたときにフォルダだけ取り残される**。
+   */
+  color: string | null;
 };
 
 type SystemCollection = "directus_files" | "directus_folders";
@@ -819,7 +831,7 @@ export async function updateFolder(
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_folders", "update");
   const relations = permission.rowFilter ? await relationRows() : [];
-  const allowed = new Set(["name", "parent"]);
+  const allowed = new Set(["name", "parent", "color"]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) {
       throw new ApiError(400, "INVALID_FIELD", `更新できないフィールドです: ${key}`);
@@ -839,6 +851,15 @@ export async function updateFolder(
       throw new ApiError(400, "INVALID_FIELD", "自分自身を親フォルダにできません");
     }
     update.parent = parent;
+  }
+  if ("color" in body) {
+    // 🚨 名前だけ受ける（`#rrggbb` を弾く）。入口を緩めると、後から
+    //    「生の色コードが混ざった行」を探して直す作業が発生する。
+    const color = optionalString(body.color, "color") ?? null;
+    if (color !== null && !FOLDER_COLORS.has(color)) {
+      throw new ApiError(400, "INVALID_FIELD", "使えない色です");
+    }
+    update.color = color;
   }
 
   const [row] = await db<FolderRow>("directus_folders")

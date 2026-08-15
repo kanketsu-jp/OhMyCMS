@@ -22,7 +22,24 @@ type FolderRow = {
   id: string;
   name: string;
   parent: string | null;
+  color: string | null;
 };
+
+/**
+ * 色の名前を、実際のクラスへ写す。
+ * 🚨 **`text-${color}-500` のように組み立てない。** Tailwind は**書かれた文字列を見て**
+ *    CSS を作るので、組み立てた名前は**削られて色が出ない**（ビルドしないと分からない）。
+ *    ここに全部書き出しておけば、使われていることが文字として見える。
+ */
+const FOLDER_COLOR_CLASS: Record<string, string> = {
+  slate: "text-slate-500",
+  red: "text-red-500",
+  amber: "text-amber-500",
+  emerald: "text-emerald-500",
+  sky: "text-sky-500",
+  violet: "text-violet-500",
+};
+const FOLDER_COLOR_NAMES = Object.keys(FOLDER_COLOR_CLASS);
 
 function messageFrom(payload: unknown, status: number, fallback: string): string {
   if (status === 409) return fallback;
@@ -67,6 +84,22 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
   }, (id) => id);
 
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  const recolor = useSubmitOnce(
+    async (id: string, color: string | null) => {
+      const response = await fetch(`/api/folders/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ color }),
+      });
+      if (!response.ok) {
+        toast.error(t("color_failed"));
+        return;
+      }
+      router.refresh();
+    },
+    (id) => id,
+  );
 
   /**
    * 掴んできたファイルをこのフォルダへ入れる。
@@ -130,7 +163,13 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
           }
         >
           <Link href={`/admin/files?folder=${folder.id}`} className="block min-w-0 pr-10">
-            <Folder className="mb-3 size-10 text-muted-foreground" />
+            <Folder
+              className={
+                folder.color && FOLDER_COLOR_CLASS[folder.color]
+                  ? `mb-3 size-10 ${FOLDER_COLOR_CLASS[folder.color]}`
+                  : "mb-3 size-10 text-muted-foreground"
+              }
+            />
             <p className="truncate text-sm font-medium">{folder.name}</p>
           </Link>
           <div className="absolute right-2 top-2">
@@ -145,8 +184,26 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
                   <MoreHorizontal />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuGroup>
+                  {/* 🚨 色は「選ぶ」ものなので、1項目に押し込まず並べる。
+                      文字にすると6行になり、削除より目立ってしまう。 */}
+                  <div className="flex flex-wrap gap-1 px-2 py-1.5">
+                    {FOLDER_COLOR_NAMES.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        aria-label={t(`color_${name}`)}
+                        title={t(`color_${name}`)}
+                        aria-pressed={folder.color === name}
+                        disabled={recolor.isPending(folder.id)}
+                        onClick={() => void recolor.run(folder.id, folder.color === name ? null : name)}
+                        className={`size-5 rounded-full ${FOLDER_COLOR_CLASS[name]} bg-current ${
+                          folder.color === name ? "ring-2 ring-offset-1 ring-ring" : ""
+                        }`}
+                      />
+                    ))}
+                  </div>
                   <DropdownMenuItem
                     variant="destructive"
                     className="text-destructive"
