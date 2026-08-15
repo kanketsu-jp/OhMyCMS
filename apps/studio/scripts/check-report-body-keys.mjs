@@ -198,6 +198,39 @@ const extra = sent.filter((k) => !accepted.has(k));
   }
 }
 
+// ── 🚨 見逃す入力を、自分で作って通す（司令塔 2026-08-16・design の形） ──────
+//    「見ていない範囲」を**思いつきで書かない**。**作って確かめてから書く。**
+//    取りこぼしの「数」は出せない（出てこないので数えられない）が、
+//    **取りこぼすこと自体は、入力を作れば確実に示せる。**
+{
+  const misses = [
+    ["FormData で送る", 'const fd = new FormData(); fd.append("zzLeak", token); fetch(u, { body: fd });'],
+    ["URLSearchParams で送る", 'fetch(u, { body: new URLSearchParams({ zzLeak: token }) });'],
+    ["変数に組み立ててから渡す", 'const payload = { zzLeak: token }; fetch(u, { body: JSON.stringify(payload) });'],
+    ["Object.assign で混ぜる", 'fetch(u, { body: JSON.stringify(Object.assign({}, base, { zzLeak: token })) });'],
+    ["別名の関数で送る", 'postJson(u, { zzLeak: token });'],
+  ];
+  const seen = (src) => {
+    const at = src.indexOf("JSON.stringify({");
+    const body = at >= 0 ? balanced(src, src.indexOf("{", at)) : null;
+    return sentKeysOf(body, null).includes("zzLeak");
+  };
+  // 🟢 対照(+): この検査が**拾う**形。これが false なら、下の「見逃し」は意味を持たない
+  const control = seen('fetch(u, { body: JSON.stringify({ zzLeak: token }) });');
+  const missed = misses.filter(([, src]) => !seen(src));
+  console.log("■ 🚨 見逃す入力（**作って通した結果**。ここに出る形は、この検査では止まりません）");
+  console.log(`  🟢 対照(+): JSON.stringify({ zzLeak }) → ${control ? "拾う（検出器は動いている）" : "🚨 拾わない"}`);
+  for (const [why, src] of misses) {
+    const ok = seen(src);
+    console.log(`  ${ok ? "  拾う  " : "🚨 見逃す"} ${why.padEnd(24)} ${src.slice(0, 60)}`);
+  }
+  console.log(`  ＝ **${missed.length} / ${misses.length} 通りを見逃します**（この検査は JSON.stringify({…}) の 1 形だけを見ます）`);
+  if (!control) {
+    console.error("🚨 対照が拾えていません。上の「見逃す」は、検出器が死んでいるだけかもしれません。");
+    process.exit(1);
+  }
+}
+
 console.log("■ 判定（見ているのは不具合報告の送信 1 経路だけ）");
 console.log(`  画面が送る鍵      : ${sent.join(", ") || "(なし)"}`);
 console.log(`  validate() が読む鍵: ${[...accepted].join(", ") || "(なし)"}`);
