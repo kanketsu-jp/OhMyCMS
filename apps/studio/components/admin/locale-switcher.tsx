@@ -65,7 +65,7 @@ export function LocaleSwitcher({ className, variant = "compact" }: Props) {
                 : "flex min-h-(--control-h) items-center rounded px-2 py-1 text-xs md:min-h-(--control-h-pc)",
               isActive
                 ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground",
+                : "text-muted-foreground hover:text-foreground active:text-foreground",
             )}
           >
             {t(`locale_${locale}`)}

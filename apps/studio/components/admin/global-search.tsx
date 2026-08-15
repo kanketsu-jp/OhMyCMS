@@ -113,7 +113,7 @@ export function GlobalSearchButton({ className }: { className?: string }) {
       type="button"
       onClick={open}
       aria-label={t("open_hint")}
-      className={`flex h-(--control-h) w-full items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
+      className={`flex h-(--control-h) w-full items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted active:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
     >
       <SearchIcon className="size-4 shrink-0" />
       <span className="flex-1 text-left">{t("placeholder")}</span>

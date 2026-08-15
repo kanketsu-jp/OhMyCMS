@@ -34,7 +34,7 @@ function BreadcrumbLink({ className, ...props }: React.ComponentProps<"a">) {
   return (
     <a
       data-slot="breadcrumb-link"
-      className={cn("transition-colors hover:text-foreground", className)}
+      className={cn("transition-colors hover:text-foreground active:text-foreground", className)}
       {...props}
     />
   );
