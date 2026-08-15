@@ -20,8 +20,14 @@ import {
 } from "../lib/richtext/document";
 
 let failed = 0;
+// 🚨 **走った件数は宣言せず、数える。**
+// それまで合計は `hrefCases.length + srcCases.length + 22 + 8 + 4` と**手で足した定数**だった。
+// 検査を足しても足し忘れれば数字は動かず、**「54 件すべて PASS」は測った数ではなかった**
+// （CI が `GIT_DIRTY=0` を宣言していたのと同じ形。今日直したばかりのもの）。
+let ran = 0;
 
 function check(ok: boolean, label: string): void {
+  ran += 1;
   if (ok) return;
   failed += 1;
   console.error(`  ✗ ${label}`);
@@ -153,9 +159,59 @@ check(!blocksPlain.includes("通ってはいけない"), "登録していない�
 // （本文の末尾に見えない改行が混ざり、`body_plain` には出ないので画面と検索がずれる）。
 // 🚨 見ているのは「その割り当てがソースに在るか」だけで、**実際に押して確かめてはいない**
 //    （押して確かめるのはブラウザの受入。ここは戻されたことに気づくための番人）。
-const editorSource = readFileSync(
+const editorSourceRaw = readFileSync(
   new URL("../components/admin/rich-text-field.tsx", import.meta.url),
   "utf8",
+);
+
+/**
+ * 🚨 **コメントを実コードとして数えない**（2026-08-15 追加）。
+ *
+ * それまではソースをそのまま照合していたので、**実装を丸ごとコメントにしても
+ * 54 件すべて PASS した**（自分で試して確認した。実測: 実装をコメント化 → `exit 0`）。
+ * 同じ形が今日 3 回出ている（`active:` の規約コメントを実装として計上／棚卸しの弱い語／
+ * JSDoc の使用例を実際の使用として計上）。**コメントに書いたコードは、コードに見える。**
+ *
+ * 🚨 素朴に `//` で切ると **文字列の中の `https://` まで切ってしまい、
+ * 実コードを消して誤検出する**。なので文字列・テンプレートリテラルを見分けながら走る。
+ * （このファイルの対象 `rich-text-field.tsx` に `://` は **0 件**だが、
+ * 将来リンクが入っても壊れないようにしておく。）
+ */
+function stripComments(source: string): string {
+  let out = "";
+  let i = 0;
+  let 文字列: string | null = null; // 開いている引用符（' " ` のいずれか）
+  while (i < source.length) {
+    const c = source[i];
+    const next = source[i + 1];
+    if (文字列) {
+      if (c === "\\") { out += c + (next ?? ""); i += 2; continue; }
+      if (c === 文字列) 文字列 = null;
+      out += c; i += 1; continue;
+    }
+    if (c === '"' || c === "'" || c === "`") { 文字列 = c; out += c; i += 1; continue; }
+    if (c === "/" && next === "/") {
+      while (i < source.length && source[i] !== "\n") i += 1;
+      continue; // 改行はそのまま次の周回で出る
+    }
+    if (c === "/" && next === "*") {
+      i += 2;
+      while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
+      i += 2;
+      continue;
+    }
+    out += c; i += 1;
+  }
+  return out;
+}
+
+const editorSource = stripComments(editorSourceRaw);
+// 🟢 対照(+): コメント除去そのものが空振りしていないこと。
+//    除去して**必ず短くなる**（このファイルにはコメントが在る）。同じにしかならないなら
+//    除去が効いていないので、上の判定は「コメントも数える」状態に戻っている。
+check(
+  editorSource.length < editorSourceRaw.length,
+  "コメント除去が効いていない（この検査はコメントを実装として数える状態に戻っている）",
 );
 check(editorSource.includes("richTextReservedKeys"), "Mod-Enter を押さえる拡張ごと消えている");
 check(/"Mod-Enter":\s*\(\)\s*=>\s*true/.test(editorSource), "Mod-Enter を Tiptap へ返している（保存に改行が混ざる）");
@@ -167,9 +223,15 @@ check(/priority:\s*1000/.test(editorSource), "Mod-Enter を押さえる拡張の
 // 🟢 対照(+): 同じ読み方で、必ず在るものが見つかること（＝ファイルを読めている）
 check(editorSource.includes("StarterKit.configure"), "エディタの定義を読めていない（この検査は何も言っていない）");
 
-const total = hrefCases.length + srcCases.length + 22 + 8 + 4;
+// 🚨 定数の足し算をやめ、実際に `check()` を通った回数を出す。
+const total = ran;
 if (failed > 0) {
   console.error(`\n本文ガード: ${failed} 件 FAILED`);
   process.exit(1);
 }
-console.log(`本文ガード: ${total} 件すべて PASS（危険側と安全側の対照つき）`);
+// 🚨 0 件は「違反が無い」ではなく「**何も検査していない**」。必ず失敗にする。
+if (total === 0) {
+  console.error("本文ガード: 検査が 1 件も走っていない（この検査は何も言っていない）");
+  process.exit(2);
+}
+console.log(`本文ガード: ${total} 件すべて PASS（危険側と安全側の対照つき・件数は実測）`);
