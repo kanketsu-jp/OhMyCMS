@@ -198,7 +198,14 @@ const 見逃す入力 = [
    `${OK_ICONS}<BreadcrumbPage>通知</BreadcrumbPage>`,
    '<Button variant="secondary">'],
 ];
-const 見逃した = 見逃す入力.filter(([, body, tag]) => inspect(body, tag, "見逃し").length === 0).map(([n]) => n);
+const 見逃し判定 = 見逃す入力.map(([n, body, tag]) => [n, inspect(body, tag, "見逃し")]);
+const 見逃した = 見逃し判定.filter(([, r]) => r.length === 0).map(([n]) => n);
+// 🚨 **拾えたものは「死角が塞がった」合図**。ヘッダの記述が古くなったことを鳴らす。
+//    （司令塔 2026-08-16: 「書いただけ」と「古くなったら鳴る」は別）
+//    🚨 拾えた**理由**も出す。狙いと違う理由で拾っていると、塞がったように見える。
+const 塞がった = 見逃し判定
+  .filter(([, r]) => r.length > 0)
+  .map(([n, r]) => `${n}  → 拾った理由: ${r[0].split("\n")[0].slice(0, 60)}`);
 // 🟢 対照(+): **拾う入力**も 1 つ通す（＝ 検出器が動いていることの確認。全部見逃しなら壊れている）
 const 対照は拾えた = inspect(OK_ICONS, '<Button aria-label="x">', "対照").length > 0;
 if (!対照は拾えた) {
@@ -219,6 +226,11 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
+if (塞がった.length > 0) {
+  console.log(`\n🚨 **死角の記述が古くなっています**（${塞がった.length} 件が拾えるようになりました）:`);
+  for (const n of 塞がった) console.log(`  ・${n}`);
+  console.log("  🚨 **ヘッダの「見ていない範囲」から、この形を外してください**（🚨 理由が狙いどおりかも見ること）。");
+}
 if (見逃した.length > 0) {
   console.log(`\n🚨 この検査が**見ていない形** ${見逃した.length} / ${見逃す入力.length} 件（作って通した結果。落としません）:`);
   for (const n of 見逃した) console.log(`  ・${n}`);
