@@ -141,6 +141,16 @@ function hasFormWithId(source, id) {
   }
 }
 
+// 🚨 **0 ガードは 0 しか見ない**（design の指摘・2026-08-16）。
+//    1437569 文字 → 100 文字でも「読めている」ことになる。**基準線**で半分未満を落とす。
+const CODE_BASELINE = 1437569; // 2026-08-16 実測（395 ファイル）
+if (code.length > 0 && code.length < Math.floor(CODE_BASELINE / 2)) {
+  console.error(`\n🚨 読めた文字数が ${code.length} しかありません（基準線 ${CODE_BASELINE} の半分未満）。`);
+  console.error("   **走査の範囲が狭くなっている**可能性があります。");
+  console.error(`   正当に減ったのなら、**CODE_BASELINE を ${code.length} へ直し、理由を書いてください**。`);
+  process.exit(1);
+}
+
 // 🚨 **「全部が無い」は、14 個の退行より「読めていない」を疑う**（単一原因の診断）。
 {
   const ids = [...new Set(formIds)];

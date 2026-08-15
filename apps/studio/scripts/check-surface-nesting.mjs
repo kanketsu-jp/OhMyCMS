@@ -277,6 +277,17 @@ for (const file of files) {
 //    ＝ **囮が実物と同じ入口から入っていない**（司令塔 2026-08-16）。
 //    数で塞ぐ: **門を通った本数が 0 なら落とす**（「異常が無い 0」ではなく「見ていない 0」）。
 console.log(`対象: 候補 ${files.length} 本 / **面の中で描かれると判定して走査したのは ${scannedFiles} 本**`);
+// 🚨 **0 ガードは 0 しか見ない**（design の指摘・2026-08-16）。
+//    86 → 1 に減っても通ってしまう＝「見ていない」ではなく「**ほとんど見ていない**」は塞げていない。
+//    → **基準線**を置く（`check-raw-api-message` と同じ考え方）。
+//    🚨 **半分を切ったら落とす。** 正当に減ったなら、**この数を直して理由を書く**のが仕事。
+const SCANNED_BASELINE = 86; // 2026-08-16 実測（候補 133 / 走査 86）
+if (scannedFiles > 0 && scannedFiles < Math.floor(SCANNED_BASELINE / 2)) {
+  console.error(`\n🚨 走査したのが ${scannedFiles} 本しかありません（基準線 ${SCANNED_BASELINE} 本の半分未満）。`);
+  console.error("   **走査の範囲か、`rendersInsideSurface` の判定が狭くなっている**可能性があります。");
+  console.error(`   正当に減ったのなら、**SCANNED_BASELINE を ${scannedFiles} へ直し、理由を書いてください**。`);
+  process.exit(1);
+}
 if (scannedFiles === 0) {
   console.error("\n🚨 走査したファイルが 0 本です。**この検査は何も見ていません**（違反が無いのではない）。");
   console.error("   `rendersInsideSurface` の判定か、走査の範囲が壊れています。");
