@@ -44,7 +44,5 @@
   "resolve_button": "解決済みにする",
   "reopen_button": "未解決に戻す",
   "marked_resolved": "解決済みにしました",
-  "marked_reopened": "未解決に戻しました",
-  "error_send_failed": "送信できませんでした。",
-  "error_status_failed": "状態を変更できませんでした。"
+  "marked_reopened": "未解決に戻しました"
 }

@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
+import { apiErrorKey } from "@/lib/admin/forms";
 import type { BugReport, BugReportMessage } from "@/lib/reports/service";
 
 type Props = {
@@ -49,6 +50,10 @@ type Props = {
  */
 export function ReportThread({ report, messages, viewerId, canManage }: Props) {
   const t = useT("reports");
+  // 🚨 API の生文言（error.message）を画面へ出さない。細工したリンクで任意の文章を
+  //    アプリ公式のエラー枠に出せる「なりすまし」の経路になるため（司令塔 2026-08-15）。
+  //    code だけを apiErrorKey() で辞書の鍵へ写し、errors 名前空間から文言を引く。
+  const tError = useT("errors");
   const format = useFormat();
   const router = useRouter();
   const [draft, setDraft] = useState("");
@@ -64,10 +69,7 @@ export function ReportThread({ report, messages, viewerId, canManage }: Props) {
       body: JSON.stringify({ body: text }),
     });
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: { message?: string } }
-        | null;
-      toast.error(payload?.error?.message ?? t("error_send_failed"));
+      toast.error(tError(await apiErrorKey(response)));
       return;
     }
     setDraft("");
@@ -94,10 +96,7 @@ export function ReportThread({ report, messages, viewerId, canManage }: Props) {
       body: JSON.stringify({ status: next }),
     });
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: { message?: string } }
-        | null;
-      toast.error(payload?.error?.message ?? t("error_status_failed"));
+      toast.error(tError(await apiErrorKey(response)));
       return;
     }
     toast.success(next === "resolved" ? t("marked_resolved") : t("marked_reopened"));

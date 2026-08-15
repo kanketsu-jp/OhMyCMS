@@ -44,7 +44,5 @@
   "resolve_button": "Mark as resolved",
   "reopen_button": "Reopen",
   "marked_resolved": "Marked as resolved.",
-  "marked_reopened": "Reopened.",
-  "error_send_failed": "Could not send.",
-  "error_status_failed": "Could not change the status."
+  "marked_reopened": "Reopened."
 }
