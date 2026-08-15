@@ -51,6 +51,12 @@ const EXCEPTIONS = {
     onlyIn: "MobileNav",
     reason: "SPドロワー内で「コンテンツ」見出しラベルを描画するために必要。PCは left-sidebar.tsx が useT() を直接呼んで自前で用意している",
   },
+  personalUnreadNotifications: {
+    onlyIn: "MobileNav",
+    reason:
+      "SPのフッターから通知を外した代わりに、☰ に未読バッジを出すため（堀池 2026-08-15指示）。" +
+      "PCは左サイドバーの一覧に通知の行が常に見えているので、バッジで知らせる必要がない",
+  },
 };
 
 // 🚨 EXCEPTIONS の reason にこれらの語が含まれていたら、それは「設計判断」ではなく
@@ -126,6 +132,13 @@ function extractTagProps(source, tagName) {
   while ((m = re.exec(tagBody)) !== null) {
     propNames.add(m[1]);
   }
+  // 🚨 spread（`{...obj}`）はこの抽出に**一切写らない**（`name=` の形を持たないため）。
+  //    2026-08-15、作業者が「この検査に見つからないように」と spread を選んだと申告してきて発覚した。
+  //    申告が無ければ気づけなかった——**検査が黙って素通りしていた**。
+  //    実測: 直接渡す → exit 1 ／ 同じものを spread → exit 0。
+  //    → 見つけたら**落とす**。片側だけに渡すこと自体は EXCEPTIONS で宣言できるので、
+  //      **宣言する道があるのに黙って回避する道を残さない**。
+  propNames.spreads = (tagBody.match(/\{\s*\.\.\./g) ?? []).length;
   return propNames;
 }
 
@@ -143,6 +156,26 @@ function main() {
   }
   if (!mobileNavProps) {
     console.error("check-nav-parity: <MobileNav …> が layout.tsx に見つからない");
+    process.exit(1);
+  }
+
+  // 🚨 spread があると、この検査は**その中身を一つも見られない**。
+  //    「片方にしか渡していない」を隠せてしまうので、spread 自体を許さない。
+  const spreads = [
+    ["LeftSidebar", leftSidebarProps.spreads],
+    ["MobileNav", mobileNavProps.spreads],
+  ].filter(([, n]) => n > 0);
+  if (spreads.length > 0) {
+    console.error("check-nav-parity: FAIL — props を spread で渡している\n");
+    for (const [tag, n] of spreads) {
+      console.error(`  <${tag}> に {...} が ${n} 件`);
+    }
+    console.error(
+      "\n  spread の中身はこの検査から見えないので、" +
+        "「片方にしか渡していない」を黙って隠せてしまう。\n" +
+        "  🚨 片側だけに渡すのが設計上の判断なら、**直接渡したうえで EXCEPTIONS に理由を書く**。\n" +
+        "  検査に見つからない書き方を選ぶのではなく、見つかる書き方で宣言すること。",
+    );
     process.exit(1);
   }
 

@@ -103,7 +103,6 @@ export default async function AdminLayout({
     personalNotifications?.ok && Number.isFinite(personalNotifications.data.unread)
       ? Math.max(0, personalNotifications.data.unread)
       : 0;
-  const mobileNavBadgeProps = { personalUnreadNotifications };
 
   // 左サイドバー下部の「不具合報告」。
   // 🚨 **2026-08-15 にアコーディオン化した。** 以前の申し送りは「`/admin/reports/manage` と
@@ -257,7 +256,7 @@ export default async function AdminLayout({
           ラベルはここで辞書を引いて渡す（部品側で引き直さない）。 */}
       <MobileNav
         // SP メニューボタンのバッジ専用。ナビの行き先データではないので PC サイドバーへは渡さない。
-        {...mobileNavBadgeProps}
+        personalUnreadNotifications={personalUnreadNotifications}
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
         groups={navGroups}
         bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
