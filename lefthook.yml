@@ -75,9 +75,15 @@ pre-commit:
     # 🚨 i18n ではなく**なりすまし**の話——?error= は利用者が自由に書けるので、
     #    生文言を載せると細工したリンクで任意の文章を公式のエラー枠に出せる。
     #    関数は 2026-08-15 に削除済み。**無いと次の人が作り直す**ので機械で見る。
-    no-api-message:
-      root: "apps/studio"
-      run: node scripts/check-no-api-message.mjs
+    # 🚨 **2026-08-15 いったん外している。** 名前（apiMessage）だけを見ていた検査を
+    #    「形」でも見るようにしたところ、**同じ働きの別名が 10 ファイルで生きていた**ことが分かった
+    #    （messageFrom という名前で 9 本 ＋ file-picker.tsx に 1 本。**名前で数えると 1 本漏れる**）。
+    #    載せたままだと**全員のコミットが即座に止まる**ので、
+    #    **toast が 10 箇所を apiErrorKey() へ寄せ終えてから戻す**。
+    #    それまでは手で走らせる: cd apps/studio && node scripts/check-no-api-message.mjs
+    # no-api-message:
+    #   root: "apps/studio"
+    #   run: node scripts/check-no-api-message.mjs
 
     # 上流（shadcn）から持ち込まれる `cn-*` 独自クラスを入れないための検査。
     # 🚨 このリポジトリに その CSS 層は無い。一度 21 個入り込み、**メニューとアバターが

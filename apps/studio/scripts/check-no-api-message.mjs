@@ -24,6 +24,19 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const NEEDLE = "apiMessage";
+/**
+ * 🚨 **名前ではなく「形」で捕まえる**（2026-08-15 追加）。
+ *
+ * `apiMessage()` を消して名前を見張るだけにしていたら、**同じ働きの関数が 9 本、
+ * `messageFrom` という別名で生きていた**（toast の実測）。実装は 9 本とも同一で、
+ * `setError(messageFrom(payload, …))` として**画面に出ていた**。
+ * 🚨 **関数を消すだけでは戻ってくる、と書いて検査まで作ったのに、
+ *    「同じ働きの別名」を数えていなかった。** 名前を見張ると、次は `errorTextOf` が生える。
+ *
+ * だから **API の応答から取り出した文言を、そのまま返している形**を見る。
+ * 正しい経路は `apiErrorKey()`——code を辞書の鍵へ写し、知らない code は `unexpected` へ倒す。
+ */
+const SHAPE_PATTERN = /return\s+[a-zA-Z_$][\w$]*(?:\?)?\.error(?:\?)?\.message\b/;
 
 /** 行がコメントなら true（`//` 始まり・JSDoc の `*` 始まり・`/*` 始まり）。 */
 function isComment(line) {
@@ -37,12 +50,19 @@ function scan(files) {
   for (const file of files) {
     const lines = readFileSync(resolve(root, file), "utf8").split("\n");
     lines.forEach((line, i) => {
-      if (!line.includes(NEEDLE)) return;
+      const byName = line.includes(NEEDLE);
+      const byShape = SHAPE_PATTERN.test(line);
+      if (!byName && !byShape) return;
       if (isComment(line)) return;
       // 🚨 **何の規則で赤くなったか**を持たせる（2026-08-15・司令塔）。
       //    「赤くなった」と「狙ったものを捕まえた」は別。種別が無いと、
       //    別の理由（自己検査の的が消えた等）で落ちたときに読み分けられない。
-      hits.push({ file, line: i + 1, rule: "画面側からの呼び出し", text: line.trim().slice(0, 100) });
+      hits.push({
+        file,
+        line: i + 1,
+        rule: byName ? "画面側からの呼び出し" : "API の生文言をそのまま返している（別名の写経）",
+        text: line.trim().slice(0, 100),
+      });
     });
   }
   return hits;
@@ -71,6 +91,16 @@ const commentSamples = [" * かつて apiMessage() があった", "// apiMessage
 const falsePositives = commentSamples.filter((s) => s.includes(NEEDLE) && !isComment(s)).length;
 console.log(`  ${falsePositives === 0 ? "✅" : "❌"} 囮2: コメントの言及  → 誤検出 ${falsePositives} 件`);
 if (falsePositives !== 0) selfTestFailed = true;
+
+// 🚨 囮3: 別名の写経。実際に 9 本生きていた形（2026-08-15）。
+const shapeDecoy = SHAPE_PATTERN.test("    return payload.error.message;");
+console.log(`  ${shapeDecoy ? "✅" : "❌"} 囮3: 別名で生文言を返す  → 検出 ${shapeDecoy ? 1 : 0} 件`);
+if (!shapeDecoy) selfTestFailed = true;
+
+// 誤検出しないこと（辞書経由・code を見る形）。
+const shapeNear = ["  return t(errorKey);", "  return payload.error.code;"].filter((l) => SHAPE_PATTERN.test(l)).length;
+console.log(`  ${shapeNear === 0 ? "✅" : "❌"} 囮4: 辞書経由 / code を見る形  → 誤検出 ${shapeNear} 件`);
+if (shapeNear !== 0) selfTestFailed = true;
 
 if (selfTestFailed) {
   console.error("\n🚨 自己検査に失敗した。**この検査の結果は信用できない**（緑でも意味を持たない）。");
