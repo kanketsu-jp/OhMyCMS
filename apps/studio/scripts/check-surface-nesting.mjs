@@ -202,6 +202,57 @@ for (const file of files) {
   }
 }
 
+// ── 🚨 見逃す入力（**面の規約の持ち主＝design が作ったもの**を、そのまま通す） ────
+//    司令塔 2026-08-16「見逃す入力を自分で作って通す」。
+//    🚨 **私は面の規約の持ち主ではない**ので、**在りうる形は design に作ってもらった**
+//    （私が作ると「在りえない形」ばかりになる）。期待は design の実測どおり。
+{
+  const CASES = [
+    ["rounded-sm + border", 'className="rounded-sm border p-4"', "missed"],
+    ["rounded（サイズ無し）+ border", 'className="rounded border p-4"', "missed"],
+    ["bg-muted を面に使う", 'className="rounded-lg bg-muted p-4"', "missed"],
+    ["bg-popover", 'className="rounded-lg bg-popover p-4"', "missed"],
+    ["bg-secondary", 'className="rounded-lg bg-secondary p-4"', "missed"],
+    ["outline outline-1", 'className="rounded-lg outline outline-1 p-4"', "missed"],
+    ["shadow-2xl", 'className="shadow-2xl p-4"', "missed"],
+    // 🚨 design は「見逃す」と測ってきたが、**実際は拾う**（2026-08-16・私の実測）。
+    //    この検査は `className=` 以降の**文字列リテラルを全部連結**してから判定するので、
+    //    `cn("rounded-lg p-4", isX && "border")` は `rounded-lg p-4 border` になって当たる。
+    //    🚨 **その連結は design 自身の指摘で入ったもの**（この上の scanLine のコメント参照）。
+    //    ＝ **自分が入れた守りを、自分が忘れていた形。** 期待を実測に合わせる。
+    ["cn() で文字列が割れる", 'className={cn("rounded-lg p-4", isX && "border")}', "caught"],
+    ["インライン style", 'style={{ border: "1px solid" }}', "missed"],
+    // 🚨 これは「拾う」が、**正しい理由で拾っていない**（下の注記）
+    ["ring-1 ring-border", 'className="rounded-lg ring-1 ring-border p-4"', "caught"],
+    ["ring-1 ring-zinc-200", 'className="rounded-lg ring-1 ring-zinc-200 p-4"', "missed"],
+    // 🟢 対照
+    ["🟢 対照(+) 素直な面", 'className="rounded-lg border p-4"', "caught"],
+    ["🟢 対照(-) 面でない", 'className="flex gap-2"', "missed"],
+  ];
+  const drift = [];
+  console.log("■ 🚨 見逃す入力（**design が作った、在りうる形**。ここに出る形は静的には止まりません）");
+  for (const [why, src, expect] of CASES) {
+    const hit = scanLine("zz-probe.tsx", `  <div ${src} />`, 1);
+    const actual = hit ? "caught" : "missed";
+    if (actual !== expect) drift.push(`${why}（${expect} のはずが ${actual}）`);
+    console.log(`  ${actual === "caught" ? "  拾う  " : "🚨 見逃す"} ${why.padEnd(26)} ${src.slice(0, 46)}`
+      + (actual !== expect ? `  🚨 **期待は ${expect}**` : ""));
+  }
+  // 🚨 `ring-1 ring-border` が拾えるのは **`ring-border` の "border" に当たっているだけ**
+  //    （design が追試: `ring-zinc-200` にすると見逃す）。
+  //    ＝ **正しい結果が、間違った理由で出ている。** 色名を変えられた瞬間に消える。
+  console.log('  🚨 注記: `ring-1 ring-border` を拾うのは **`ring-border` の "border" に当たっているだけ**です');
+  console.log("        （`ring-zinc-200` にすると見逃します）＝ **正しい理由で拾っていません**");
+  console.log("  🚨 注記: 上の「見逃す」を pattern に足すのは危険です。`bg-muted` は **0 段目の正しい使い方が");
+  console.log("        39 ファイル在る**ので、足すと**大量の偽の赤**になります（憲章 §1）。");
+  console.log("        **静的で全部拾おうとせず、描画の側（scripts/audit-surface-depth.mjs）で見てください。**");
+  if (drift.length > 0) {
+    console.error(`\n🚨 囮の結果が、書いてある期待と違います（${drift.join(" / ")}）。`);
+    console.error("   検出器が変わったか、期待の書き方が誤っています。**両方を直してください**");
+    process.exit(1);
+  }
+}
+
 console.log(`対象: 面の中で描かれる ${files.length} 本を走査`);
 // 🚨 **内訳を出す。** 件数だけだと、8 行目の例外が足されて違反を飲み込み始めても
 //    「許容した面: N 件」が増えるだけで、**緑のまま気づけない**。
