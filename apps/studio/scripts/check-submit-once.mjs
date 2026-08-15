@@ -11,6 +11,16 @@
  *          `useSubmitOnce` を通っているか（hooks/use-submit-once.ts）。
  *
  * 🚨 見ていないもの（`checks-must-declare-blind-spots.md` の要求。塞げないことは隠さず書く）:
+ *   - 🚨 **母集合は「`fetch(` の呼び出しで `method:` を持つもの」だけ**（2026-08-16 に明記）。
+ *     **`<form action={...}>` で送るものは、この検査に一度も入っていない。**
+ *     実測: `<form>` の `action={}` は **16 件**。うち **8 件が `useSubmitOnce` を通っていない**
+ *       ・`action={"/admin/actions/..."}` … **5 件**（文字列 URL へのブラウザのネイティブ送信）
+ *       ・`action={setLocaleAction}`      … **2 件**（Server Action）
+ *       ・`action={save}`                 … **1 件**（`settings-manager`。ここは fetch 側で
+ *                                          拾えているので「移行待ち」に出ている）
+ *     🚨 **この 8 件に二重送信の害が在るかは、1 件ずつ見ないと分からない（未確認）。**
+ *     **「見えていない」と「害が在る」は別の主張なので、件数だけを書いておく。**
+ *     🚨 **この欄が空だった間、「未防御 0 件」は母集合の外を含んでいなかった。**
  *   - **別ファイルに置いた options を spread する形は拾えない**
  *     （例: 別ファイルの `const opts = { method: "POST" }` → `fetch(url, { ...opts })`）。
  *     1ファイルずつ読む静的検査なので、他ファイルの中身までは追えない。
