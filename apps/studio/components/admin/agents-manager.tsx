@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
+import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
 import type { PermissionAction } from "@/lib/permissions/resolve";
 
 type AgentRow = {
@@ -40,19 +41,33 @@ type CapabilitiesState = {
 
 const permissionActions = ["read", "create", "update", "delete"] as const satisfies readonly PermissionAction[];
 
-function messageFrom(payload: unknown, fallback: string): string {
+/**
+ * API の `code` を、辞書の鍵へ写す。
+ *
+ * 🚨 **サーバが返した文（`error.message`）を画面に出さない。** 理由は 2 つ:
+ *    ① 生文言を出す経路は、細工したリンクで任意の文章を公式の枠に出せる場所になりうる
+ *    ② 🚨 **英語の画面に日本語が出る**（サーバ側の文言は辞書を通っていない）
+ *       実測 2026-08-16: 偽の 404 を `"エージェントが見つかりません"` で返したところ、
+ *       **英語 UI の画面にそのまま出た**（🟢 対照: その画面のボタンは "Revoke" で英語）。
+ *
+ * 🚨 **新しい仕組みを作らない。** `i18n/error.ts` の `errorKeyFromApiCode` は
+ *    **fail closed**（知らない code は必ず `unexpected` へ落ちる）で、既にこの家の
+ *    多くのファイルが使っている。ここもそこへ寄せる。
+ */
+function errorKeyFrom(payload: unknown): ErrorKey | null {
   if (
     payload &&
     typeof payload === "object" &&
     "error" in payload &&
     payload.error &&
     typeof payload.error === "object" &&
-    "message" in payload.error &&
-    typeof payload.error.message === "string"
+    "code" in payload.error &&
+    typeof payload.error.code === "string"
   ) {
-    return payload.error.message;
+    const key = errorKeyFromApiCode(payload.error.code);
+    return key === FALLBACK_ERROR_KEY ? null : key;
   }
-  return fallback;
+  return null;
 }
 
 function parseOptionalJson(text: string, invalidMessage: string): { ok: true; value: unknown } | { ok: false; message: string } {
@@ -104,6 +119,12 @@ function capabilitiesFromSelection(selection: Record<string, PermissionAction[]>
 
 export function AgentsManager({ agents }: { agents: AgentRow[] }) {
   const t = useT("agents");
+  const tError = useT("errors");
+  // 🚨 呼び出し側は変えない。中で code → 辞書の鍵に写すだけ（11 ファイルと同じ形）。
+  const messageFrom = (payload: unknown, fallback: string) => {
+    const key = errorKeyFrom(payload);
+    return key ? tError(key) : fallback;
+  };
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -122,7 +143,11 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         if (cancelled) return;
         if (!response.ok) {
           setCollections([]);
-          setCollectionsError(messageFrom(payload, t("collections_load_failed")));
+          // 🚨 ここで `messageFrom` を呼ぶと、closure が useEffect の依存になり
+          //    毎描画で作り直されて lint が鳴る（私が closure 化して増やした警告）。
+          //    効果の中では、素の関数と `tError` を直接使う（依存は t / tError だけで済む）。
+          const key = errorKeyFrom(payload);
+          setCollectionsError(key ? tError(key) : t("collections_load_failed"));
           return;
         }
         const rows = collectionRowsFrom(payload);
@@ -145,7 +170,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, tError]);
 
   function toggleCapability(collection: string, action: PermissionAction, checked: boolean) {
     setCapabilities((current) => {

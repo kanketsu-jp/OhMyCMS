@@ -29,7 +29,8 @@
  * ❌ lib/ 側の日本語リテラルそのもの（233 件。丸ごと足すと門が死ぬ）
  * ❌ その message が **実際に画面へ描かれるか**
  *    → setError() に渡っていても、その state を描いていない画面が在りうる。
- *      **12 ファイルのうち画面まで追跡したのは agents-manager 1 件だけ**
+ *    🚨 **12 ファイルのうち、画面まで追跡できたのは agents-manager 1 件だけ**
+ *       （残り 11 は「setError に渡っている」までしか見ていない。2026-08-16 に全件 0 件へ）
  * ❌ 訳の意味（それは check-i18n-placeholders も見ていない）
  * ```
  *
@@ -51,7 +52,6 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 //    （残り 5 は auth / saml が別作業で触っている最中。終わってから寄せる）。
 //    削らないと、そのぶん増えても気づけない——この検査自身がそう書いている。
 const BASELINE = {
-  "components/admin/agents-manager.tsx": 2,
 };
 
 /** 🚨 振る舞いで見る。識別子は見ない。 */
