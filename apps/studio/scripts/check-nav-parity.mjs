@@ -27,6 +27,13 @@
  * 「未対応」「未実装」「既知の差分」「TODO」「後で」等の**未完了を示す語**が含まれていたら、
  * このスクリプト自体が exit 1 で拒否する（下の `assertExceptionsAreDesignDecisions` 参照）。
  * EXCEPTIONS は**設計上そうする理由**だけを書く場所であり、「まだ直していない」の言い訳置き場ではない。
+ *
+ * 🚨 追記（2026-08-15・2回目）: この検査には自己検査が無かった。「本当に検出できるか」を
+ * その場で証明していなかったので、将来ここが空振りするようになっても緑のまま気づけない。
+ * `check-user-label-leak.mjs` と同じ流儀（判定ロジックを「{ ファイル名: 中身 } の写し」を
+ * 受け取る純関数 `judgeParity` に切り出し、実物の写しをメモリ上で壊して RED/GREEN を毎回
+ * その場で確かめる）を足した。壊すのはメモリ上の写しだけで、ディスク上の layout.tsx は
+ * 一切書き換えない。
  */
 
 import { readFileSync } from "node:fs";
@@ -34,7 +41,14 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LAYOUT_PATH = path.join(__dirname, "..", "app", "(admin)", "layout.tsx");
+const root = path.join(__dirname, "..");
+
+/** 判定対象の実物。壊すときもこの写しを差し替える。 */
+const LAYOUT_FILE = "app/(admin)/layout.tsx";
+
+function read(file) {
+  return readFileSync(path.join(root, file), "utf8");
+}
 
 // 🚨 片方のコンポーネントにしか無くて正しい prop。
 // 追加するときは**理由を1行で書く**（隠れた例外を作らない）。
@@ -142,74 +156,252 @@ function extractTagProps(source, tagName) {
   return propNames;
 }
 
-function main() {
-  assertExceptionsAreDesignDecisions();
+/**
+ * 判定本体。ディスクを読まず「{ ファイル名: 中身 } の写し」を受け取る純関数にする
+ * （自己検査で、実物をメモリ上で壊した写しを渡せるようにするため）。
+ *
+ * 返り値の violations は `{ rule, detail }` の配列。rule のラベル一覧:
+ *   - "missing-file" : LAYOUT_FILE が sources に無い
+ *   - "parse-error"  : タグの閉じが見つからない等でパースに失敗した
+ *   - "missing-tag"  : <LeftSidebar …> / <MobileNav …> 自体が無い
+ *   - "spread"       : どちらかのタグが props を spread で渡している
+ *   - "empty-props"  : 片方の props が 0 件（対象を拾えていない可能性）
+ *   - "onlyLeft"     : <LeftSidebar> にしか無い prop で、EXCEPTIONS の説明が無い
+ *   - "onlyMobile"   : <MobileNav> にしか無い prop で、EXCEPTIONS の説明が無い
+ *
+ * spread が見つかった場合は、その時点の props 集合が信用できないため（spread の
+ * 中身が一切見えていない）、onlyLeft/onlyMobile の判定はせず早期に返す
+ * （元の実装が spread 検出時に即 process.exit(1) していたのと同じ考え方）。
+ */
+function judgeParity(sources) {
+  const violations = [];
+  const source = sources[LAYOUT_FILE];
 
-  const source = readFileSync(LAYOUT_PATH, "utf8");
-
-  const leftSidebarProps = extractTagProps(source, "LeftSidebar");
-  const mobileNavProps = extractTagProps(source, "MobileNav");
-
-  if (!leftSidebarProps) {
-    console.error("check-nav-parity: <LeftSidebar …> が layout.tsx に見つからない");
-    process.exit(1);
+  if (source === undefined) {
+    violations.push({ rule: "missing-file", detail: `${LAYOUT_FILE} が sources に無い` });
+    return { violations, leftProps: null, mobileProps: null };
   }
-  if (!mobileNavProps) {
-    console.error("check-nav-parity: <MobileNav …> が layout.tsx に見つからない");
-    process.exit(1);
+
+  let leftProps = null;
+  let mobileProps = null;
+  try {
+    leftProps = extractTagProps(source, "LeftSidebar");
+    mobileProps = extractTagProps(source, "MobileNav");
+  } catch (e) {
+    violations.push({ rule: "parse-error", detail: e.message });
+    return { violations, leftProps: null, mobileProps: null };
   }
 
-  // 🚨 spread があると、この検査は**その中身を一つも見られない**。
-  //    「片方にしか渡していない」を隠せてしまうので、spread 自体を許さない。
+  if (!leftProps) {
+    violations.push({ rule: "missing-tag", detail: "<LeftSidebar …> が layout.tsx に見つからない" });
+  }
+  if (!mobileProps) {
+    violations.push({ rule: "missing-tag", detail: "<MobileNav …> が layout.tsx に見つからない" });
+  }
+  if (!leftProps || !mobileProps) {
+    return { violations, leftProps, mobileProps };
+  }
+
+  // 🚨 spread の中身はこの検査から見えないので、「片方にしか渡していない」を黙って隠せてしまう。
+  //    見つけたら即座に報告し、以降の parity 判定（信用できない）はしない。
   const spreads = [
-    ["LeftSidebar", leftSidebarProps.spreads],
-    ["MobileNav", mobileNavProps.spreads],
+    ["LeftSidebar", leftProps.spreads],
+    ["MobileNav", mobileProps.spreads],
   ].filter(([, n]) => n > 0);
   if (spreads.length > 0) {
-    console.error("check-nav-parity: FAIL — props を spread で渡している\n");
     for (const [tag, n] of spreads) {
-      console.error(`  <${tag}> に {...} が ${n} 件`);
+      violations.push({ rule: "spread", detail: `<${tag}> に {...} が ${n} 件` });
     }
-    console.error(
-      "\n  spread の中身はこの検査から見えないので、" +
-        "「片方にしか渡していない」を黙って隠せてしまう。\n" +
-        "  🚨 片側だけに渡すのが設計上の判断なら、**直接渡したうえで EXCEPTIONS に理由を書く**。\n" +
-        "  検査に見つからない書き方を選ぶのではなく、見つかる書き方で宣言すること。",
-    );
-    process.exit(1);
+    return { violations, leftProps, mobileProps };
   }
 
-  const leftOnly = [...leftSidebarProps].filter((p) => !mobileNavProps.has(p));
-  const mobileOnly = [...mobileNavProps].filter((p) => !leftSidebarProps.has(p));
+  // 🚨 対象を1件も拾えていないのに緑になる（EXCEPTIONS 差分だけで判定して素通りする）のを防ぐ。
+  //    実測（HEAD af7b597）: 通常は <LeftSidebar> 12 props / <MobileNav> 12 props。
+  if (leftProps.size === 0) {
+    violations.push({ rule: "empty-props", detail: "<LeftSidebar> の props が 0 件（対象を拾えていない可能性）" });
+  }
+  if (mobileProps.size === 0) {
+    violations.push({ rule: "empty-props", detail: "<MobileNav> の props が 0 件（対象を拾えていない可能性）" });
+  }
+
+  const leftOnly = [...leftProps].filter((p) => !mobileProps.has(p));
+  const mobileOnly = [...mobileProps].filter((p) => !leftProps.has(p));
 
   const unexplainedLeftOnly = leftOnly.filter((p) => EXCEPTIONS[p]?.onlyIn !== "LeftSidebar");
   const unexplainedMobileOnly = mobileOnly.filter((p) => EXCEPTIONS[p]?.onlyIn !== "MobileNav");
 
-  if (unexplainedLeftOnly.length === 0 && unexplainedMobileOnly.length === 0) {
-    console.log(
-      `check-nav-parity: OK — <LeftSidebar> ${leftSidebarProps.size} props / <MobileNav> ${mobileNavProps.size} props。差分は全て EXCEPTIONS に理由あり。`,
-    );
-    process.exit(0);
+  for (const p of unexplainedLeftOnly) {
+    violations.push({
+      rule: "onlyLeft",
+      detail: `<LeftSidebar> にはあるが <MobileNav> に無い（未説明）: ${p}`,
+    });
+  }
+  for (const p of unexplainedMobileOnly) {
+    violations.push({
+      rule: "onlyMobile",
+      detail: `<MobileNav> にはあるが <LeftSidebar> に無い（未説明）: ${p}`,
+    });
   }
 
-  console.error("check-nav-parity: FAIL — PC と SP のナビに渡している prop が食い違っている\n");
-  if (unexplainedLeftOnly.length > 0) {
-    console.error(
-      `  <LeftSidebar> にはあるが <MobileNav> に無い（未説明）: ${unexplainedLeftOnly.join(", ")}`,
+  return { violations, leftProps, mobileProps };
+}
+
+function loadSources() {
+  return { [LAYOUT_FILE]: read(LAYOUT_FILE) };
+}
+
+function countOccurrences(haystack, needle) {
+  if (!needle) return 0;
+  return haystack.split(needle).length - 1;
+}
+
+// ── 1) 自己検査: わざと壊して、赤くなることを確かめる ──────────────────────
+// 壊し方は3通り。片方向だけだと「たまたま落ちた」が混ざるので、
+// LeftSidebar 側／MobileNav 側の両方向と、spread の3本を試す。
+
+const LEFT_ANCHOR = "<LeftSidebar\n        brand={brand}";
+const MOBILE_ANCHOR =
+  "<MobileNav\n        // SP メニューボタンのバッジ専用。ナビの行き先データではないので PC サイドバーへは渡さない。\n        personalUnreadNotifications={personalUnreadNotifications}";
+
+const selfTests = [
+  {
+    name: "壊し方1: <LeftSidebar> にだけ zzSelfTestOnlyLeft を足す（片側のみ・LeftSidebar方向）",
+    expectRule: "onlyLeft",
+    expectNeedle: "zzSelfTestOnlyLeft",
+    apply(sources) {
+      const before = sources[LAYOUT_FILE];
+      const count = countOccurrences(before, LEFT_ANCHOR);
+      const after = before.replace(LEFT_ANCHOR, "<LeftSidebar\n        zzSelfTestOnlyLeft={1}\n        brand={brand}");
+      return { sources: { ...sources, [LAYOUT_FILE]: after }, count };
+    },
+  },
+  {
+    // 🚨 片方向だけ試すと「たまたま落ちた」が混ざる。onlyLeft と onlyMobile は
+    //    別々の配列（leftOnly / mobileOnly）から作られるので、逆方向も必ず試す。
+    name: "壊し方2: <MobileNav> にだけ zzSelfTestOnlyMobile を足す（片側のみ・逆方向）",
+    expectRule: "onlyMobile",
+    expectNeedle: "zzSelfTestOnlyMobile",
+    apply(sources) {
+      const before = sources[LAYOUT_FILE];
+      const count = countOccurrences(before, MOBILE_ANCHOR);
+      const after = before.replace(
+        MOBILE_ANCHOR,
+        "<MobileNav\n        zzSelfTestOnlyMobile={1}\n        // SP メニューボタンのバッジ専用。ナビの行き先データではないので PC サイドバーへは渡さない。\n        personalUnreadNotifications={personalUnreadNotifications}",
+      );
+      return { sources: { ...sources, [LAYOUT_FILE]: after }, count };
+    },
+  },
+  {
+    name: "壊し方3: <LeftSidebar> に {...{ zzSelfTestSpread: 1 }} を足す（spread）",
+    expectRule: "spread",
+    expectNeedle: "<LeftSidebar>",
+    apply(sources) {
+      const before = sources[LAYOUT_FILE];
+      const count = countOccurrences(before, LEFT_ANCHOR);
+      const after = before.replace(
+        LEFT_ANCHOR,
+        "<LeftSidebar\n        {...{ zzSelfTestSpread: 1 }}\n        brand={brand}",
+      );
+      return { sources: { ...sources, [LAYOUT_FILE]: after }, count };
+    },
+  },
+];
+
+// ── 1b) 対照検査: 壊していない変更で誤検出しないことを確かめる（GREENの確認） ──
+// 🚨 EXCEPTIONS に載っている既存の差分（brand / logo / contentHeading /
+//    personalUnreadNotifications）が、そのままで違反 0 件・exit 0 になることを確かめる。
+//    ＝ EXCEPTIONS の仕組み自体が効いていることの確認。
+
+const greenTests = [
+  {
+    name: "対照1: EXCEPTIONS に載っている既存の差分はそのままで違反 0 件になる",
+    apply(sources) {
+      // 何も壊さない。LEFT_ANCHOR が今も見つかることだけを確認し、
+      // 「スクリプトが前提にしているレイアウト構造がまだ生きているか」を担保する
+      // （anchor が見つからなければ count=0 になり、下の「置換 0 件」検出に回る）。
+      const count = countOccurrences(sources[LAYOUT_FILE], LEFT_ANCHOR);
+      return { sources, count };
+    },
+  },
+];
+
+const original = loadSources();
+
+function main() {
+  assertExceptionsAreDesignDecisions();
+
+  console.log("■ 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）");
+  let selfTestFailed = false;
+  for (const test of selfTests) {
+    const { sources, count } = test.apply(original);
+    const { violations } = judgeParity(sources);
+    const matched = violations.filter((v) => v.rule === test.expectRule && v.detail.includes(test.expectNeedle));
+    // 🚨 置換が 0 件なら、壊せていない。「赤くならなかった」ではなく「壊れていない」が正しい。
+    const detected = count > 0 && matched.length > 0;
+
+    const detectedRules = [...new Set(violations.map((v) => v.rule))].join(",") || "-";
+    console.log(
+      `  ${detected ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${violations.length} 件（rule: ${detectedRules}、期待 rule "${test.expectRule}" ${matched.length}件一致）`,
     );
+    if (count === 0) {
+      console.error("     ↑ 置換が 0 件。壊せていないので、赤くならないのは当然。検査の書き方が古い。");
+    }
+
+    if (!detected) selfTestFailed = true;
   }
-  if (unexplainedMobileOnly.length > 0) {
+
+  console.log("\n■ 対照検査（壊していない変更で誤検出しないことを確かめる）");
+  let greenTestFailed = false;
+  for (const test of greenTests) {
+    const { sources, count } = test.apply(original);
+    const { violations } = judgeParity(sources);
+    const clean = count > 0 && violations.length === 0;
+
+    console.log(`  ${clean ? "✅" : "❌"} ${test.name}  置換 ${count} 件 → 検出 ${violations.length} 件`);
+    if (count === 0) {
+      console.error("     ↑ 置換が 0 件。前提の anchor が見つからない（layout.tsx の構造が変わった可能性）。");
+    }
+    if (!clean && violations.length > 0) {
+      for (const v of violations) {
+        console.error(`     誤検出 [${v.rule}] ${v.detail}`);
+      }
+    }
+
+    if (!clean) greenTestFailed = true;
+  }
+
+  // ── 2) 本番の判定 ─────────────────────────────────────────────────────
+  const { violations, leftProps, mobileProps } = judgeParity(original);
+
+  console.log("\n■ 判定");
+  if (leftProps && mobileProps) {
+    console.log(`  <LeftSidebar> ${leftProps.size} props / <MobileNav> ${mobileProps.size} props`);
+  }
+  console.log(`  違反: ${violations.length} 件`);
+
+  if (violations.length > 0) {
+    console.error("\n  PC と SP のナビに渡している prop が食い違っている（または検査自体が判定できない状態）:");
+    for (const v of violations) {
+      console.error(`  [${v.rule}] ${v.detail}`);
+    }
     console.error(
-      `  <MobileNav> にはあるが <LeftSidebar> に無い（未説明）: ${unexplainedMobileOnly.join(", ")}`,
+      "\n  正しい行き先データを渡し忘れている可能性がある（実例: bottomItems / reports が MobileNav に配線されておらず、SPから通知・不具合報告が消えた）。",
     );
+    console.error(
+      "  意図した片側だけの prop なら、このスクリプト冒頭の EXCEPTIONS に理由付きで追加すること。",
+    );
+  } else {
+    console.log("  OK — 差分は全て EXCEPTIONS に理由あり。");
   }
-  console.error(
-    "\n  正しい行き先データを渡し忘れている可能性がある（実例: bottomItems / reports が MobileNav に配線されておらず、SPから通知・不具合報告が消えた）。",
-  );
-  console.error(
-    "  意図した片側だけの prop なら、このスクリプト冒頭の EXCEPTIONS に理由付きで追加すること。",
-  );
-  process.exit(1);
+
+  if (selfTestFailed) {
+    console.error("\n🚨 自己検査（RED）に失敗した。**この検査の結果は信用できない**（緑でも意味を持たない）。");
+  }
+  if (greenTestFailed) {
+    console.error("\n🚨 対照検査（GREEN）に失敗した。壊していない変更で誤検出している（過検出）。");
+  }
+
+  process.exit(violations.length === 0 && !selfTestFailed && !greenTestFailed ? 0 : 1);
 }
 
 main();
