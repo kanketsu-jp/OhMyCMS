@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -17,9 +16,6 @@ import { Label } from "@/components/ui/label";
 import { FileDropzone } from "@/components/admin/file-dropzone";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useLocale, useT } from "@/i18n/client";
-import { setLocaleAction } from "@/i18n/actions";
-import { LOCALES } from "@/i18n/config";
-import { cn } from "@/lib/utils";
 
 type OnboardingFormProps = {
   defaultProjectName: string;
@@ -31,16 +27,14 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
   const router = useRouter();
   const locale = useLocale();
   const t = useT("onboarding");
-  const tCommon = useT("common");
+  const [step, setStep] = useState<"password" | "details">("password");
   const [projectName, setProjectName] = useState(defaultProjectName);
-  const [tenantName, setTenantName] = useState("");
   const [logoId, setLogoId] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
   const [stage, setStage] = useState<"form" | "done">("form");
 
   // 🚨 アップロードも「変更を送る」操作なので useSubmitOnce を通す。
@@ -76,9 +70,7 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
     }
   });
 
-  const submit = useSubmitOnce(async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPending(true);
+  const submit = useSubmitOnce(async (includeDetails: boolean) => {
     setError(null);
 
     const response = await fetch(`/api/onboarding`, {
@@ -86,14 +78,15 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         new_password: newPassword,
-        project_name: projectName,
         default_locale: locale,
-        tenant_name: tenantName,
-        project_logo: logoId ?? "",
+        ...(includeDetails
+          ? {
+              project_name: projectName,
+              project_logo: logoId ?? "",
+            }
+          : {}),
       }),
     });
-
-    setPending(false);
 
     if (!response.ok) {
       setError(t("failed"));
@@ -150,123 +143,129 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <p id="locale-label" className="text-sm font-medium">
-          {t("locale_label")}
-        </p>
-        <form action={setLocaleAction}>
-          <ButtonGroup aria-labelledby="locale-label" className="w-full">
-            {LOCALES.map((loc) => {
-              const selected = loc === locale;
-              return (
-                <button
-                  key={loc}
-                  type="submit"
-                  name="locale"
-                  value={loc}
-                  aria-pressed={selected}
-                  className={cn(
-                    buttonVariants({ variant: selected ? "secondary" : "outline" }),
-                    "min-h-(--control-h) md:min-h-(--control-h-pc) flex-1",
-                  )}
+      {step === "password" ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (event.currentTarget.reportValidity()) {
+              setStep("details");
+            }
+          }}
+          className="flex flex-col gap-4"
+        >
+          <p className="text-xs text-muted-foreground">{t("step_password_progress")}</p>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="new-password">{t("new_password_label")}</Label>
+            {/* `--control-h-entry` qualifies here because this step has exactly one operation,
+                matching globals.css:100: entry screens are only for screens with one control. */}
+            <InputGroup className="h-(--control-h-entry) md:h-(--control-h-entry)">
+              <InputGroupInput
+                id="new-password"
+                type={showPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                className="px-4"
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? t("hide_password") : t("show_password")}
                 >
-                  {tCommon(`locale_${loc}`)}
-                  {selected ? <CheckIcon className="size-4" /> : null}
-                </button>
-              );
-            })}
-          </ButtonGroup>
-        </form>
-      </div>
-      <hr className="border-0 border-t border-border" />
-      <form onSubmit={submit.run} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="project-name">{t("project_name_label")}</Label>
-          <Input
-            id="project-name"
-            type="text"
-            value={projectName}
-            onChange={(event) => setProjectName(event.target.value)}
-            required
-            autoComplete="organization"
-            className="h-(--control-h) md:h-(--control-h-pc)"
-          />
-          <p className="text-xs text-muted-foreground">{t("project_name_help")}</p>
-        </div>
-        <hr className="border-0 border-t border-border" />
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="new-password">{t("new_password_label")}</Label>
-          <InputGroup>
-            <InputGroupInput
-              id="new-password"
-              type={showPassword ? "text" : "password"}
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                type="button"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-label={showPassword ? t("hide_password") : t("show_password")}
-              >
-                {showPassword ? (
-                  <EyeOffIcon className="size-4" />
-                ) : (
-                  <EyeIcon className="size-4" />
-                )}
-              </InputGroupButton>
-            </InputGroupAddon>
-          </InputGroup>
-          <p className="text-xs text-muted-foreground">{t("new_password_help")}</p>
-          {/* 🚨 赤い警告にしない。すぐ下に入力欄があり、これから普通に決めてもらう場面なので
-              「何かがおかしい」の色は強すぎる（design 指摘）。完了画面では stage で消える。 */}
-          {usingDefaultPassword ? (
-            <p className="text-xs text-muted-foreground">{t("new_password_default_note")}</p>
-          ) : null}
-        </div>
-        <hr className="border-0 border-t border-border" />
-        <div className="flex flex-col gap-4">
-          <p className="text-sm font-medium text-muted-foreground">{t("optional_heading")}</p>
-          <div className="flex flex-col gap-2">
-            <p id="onboarding-logo-label" className="text-sm font-medium">{t("logo_label")}</p>
-            {/* 選んだものの見せ方（サムネ・題名）は FileDropzone に任せる。
-                ここで img を出すと Attachment と二重になる。 */}
-            <FileDropzone
-              name="logo"
-              labelledBy="onboarding-logo-label"
-              onSelect={uploadLogo.run}
-            />
-            {logoUploading ? (
-              <p className="text-xs text-muted-foreground">{t("logo_uploading")}</p>
+                  {showPassword ? (
+                    <EyeOffIcon className="size-4" />
+                  ) : (
+                    <EyeIcon className="size-4" />
+                  )}
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+            <p className="text-xs text-muted-foreground">{t("new_password_help")}</p>
+            {/* 🚨 赤い警告にしない。すぐ下に入力欄があり、これから普通に決めてもらう場面なので
+                「何かがおかしい」の色は強すぎる（design 指摘）。完了画面では stage で消える。 */}
+            {usingDefaultPassword ? (
+              <p className="text-xs text-muted-foreground">{t("new_password_default_note")}</p>
             ) : null}
-            {logoError ? <p className="text-sm text-destructive">{logoError}</p> : null}
-            <p className="text-xs text-muted-foreground">{t("logo_help")}</p>
           </div>
+          <Button type="submit" size="entry">
+            {t("step_next")}
+          </Button>
+        </form>
+      ) : (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit.run(true);
+          }}
+          className="flex flex-col gap-4"
+        >
+          <p className="text-xs text-muted-foreground">{t("step_details_progress")}</p>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="tenant-name">{t("tenant_label")}</Label>
+            <Label htmlFor="project-name">{t("project_name_label")}</Label>
             <Input
-              id="tenant-name"
+              id="project-name"
               type="text"
-              value={tenantName}
-              onChange={(event) => setTenantName(event.target.value)}
+              value={projectName}
+              onChange={(event) => setProjectName(event.target.value)}
+              autoComplete="organization"
               className="h-(--control-h) md:h-(--control-h-pc)"
             />
-            <p className="text-xs text-muted-foreground">{t("tenant_help")}</p>
+            <p className="text-xs text-muted-foreground">{t("project_name_help")}</p>
           </div>
-        </div>
-        <hr className="border-0 border-t border-border" />
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button
-          type="submit"
-          className="min-h-(--control-h) w-full md:min-h-0"
-          disabled={submit.pending || pending || logoUploading}
-        >
-          {pending ? t("submit_pending") : t("submit")}
-        </Button>
-      </form>
+          <hr className="border-0 border-t border-border" />
+          <div className="flex flex-col gap-4">
+            <p className="text-sm font-medium text-muted-foreground">{t("optional_heading")}</p>
+            <div className="flex flex-col gap-2">
+              <p id="onboarding-logo-label" className="text-sm font-medium">{t("logo_label")}</p>
+              {/* 選んだものの見せ方（サムネ・題名）は FileDropzone に任せる。
+                  ここで img を出すと Attachment と二重になる。 */}
+              <FileDropzone
+                name="logo"
+                labelledBy="onboarding-logo-label"
+                onSelect={uploadLogo.run}
+              />
+              {logoUploading ? (
+                <p className="text-xs text-muted-foreground">{t("logo_uploading")}</p>
+              ) : null}
+              {logoError ? <p className="text-sm text-destructive">{logoError}</p> : null}
+              <p className="text-xs text-muted-foreground">{t("logo_help")}</p>
+            </div>
+          </div>
+          <hr className="border-0 border-t border-border" />
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <div className="flex flex-col gap-2">
+            <Button
+              type="submit"
+              className="w-full"
+              loading={submit.pending}
+              disabled={logoUploading}
+            >
+              {submit.pending ? t("submit_pending") : t("submit")}
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep("password")}
+                disabled={submit.pending}
+              >
+                {t("step_back")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void submit.run(false)}
+                loading={submit.pending}
+              >
+                {submit.pending ? t("submit_pending") : t("submit_later")}
+              </Button>
+            </div>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

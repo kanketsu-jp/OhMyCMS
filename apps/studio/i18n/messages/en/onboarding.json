@@ -10,7 +10,6 @@
   "failed": "Could not save. Please try again later.",
   "go_admin": "Go to admin",
   "hide_password": "Hide password",
-  "locale_label": "Display language",
   "logo_failed": "Could not upload the logo.",
   "logo_help": "Displayed in the admin header.",
   "logo_label": "Logo",
@@ -22,9 +21,12 @@
   "project_name_help": "Displayed in the admin header and login screen.",
   "project_name_label": "Service name",
   "show_password": "Show password",
+  "step_back": "Back",
+  "step_details_progress": "2 / 2",
+  "step_next": "Next",
+  "step_password_progress": "1 / 2",
   "submit": "Get started",
+  "submit_later": "Later",
   "submit_pending": "Saving...",
-  "tenant_help": "The organization name. It is not displayed yet.",
-  "tenant_label": "Tenant name",
   "title": "Initial setup"
 }

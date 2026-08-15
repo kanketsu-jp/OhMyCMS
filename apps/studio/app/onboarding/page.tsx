@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { LocaleSwitcher } from "@/components/admin/locale-switcher";
 import { OnboardingForm } from "@/components/admin/onboarding-form";
 import { getT } from "@/i18n/server";
 import { SETUP_COOKIE, parseCookies } from "@/lib/auth/cookies";
@@ -27,6 +28,7 @@ export default async function OnboardingPage() {
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-10">
+      <LocaleSwitcher className="fixed right-4 top-4" />
       <div className="flex w-full max-w-sm flex-col gap-6">
         <div className="flex flex-col gap-1 text-center">
           <h1 className="text-xl font-semibold">{t("title")}</h1>

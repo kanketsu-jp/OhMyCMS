@@ -4,7 +4,8 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { OnboardingForm } from "@/components/admin/onboarding-form";
 
 /**
- * 初回セットアップの入力欄。中に **ロゴのドロップ領域（FileDropzone）** が入る。
+ * 初回セットアップの入力欄。1ステップ目はパスワードだけ、2ステップ目に
+ * **ロゴのドロップ領域（FileDropzone）** が入る。
  *
  * 🚨 **この story は測るために置いてある。**
  * `/onboarding` は**セットアップが済むと `/admin` へ 307 で飛ぶ**ので、
@@ -18,6 +19,7 @@ import { OnboardingForm } from "@/components/admin/onboarding-form";
  *   --paths '/iframe.html?id=pages-onboardingform--default&viewMode=story'
  * ```
  *
+ * 監査でロゴを見るときは、1ステップ目に有効なパスワードを入れて次へ進む。
  * 見たいのは 2 つ:
  * - **ロゴのドロップ領域が読み上げ名を持つか**（`labelledBy` が実在の id を指しているか）。
  *   🚨 `aria-labelledby` の**属性が付いていること**では足りない。

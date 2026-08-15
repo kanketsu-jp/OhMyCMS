@@ -10,7 +10,6 @@
   "failed": "保存できませんでした。時間をおいてもう一度お試しください。",
   "go_admin": "管理画面へ",
   "hide_password": "パスワードを隠す",
-  "locale_label": "表示言語",
   "logo_failed": "ロゴをアップロードできませんでした。",
   "logo_help": "管理画面のヘッダに表示されます。",
   "logo_label": "ロゴ",
@@ -22,9 +21,12 @@
   "project_name_help": "管理画面のヘッダとログイン画面に表示されます。",
   "project_name_label": "サービス名",
   "show_password": "パスワードを表示",
+  "step_back": "戻る",
+  "step_details_progress": "2 / 2",
+  "step_next": "次へ",
+  "step_password_progress": "1 / 2",
   "submit": "はじめる",
+  "submit_later": "あとで",
   "submit_pending": "保存しています...",
-  "tenant_help": "組織の名前です。いまは表示されません。",
-  "tenant_label": "テナント名",
   "title": "はじめの設定"
 }
