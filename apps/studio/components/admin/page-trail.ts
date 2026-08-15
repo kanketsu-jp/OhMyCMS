@@ -53,7 +53,13 @@ export function buildTrail(
     // `titleFromData` は「名前は実データ側にある」という印。
     // レイアウトはそのデータを持たないので、URL の区間をそのまま名前にする
     // （コレクション名はそれ自体が名前なので、これで正しく出る）。
-    crumbs.push({ href, label: meta.titleFromData ? segment : t(meta.titleKey) });
+    // 🚨 **本タイトルがあればそれを使い、無ければ従来どおり `titleKey`**（`page-meta.ts` の `fullTitleKey`）。
+    //    いまは `fullTitleKey` を持つページが 1 つも無いので、**この行を入れても画面は1文字も変わらない**。
+    //    文言を足す作業と分けてあるのは、崩れたときにどちらが原因かを分けるため。
+    crumbs.push({
+      href,
+      label: meta.titleFromData ? segment : t(meta.fullTitleKey ?? meta.titleKey),
+    });
   });
 
   return crumbs;
