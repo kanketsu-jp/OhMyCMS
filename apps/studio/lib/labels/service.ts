@@ -45,6 +45,11 @@ type LabelRow = {
 /**
  * 画面と SDK へ返す形。
  * 🚨 `system_key` は**返さない**。機械が内部で引くための鍵で、利用者には意味がない。
+ *    **守り手: `toPublic`（このファイルの下、4項目だけを組み立てて返す）。**
+ *    外へ出る経路は `listLabels` / `readLabelsForTarget` / `createLabel` / `updateLabel` の
+ *    4つで、**すべて `toPublic` を通る**（2026-08-15 に return を全部並べて確認）。
+ *    🚨 クエリは `select("ohmycms_labels.*")` なので **row には system_key が入っている**。
+ *    落としているのは型ではなく `toPublic` の**組み立て**。新しい出口を足すときは必ず通すこと。
  *    ただし `is_system` は返す（**消せないことを画面で示す必要がある**ため）。
  */
 export type PublicLabel = {

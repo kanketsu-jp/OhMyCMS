@@ -7,6 +7,14 @@ import { refreshAccessToken } from "./oauth";
  * 利用者ごとのドライブ接続。
  *
  * 🚨 **リフレッシュトークンをこのファイルの外へ出さない。**
+ *
+ * **守り手その1: 型 `DriveConnection`（`connected` と `accountEmail` の2項目だけ）。**
+ *   画面へ返る唯一の形がこれで、トークンの入る欄が無い。
+ * **守り手その2: `getAccessTokenFor` が返すのは access token（`Promise<string>`）だけ。**
+ *   refresh は関数の中の `let refreshToken` にしか現れず、外へ出る文が無い。
+ * **守り手その3: 呼び出し口が 2 箇所しか無い**——`app/api/drive/files/route.ts:21` と
+ *   `lib/drive/import.ts:86`。どちらも**その場の const** で、応答へは載せていない
+ *   （2026-08-15 に呼び出し元を全部たどって確認）。
  *   外に出す口を作ると、いつか誰かがログやレスポンスに載せる。
  *   外から使えるのは「繋がっているか」と「アクセストークン（短命）」だけにしてある。
  *

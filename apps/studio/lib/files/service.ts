@@ -44,6 +44,12 @@ const SUPPORTED_TRANSFORM_MIME = new Set([
   "image/avif",
 ]);
 
+// **守り手: この 2 つの集合（MIME と拡張子）と、下の `contentDisposition` の組み立て。**
+// 画面まで届いていることは `app/api/assets/[id]/route.ts` が
+// `headers.set("Content-Disposition", asset.contentDisposition)` で載せている（ここが無いと無意味）。
+// 🚨 2026-08-15 に HTTP で実測:
+//   evil.svg / evil.html / **SVG を image/png と偽ったもの** → 3 つとも attachment + nosniff
+//   🟢 対照(+) ふつうの PNG → **Content-Disposition が付かない**（＝全部に付けているのではない）
 const DANGEROUS_INLINE_MIME = new Set(["text/html", "image/svg+xml"]);
 
 /**
@@ -198,6 +204,14 @@ type FileRow = {
  * 🚨 **`compressed_key` を外している。** 保管先の中のキー構造（どこに何が置いてあるか）は
  *    利用者に要らない情報で、出すと**バケットの中身の当て方の手がかり**になる。
  *    ぼかし（blur_data_url）は表示のための公開情報なので、そのまま返してよい。
+ *
+ * **守り手: `toPublicFile`（すぐ下）。`delete` で実際に落とす。**
+ *    外へ出る経路は `uploadFile` / `listFiles` / `getFile` / `updateFile` の 4 つで、
+ *    **すべて `toPublicFile` を通る**（2026-08-15 に返り値の型と return を全部確認）。
+ *    🚨 **型（`Omit`）は守り手ではない。** 型は「そう宣言した」だけで、
+ *    実際に落としているのは `delete`。`as` で黙らせれば型は素通りする。
+ *    🚨 API ルートが `directus_files` を直接読むとこの守りを迂回できる。
+ *    2026-08-15 時点で `app/` `components/` に直接読む経路は無い（ヒットはコメント 2 件のみ）。
  */
 export type PublicFileRow = Omit<FileRow, "compressed_key">;
 

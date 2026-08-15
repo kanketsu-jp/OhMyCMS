@@ -98,6 +98,8 @@ async function readS3Env(): Promise<S3Env | null> {
  *    そのため readEnv は trim して空を捨て、**空白だけの値も未設定として扱う**。
  *
  * 返すのは**環境変数の名前だけ**。値は返さない（AGENTS.md §3.7）。
+ * **守り手: この関数が `missing.push("S3_ENDPOINT")` のようにリテラルだけを積むこと。**
+ * 値を持つ変数（`parts.*`）は **`if` の条件にしか使っていない**＝入る経路が無い。
  */
 async function missingS3Settings(): Promise<string[]> {
   const parts = await readS3Parts();
@@ -153,6 +155,10 @@ export type StorageStatus = {
 /**
  * 画面や診断に出すための、いまの保管先の状態。
  * 🚨 **アクセスキーは返さない**（伏せ字でも返さない）。設定画面へ出すのはここまで。
+ * **守り手その1: 型 `StorageStatus` が 5 項目に固定**（増やすと型で落ちる）。
+ * **守り手その2: `endpointHost` は `new URL(env.endpoint).host`。**
+ *   `.host` は **userinfo を含まない**ので、`https://KEY:SECRET@host/` の形で
+ *   設定されていても**鍵は構造的に落ちる**（`.href` や文字列連結にしたら漏れる）。
  */
 export async function getStorageStatus(): Promise<StorageStatus> {
   const env = await readS3Env();

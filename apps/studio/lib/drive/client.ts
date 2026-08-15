@@ -168,6 +168,9 @@ export type DriveFileList = {
   nextPageToken: string | null;
 };
 
+// **守り手: この `fields` 指定そのもの。**
+// Google は指定した列しか返さないので、**こちらが数え漏らしても余計な情報が入らない**。
+// 返る形は `DriveFileList`（files と nextPageToken の 2 項目）で、トークンの入る欄が無い。
 const LIST_FIELDS =
   "nextPageToken,files(id,name,mimeType,size,modifiedTime,iconLink,thumbnailLink)";
 
