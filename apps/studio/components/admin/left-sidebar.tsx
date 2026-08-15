@@ -141,7 +141,7 @@ function SidebarGroupNav({ group }: { group: NavGroup }) {
   const inside = matchesNavGroup(pathname, group.match);
 
   return (
-    <AccordionPrimitive.Item value={group.key} className="border-0">
+    <AccordionPrimitive.Item value={group.key}>
       <SidebarMenuItem>
         <AccordionPrimitive.Header className="flex">
           <SidebarMenuButton asChild isActive={inside} tooltip={group.label}>

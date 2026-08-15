@@ -85,11 +85,11 @@ export function NavLinks({ items, groups, onNavigate }: Props) {
       {items.map((item) => row(item))}
       {groups.length > 0 ? (
         // 🚨 いる場所から決める。開閉を覚えさせない
-        <Accordion defaultValue={open} className="border-0">
+        <Accordion defaultValue={open}>
           {groups.map((group) => {
             const inside = matchesNavGroup(pathname, group.match);
             return (
-              <AccordionItem key={group.key} value={group.key} className="border-0">
+              <AccordionItem key={group.key} value={group.key}>
                 <AccordionTrigger
                   className={cn(
                     // 🚨 `items-center` が要る。AccordionTrigger の既定は `items-start` なので、
