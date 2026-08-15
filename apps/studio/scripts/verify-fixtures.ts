@@ -134,13 +134,42 @@ function runSelfTest(realMarkdown: string): boolean {
   return ok;
 }
 
-async function tableNamesInPublic(names: string[]): Promise<Set<string>> {
-  const rows = await db("information_schema.tables")
-    .select<{ table_name: string }[]>("table_name")
-    .where({ table_schema: "public", table_type: "BASE TABLE" })
-    .whereIn("table_name", names);
+/**
+ * 表の名前を「実在するもの」の集合へ落とす。
+ *
+ * 🚨 **`コレクション.フィールド` の形も受け付ける**（2026-08-15 追加・schema）。
+ * それまでは `information_schema.tables` しか見ていなかったので、**列を常設にしても
+ * 何も守っていなかった**——表が残っていれば列が消えても通る。
+ * 実際に起きた形: この開発 DB には **`interface=richtext` のフィールドが 1 本も無く**、
+ * 本文エディタに**誰も画面で到達できなかった**（実測: `meta.interface` の実値は
+ * `None: 293` / `'file': 1` のみ）。標本を足しても、守るものが無ければ次の掃除で消える。
+ */
+async function existingNames(names: string[]): Promise<Set<string>> {
+  const 表の名 = names.filter((n) => !n.includes("."));
+  const 列の名 = names.filter((n) => n.includes("."));
+  const found = new Set<string>();
 
-  return new Set(rows.map((row) => row.table_name));
+  if (表の名.length > 0) {
+    const rows = await db("information_schema.tables")
+      .select<{ table_name: string }[]>("table_name")
+      .where({ table_schema: "public", table_type: "BASE TABLE" })
+      .whereIn("table_name", 表の名);
+    for (const row of rows) found.add(row.table_name);
+  }
+
+  if (列の名.length > 0) {
+    const rows = await db("information_schema.columns")
+      .select<{ table_name: string; column_name: string }[]>("table_name", "column_name")
+      .where({ table_schema: "public" })
+      // 表と列を別々に絞ってから、組み合わせで突き合わせる
+      // （`whereIn` を2本かけるだけでは「別の表の同名列」が通ってしまう）。
+      .whereIn("table_name", 列の名.map((n) => n.split(".")[0]))
+      .whereIn("column_name", 列の名.map((n) => n.split(".").slice(1).join(".")));
+    const 実在 = new Set(rows.map((row) => `${row.table_name}.${row.column_name}`));
+    for (const name of 列の名) if (実在.has(name)) found.add(name);
+  }
+
+  return found;
 }
 
 async function main(): Promise<number> {
@@ -175,10 +204,10 @@ async function main(): Promise<number> {
 
   let found: Set<string>;
   try {
-    found = await tableNamesInPublic(fixtures);
+    found = await existingNames(fixtures);
   } catch (error) {
-    console.error(`DB に接続できない、または table list を読めませんでした: ${errorMessage(error)}`);
-    console.log("結果: DB に接続できない、または table list を読めませんでした (exit 2)");
+    console.error(`DB に接続できない、または表・列の一覧を読めませんでした: ${errorMessage(error)}`);
+    console.log("結果: DB に接続できない、または表・列の一覧を読めませんでした (exit 2)");
     return 2;
   } finally {
     await db.destroy().catch(() => undefined);
