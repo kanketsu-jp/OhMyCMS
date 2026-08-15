@@ -374,6 +374,35 @@ const negatives = [
   },
 ];
 
+/**
+ * 🚨 **基準線: 壊していない実物で既に出ている違反。**
+ *
+ * 囮・見逃す入力・対照(-) は「違反が出たか」で判定していたが、
+ * **実物の側に別の理由で違反が出ていると、全部が汚染される**。
+ * 実測（2026-08-16・台の上）: `onboarding-form.tsx` を 0 文字にしただけで
+ * `form-missing-key` が 2 件出て、**見逃す入力 5 本とも「拾えた」に見えた**
+ * （＝ 🚨 **注入した退行とは無関係な違反**を、検出の証拠として数えていた）。
+ * 対照(-) 3 本も「過検出」に見えた。**さらに declaredBlind の食い違い警報まで
+ * 誤って鳴る**（「拾えるようになりました」と言ってヘッダの書き直しを要求する）。
+ *
+ * → **基準線を引き、そこから増えた違反だけを「この入力が起こしたもの」として数える。**
+ * 実物が綺麗なとき（＝通常）は空集合なので、振る舞いは変わらない。
+ */
+const baselineRules = inspect(serviceSource, formSource).violations.map((v) => v.rule);
+/** 基準線から**増えた**違反だけを返す（同じ rule が複数出る場合も、増えたぶんだけ数える） */
+function newViolations(found) {
+  const rest = [...baselineRules];
+  return found.filter((v) => {
+    const i = rest.indexOf(v.rule);
+    if (i >= 0) { rest.splice(i, 1); return false; }
+    return true;
+  });
+}
+if (baselineRules.length > 0) {
+  console.log(`  🚨 **実物に既に違反 ${baselineRules.length} 件（${baselineRules.join(",")}）が在ります。**`);
+  console.log("     以下の囮・対照・見逃す入力は、**そこから増えたぶんだけ**を見ます。");
+}
+
 let selfCheckFailed = false;
 for (const probe of probes) {
   if (probe.service === serviceSource && probe.form === formSource) {
@@ -381,7 +410,7 @@ for (const probe of probes) {
     selfCheckFailed = true;
     continue;
   }
-  const hit = inspect(probe.service, probe.form).violations.some((v) => v.rule === probe.expect);
+  const hit = newViolations(inspect(probe.service, probe.form).violations).some((v) => v.rule === probe.expect);
   // 🚨 失敗したときは**壊した件数**も出す。1 でなければ「規則が壊れた」ではなく
   //    「狙いが複数当たって、1 箇所しか壊せていない」——原因がまったく別。
   const why = hit
@@ -400,7 +429,7 @@ for (const n of negatives) {
     selfCheckFailed = true;
     continue;
   }
-  const found = inspect(n.service, n.form).violations;
+  const found = newViolations(inspect(n.service, n.form).violations);
   const ok = found.length === 0;
   console.log(`  ${ok ? "✅" : "❌"} ${n.name}  → ${ok ? "検出 0 件（正しい）" : `🚨 **過検出** ${found.map((v) => v.rule).join(",")}`}`);
   if (!ok) selfCheckFailed = true;
@@ -483,7 +512,7 @@ for (const m of misses) {
     selfCheckFailed = true;
     continue;
   }
-  const found = inspect(m.service, m.form).violations;
+  const found = newViolations(inspect(m.service, m.form).violations);
   if (found.length > 0) {
     console.log(`  ✅ ${m.name}  → 拾えた（${found.map((v) => v.rule).join(",")}）`);
     // 🚨 ヘッダに「見ていない」と書いてあるのに拾えるようになった ＝ **記述のほうが古い**
@@ -496,7 +525,7 @@ for (const m of misses) {
   }
 }
 {
-  const found = inspect(missControl.service, missControl.form).violations;
+  const found = newViolations(inspect(missControl.service, missControl.form).violations);
   const ok = found.length > 0;
   console.log(`  ${ok ? "✅" : "❌"} ${missControl.name} → ${ok ? `拾う（${found.map((v) => v.rule).join(",")}）` : "🚨 **拾えません**。検出器が動いていないので、上の 🚨 は意味を持ちません"}`);
   if (!ok) selfCheckFailed = true;
@@ -520,7 +549,19 @@ if (stale.length > 0) {
 // ── 判定 ──
 const { violations, bodyChars } = inspect(serviceSource, formSource);
 console.log(`\n■ 判定`);
-console.log(`  対象: ${SERVICE}（completeOnboardingWithAdmin ${bodyChars} 文字）＋ ${FORM}`);
+// 🚨 **候補ではなく、実際に読んで走査した量を出す**（2026-08-16・polish が
+//    「候補 133 本」を「走査した」と出していて、走査 0 でも大きな数が出る形を見つけた）。
+//    ここは対象が 2 ファイル固定なので「候補の数」は無いが、
+//    🚨 **`${FORM}` は今まで量を 1 つも出していなかった**。空のファイルを読んでも
+//    「鍵が無い」としか言わず、**読めていないのか本当に鍵が無いのかが分からなかった**。
+//    → **両方の読み込み量を出す。** 0 なら、下の違反より先にこの行で分かる。
+console.log(
+  `  対象: ${SERVICE}（${serviceSource.length} 文字を読込 → completeOnboardingWithAdmin ${bodyChars} 文字）` +
+    ` ＋ ${FORM}（${formSource.length} 文字を読込）`,
+);
+if (serviceSource.length === 0 || formSource.length === 0) {
+  console.log("  🚨 **読み込みが 0 文字のファイルが在ります。** 下の違反は「見ていない 0」かもしれません。");
+}
 // 🚨 **どのツリーを見たかを必ず出す。** 既定に落ちたことが見えないと、
 //    「切った台で測ったつもりが、共有ツリーを測っていた」に気づけない
 //    （V1-E で REF の打ち間違いが PASS のまま隠れたのと同じ形。2026-08-16）。
