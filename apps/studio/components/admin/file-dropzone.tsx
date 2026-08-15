@@ -1,7 +1,7 @@
 "use client";
 
 import { UploadCloud, X } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   Attachment,
@@ -11,6 +11,7 @@ import {
   AttachmentTitle,
 } from "@/components/ui/attachment";
 import { Button } from "@/components/ui/button";
+import { ImageLightbox } from "@/components/admin/image-lightbox";
 import { useFormat, useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +90,40 @@ export function FileDropzone({
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [over, setOver] = useState(false);
+  /** ライトボックスで開いている位置（`previews` の中の位置）。閉じているときは null */
+  const [lightboxAt, setLightboxAt] = useState<number | null>(null);
+  /** 画像ごとの実寸。`URL` をキーにする（後述のとおり、これが無いと拡大が効かない） */
+  const [sizes, setSizes] = useState<Record<string, { width: number; height: number }>>({});
+
+  /**
+   * 選んだ画像を見せるための一時 URL。
+   *
+   * 🚨 **描画のたびに `URL.createObjectURL` を呼ばないこと。** 以前はそうなっていて、
+   *    再描画のたびに新しい URL が作られ、**どれも解放されないまま溜まっていた**
+   *    （選び直すほど増える。画面上は正常に見えるので気づけない）。
+   *    ここで一度だけ作り、下の後始末で必ず解放する。
+   *
+   * 🚨 画像以外（PDF 等）は入れない。**ライトボックスは画像を見るもの**で、
+   *    PDF を渡すと開いても真っ白になる。
+   */
+  const previews = useMemo(
+    () =>
+      files.flatMap((file, fileIndex) =>
+        file.type.startsWith("image/")
+          ? [{ url: URL.createObjectURL(file), fileIndex, name: file.name }]
+          : [],
+      ),
+    [files],
+  );
+
+  // 作った URL の後始末。選び直したとき（previews が入れ替わったとき）と、
+  // この部品が消えるときの両方で、**古い方**を解放する。
+  useEffect(
+    () => () => {
+      for (const preview of previews) URL.revokeObjectURL(preview.url);
+    },
+    [previews],
+  );
 
   const accept = (list: FileList | null) => {
     // 🚨 選び直しの途中でやめた（ダイアログを閉じた）ときは**何もしない**。
@@ -168,7 +203,11 @@ export function FileDropzone({
             {t("selected_count", { count: format.number(files.length) })}
           </p>
           <AttachmentGroup>
-            {files.map((file, index) => (
+            {files.map((file, index) => {
+              // この行が画像なら、ライトボックスの何枚目にあたるか（画像以外は -1）
+              const previewAt = previews.findIndex((preview) => preview.fileIndex === index);
+              const preview = previewAt === -1 ? null : previews[previewAt];
+              return (
               <Attachment
                 key={`${file.name}-${index}`}
                 state="idle"
@@ -179,14 +218,35 @@ export function FileDropzone({
                     例外を検査スクリプト側に隠さず、コードに書いて見えるようにしている
                     （app/(admin)/admin/files/page.tsx:178 と同じ作法） */}
                 <AttachmentMedia data-surface-exempt>
-                  {file.type.startsWith("image/") ? (
-                    // 選んだ直後はまだサーバに無いので、ローカルの URL で見せる
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={URL.createObjectURL(file)}
-                      alt={file.name}
-                      className="size-full object-cover"
-                    />
+                  {preview ? (
+                    // 押すと大きく見られる。器を持たない（面を増やさない）ので
+                    // 見た目はサムネのままで、押せることだけが増える。
+                    <button
+                      type="button"
+                      className="size-full cursor-zoom-in"
+                      aria-label={t("open_preview", { name: file.name })}
+                      onClick={() => setLightboxAt(previewAt)}
+                    >
+                      {/* 選んだ直後はまだサーバに無いので、ローカルの URL で見せる */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={preview.url}
+                        alt={file.name}
+                        className="size-full object-cover"
+                        // 🚨 実寸を控える。**渡さないと拡大が黙って効かない**
+                        //    （ボタンは出るが最大倍率が 1 と評価される。エラーも出ない）。
+                        //    アップロード済みの画像は DB に寸法があるが、ここはまだ
+                        //    ブラウザの中にしか無いので、読み込めた時に測るしかない。
+                        onLoad={(event) => {
+                          const { naturalWidth, naturalHeight } = event.currentTarget;
+                          setSizes((current) =>
+                            current[preview.url]
+                              ? current
+                              : { ...current, [preview.url]: { width: naturalWidth, height: naturalHeight } },
+                          );
+                        }}
+                      />
+                    </button>
                   ) : null}
                 </AttachmentMedia>
                 <AttachmentContent>
@@ -202,8 +262,22 @@ export function FileDropzone({
                   <X />
                 </Button>
               </Attachment>
-            ))}
+              );
+            })}
           </AttachmentGroup>
+          {/* 並べた画像を大きく見る。閉じるまでは何も描かない（開いていないときは null） */}
+          {lightboxAt === null ? null : (
+            <ImageLightbox
+              open
+              index={lightboxAt}
+              onClose={() => setLightboxAt(null)}
+              images={previews.map((preview) => ({
+                src: preview.url,
+                alt: preview.name,
+                ...sizes[preview.url],
+              }))}
+            />
+          )}
         </>
       ) : null}
     </div>

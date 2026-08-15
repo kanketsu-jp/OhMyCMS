@@ -35,6 +35,7 @@
   "new_folder_button": "Create folder",
   "no_folder_option": "No folder",
   "preview_title": "Preview",
+  "open_preview": "View {name} larger",
   "remove_file": "Remove",
   "save_button": "Save",
   "select_file_button": "Select file",
