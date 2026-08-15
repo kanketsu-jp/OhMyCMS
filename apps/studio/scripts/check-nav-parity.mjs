@@ -441,6 +441,15 @@ function main() {
 
   if (violations.length > 0) {
     console.error("\n  PC と SP のナビに渡している prop が食い違っている（または検査自体が判定できない状態）:");
+    // 🚨 **拾った実物を必ず添える**（司令塔 2026-08-16）。
+    //    件数と説明だけだと、**なぜそう判定したかを他人が確かめられない**。
+    //    今日、別の検査で「12 か 10 か」が 3 回ひっくり返った原因が、出力が件数だけだったこと。
+    if (leftProps && mobileProps) {
+      console.error(`  実物 <LeftSidebar> の props（${leftProps.size} 件）: ${[...leftProps].join(", ")}`);
+      console.error(`  実物 <MobileNav>   の props（${mobileProps.size} 件）: ${[...mobileProps].join(", ")}`);
+    } else {
+      console.error("  🚨 実物を出せません（props を取れていない＝判定以前の状態）");
+    }
     for (const v of violations) {
       console.error(`  [${v.rule}] ${v.detail}`);
     }

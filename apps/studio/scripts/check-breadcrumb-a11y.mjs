@@ -87,6 +87,11 @@ checked.push("引き金の <Button> の開きタグを取れた");
  */
 function inspect(triggerBody, buttonTag, where) {
   const found = [];
+  // 🚨 **拾った実物を必ず添える**（司令塔 2026-08-16）。
+  //    数と説明だけだと、**なぜそう判定したかを他人が確かめられない**。
+  //    今日「12 か 10 か」が 3 回ひっくり返った原因は、出力が件数だけだったこと。
+  //    行を出せば `?.` のような書き方の違いが目に入る（数を見ていても入らない）。
+  const 実物 = (s) => `\n    実物: ${String(s).replace(/\s+/g, " ").trim().slice(0, 120)}`;
   // ① 引き金が読み上げ名を上書きしていないこと
   // 🚨 `aria-label` だけを見ていたら **`aria-labelledby` で素通りできた**（2026-08-15 実測）。
   for (const attr of ["aria-label", "aria-labelledby"]) {
@@ -94,24 +99,25 @@ function inspect(triggerBody, buttonTag, where) {
       found.push(
         `${where}: パンくずの引き金に ${attr} があります。\n` +
           `    読み上げ名が**見えているページ名を打ち消します**（WCAG 2.5.3 label in name）。\n` +
-          `    補足は <span className="sr-only"> で**足して**ください（打ち消しません）。`,
+          `    補足は <span className="sr-only"> で**足して**ください（打ち消しません）。` +
+          実物(buttonTag),
       );
     }
   }
   // 🚨 spread の中身はこの検査から見えない。**見えないものを通さない**
   if (/\{\s*\.\.\./.test(buttonTag)) {
-    found.push(`${where}: 引き金に props の spread（{...}）があります。中身が見えないので aria-label を隠せます。`);
+    found.push(`${where}: 引き金に props の spread（{...}）があります。中身が見えないので aria-label を隠せます。` + 実物(buttonTag));
   }
   // ② 記号のアイコンが aria-hidden="true" であること
   for (const icon of ["EllipsisIcon", "SlashIcon"]) {
     const tag = new RegExp(`<${icon}\\b[^>]*>`).exec(triggerBody);
     if (!tag) {
-      found.push(`${where}: ${icon} が引き金の中に見つかりません。文字に戻すと読み上げに記号が混ざります。`);
+      found.push(`${where}: ${icon} が引き金の中に見つかりません。文字に戻すと読み上げに記号が混ざります。` + 実物(triggerBody));
       continue;
     }
     // 🚨 **有無ではなく値を見る。** `aria-hidden="false"` は在るのに隠していない（2026-08-15 実測）。
     if (!/aria-hidden\s*=\s*["{]?\s*(?:true|"true")/.test(tag[0])) {
-      found.push(`${where}: ${icon} が aria-hidden="true" になっていません（属性が無い／値が true でない）。`);
+      found.push(`${where}: ${icon} が aria-hidden="true" になっていません（属性が無い／値が true でない）。` + 実物(tag[0]));
     }
   }
   return found;
