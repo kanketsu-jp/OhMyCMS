@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CopyButton } from "@/components/ui/copy-button";
+import { CodeBlock } from "@/components/ui/code-block";
 import { useT } from "@/i18n/client";
 
 type Props = {
@@ -18,17 +18,7 @@ function Snippet({
   value: string;
   targetId: string;
 }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-heading text-base leading-snug font-medium">{label}</h2>
-        <CopyButton value={value} selectTargetId={targetId} data-copy-target={targetId} />
-      </div>
-      <pre id={targetId} className="overflow-x-auto scroll-fade-x py-2 text-xs leading-5">
-        <code>{value}</code>
-      </pre>
-    </div>
-  );
+  return <CodeBlock title={label} value={value} targetId={targetId} />;
 }
 
 export function McpConnection({ url, entrypoint }: Props) {
@@ -59,15 +49,7 @@ export function McpConnection({ url, entrypoint }: Props) {
 
   return (
     <div className="flex flex-col gap-6 text-sm">
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-heading text-base leading-snug font-medium">{t("url_label")}</h2>
-          <CopyButton value={url} selectTargetId="mcp-connection-url" data-copy-target="mcp-connection-url" />
-        </div>
-        <code id="mcp-connection-url" className="block overflow-x-auto scroll-fade-x py-2 font-mono text-xs">
-          {url}
-        </code>
-      </div>
+      <CodeBlock title={t("url_label")} value={url} targetId="mcp-connection-url" />
 
       <Snippet label={t("cli_heading")} value={cliCommand} targetId="mcp-cli-command" />
       <Snippet label={t("json_heading")} value={clientConfig} targetId="mcp-client-config" />

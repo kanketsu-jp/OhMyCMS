@@ -6,6 +6,7 @@ import { Pencil, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
 import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
+import { CodeBlock } from "@/components/ui/code-block";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
@@ -62,22 +63,16 @@ function fieldsFor(collections: CollectionResult[], collection: string): string[
 }
 
 /**
- * 権限フィルタの JSON。**行ごとに1つ**あるので、部品に切り出して**行ごとに ref を持たせる**。
+ * 権限フィルタの JSON。**行ごとに1つ**あるので、部品に切り出して**行ごとに targetId を持たせる**。
  *
- * 🚨 map の中で1つの ref を使い回すと、**最後に描かれた1つにしか付かない**。
- * 残りは data-at-start / data-at-end が付かないまま＝フェードが出ず、監査にも引っかかる。
+ * 🚨 map の中で1つの targetId を使い回すと、**コピー先が最後に描かれた1つへ偏る**。
+ * 行ごとに別 ID を渡して、押した行の値を選択・コピーできるようにする。
  * （実際にこの形で書いてしまい、書いた直後に気づいた）
  *
  * 🚨 マスクはスクロールする <pre> そのものに当てる。外側に巻くと監査が赤のままになる。
  */
-function FilterBlock({ children }: { children: React.ReactNode }) {
-  return (
-    <pre
-      className="overflow-x-auto scroll-fade-x rounded-md bg-muted p-3 text-xs"
-    >
-      {children}
-    </pre>
-  );
+function FilterBlock({ value, targetId }: { value: string; targetId: string }) {
+  return <CodeBlock value={value} targetId={targetId} />;
 }
 
 export function PolicyPermissionsManager({ policyId, collections, permissions }: Props) {
@@ -272,7 +267,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
                 </Button>
               </div>
             </div>
-            <FilterBlock>{jsonText(row.permissions) || t("no_filter")}</FilterBlock>
+            <FilterBlock value={jsonText(row.permissions) || t("no_filter")} targetId={`policy-filter-${row.id}`} />
           </div>
         ))}
         {permissions.length === 0 ? (

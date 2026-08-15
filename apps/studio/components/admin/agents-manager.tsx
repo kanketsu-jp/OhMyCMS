@@ -6,7 +6,7 @@ import { KeyRound, Ban, Plus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
-import { CopyButton } from "@/components/ui/copy-button";
+import { CodeBlock } from "@/components/ui/code-block";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollFade } from "@/components/ui/scroll-fade";
@@ -102,8 +102,6 @@ function capabilitiesFromSelection(selection: Record<string, PermissionAction[]>
 }
 
 export function AgentsManager({ agents }: { agents: AgentRow[] }) {
-  // 🚨 スクロールする要素そのものに fade を当てる（外側に巻くと監査が赤のまま）。
-  // <code> はタグを差し替えられないので、部品ではなくフックで振る舞いだけ付ける。
   const t = useT("agents");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -219,11 +217,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             {t("token_heading")}
           </div>
           <p className="text-sm text-destructive">{t("token_warning")}</p>
-          <code
-            id="agent-issued-token"
-            className="block overflow-x-auto scroll-fade-x py-2 font-mono text-sm break-all"
-          >{token}</code>
-          <CopyButton value={token} selectTargetId="agent-issued-token" data-copy-target="agent-issued-token" />
+          <CodeBlock value={token} targetId="agent-issued-token" preClassName="text-sm" />
         </div>
       ) : null}
       {error ? (
