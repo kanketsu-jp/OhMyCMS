@@ -13,6 +13,7 @@
  * env の読み方ごと検証したいので、S3Client を直に組み立てないこと。
  * ただし「実際に置かれたキー」の確認だけは、ドライバを信じずに生の S3 API で見る。
  */
+import { guardDecision, VERIFY_BUCKET } from "./s3-guard";
 import {
   DeleteObjectsCommand,
   ListObjectsV2Command,
@@ -38,36 +39,26 @@ const ENDPOINT = process.env.S3_ENDPOINT ?? "http://localhost:3106";
  * どうしても外部のバケットで確かめたいとき（R2 の疎通確認など）は
  * **使い捨てのバケットを用意して** `--allow-remote` を明示すること。
  */
-function assertLocalEndpoint(): void {
-  if (process.argv.includes("--allow-remote")) {
-    console.log(
-      "🚨 --allow-remote が指定されています。**使い捨てのバケットか確かめてから**続けてください。",
-    );
-    return;
-  }
-  let host = "";
-  try {
-    host = new URL(ENDPOINT).hostname;
-  } catch {
-    host = "";
-  }
-  const localHosts = [
-    "localhost",
-    "127.0.0.1",
-    "::1",
-    "minio",
-    "ohmycms-minio",
-  ];
-  if (localHosts.includes(host)) return;
-
-  console.error(
-    `このハーネスは書き込みと削除を行います。ローカルの検証用ストレージ以外へは向けません（endpoint のホスト: ${host || "解釈できません"}）。\n` +
-      "本番のバケットと検証用のバケットは同じ名前（ohmycms）なので、取り違えるとデータを壊します。\n" +
-      "外部のバケットで確かめるときは、使い捨てのバケットを用意して --allow-remote を付けてください。",
+/** 🚨 **書き込みより前に必ず呼ぶ。** 実装が使う値を `getStorageStatus()` から取る。 */
+async function assertSafeTarget(): Promise<void> {
+  const status = await getStorageStatus();
+  const decision = guardDecision({
+    driver: status.driver,
+    bucket: status.bucket,
+    endpointHost: status.endpointHost,
+    allowRemote: process.argv.includes("--allow-remote"),
+  });
+  console.log(
+    `  書き込み先の確認: driver=${status.driver} bucket=${status.bucket ?? "-"} host=${status.endpointHost ?? "-"}`,
   );
-  process.exit(2);
+  if (!decision.ok) {
+    console.error(`🚨 書き込む前に止めました: ${decision.reason}`);
+    process.exit(2);
+  }
+  console.log(`  ✅ 書き込んでよい: ${decision.reason}`);
 }
-const BUCKET = process.env.S3_BUCKET ?? "ohmycms";
+
+const BUCKET = process.env.S3_BUCKET ?? VERIFY_BUCKET;
 const ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID ?? "minioadmin";
 const SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY ?? "minioadmin";
 
@@ -551,7 +542,7 @@ async function largeFileCase(megabytes: number): Promise<void> {
 
 async function main(): Promise<void> {
   // 🚨 何かを書く前に、向き先がローカルの検証用かを確かめる。
-  assertLocalEndpoint();
+  await assertSafeTarget();
   console.log(`endpoint=${ENDPOINT} bucket=${BUCKET}`);
 
   // 🚨 R2 / GCS の鍵が来たときに使うモード。既定の往復とは別に呼ぶ。
