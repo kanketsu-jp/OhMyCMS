@@ -1166,12 +1166,21 @@ async function inspectDataFixtures() {
 
   // 🚨 ページ送りは**落とさない**。落とすと行数の少ない DB で全員が止まる。
   //    ただし「測っていない」ことは必ず言う（黙って緑にしない）。
-  if (!paged[0]) {
-    log(`  ⚠ ページ送りが起きる行数（${CONTENT_LIST_PAGE_SIZE} 行超）のコレクションはありません。`);
-    log("     → **ページ送りのある一覧は測っていません。** 落とさないのは、行数の少ない DB で全員が止まるため。");
-  }
+  //
+  // 🚨 **言う場所は末尾の集計ブロック**（design 指示 2026-08-15）。途中のログ行に出すだけでは
+  //    `missing` の 🚨見つからず と**同じ形の失敗**になる——印字されているのに誰の目にも留まらず
+  //    exit 0 で流れる。**印字は「効いている」ではない。受入で読まれるのは末尾の数行だけ。**
+  //    ここでは理由に使う数（実際に見つかった最大の行数）を持ち帰るだけにする。
+  const maxRows = Math.max(0, ...counts.map((c) => (typeof c.rows === "number" ? c.rows : 0)));
   log(`  測る対象: ${targets.map((t) => `${t.path}（${t.why}）`).join(" / ")}`);
-  return { measured: true, why: null, counts, targets, blocking: false, pagedMissing: !paged[0] };
+  return {
+    measured: true, why: null, counts, targets, blocking: false,
+    pagedMissing: !paged[0],
+    // 「なぜ測れなかったか」を末尾に書くための材料。理由が無いと次の人が推測で埋める。
+    pagedMissingWhy: !paged[0]
+      ? `行数 ${maxRows} < ${CONTENT_LIST_PAGE_SIZE + 1} のため`
+      : null,
+  };
 }
 
 // ── 実行 ────────────────────────────────────────────────────────────────
@@ -1631,6 +1640,12 @@ if (AS_JSON) {
   if (notMeasured) process.exit(1);
 } else {
   console.log(`\n対象: ${PATHS.length} ページ × ${VIEWPORTS.length} 画面幅 = ${PATHS.length * VIEWPORTS.length} 回測定（${BASE}）`);
+  // 🚨 **測っていないものは、末尾の集計に1行で出す**（design 指示 2026-08-15）。
+  //    途中のログに出すだけでは `missing` の 🚨見つからず と同じで、誰にも読まれずに exit 0 で流れる。
+  //    **違反の有無に関わらず出す**（これは合否ではなく「どこまで見たか」の話なので）。
+  if (fixtures?.pagedMissing) {
+    console.log(`測っていない: ページ送りのある一覧（${fixtures.pagedMissingWhy}）`);
+  }
   if (!SESSION) console.log("⚠ --session を渡していないので、ログインが要るページは /login へ飛んでいる可能性があります。");
   if (notMeasured) {
     console.error(`\n🚨 測れませんでした: ${notMeasured.why}`);
@@ -1640,11 +1655,7 @@ if (AS_JSON) {
     process.exit(1);
   }
   if (violations.length === 0) {
-    console.log(
-      fixtures?.pagedMissing
-        ? "違反なし（ただしページ送りのある一覧は測っていません。上の ⚠ を参照）。"
-        : "違反なし。",
-    );
+    console.log("違反なし。");
   } else {
     console.error(`\n🚨 違反 ${violations.length} 件\n`);
     for (const v of violations) {
