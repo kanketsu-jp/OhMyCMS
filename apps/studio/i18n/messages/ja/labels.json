@@ -31,5 +31,9 @@
   "delete_failed": "削除できませんでした",
   "error_duplicate": "同じ名前のラベルがあります",
   "error_forbidden": "この操作をする権限がありません",
+  "error_not_found": "そのラベルはもうありません。ほかの場所で消された可能性があります",
+  "error_invalid": "入力が正しくありません",
+  "error_unauthenticated": "ログインし直してください",
+  "error_network": "つながりませんでした。接続を確かめて、もう一度お試しください",
   "error_system_label": "このラベルは削除できません"
 }

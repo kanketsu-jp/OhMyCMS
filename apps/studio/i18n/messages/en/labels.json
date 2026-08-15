@@ -31,5 +31,9 @@
   "delete_failed": "Could not delete",
   "error_duplicate": "A label with that name already exists",
   "error_forbidden": "You do not have permission to do this",
+  "error_not_found": "That label no longer exists. It may have been deleted elsewhere.",
+  "error_invalid": "That input is not valid",
+  "error_unauthenticated": "Please sign in again",
+  "error_network": "Could not reach the server. Check your connection and try again.",
   "error_system_label": "This label cannot be deleted"
 }

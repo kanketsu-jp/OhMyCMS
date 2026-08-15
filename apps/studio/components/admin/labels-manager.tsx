@@ -66,21 +66,81 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
   /** 名前を変えている最中のラベル。編集していないときは null */
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
 
-  // 400/403/409 は文言を変える。それ以外はまとめて「保存できませんでした」。
-  const failed = (status: number, fallback: string) => {
-    if (status === 403) return t("error_forbidden");
-    if (status === 409) return t("error_duplicate");
+  /**
+   * 🚨 **状態コードでなく `code` で分ける。**
+   *    `delete` の **403 は2つの原因を持つ**——`PERMISSION_DENIED`（権限が無い）と
+   *    `LABEL_IS_SYSTEM`（システムラベルなので消せない）。
+   *    403 だけを見て「このラベルは削除できません」と出すと、
+   *    **権限が無いだけの人に「そのラベルは消せない性質だ」と言う**ことになる
+   *    （＝実際より強いことを言う文言。2026-08-15 に実際に書いていた）。
+   *
+   * 🚨 **サーバの `message` をそのまま画面へ出さない。** `lib/` の文言は日本語のリテラルで、
+   *    辞書を通っていない（英語に切り替えても日本語のまま出る）。**こちらでキーへ写す。**
+   */
+  const messageFor = async (response: Response, fallback: string): Promise<string> => {
+    const body = (await response.json().catch(() => null)) as { error?: { code?: string } } | null;
+    switch (body?.error?.code) {
+      case "PERMISSION_DENIED":
+        return t("error_forbidden");
+      case "LABEL_IS_SYSTEM":
+        return t("error_system_label");
+      case "LABEL_EXISTS":
+        return t("error_duplicate");
+      case "LABEL_NOT_FOUND":
+        return t("error_not_found");
+      case "INVALID_FIELD":
+        return t("error_invalid");
+      default:
+        break;
+    }
+    // code が無い/未知のときは状態コードで最低限だけ分ける。
+    // 🚨 **分からないものを分かったように言わない**。既定は「できませんでした」に留める。
+    //
+    // この API が返しうる code のうち、上で分岐していないのは次の5つ（2026-08-15 実測）:
+    //   INVALID_SESSION / UNAUTHENTICATED  … **401**。下の1行が拾う
+    //   INVALID_BEARER_TOKEN / INVALID_AGENT_TOKEN / HUMAN_AUTH_REQUIRED
+    //     … トークンで来た呼び出し向け。**この画面（ブラウザのセッション）からは出ない**
+    // 🚨 とくに `HUMAN_AUTH_REQUIRED` は **403 だが権限の話ではない**。
+    //    403 をまとめて「権限がありません」にすると**嘘になる**ので、既定へ落としている。
+    //    （`delete` の 403 が `PERMISSION_DENIED` と `LABEL_IS_SYSTEM` の2つを持つのと同じ形。
+    //     **状態コードで分けると必ずどこかで嘘になる**）
+    if (response.status === 401) return t("error_unauthenticated");
     return fallback;
   };
 
+  /** 消えていた行を一覧からも外す（残すと、押しても直らないものを押し続けることになる）。 */
+  const dropIfGone = async (response: Response, id: string) => {
+    const body = (await response.clone().json().catch(() => null)) as { error?: { code?: string } } | null;
+    if (body?.error?.code === "LABEL_NOT_FOUND") {
+      setLabels((current) => current.filter((row) => row.id !== id));
+      setEditing(null);
+    }
+  };
+
+  /**
+   * 🚨 `useSubmitOnce` は `try`/`finally` だけで **`catch` を持たない**。
+   *    回線が切れて `fetch` が投げると、**画面には何も出ない**（押しても無反応に見える）。
+   *    ここで受け止めて「通信できませんでした」を出す。
+   *    🚨 これは「サーバが拒否した」ではないので、**保存失敗と同じ文言にしない**。
+   */
+  const send = async (input: RequestInfo, init?: RequestInit): Promise<Response | null> => {
+    try {
+      return await fetch(input, init);
+    } catch {
+      toast.error(t("error_network"));
+      return null;
+    }
+  };
+
   const create = useSubmitOnce(async () => {
-    const response = await fetch("/api/labels", {
+    const response = await send("/api/labels", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name, color: color === "" ? null : color }),
     });
+    if (!response) return;
     if (!response.ok) {
-      toast.error(failed(response.status, t("save_failed")));
+      toast.error(await messageFor(response, t("save_failed")));
       return;
     }
     const payload = (await response.json()) as { data: LabelRow };
@@ -96,13 +156,15 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
   });
 
   const patch = useSubmitOnce(async (id: string, body: Record<string, unknown>) => {
-    const response = await fetch(`/api/labels/${id}`, {
+    const response = await send(`/api/labels/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!response) return;
     if (!response.ok) {
-      toast.error(failed(response.status, t("save_failed")));
+      await dropIfGone(response, id);
+      toast.error(await messageFor(response, t("save_failed")));
       return;
     }
     const payload = (await response.json()) as { data: LabelRow };
@@ -114,11 +176,11 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
   const remove = useSubmitOnce(async (label: LabelRow) => {
     // 🚨 消すと、付いているファイル・フォルダからも外れる。取り返せないので必ず尋ねる。
     if (!window.confirm(t("delete_confirm", { name: label.name }))) return;
-    const response = await fetch(`/api/labels/${label.id}`, { method: "DELETE" });
+    const response = await send(`/api/labels/${label.id}`, { method: "DELETE" });
+    if (!response) return;
     if (!response.ok) {
-      toast.error(
-        response.status === 403 ? t("error_system_label") : t("delete_failed"),
-      );
+      await dropIfGone(response, label.id);
+      toast.error(await messageFor(response, t("delete_failed")));
       return;
     }
     setLabels((current) => current.filter((row) => row.id !== label.id));
