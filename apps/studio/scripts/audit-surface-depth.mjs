@@ -30,7 +30,7 @@
  * 終了コード: 違反があれば 1。CI や lefthook から落とせる。
  */
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1207,6 +1207,28 @@ async function inspectDataFixtures() {
       ? `行数 ${maxRows} < ${CONTENT_LIST_PAGE_SIZE + 1} のため`
       : null,
   };
+}
+
+// ── 常設の標本を確かめる ──────────────────────────────────────────────
+// 🚨 ページを1枚も開く前に、常設の標本（zz_probe_actions 等）が生きているかを確かめる。
+//    由来: knowledge/decisions/permanent-fixtures-are-not-junk.md。標本が消えた日、
+//    行が要る検査が「測れなかった」のに「異常なし」と読まれた。それを二度と起こさない。
+//
+//    verify:fixtures は子プロセスで呼ぶ（import しない）。verify-fixtures.ts は別担当が
+//    同時に書き換えているため、CLI の終了コードだけに依存する形にすれば中身が変わっても壊れない。
+//
+//    終了コードは2種類あり、監査側は原因を言い換えない（言い換えると「無い」と
+//    「取りに行けていない」が同じ顔になる）:
+//      exit 1 … DB に繋げて、標本が欠けている
+//      exit 2 … 決定文書の表が読めない / DB に繋げない（＝測れていない。標本の有無は不明）
+//    どちらでも監査は続けない。「--skip-fixtures」のような回避旗は作らない
+//    （作ると DB が無い日に必ず使われ、元の事故がそのまま戻る）。
+try {
+  execFileSync("bun", ["run", "--filter", "@ohmycms/studio", "verify:fixtures"], { stdio: "inherit" });
+} catch (error) {
+  const code = typeof error?.status === "number" && error.status !== 0 ? error.status : 1;
+  console.error(`\n常設の標本の検査が非0で終了しました（exit ${code}）。監査を中止します。`);
+  process.exit(code);
 }
 
 // ── 実行 ────────────────────────────────────────────────────────────────
