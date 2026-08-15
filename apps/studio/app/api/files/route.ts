@@ -47,6 +47,7 @@ export async function GET(request: Request) {
         limit: url.searchParams.get("limit"),
         offset: url.searchParams.get("offset"),
         folder: url.searchParams.get("folder"),
+        label: url.searchParams.get("label"),
       }),
     });
   } catch (error) {

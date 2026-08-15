@@ -247,6 +247,12 @@ export type ListInput = {
   limit?: string | null;
   offset?: string | null;
   folder?: string | null;
+  /**
+   * このラベルが付いているものだけに絞る。
+   * 🚨 **フォルダの絞り込みと同時に効く**（「このフォルダの中で、このラベルが付いたもの」）。
+   *    どちらかを無視すると、利用者は**絞ったつもりで絞れていない**一覧を見る。
+   */
+  label?: string | null;
 };
 
 export type AssetResult = {
@@ -510,6 +516,16 @@ export async function listFiles(actor: Actor, input: ListInput): Promise<PublicF
     query.whereNull("folder");
   } else if (input.folder) {
     query.where("folder", input.folder);
+  }
+  if (input.label) {
+    // 🚨 join でなく whereIn で絞る。join すると、同じファイルに複数のラベルが
+    //    付いているときに**行が増える**（同じファイルが何度も出る）。
+    query.whereIn(
+      "id",
+      db("ohmycms_label_assignments")
+        .select("target_id")
+        .where({ target_type: "file", label_id: input.label }),
+    );
   }
   applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
   return (await query).map(toPublicFile);

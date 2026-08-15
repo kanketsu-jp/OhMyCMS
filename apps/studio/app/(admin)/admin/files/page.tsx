@@ -26,7 +26,7 @@ import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type Props = {
-  searchParams: Promise<{ folder?: string; page?: string; view?: string }>;
+  searchParams: Promise<{ folder?: string; page?: string; view?: string; label?: string }>;
 };
 
 type FileRow = {
@@ -84,6 +84,19 @@ export default async function FilesPage({ searchParams }: Props) {
    */
   const view: "grid" | "table" = query.view === "table" ? "table" : "grid";
   /** 他のクエリ（フォルダ・ページ）を保ったまま見え方だけ差し替える。 */
+  /** 絞り込みを外した行き先（他のクエリは保つ）。 */
+  const clearLabelHref = (() => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (key === "label" || value === undefined) continue;
+      for (const one of Array.isArray(value) ? value : [value]) {
+        if (one !== "") params.append(key, one);
+      }
+    }
+    const search = params.toString();
+    return search ? `/admin/files?${search}` : "/admin/files";
+  })();
+
   const viewHref = (target: "grid" | "table"): string => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
@@ -104,10 +117,18 @@ export default async function FilesPage({ searchParams }: Props) {
     offset: String((page - 1) * GRID_PAGE_SIZE),
     folder: currentLocation,
   });
-  const [filesResult, foldersResult] = await Promise.all([
+  // 🚨 ラベルで絞る。**フォルダの絞り込みと同時に効く**（この中の、このラベルが付いたもの）。
+  if (query.label) params.set("label", query.label);
+  const [filesResult, foldersResult, labelsResult] = await Promise.all([
     apiFetch<{ data: FileRow[] }>(`/api/files?${params.toString()}`),
     apiFetch<{ data: FolderRow[] }>("/api/folders?limit=500"),
+    // 🚨 絞り込み中の**名前を出すため**だけに引く。id をそのまま画面に出すと、
+    //    利用者は何で絞っているのか分からない。
+    apiFetch<{ data: { id: string; name: string }[] }>("/api/labels"),
   ]);
+  const activeLabel = query.label && labelsResult.ok
+    ? labelsResult.data.data.find((label) => label.id === query.label) ?? null
+    : null;
   const folders = foldersResult.ok ? foldersResult.data.data : [];
   const childFolders = folders.filter((folder) => folder.parent === currentFolderId);
   const breadcrumbs = folderPath(folders, currentFolderId);
@@ -174,6 +195,16 @@ export default async function FilesPage({ searchParams }: Props) {
             <SurfaceTitle>{t("list_title")}</SurfaceTitle>
             <FilesViewSwitch view={view} gridHref={viewHref("grid")} tableHref={viewHref("table")} />
           </div>
+          {/* 🚨 絞り込み中であることと、**解除の出口**を必ず出す。
+              出さないと「ファイルが減った」ように見えて、戻し方が分からない。 */}
+          {activeLabel ? (
+            <p className="text-sm text-muted-foreground">
+              {t("filtered_by_label", { name: activeLabel.name })}{" "}
+              <Link href={clearLabelHref} className="underline">
+                {t("clear_filter")}
+              </Link>
+            </p>
+          ) : null}
           {filesResult.ok || foldersResult.ok ? (
             view === "table" ? (
               <FilesTable folders={childFolders} files={files} />

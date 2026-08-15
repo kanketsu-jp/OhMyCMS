@@ -77,5 +77,7 @@
   "drive_disconnected": "ドライブへの接続が切れています。繋ぎ直してください",
   "labels_heading": "ラベル",
   "labels_saved": "ラベルを更新しました",
-  "labels_save_failed": "ラベルを更新できませんでした"
+  "labels_save_failed": "ラベルを更新できませんでした",
+  "filtered_by_label": "「{name}」で絞り込んでいます",
+  "clear_filter": "絞り込みを解除"
 }
