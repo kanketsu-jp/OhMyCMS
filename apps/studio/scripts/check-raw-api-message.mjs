@@ -31,7 +31,10 @@
  *    → setError() に渡っていても、その state を描いていない画面が在りうる。
  *    🚨 **12 ファイルのうち、画面まで追跡できたのは agents-manager 1 件だけ**
  *       （残り 11 は「setError に渡っている」までしか見ていない。2026-08-16 に全件 0 件へ）
- * ❌ 訳の意味（それは check-i18n-placeholders も見ていない）
+ * 🚨 **`payload.error` を一度掴んでから読む形**（囮3 が毎回実演する）
+ *    `const { message } = payload.error` / `const e = payload.error; e.message`
+ *    `const { message: m } = payload.error ?? {}`
+ *    → **行単位の走査では追えない。** 変数を追うなら別の作り（AST）が要る
  * ```
  *
  * 決定: `knowledge/decisions/i18n-check-scope-is-what-reaches-the-screen.md`
@@ -54,9 +57,19 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BASELINE = {
 };
 
-/** 🚨 振る舞いで見る。識別子は見ない。 */
-const RE =
-  /\berror(?:\?)?\.\s*message\b|\[["']error["']\]\s*(?:\?)?\.\s*message\b|\bmessage\b\s*[:=]\s*[a-zA-Z_$][\w$]*\.error/;
+/**
+ * 🚨 振る舞いで見る。識別子は見ない。
+ *
+ * 🚨 2026-08-16 拡張。[w4A:p25 / toast] が**見逃す入力を 6 通り作って**持ってきた。
+ * そのうち 3 つを拾えるようにした（`!` を挟む / `?.["message"]` / `["error"]?.["message"]`）。
+ * **残り 3 つ（分割代入・変数へ入れる・別名で分割代入）は拾えない。** 囮3 が毎回実演する。
+ */
+const MSG = String.raw`(?:\.\s*message\b|\??\.\s*\[["']message["']\]|\[["']message["']\])`;
+const RE = new RegExp(
+  String.raw`\berror(?:\?|!)?` + MSG +
+  "|" + String.raw`\[["']error["']\]\s*(?:\?)?` + MSG +
+  "|" + String.raw`\bmessage\b\s*[:=]\s*[a-zA-Z_$][\w$]*\.error`,
+);
 
 /** 行コメント・ブロックコメントを落とす（規約を書いたコメントを違反として数えないため）。 */
 function commentMask(lines) {
@@ -158,6 +171,23 @@ console.log(
     (誤検出.length ? `（${誤検出.map(([n]) => n).join(" / ")}）` : ""),
 );
 if (誤検出.length !== 0) selfTestFailed = true;
+
+// 🚨 囮3: **見逃す入力**を作って通す。落ちないことを確かめてから「見ていない」と書く。
+//    判定には影響させない。**拾えるようになったら、ここで気づける。**
+//    由来: 2026-08-16 [w4A:p25 / toast] が 6 通り作って持ってきた。3 つは拾えるようにし、
+//    残り 3 つは **`payload.error` を一度掴んでから読む形**なので、行単位の走査では追えない。
+const 見逃すはず = [
+  ["分割代入", 'const { message } = payload.error;'],
+  ["変数へ入れる", 'const e = payload.error; setError(e.message);'],
+  ["別名で分割代入", 'const { message: m } = payload.error ?? {};'],
+];
+const 実は拾えた = 見逃すはず.filter(([, t]) => Object.keys(scan([{ file: "決め打ち.tsx", text: t }]).counts).length > 0);
+console.log(
+  `  ⚪ 囮3: **見逃すはず** ${見逃すはず.length} 通り  → 実際に見逃した ${見逃すはず.length - 実は拾えた.length} 件` +
+    (実は拾えた.length
+      ? `  🚨 拾えるようになった: ${実は拾えた.map(([n]) => n).join(" / ")} → JSDoc の「見ていないもの」を直すこと`
+      : "（＝ JSDoc の記述どおり。**変数に入れてから読む形は追えない**）"),
+);
 
 if (selfTestFailed) {
   console.error("\n🚨 自己検査に失敗した。**この検査の結果は信用できない**（緑でも意味を持たない）。");
