@@ -92,29 +92,33 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link href="/admin/collections" className="text-sm text-muted-foreground hover:text-foreground">
-            {tCollections("back_to_list")}
-          </Link>
-        </div>
-        {/* 🚨 **囲まない**（`PageAction` は portal で外へ出るので、ここに中身は残らない）。
-            🚨 form は**残す**。`form="collection-delete-form"` が指す相手そのものなので、
-               消すと削除ボタンが黙って効かなくなる（中身は空でよい）。 */}
-        <PageAction
-          href={`/admin/collections/${encoded}/fields/new`}
-          label={tFields("add_title")}
-          icon={<Plus />}
-        />
-        <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post" />
-        <PageAction
-          form="collection-delete-form"
-          role="secondary"
-          destructive
-          label={tCollections("delete_button")}
-          icon={<Trash2 />}
-        />
+      {/* 🚨 **タイトル行（`flex flex-wrap items-start justify-between gap-3`）を外した**。
+          原典（idea.md:65）:「この div は必要ない。理由はタイトルはパンくずで表示するのと、
+          その下の概要は『info』アイコンで説明する」。
+          いま**タイトルはヘッダーのパンくず**が、**概要は右パネル**が持っているので、
+          この行が並べるものは何も残らない（`PageAction` は portal で外へ出る）。
+          ❌ 戻さないこと。戻すと**同じ役目のものが2箇所**に出る。 */}
+      <div>
+        <Link href="/admin/collections" className="text-sm text-muted-foreground hover:text-foreground">
+          {tCollections("back_to_list")}
+        </Link>
       </div>
+      {/* 🚨 **囲まない**（`PageAction` は portal で外へ出るので、ここに中身は残らない）。
+          🚨 form は**残す**。`form="collection-delete-form"` が指す相手そのものなので、
+             消すと削除ボタンが黙って効かなくなる（中身は空でよい）。 */}
+      <PageAction
+        href={`/admin/collections/${encoded}/fields/new`}
+        label={tFields("add_title")}
+        icon={<Plus />}
+      />
+      <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post" />
+      <PageAction
+        form="collection-delete-form"
+        role="secondary"
+        destructive
+        label={tCollections("delete_button")}
+        icon={<Trash2 />}
+      />
       <ErrorBanner
         message={
           errorMessage ??
