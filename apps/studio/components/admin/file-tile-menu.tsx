@@ -52,34 +52,26 @@ export function FileTileMenu({
         🚨 `asChild` にして**タイルそのものを起点**にする。別途トリガーのボタンを置くと、
            タイルの中に押せるものが2つになり、長押しの対象が曖昧になる。
       */}
-      <DropdownMenuTrigger asChild>
-        <div
-          {...menu.handlers}
-          /**
-           * 🚨 **既定の長押しを止めるのは、掴む対象（このタイル）だけ**にする。
-           *    一覧全体に掛けると、次のものを一緒に殺す:
-           *      `touch-action: none`  → **一覧がスクロールできなくなる**
-           *      `user-select: none`   → **ファイル名がコピーできなくなる**
-           *    ここでは**タイルの中の文字が選ばれない**ところまでにとどめる。
-           *
-           * 🚨 `-webkit-touch-callout: none` は **iOS 専用**（Android には効かない）。
-           *    「画像を長押しで保存」の既定メニューを止めるのが目的で、
-           *    **Android 側は `contextmenu` の抑止で対応している**（フック側）。
-           *
-           * 🚨 **`touch-action` はここに書かない。** この要素は `display: contents` で
-           *    **ボックスを作らない**ので、**継承しない性質の `touch-action` は効かない**
-           *    （書いても何も起きないのに、書いた人は効いたつもりになる）。
-           *    `user-select` と `-webkit-touch-callout` は**継承する**ので、子のタイルに伝わる。
-           *    `contents` を外せば `touch-action` も書けるが、**グリッドの並びが崩れる**
-           *    （タイルは grid の直接の子である必要がある）ので、そちらは取らない。
-           *
-           * 🚨 **実機で確かめるまで「効いた」と書かない。** headless では
-           *    iOS Safari の callout は再現できない。
-           */
-          className="contents select-none [-webkit-touch-callout:none]"
-        >
-          {children}
-        </div>
+      {/*
+        🚨 **`asChild` に直接ハンドラを載せる。中間の `<div>` を作らない。**
+           以前は `<div className="contents">` を挟んでいたが、
+           **`display: contents` の要素はボックスを作らない**ので
+           `getBoundingClientRect()` が **0×0 / (0,0)** を返す。
+           Radix はトリガーの矩形にメニューを合わせるため、
+           **メニューが画面の左上に出ていた**（堀池さん報告・2026-08-15）。
+           実測: この画面のトリガー 25 個のうち **23 個が contents かつ 0×0**
+           （🟢 対照: 実座標を持つ 2 個は別のメニュー）。
+        🚨 **同じコメントの中で「ボックスを作らない」と自分で書いていたのに、
+           メニューの起点への影響に繋げていなかった。**
+        🚨 中間要素を消しても `user-select` / `-webkit-touch-callout` は効く。
+           `asChild` がタイルへ**直接**載せるので、継承に頼らない分むしろ確実。
+      */}
+      <DropdownMenuTrigger
+        asChild
+        {...menu.handlers}
+        className="select-none [-webkit-touch-callout:none]"
+      >
+        {children}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-44">
         <DropdownMenuGroup>
