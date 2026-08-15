@@ -41,35 +41,59 @@ function read(relative) {
 const dockerignore = read(".dockerignore");
 const dockerfile = read("docker/Dockerfile");
 
-console.log(`対象: .dockerignore ${dockerignore.bytes} バイト / docker/Dockerfile ${dockerfile.bytes} バイト`);
+/**
+ * 🚨 **コメントを実コードとして数えない。**
+ * 最初の版は本文をそのまま正規表現にかけていたので、
+ * **実装を消してコメントに同じ文字列を残すだけで素通り**した（自分で試して確認）。
+ *
+ * 🚨 **行頭の `#` を落とすだけでは足りなかった。** 2 回目の試しで
+ * `true # update-index --skip-worktree` の形（**行の途中から始まるコメント**）が**素通り**した。
+ * → **各行を最初の `#` で切る**。
+ *   このファイルの対象行（`update-index` / `git status --porcelain` / `FROM base AS gitinfo` /
+ *   `DETECTED_DIRTY` / `dirty の出どころ`）に `#` は含まれないので、切っても消えない
+ *   （**含まれていたら対照が落ちて検査ごと失敗する**ので、黙って通ることはない）。
+ */
+const 実コード = dockerfile.text
+  .split("\n")
+  .map((line) => line.split("#")[0])
+  .join("\n");
+
+const 行 = dockerignore.text.split("\n").map((l) => l.trim());
+
+console.log(
+  `対象: .dockerignore ${dockerignore.bytes} バイト（コメントでない行 ${行.filter((l) => l && !l.startsWith("#")).length}）`
+  + ` / docker/Dockerfile ${dockerfile.bytes} バイト（コメントでない行 ${実コード.split("\n").filter((l) => l.trim()).length}）`,
+);
 
 const checks = [
   {
     名前: "compose.dokploy.yml をビルド文脈から外している",
-    ある: dockerignore.text.split("\n").some((line) => line.trim() === "compose.dokploy.yml"),
+    // 🚨 行が在るだけでは足りない。`!compose.dokploy.yml` で**打ち消せる**ので、
+    //    打ち消しが無いことまで見る（.dockerignore は後勝ちの否定パターンを持つ）。
+    ある: 行.includes("compose.dokploy.yml") && !行.some((l) => l === "!compose.dokploy.yml"),
     // 「在るものが在ると出る」対照。これが false なら**探し方が壊れている**
-    対照: dockerignore.text.split("\n").some((line) => line.trim() === "compose.yml"),
+    対照: 行.includes("compose.yml"),
     対照の説明: "compose.yml の行（同じ探し方で必ず見つかるもの）",
     壊れると: "Dokploy が clone 先で書き換える compose が文脈に入り、dirty が毎回 1 に戻る",
   },
   {
     名前: "gitinfo が skip-worktree で「文脈から外れた追跡ファイル」を吸収している",
-    ある: /update-index\s+--skip-worktree/.test(dockerfile.text),
-    対照: /FROM base AS gitinfo/.test(dockerfile.text),
+    ある: /update-index\s+--skip-worktree/.test(実コード),
+    対照: /FROM base AS gitinfo/.test(実コード),
     対照の説明: "gitinfo ステージの宣言（同じ読み方で必ず見つかるもの）",
     壊れると: "綺麗なツリーでも 19 本が \" D\" で残り、dirty が常に 1 になる",
   },
   {
     名前: "gitinfo が git status で dirty を判定している",
-    ある: /git status --porcelain/.test(dockerfile.text),
-    対照: /DETECTED_DIRTY/.test(dockerfile.text),
+    ある: /git status --porcelain/.test(実コード),
+    対照: /DETECTED_DIRTY/.test(実コード),
     対照の説明: "DETECTED_DIRTY の宣言",
     壊れると: "判定そのものが消え、外から渡された値がそのまま出る（ツリーについて何も言わない値になる）",
   },
   {
     名前: "dirty=1 のとき、内訳と出どころをビルドログへ出している",
-    ある: /dirty の出どころ/.test(dockerfile.text),
-    対照: /gitinfo:/.test(dockerfile.text),
+    ある: /dirty の出どころ/.test(実コード),
+    対照: /gitinfo:/.test(実コード),
     対照の説明: "gitinfo のログ出力",
     壊れると: "旗が立った理由が誰にも分からなくなる（今朝の状態へ戻る）",
   },
