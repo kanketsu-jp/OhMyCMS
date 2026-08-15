@@ -478,6 +478,68 @@ class Session {
   }
 
   /**
+   * 端末を切り替えて、**いま何になっているかを返す**。
+   *
+   * 🚨 **`setViewport` との違いは「返す」ことだけ**（設定そのものは `setViewport` がやる）。
+   *    `where()` と同じ思想で、**測定の1行目に出せる形**にしてある。
+   *
+   * ```js
+   * console.log(await page.asDevice("sp"));
+   * // → sp 幅390 hover:none pointer:coarse touch:5
+   * console.log(await page.where());
+   * ```
+   *
+   * 🚨 **なぜ「返す」ことに価値があるか。**
+   * 2026-08-15、幅だけ 390 にして「SP で測った」と報告した測定が複数あり、
+   * **`(hover: hover)` は true のまま**だった（＝ PC を細くしただけ）。
+   * **設定したこと**と**そうなっていること**は別なので、**読んだ値を報告に出す**。
+   * 司令塔の洗い直しの条件も「`matchMedia` を読んだ記録が無ければやり直し」になっている。
+   *
+   * 🚨 **pc は「外れていること」が対照**。`hover:hover=true` / `touch:0` が出ていれば、
+   *    SP の残骸を引きずっていないと言える（sp → pc → sp の往復で一致することも確認済み）。
+   *
+   * ⚠️ **ここで見ているのは `matchMedia` と `navigator.maxTouchPoints` だけ**。
+   *    書体・実機のタップの手応え・`pointer-events` の重なりは**見ていない**。
+   */
+  async asDevice(kind) {
+    if (kind !== "sp" && kind !== "pc") {
+      throw new Error(`asDevice: "sp" か "pc" を渡してください（受け取った値: ${JSON.stringify(kind)}）`);
+    }
+    const mobile = kind === "sp";
+    await this.setViewport(mobile ? 390 : 1280, mobile ? 844 : 800, mobile);
+
+    // 🚨 設定した値ではなく、**ページが実際にそう見えているか**を読む。
+    const state = await this.eval(`(() => ({
+      width: innerWidth,
+      hover: matchMedia("(hover: hover)").matches ? "hover" : (matchMedia("(hover: none)").matches ? "none" : "?"),
+      pointer: matchMedia("(pointer: fine)").matches ? "fine" : (matchMedia("(pointer: coarse)").matches ? "coarse" : "?"),
+      touch: navigator.maxTouchPoints,
+    }))()`);
+
+    // 🚨 「切り替えたつもり」で終わらせない。**そうなっていない**なら、その場で止める。
+    //    （沈黙する失敗を作らない。ここを通った測定は、端末が合っていると言える）
+    const want = mobile
+      ? { hover: "none", pointer: "coarse" }
+      : { hover: "hover", pointer: "fine" };
+    if (state.hover !== want.hover || state.pointer !== want.pointer) {
+      throw new Error(
+        `asDevice("${kind}") を呼びましたが、ページは ${JSON.stringify(state)} のままです。` +
+          `**切り替わっていません**（期待: hover=${want.hover} / pointer=${want.pointer}）。` +
+          "この状態の測定は、端末の話としては使えません。",
+      );
+    }
+
+    return Object.assign(
+      Object.create({
+        toString() {
+          return `${kind} 幅${state.width} hover:${state.hover} pointer:${state.pointer} touch:${state.touch}`;
+        },
+      }),
+      { kind, ...state },
+    );
+  }
+
+  /**
    * ページの中で JS を実行して値を受け取る。
    * 🚨 返す値は **JSON にできるものだけ**（DOM 要素をそのまま返さない）。
    *
