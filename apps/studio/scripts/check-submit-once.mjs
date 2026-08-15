@@ -18,11 +18,8 @@
  *     **未追跡ファイルも拾う**。実測 2026-08-16: 未追跡 .tsx は 0 件・追跡済み 131 件）:
  *   - 【鳴る】🚨 **母集合は「`fetch(` の呼び出しで `method:` を持つもの」だけ**（2026-08-16 に明記）。
  *     **`<form action={...}>` で送るものは、この検査に一度も入っていない。**
- *     実測: `<form>` の `action={}` は **16 件**。うち **8 件が `useSubmitOnce` を通っていない**
- *       ・`action={"/admin/actions/..."}` … **5 件**（文字列 URL へのブラウザのネイティブ送信）
- *       ・`action={setLocaleAction}`      … **2 件**（Server Action）
- *       ・`action={save}`                 … **1 件**（`settings-manager`。ここは fetch 側で
- *                                          拾えているので「移行待ち」に出ている）
+ *     🚨 **件数は散文に書かない。末尾の「死角の見張り」が毎回数えて出す。**
+ *     （以前ここに「16 件・うち 8 件」と手で書いていた。散文と出力の二重管理は片方が腐る）
  *     🚨 **この 8 件に二重送信の害が在るかは、1 件ずつ見ないと分からない（未確認）。**
  *     **「見えていない」と「害が在る」は別の主張なので、件数だけを書いておく。**
  *     🚨 **この欄が空だった間、「未防御 0 件」は母集合の外を含んでいなかった。**
@@ -33,8 +30,7 @@
  *       🟢 拾う   … **同一ファイル**の変数経由（`const opts = { method: "POST" }; fetch(url, opts)`）
  *       🟢 対照   … `fetch(url, { method: "POST" })` → 拾う（＝検出器が動いていることの確認）
  *       → **6 通り中 5 通りを見逃した**
- *     🚨 このうち**実際にこのコードに在る**のは `<form action>`（16 件・うち 8 件が未防御）と
- *     Server Action（2 件）。`axios` / `sendBeacon` / `XMLHttpRequest` は **0 件**（実測）。
+ *     🚨 **どれが実際にこのコードに在るかは、末尾の見張りが毎回出す**（散文に数を書かない）。
  *   - 【書いただけ】**別ファイルに置いた options を spread する形は拾えない**
  *     （例: 別ファイルの `const opts = { method: "POST" }` → `fetch(url, { ...opts })`）。
  *     1ファイルずつ読む静的検査なので、他ファイルの中身までは追えない。
@@ -451,8 +447,21 @@ const guarded = [];
 const suspects = [];
 const pending = [];
 
+// 🚨 `<form action={...}>` を**毎回数える**（2026-08-16）。
+// 以前はこの数（16 件・うち 8 件）を冒頭の散文に手で書いていた。散文と出力の二重管理は
+// 片方が必ず腐るので、**道具が毎回出す側を正**にする。散文からは数を外した。
+// この検査は form を「見ていない」ので、ここは**検出ではなく計数**。落とさない（報告だけ）。
+const formActions = { total: 0, unguarded: [] };
+
 for (const file of files) {
   const source = readFileSync(resolve(root, file), "utf8");
+  for (const m of source.matchAll(/<form[^>]{0,300}?action=\{([^}]{1,80})\}/g)) {
+    formActions.total += 1;
+    // `.run`（useSubmitOnce が返す形）を通っていないものを未防御として数える
+    if (!/\.run\b/.test(m[1])) {
+      formActions.unguarded.push(`${file}:${source.slice(0, m.index).split("\n").length}`);
+    }
+  }
   const lines = source.split("\n");
   const skip = PENDING.find((p) => p.file === file);
 
@@ -850,7 +859,7 @@ if (selfTestFailed) {
 //    司令塔の指摘: **見逃す入力は、規約を知っている人が作らないと「在りえない形」ばかりになる。**
 //    在りえない形だけで固めると、**見逃しの実害が 0 でも同じ緑**になり、何も言わない検査になる。
 const BLIND_SPOTS = [
-  ["<form action={fn}> で送る", '<form action={save}><button>x</button></form>', true, "在る（16 件・うち 8 件が未防御）"],
+  ["<form action={fn}> で送る", '<form action={save}><button>x</button></form>', true, () => `在る（${formActions.total} 件・うち ${formActions.unguarded.length} 件が未防御）｜ 🚨 毎回数えている`],
   ["Server Action を直に呼ぶ", "await setLocaleAction(formData);", true, "在る（profile-settings.tsx:229）"],
   ["axios で送る", 'await axios.post("/api/x", body);', true, "無い（0 件）"],
   ["sendBeacon で送る", 'navigator.sendBeacon("/api/x", body);', true, "無い（0 件）"],
@@ -867,13 +876,13 @@ for (const [name, code, shouldMiss, exists] of BLIND_SPOTS) {
   const ok = shouldMiss ? got === 0 : got > 0;
   if (!ok) blindDrift = true;
   console.log(
-    `  ${ok ? "✅" : "❌"} ${shouldMiss ? "見逃すはず" : "拾うはず  "} ${name}（検出 ${got} 件）｜ 実在: ${exists}`,
+    `  ${ok ? "✅" : "❌"} ${shouldMiss ? "見逃すはず" : "拾うはず  "} ${name}（検出 ${got} 件）｜ 実在: ${typeof exists === "function" ? exists() : exists}`,
   );
 }
 console.log(
   `  🚨 「無い」と書いた形は、見逃していても実害が 0。実害が在るのは「在る」と書いた ${
-    BLIND_SPOTS.filter((s) => s[2] && s[3].startsWith("在る")).length
-  } 形（この数は 2026-08-16 の手動実測。**自動では追っていない**）`,
+    BLIND_SPOTS.filter((sp) => sp[2] && (typeof sp[3] === "function" ? sp[3]() : sp[3]).startsWith("在る")).length
+  } 形（🚨 **半分だけ自動**: form の件数は毎回数えているが、他の「在る／無い」は 2026-08-16 の手動実測）`,
 );
 if (blindDrift) {
   console.error("\n🚨 死角の記述が実装と食い違っている。");
