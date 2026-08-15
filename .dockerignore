@@ -54,4 +54,8 @@ compose.yml
 #    ❌ 「ビルドに要らないから」ではなく **dirty の旗を生かすため**に外している。
 #       （守り手: apps/studio/scripts/check-build-info-guards.mjs ／ lefthook の build-info-guards）
 compose.dokploy.yml
-.dockerignore
+# 🚨 `.dockerignore` は**文脈に残す**（2026-08-15）。
+#    gitinfo が「**そのファイルが無いのは .dockerignore で外したからか、本当に消されたからか**」を
+#    区別するのに、**このファイル自身を読む**必要があるため（`git check-ignore --no-index`）。
+#    外すと区別できなくなり、**追跡ファイルを消しても dirty が 0 のまま**に戻る。
+#    （守り手: apps/studio/scripts/check-build-info-guards.mjs ／ lefthook の build-info-guards）

@@ -84,6 +84,24 @@ const checks = [
     壊れると: "綺麗なツリーでも 19 本が \" D\" で残り、dirty が常に 1 になる",
   },
   {
+    名前: "gitinfo が「除外されたから無い」と「本当に消された」を区別している",
+    // 🚨 skip-worktree を **無条件に**掛けると、**本当に消された追跡ファイルまで吸収**して
+    //    dirty が 0 のままになる（2026-08-15 実測。docker build で再現済み）。
+    //    `git check-ignore --no-index` で .dockerignore に当たるものだけを吸収する。
+    ある: /check-ignore\s+--no-index/.test(実コード),
+    対照: /update-index\s+--skip-worktree/.test(実コード),
+    対照の説明: "skip-worktree の呼び出し（この検査が Dockerfile を読めている証拠）",
+    壊れると: "追跡ファイルを消しても dirty が 0 のままになる（本当に汚れた像を見逃す）",
+  },
+  {
+    名前: ".dockerignore を文脈に残している（区別の材料）",
+    // 自分自身を外すと、ビルドの中で「なぜ無いのか」を判定する材料が消える
+    ある: !行.some((l) => l === ".dockerignore"),
+    対照: 行.includes("compose.yml"),
+    対照の説明: "compose.yml の行（同じ読み方で必ず見つかるもの）",
+    壊れると: "check-ignore が判定できず、消された追跡ファイルを吸収してしまう",
+  },
+  {
     名前: "gitinfo が git status で dirty を判定している",
     ある: /git status --porcelain/.test(実コード),
     対照: /DETECTED_DIRTY/.test(実コード),

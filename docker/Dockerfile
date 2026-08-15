@@ -82,8 +82,13 @@ RUN set -eu; \
         && rm -rf /var/lib/apt/lists/*; \
       DETECTED_SHA="$(git rev-parse HEAD 2>/dev/null || echo unknown)"; \
       if [ "$DETECTED_SHA" != "unknown" ]; then \
+        if [ -f .dockerignore ]; then cat .dockerignore >> .git/info/exclude; fi; \
         git ls-files | while IFS= read -r tracked; do \
-          if [ ! -e "$tracked" ]; then git update-index --skip-worktree -- "$tracked" 2>/dev/null || true; fi; \
+          if [ ! -e "$tracked" ]; then \
+            if git check-ignore --no-index -q -- "$tracked" 2>/dev/null; then \
+              git update-index --skip-worktree -- "$tracked" 2>/dev/null || true; \
+            fi; \
+          fi; \
         done; \
         if [ -n "$(git status --porcelain 2>/dev/null)" ]; then \
           DETECTED_DIRTY=1; \
