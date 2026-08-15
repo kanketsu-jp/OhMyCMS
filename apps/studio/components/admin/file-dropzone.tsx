@@ -56,6 +56,23 @@ type Props = {
    */
   flat?: boolean;
   /**
+   * 受けるものの大きさに合わせる（**省略可**・既定は `"default"`）。
+   *
+   * 由来（堀池・原典 L94 原文）:
+   * > 「全てのセクション・要素はPCの場合横長になりすぎる。…
+   * >   **ファイルアップも、その画像がただのロゴならアップロードUIもおおきくなくていい。
+   * >   そのロゴのサイズとかにする。**」
+   *
+   * 🚨 **`"logo"` の寸法は発明していない。** ロゴが実際に描かれている大きさから決めた:
+   * `left-sidebar.tsx:255` と `app/login/page.tsx:35` が**どちらも** `h-6 w-auto max-w-32`
+   * （24px 高・最大 128px 幅）。その倍を上限にして `max-w-64`（256px）、
+   * 高さは **SP で押せる下限（44px）を大きく上回る** `min-h-20`（80px）にしてある。
+   * ロゴそのものの 24px にはしない——**それでは掴んで放す的が小さすぎる**。
+   *
+   * 🚨 クラス名を組み立てないこと（`min-h-${n}` のような書き方は Tailwind が消す）。分岐で丸ごと書く。
+   */
+  size?: "default" | "logo";
+  /**
    * この領域が「何の」ファイルを受けるのかを名乗らせる（**省略可**・見出し要素の `id`）。
    *
    * 🚨 **4箇所すべて読み上げ名が同じ**だった。中の文字（「ここにファイルをドロップ」）
@@ -80,6 +97,7 @@ export function FileDropzone({
   name = "file",
   onSelect,
   flat = false,
+  size = "default",
   labelledBy,
   label,
 }: Props) {
@@ -168,7 +186,8 @@ export function FileDropzone({
           accept(event.dataTransfer.files);
         }}
         className={cn(
-          "flex min-h-32 w-full flex-col items-center justify-center gap-1 rounded-lg px-4 py-6 text-sm outline-1 outline-offset-[-1px] outline-dashed transition-colors",
+          "flex flex-col items-center justify-center gap-1 rounded-lg px-4 py-6 text-sm outline-1 outline-offset-[-1px] outline-dashed transition-colors",
+          size === "logo" ? "min-h-20 w-full max-w-64" : "min-h-32 w-full",
           over
             ? "text-foreground outline-ring"
             : "text-muted-foreground outline-input hover:text-foreground",
