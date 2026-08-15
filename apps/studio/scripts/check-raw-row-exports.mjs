@@ -305,9 +305,18 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
         "export class ZzFiles { async get(id: string): Promise<FileRow> { return null as never; } }"],
     ];
     console.log("  ── 🚨 この検査が見ていない形（**作って通した**。拾えたら ✅ に変わる）");
+    let 拾えるようになった = 0;
     for (const [label, probe] of cases) {
       const n = violationsIn(probe, "FileRow").length;
       console.log(`     ${n > 0 ? "✅ 拾えた" : "🚨 見逃す"}  ${label}`);
+      if (n > 0) 拾えるようになった += 1;
+    }
+    // 🚨 **「見ていない範囲」の記述が古くなったら、検査自身が言う**（design の形・2026-08-16）。
+    //    書いて放置すると、**拾えるようになったのに「見ていない」と書いたまま**になり、
+    //    次の人が**在る守りを無いものとして扱う**。ここが鳴ったら先頭の JSDoc を削ること。
+    //    🚨 落とさない（拾えるようになったのは良いこと。**全員のコミットを止める理由が無い**）。
+    if (拾えるようになった > 0) {
+      console.log(`     🚨 ${拾えるようになった} 件が拾えるようになりました。**先頭の JSDoc「この検査が見ていない形」から、その行を消してください**`);
     }
     // 🚨 **対照が無いと、上の「見逃す」は「関数が動いていない」と区別が付かない。**
     const 対照 = violationsIn(

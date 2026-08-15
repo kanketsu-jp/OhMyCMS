@@ -123,16 +123,33 @@ for (const d of DICTS) {
 {
   const 抽出 = (src) =>
     [...withoutComments(src).matchAll(/system_key:\s*"(\w+)"/g)].map((m) => m[1]);
+  // 🚨 **「何か拾えた」で ✅ にしない。拾った値が正しいかまで見る**（2026-08-16 実測）。
+  //    台の上で抽出を単引用符対応に広げたら、`"source-missing"` から **`source` だけ**
+  //    拾った状態で ✅ と出た。**部分一致を「拾えた」と読む**のは、
+  //    今日ずっと配られている「名前を部分一致で見るな」と同じ形。
   const cases2 = [
-    ["単引用符で書く", `{ system_key: 'archived' }`],
-    ["変数から入れる", `const k = "archived";\n{ system_key: k }`],
-    ["コロンの前に空白", `{ system_key : "archived" }`],
-    ["ハイフンを含む鍵", `{ system_key: "source-missing" }`],
+    ["単引用符で書く", `{ system_key: 'archived' }`, "archived"],
+    ["変数から入れる", `const k = "archived";\n{ system_key: k }`, "archived"],
+    ["コロンの前に空白", `{ system_key : "archived" }`, "archived"],
+    ["ハイフンを含む鍵", `{ system_key: "source-missing" }`, "source-missing"],
   ];
   console.log("  ── 🚨 この検査が見ていない書き方（**作って通した**。拾えたら ✅ に変わる）");
-  for (const [label, probe] of cases2) {
-    const n = 抽出(probe).length;
-    console.log(`     ${n > 0 ? "✅ 拾えた" : "🚨 見逃す"}  ${label}`);
+  let 拾えるようになった = 0;
+  for (const [label, probe, 期待] of cases2) {
+    const got = 抽出(probe);
+    const 当たり = got.includes(期待);
+    const 惜しい = !当たり && got.length > 0;
+    console.log(
+      `     ${当たり ? "✅ 拾えた" : "🚨 見逃す"}  ${label}` +
+        (惜しい ? `（🚨 途中まで拾って "${got.join(",")}" になっています。**正しくは "${期待}"**）` : ""),
+    );
+    if (当たり) 拾えるようになった += 1;
+  }
+  // 🚨 **記述が古くなったら、検査自身が言う**（design の形・2026-08-16）。
+  //    拾えるようになったのに「見逃す」と書いたままだと、
+  //    次の人が**在る守りを無いものとして扱う**。落とさない（良い変化なので）。
+  if (拾えるようになった > 0) {
+    console.log(`     🚨 ${拾えるようになった} 件が拾えるようになりました。**この一覧からその行を消してください**`);
   }
   // 🚨 対照が無いと、上の「見逃す」は「抽出そのものが動いていない」と区別が付かない。
   const 対照 = 抽出(`{ system_key: "imported" }`).length;
