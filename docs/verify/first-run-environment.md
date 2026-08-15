@@ -105,7 +105,7 @@ lsof -p "$PID" -a -d cwd -Fn | grep '^n'
 | 測るもの | `asDevice("sp")` が要るか | なぜ |
 |---|---|---|
 | 器の幅（`max-w-sm` = 384px） | ❌ 要らない | `max-w-sm` に媒体クエリが無い。**幅だけで決まる** |
-| ロゴ欄の寸法（`min-h-20` / `max-w-64`） | ❌ 要らない | 同上。`hover` / `pointer` を見ていない |
+| ロゴ欄の寸法（`min-h-20` / `max-w-64`） | ❌ 要らない | 大きさを決めているのは `file-dropzone.tsx` の `size === "logo" ? "min-h-20 w-full max-w-64" : …` の 1 行だけで、**媒体クエリを持たない**。🚨 同じファイルに `hover:` は在る（`hover:text-foreground active:text-foreground`）が、**それは色で、大きさではない** |
 | 入力欄の数・区切り線の数 | ❌ 要らない | DOM の構造。媒体条件と無関係 |
 | **リンクやボタンの `hover:` / `active:`** | ✅ **要る** | 🚨 Tailwind の `hover:` は `@media (hover: hover)` に包まれる。**幅だけ 390 にしても効いたまま**になり、**SP で押した手応えが出るかを測れない** |
 
