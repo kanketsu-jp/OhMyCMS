@@ -160,6 +160,14 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
 
 // ── 判定 ────────────────────────────────────────────────────────────────
 console.log("\n■ 判定");
+// 🚨 **内訳と合計を突き合わせる。** 数だけ増えて説明が出ない違反があると、
+//    読む人は「1 件の説明」を見て「2 件」と書かれた合計を信じることになる
+//    （2026-08-15 実測: R3 が 3 箇所で合計 +2、説明は 1 行だった）。
+let emitted = 0;
+const violation = (...lines) => {
+  emitted += 1;
+  for (const l of lines) console.log(l);
+};
 let total = 0;
 for (const t of TARGETS) {
   const src = readFileSync(t.file, "utf8");
@@ -171,22 +179,27 @@ for (const t of TARGETS) {
   //    解析が壊れて 0 本になったとき、この検査は「違反 0 件」と言って通ってしまう。
   //    **見ていない 0 と、異常が無い 0 は別**（司令塔・2026-08-15）。
   if (exportCount === 0) {
-    console.log(`    🚨 [R0] 外向きの関数を 1 本も拾えていない。解析が壊れている疑い`);
+    violation(`    🚨 [R0] 外向きの関数を 1 本も拾えていない。解析が壊れている疑い`);
     total += 1;
   }
   console.log(`    型表明: as ${a.as.length} 箇所（行 ${a.as.join(", ") || "なし"}）/ 山括弧 ${a.angle.length} 箇所（行 ${a.angle.join(", ") || "なし"}）`);
   // 🚨 `as` は変換の関数の中の 1 箇所だけが正しい。山括弧は 0 が正しい。
   if (a.as.length > 1) {
-    console.log(`    🚨 [R3] as ${t.pub} が ${a.as.length} 箇所ある。正しいのは変換の関数の中の 1 箇所だけ`);
-    total += a.as.length - 1;
+    // 🚨 **1 件につき 1 行。** 合計だけ増やして説明を 1 行にすると、内訳が合わない。
+    for (const line of a.as.slice(1)) {
+      violation(`    🚨 [R3] ${t.file}:${line} 余分な as ${t.pub}。正しいのは変換の関数の中の 1 箇所だけ`);
+      total += 1;
+    }
   }
   if (a.angle.length > 0) {
-    console.log(`    🚨 [R4] 山括弧の型表明 <${t.pub}> がある。印を素通りできてしまう`);
-    total += a.angle.length;
+    for (const line of a.angle) {
+      violation(`    🚨 [R4] ${t.file}:${line} 山括弧の型表明 <${t.pub}>。印を素通りできてしまう`);
+      total += 1;
+    }
   }
   for (const b of bad) {
-    console.log(`    🚨 [${b.rule}] ${t.file}:${b.line}  ${b.name}()  ${b.why}`);
-    console.log(`       → ${t.pub} を返し、変換の関数を通すこと`);
+    violation(`    🚨 [${b.rule}] ${t.file}:${b.line}  ${b.name}()  ${b.why}`,
+              `       → ${t.pub} を返し、変換の関数を通すこと`);
   }
   total += bad.length;
 }
@@ -243,27 +256,35 @@ function directTableUses(file) {
         if (u.state === "未決") undecided++;
       } else if (u.malformed) {
         bad++;
-        console.log(`    🚨 [R6] ${f}:${u.line} 承認の形が足りない`);
-        console.log(`       → 「直接読む理由: <なぜ> / 記録 YYYY-MM-DD / 決める人: <誰> / 未決」の 4 つを書く`);
+        violation(`    🚨 [R6] ${f}:${u.line} 承認の形が足りない`,
+                  `       → 「直接読む理由: <なぜ> / 記録 YYYY-MM-DD / 決める人: <誰> / 未決」の 4 つを書く`);
       } else {
         bad++;
-        console.log(`    🚨 [R5] ${f}:${u.line} ${u.table} をルートが直接読んでいる`);
-        console.log(`       → lib のサービス経由にすること（compressed_key / system_key が素通りする）`);
-        console.log(`       → どうしても要るなら同じ行に「直接読む理由: …」と書く`);
+        violation(`    🚨 [R5] ${f}:${u.line} ${u.table} をルートが直接読んでいる`,
+                  `       → lib のサービス経由にすること（compressed_key / system_key が素通りする）`,
+                  `       → どうしても要るなら同じ行に「直接読む理由: …」と書く`);
       }
     }
   }
   console.log(`  app/ 配下 ${routes.length} ファイル / 直接読み ${bad} 件（承認 ${allowed} 件・うち🟡未決 ${undecided} 件）`);
   // 🚨 規則 G（上と同じ）。`git ls-files` が空を返したら「違反なし」ではなく「見ていない」。
   if (routes.length === 0) {
-    console.log(`    🚨 [R0] app/ 配下のファイルを 1 件も拾えていない。走っていないのと同じ`);
+    violation(`    🚨 [R0] app/ 配下のファイルを 1 件も拾えていない。走っていないのと同じ`);
     total += 1;
   }
   total += bad;
 }
 
+// 🚨 **説明の数と合計が合わなければ落とす。** 合わないときは、
+//    **数えたのに説明していない違反**か、**説明したのに数えていない違反**がある。
+//    どちらも「読む人が内訳を信じられない」形。
+if (emitted !== total) {
+  console.log(`\n🚨 [R8] 内訳が合いません: 説明した違反 ${emitted} 件 / 数えた違反 ${total} 件`);
+  console.log(`   この検査自身の不具合です。数だけ増えて説明が出ていないか、その逆です。`);
+  process.exit(2);
+}
 if (total > 0) {
-  console.log(`\n🚨 違反 ${total} 件`);
+  console.log(`\n🚨 違反 ${total} 件（説明 ${emitted} 件と一致）`);
   process.exit(1);
 }
 console.log("\n違反なし。");
