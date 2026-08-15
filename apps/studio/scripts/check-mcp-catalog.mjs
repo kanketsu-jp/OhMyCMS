@@ -233,6 +233,19 @@ if (!existsSync(COPY)) {
 const current = readOrStop(COPY, "Studio 側の写し");
 if (current === rendered) {
   console.log(`ツール ${tools.length} 本 — 正（packages/mcp/src/catalog.ts）と写しが一致`);
+  // 🚨 **数だけを出さない。拾った実物を 2 本添える。**（司令塔 2026-08-16）
+  //    「22 本一致」は、**中身が空でも成立します**。実際、素朴な抽出は 22 本中 7 本しか
+  //    文言を拾えていないのに「完全一致」と出しました（2026-08-15・このファイルの冒頭に記録）。
+  //    読んだ人が「抽出が正気か」をその場で確かめられるように、生の値を出す。
+  //    規律は覚えている間しか効かないが、出力なら覚えていなくても効く。
+  const withText = tools.filter((t) => t.title && t.description).length;
+  console.log(`  文言まで拾えたもの: ${withText} / ${tools.length}` +
+    (withText === tools.length ? "" : "  🚨 **拾えていないものがあります**"));
+  for (const t of tools.slice(0, 2)) {
+    console.log(`  例 ${t.name}`);
+    console.log(`     title: ${JSON.stringify(String(t.title).slice(0, 60))}`);
+    console.log(`     desc : ${JSON.stringify(String(t.description).slice(0, 60))}`);
+  }
   process.exit(0);
 }
 
