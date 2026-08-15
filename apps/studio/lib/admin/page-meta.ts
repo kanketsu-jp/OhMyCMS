@@ -86,7 +86,7 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   "/admin/content/[collection]/[id]": { titleKey: "items.edit_item_title" },
 
   // 🚨 files には概要の文言が無い（`description` キーが存在しない）。
-  //    **推測で辞書へ足さない**。概要が要ると決まったら、そのとき書く。
+  //    **推測で辞書へ足さない**（**守り手: 無し＝願望**）。概要が要ると決まったら、そのとき書く。
   "/admin/files": { titleKey: "files.title", sectionKeys: ["files.list_title"] },
   "/admin/files/new": { titleKey: "files.upload_title" },
   "/admin/files/new-folder": { titleKey: "folders.title" },

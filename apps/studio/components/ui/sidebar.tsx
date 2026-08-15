@@ -456,6 +456,8 @@ const sidebarMenuButtonVariants = cva(
         default: "min-h-(--control-h-pc-sm) text-sm",
         // `size=` を渡す呼び出しは0件だった。28px / 48px は `--control-h-*` に対応する段が無い。
         // 使われていない選択肢のために段を増やさないので、sm / lg は残さない。
+        // **守り手: variant がそもそも存在しない**（型だけでなく cva の定義から消してある）。
+        // `as` で型を黙らせても**クラスが当たらない**ので、構造として戻せない。
         // 次に必要になった人は、先に段を足す判断をしてから、その段で variant を足す。
       },
     },

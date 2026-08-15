@@ -52,7 +52,8 @@ export function Breadcrumbs({ brand }: { brand: string }) {
   if (!current) return null;
 
   return (
-    // 🚨 **ここに `flex-1` を足さないこと。** 一度足して、design の実測で外した（2026-08-15）。
+    // 🚨 **ここに `flex-1` を足さないこと。**（**守り手: 無し＝これは願望**。足しても何も止めない）
+    //    一度足して、design の実測で外した（2026-08-15）。
     //    「SP でパンくずが潰れる」の対策として提案されていたが、**1 変更ずつ戻して測ると 1 件も減らなかった**:
     //      両方とも修正前                → 幅0 が 4 件
     //      breadcrumbs の flex-1 のみ    → 幅0 が 4 件（**変わらない**）
@@ -74,7 +75,9 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                 >
                   {/* 🚨 読み上げ名は「上の階層へ ＋ ページ名」になる。
                       見えている文字（ページ名）を必ず含むので WCAG 2.5.3 を満たす。
-                      `aria-label` でボタン全体に名前を付けると**見えている文字を打ち消す**ので使わない。 */}
+                      `aria-label` でボタン全体に名前を付けると**見えている文字を打ち消す**ので使わない。
+                      🚨 **守り手: 無し＝これは願望。しかも破っても画面から見えない**（読み上げ名だけが静かに壊れる）。
+                      **ここだけは検査を足す価値がある**（他の約束は破れば画面で分かる）。 */}
                   <span className="sr-only">{t("nav.breadcrumb_parents")}</span>
                   <EllipsisIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
                   {/* 🚨 区切りのスラッシュ（堀池・2026-08-15「パンクズは『.../ページ名』にして」/「薄くする」）。
