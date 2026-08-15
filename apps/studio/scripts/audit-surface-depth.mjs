@@ -69,6 +69,13 @@ const MEASURE = arg("measure", "");
 //    「深さ=0 / ナビ=0 / 書体=Times」のように**壊れているのに数字だけ出る**とき、
 //    何が起きたのかが分からず止まる（2026-08-14 実測）。数字の裏に画面を貼れるようにする。
 const DUMP = process.argv.includes("--dump");
+/**
+ * 🚨 その場限りの計測用。**式を1つ評価して結果を出す**（2026-08-15）。
+ * `--measure` は箱と余白しか出せないので、**当たり判定・角丸のクランプ・
+ * `document.fonts` のような「形では出ない値」**が測れなかった。
+ * 常設の規則にはしない（`--eval` の結果は違反にならない。人が読む用）。
+ */
+const EVAL = arg("eval", "");
 // 🚨 --file <パス> … 隠れている <input type="file"> に実際のファイルを載せてから測る。
 //    由来: 2026-08-14。FileDropzone は**選んだあとだけ** `Attachment` を描き、
 //    その Attachment は `rounded-xl border bg-card` = **面**。
@@ -1606,6 +1613,15 @@ for (const vp of VIEWPORTS) {
     r.renderLivenessReasons = renderLivenessReasons;
     if (CLIPBOARD) r.clipboard = clipboardAudit;
     report[key] = r;
+
+    if (EVAL) {
+      const evaluated = await cdp.send("Runtime.evaluate", {
+        expression: `(() => { try { return JSON.stringify(${EVAL}); } catch (e) { return "🚨 " + String(e); } })()`,
+        returnByValue: true,
+        awaitPromise: true,
+      });
+      log(`     eval: ${evaluated.result?.value ?? evaluated.exceptionDetails?.text ?? "🚨 値が返らなかった"}`);
+    }
 
     if (MEASURE) {
       const measured = await cdp.send("Runtime.evaluate", {

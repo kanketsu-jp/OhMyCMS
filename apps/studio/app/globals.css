@@ -290,14 +290,36 @@
 /* ── ツリーの接続線 ─────────────────────────────────────────────
    使い方（base2 へ）:
      <ul data-slot="tree">                     ← 縦線の基準。字下げもここが持つ
-       <li data-slot="tree-item">…</li>        ← 途中の行（縦線が通り抜け、枝が出る）
-       <li data-slot="tree-item">…</li>        ← 最後の行は :last-child で自動的に曲がる
+       <li data-slot="tree-item">…</li>        ← どの行にも角丸の肘が出る
+       <li data-slot="tree-item">…</li>        ← 最後の行だけ、通し線が肘で止まる
      </ul>
    **クラスを覚えなくてよいように data-slot だけで効く**形にしてある。
 
    🚨 罫線文字（├ └ ┣）は使わない。**読み上げに乗る**し、字幅がフォントで変わる。
-   🚨 曲がるのは **最後の1本だけ**。途中は「分岐」であって「曲がり」ではないので、
-      丸めると縦線か枝のどちらかが途切れる（堀池さんの「角丸」指示との差分。司令塔が伝達済み）。 */
+
+   ## 🚨 2026-08-15 撤回:「曲がるのは最後の1本だけ」は誤りだった
+
+   それまでここには、こう書いてあった（消さずに残す。消すと同じ結論が作り直される）:
+   > 曲がるのは **最後の1本だけ**。途中は「分岐」であって「曲がり」ではないので、
+   > 丸めると縦線か枝のどちらかが途切れる
+
+   **これは「1つの要素で L 字を描く」前提でのみ正しかった。** 前提が違った。
+   堀池さんが実物（YouTube のコメント欄）の DOM と CSS を出され、**両立していた**:
+   ```
+   .ytSubThreadConnection    肘。border-left + border-bottom + **左下だけ**角丸
+   .ytSubThreadContinuation  通し線。角丸なし。そのまま下へ抜ける
+   → **同じ位置に 2 つ重ねる**ので、縦線は途切れず、枝は丸い
+   ```
+   🚨 **「できない」と言う前に、それをやっているものを探すこと。**
+   design は ui-rules の「両立しない」をそのまま受け取って実装し、**自分では探さなかった。**
+
+   ここでは要素を増やさず、**`::before` を通し線・`::after` を肘**に割り当てて同じ形にしている。
+
+   🚨 **半径の値は暫定。** 実物の**効いている**半径はまだ測れていない
+   （返信欄はスクロールと「返信を表示」まで DOM に出ない＝**見ていない 0**。
+     いただいた CSS を写した fixture は、肘 x=12 / 通し線 x=23 と **11px ずれて**再現され、
+     **忠実でなかった**ので、その数値は採用していない）。
+   **構造は確定・値は差し替え可**という状態。`--tree-turn` を変えれば全体が追従する。 */
 [data-slot="tree"] {
   padding-inline-start: var(--tree-indent);
 }
@@ -308,7 +330,9 @@
      （--tree-indent は独立した値。理由は :root のコメント）。 */
   padding-inline-start: calc(var(--tree-branch) + var(--tree-label-gap));
 }
-/* 縦線: 行の上端から下端まで通り抜ける（＝分岐しても途切れない）。 */
+
+/* 通し線: 行の上端から下端まで、まっすぐ抜ける（角丸なし）。
+   🚨 **最後の行には出さない**（肘で止まるため）。 */
 [data-slot="tree-item"]::before {
   content: "";
   position: absolute;
@@ -316,35 +340,30 @@
   inset-inline-start: 0;
   border-inline-start: 1px solid var(--border);
 }
-/* 枝: 行の縦中央から右へ伸びる。 */
+[data-slot="tree-item"]:last-child::before {
+  content: none;
+}
+
+/* 肘: 上端から行の縦中央まで下り、**左下で曲がって**右へ枝を出す。
+   通し線と同じ位置に重なるので、途中の行でも縦線は途切れない。 */
 [data-slot="tree-item"]::after {
   content: "";
   position: absolute;
   inset-inline-start: 0;
-  top: calc(var(--tree-row-h) / 2);
-  width: var(--tree-branch);
-  border-block-start: 1px solid var(--border);
-}
-/* 🚨 最後の1本だけ曲がる。縦線を中央で止め、そこに半径を付ける。 */
-[data-slot="tree-item"]:last-child::before {
+  top: 0;
   block-size: calc(var(--tree-row-h) / 2);
-  inset-block-end: auto;
-  border-end-start-radius: var(--tree-turn);
+  inline-size: var(--tree-branch);
+  border-inline-start: 1px solid var(--border);
   border-block-end: 1px solid var(--border);
-  inline-size: var(--tree-turn);
+  border-end-start-radius: var(--tree-turn);
 }
-[data-slot="tree-item"]:last-child::after {
-  inset-inline-start: var(--tree-turn);
-  width: calc(var(--tree-branch) - var(--tree-turn));
-}
+
 @media (width >= 48rem) {
   [data-slot="tree-item"] {
     min-height: var(--tree-row-h-pc);
   }
+  /* 肘の高さは行高の半分。行高が変わるのでここも追従させる。 */
   [data-slot="tree-item"]::after {
-    top: calc(var(--tree-row-h-pc) / 2);
-  }
-  [data-slot="tree-item"]:last-child::before {
     block-size: calc(var(--tree-row-h-pc) / 2);
   }
 }
