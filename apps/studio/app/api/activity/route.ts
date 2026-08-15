@@ -67,6 +67,13 @@ export async function GET(request: Request) {
 
     const limit = parseLimit(url.searchParams.get("limit"));
 
+    // 🚨 既知の穴（security 2026-08-15 実測 / docs/design/panel-logs-history.md §4 フラグ5）:
+    //    ここは collection 単位でしか絞らず、resolution.rowFilter を**適用していない**。
+    //    行フィルタ付き "log" 権限では、読めないはずの item の活動まで返る
+    //    （sec_probe_ プローブで実測: route=2件 / 正=1件 / leaked_item2=true）。
+    //    現状は latent（directus_permissions=0 行＝フィルタ付き "log" が未配布なので漏洩は顕在化していない）。
+    //    直すときは activity.item を対象コレクションの実テーブルへ結合し resolution.rowFilter を適用する
+    //    （item READ と同じ強制。lib/items/filter）。司令塔の a(文書化＋番人)/b(先回りで直す) 判断待ち。
     const query = db<ActivityRow>("directus_activity")
       .select("action", "timestamp", "item", "user", "actor_type")
       .where("collection", collection)
