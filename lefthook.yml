@@ -115,6 +115,16 @@ pre-commit:
     # 🚨 以前の版は「参照はあるが定義が無いもの」を数えており、全部置き換わって参照 0 に
     #    なった結果、**何も見ていない緑**を返していた。しかも lefthook に載っておらず
     #    一度も走っていなかった。**在ること自体を違反にする形**へ据え直した。
+    # 面の監査が「実在するのに巡回していないページ」を持っていないか。
+    # 🚨 DEFAULT_PATHS は手書きなので、**ページが増えても勝手には入らない**。
+    #    実測（2026-08-15）: 実在 29 / 巡回 20。差の 4 本は HTTP 200 で開けるのに一度も測っておらず、
+    #    測ったら /admin/profile に違反 4 件が埋もれていた。
+    # 🚨 「全部自動で拾う」にはしない。転送されるページや権限で開けないページを巻き込み、
+    #    **除外の理由が消える**。漏れを見せて人に判断させる形にしてある（司令塔と合意）。
+    audit-coverage:
+      root: "apps/studio"
+      run: node scripts/check-audit-coverage.mjs
+
     undefined-classes:
       root: "apps/studio"
       run: node scripts/check-undefined-classes.mjs

@@ -222,7 +222,13 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
         <form
           id="profile-name-form"
           onSubmit={handleNameSubmit}
-          className="flex min-w-0 flex-col gap-4"
+          // 🚨 PC で横に伸びきらないよう上限を置く（2026-08-15 実測 736px → 違反）。
+          //    堀池さん（原文）:「全てのセクション・要素は PC の場合横長になりすぎる。
+          //    理由として**そのフィールドの目的や全体のバランスが見れてない**のが原因」
+          //    名前は長くても数十文字なので、736px は目的に対して広すぎる。
+          //    値は settings-manager.tsx:132 と同じ max-w-2xl に揃えた（新しい幅を発明しない）。
+          //    守り手: `scripts/audit-surface-depth.mjs` の §3 入力が横に長すぎる（720px 超で落ちる）。
+          className="flex min-w-0 max-w-2xl flex-col gap-4"
         >
           <div className="flex min-w-0 flex-col gap-1.5">
             <Label htmlFor="profile-name">{t("profile_name_label")}</Label>

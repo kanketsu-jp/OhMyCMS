@@ -115,6 +115,15 @@ const DEFAULT_PATHS = [
   //    （堀池さん「この二つはどう違うのかわからない」）。**測る対象ではない**ので外す。
   //    転送が生きているかは受入側で curl の実測を貼ること。
   "/admin/files/new",
+  // 🚨 2026-08-15 追加。**実在して HTTP 200 なのに、一度も巡回していなかった 5 本。**
+  //    手書きの一覧だったので、ページが増えても勝手には入らなかった。
+  //    測った瞬間 /admin/profile に違反 4 件（レイアウトが潰れている・入力 736px ほか）。
+  //    守り手: scripts/check-audit-coverage.mjs（実在するのに巡回外なら落ちる）。
+  "/admin/labels",
+  "/admin/profile",
+  "/admin/reports/manage",
+  "/admin/settings/mcp",
+  "/admin/settings/storage",
   "/admin/notifications",
   "/admin/settings/general",
   "/admin/settings/policies",
