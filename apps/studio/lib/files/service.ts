@@ -692,6 +692,48 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
   await softDelete.update({ deleted_at: db.fn.now() });
 }
 
+/**
+ * その行の**実体（バイト）を消す**。**行そのものは消さない**（行を消すのは呼ぶ側）。
+ *
+ * 使うのは 2 か所だけ:
+ *   ① ゴミ箱の「完全に削除」（`lib/trash`）
+ *   ② 90 日の掃除
+ * 🚨 **判定を 2 箇所に書かないこと。** どちらも**この関数を呼ぶ**（キーの組み立ては
+ *    `lib/files` の中にしか無い ＝ `compressed_key` を外へ出さずに済む唯一の形）。
+ *
+ * 🚨 **順番は「実体 → 行」。** 逆にすると、実体の削除に失敗したときに
+ *    **キーを持つ行がもう無い**ので、二度と辿り着けない孤児になる。
+ *    （開発 DB に **08-13 の孤児が 25 件**残っている。物理削除の時代の残骸で、
+ *      いま数えられるのは `.storage` と `directus_files` を突き合わせたときだけ。）
+ *
+ * 🚨 **権限は見ていない**。「消してよいか」は呼ぶ側の判断
+ *    （`isLiveRow` と同じで、1 つの関数に 2 つの問いを入れない）。
+ *
+ * 🚨 **保管先が設定されていないときは投げる**（`storageForRow` が 503）。
+ *    「消せなかったのに消したことにする」のが、いちばん危ない。
+ */
+export async function deleteStoredObjects(fileId: string): Promise<void> {
+  // 🚨 ここは **ゴミ箱に在る行**（`deleted_at` が入っている）を消すための関数なので、
+  //    `liveFiles()` を通さず素の `db(...)` を使う。**この理由をここに書いておくこと**
+  //    （`lib/files/live.ts` が「素で書くな」と言っている、その例外）。
+  const row = await db<FileRow>("directus_files").where({ id: fileId }).first();
+  // 行が無ければ、どのキーを消せばよいか分からない（＝ 実体は孤児のまま残る）。
+  // 🚨 ここで黙って戻るのは、**呼ぶ側が行を先に消してしまった**ときだけなので、
+  //    上の「順番」を守る限り起きない。
+  if (!row) return;
+  const storage = await storageForRow(row);
+  if (storage.deletePrefix) {
+    // `${id}/` の下に元と圧縮版が両方入っている（`compressedKey()` を参照）。
+    await storage.deletePrefix(`${row.id}/`);
+    return;
+  }
+  // 🚨 `deletePrefix` は driver で**任意**（`StorageDriver` の `?`）。
+  //    無いドライバでは 1 つずつ消す。**列を増やしたらここも増やすこと。**
+  for (const key of [row.filename_disk, row.compressed_key]) {
+    if (key) await storage.delete(key);
+  }
+}
+
 function parseDimension(value: string | null | undefined, field: string): number | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const parsed = Number(value);
