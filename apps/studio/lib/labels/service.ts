@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
 import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
+import { liveRows } from "@/lib/files/live";
 import { applyFilter, type FilterObject } from "@/lib/items/filter";
 import type { SchemaOverview } from "@/lib/items/relations";
 import { resolvePermission, type PermissionAction } from "@/lib/permissions/resolve";
@@ -155,7 +156,14 @@ async function assertTargetVisible(
     throw new ApiError(403, "PERMISSION_DENIED", "権限がありません");
   }
 
-  const query = db(collection).where({ id: targetId });
+  // 🚨 **消えた行（ゴミ箱）を「在る」と見ない。**
+  //    283 A で削除が「印を立てる」に変わったので、素の `db(collection)` だと
+  //    **ゴミ箱に入れたファイルのラベルが、まだ読み書きできる**（2026-08-16 実測。
+  //    ロールバックの中で 1 件消して当てたら、id だけの WHERE は 1 件見つけた）。
+  // 🚨 判定は `lib/files/live.ts` の 1 箇所に置いてある。**ここに書き足さない**
+  //    （2 箇所に分かれると、片方だけ直したとき「一覧からは消えたのに
+  //      ラベルは付け替えられる」が出る）。
+  const query = liveRows(collection).where({ id: targetId });
   if (permission.rowFilter) {
     const schemaOverview = await getSchemaOverview();
     const relations = await relationRows();
@@ -299,6 +307,20 @@ export async function updateLabel(
   return toPublic(row);
 }
 
+/**
+ * 🚨 **ここはまだ物理削除**（283 A のソフトデリートは、ファイル/フォルダ側だけが入っている）。
+ *
+ * 実測 2026-08-16: `ohmycms_labels` に `deleted_at` の列は**在る**が、
+ * **非 null の行は 0**（🟢 対照 全 3 行）＝ **消えたラベルは、まだ存在しえない**。
+ *
+ * 🚨 **ここを soft delete にするときは、同じコミットで 2 つ足すこと:**
+ *   ① `readLabelsForTarget` で **消えたラベルを出さない**
+ *      （いま足すと「一度も通らない枝」を増やすので、**足していない**）
+ *   ② 🚨 **割り当ての後片付け**。いま `ohmycms_label_assignments.label_id` は
+ *      `onDelete("CASCADE")` で、**物理削除でしか動かない**。
+ *      soft にすると **割り当ての行が残り、生きているファイルに
+ *      「消えたラベル」が付いたまま見える**。
+ */
 export async function deleteLabel(actor: Actor, id: string): Promise<void> {
   await assertPermission(actor, "update");
   const current = await db<LabelRow>("ohmycms_labels").where({ id }).first();

@@ -343,6 +343,47 @@ async function runChecks(fixture: Fixture): Promise<void> {
     adminFolderRead === null,
     detail(adminFolderRead),
   );
+
+  // 🚨 10〜11: **ゴミ箱に入れたもののラベルは、もう触れない**（283 A・2026-08-16）。
+  //    削除が「消す」から「印を立てる」に変わったので、`db(collection)` を素で引くと
+  //    **消したファイルのラベルが読み書きできる**。実測でその状態を作って確かめる。
+  //    🚨 ここは admin で測る（**行フィルタではなく `deleted_at` で落ちること**を見たいので、
+  //    権限で落ちる利用者だと、どちらで落ちたのか区別できない）。
+  await db("directus_files").where({ id: fixture.victimFileId }).update({ deleted_at: new Date() });
+  const deletedRead = await caught(() =>
+    labelsForTarget(fixture.adminActor, "file", fixture.victimFileId),
+  );
+  check(
+    "10: ゴミ箱のファイルのラベルは読めない",
+    deletedRead?.status === 404 && deletedRead.code === "FILE_NOT_FOUND",
+    detail(deletedRead),
+  );
+
+  const beforeDeletedWrite = await assignmentCount();
+  // 🚨 **空の一覧**を渡す。同じラベルを渡すと、置き換えが通っても件数が変わらず、
+  //    12 が「拒否された」と「通った」で**同じ結果**になる（実測 2026-08-16: RED でも PASS した）。
+  //    空なら、通れば割り当てが消えるので、件数で区別が付く。
+  const deletedWrite = await caught(() =>
+    setLabelsForTarget(fixture.adminActor, "file", fixture.victimFileId, []),
+  );
+  check(
+    "11: ゴミ箱のファイルのラベルは置き換えられない",
+    deletedWrite?.status === 404 && deletedWrite.code === "FILE_NOT_FOUND",
+    detail(deletedWrite),
+  );
+  check(
+    "12: 拒否された書き込みで割り当て件数が変わらない（ゴミ箱の側）",
+    (await assignmentCount()) === beforeDeletedWrite,
+    `${beforeDeletedWrite} 件 → ${await assignmentCount()} 件`,
+  );
+
+  // 🚨 対照: **戻せば、また触れる**（＝ 落ちた理由が `deleted_at` であることの裏づけ。
+  //    権限や行フィルタで落ちていたなら、戻しても 404 のまま）。
+  await db("directus_files").where({ id: fixture.victimFileId }).update({ deleted_at: null });
+  const restoredRead = await caught(() =>
+    labelsForTarget(fixture.adminActor, "file", fixture.victimFileId),
+  );
+  check("13: 🟢 対照 戻すと、また読める", restoredRead === null, detail(restoredRead));
 }
 
 async function main(): Promise<number> {
