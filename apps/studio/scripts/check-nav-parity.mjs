@@ -443,7 +443,9 @@ const original = loadSources();
   const 読めた = Object.keys(original).length;
   // 🚨 **件数だけだと「1 ファイル」は 0 バイトでも出る**（司令塔 2026-08-16 / polish の形）。
   //    **読めた文字数**も出す。0 なら数字が明らかにおかしいと分かる。
-  //    🚨 名前の意味: 「読み込み」＝ **実際に readFileSync した数**（候補の数ではない）。
+  //    🚨 名前の意味: 「読み込み」＝ **実際に索引から読めた数**（候補の数ではない）。
+  //    🚨 2026-08-16: `readFileSync` から `readTracked`（索引）へ移したので、文言も直した
+  //       （**前の文言のままだと、いま読んでいる場所と食い違う**）。
   const 文字数 = typeof original?.[LAYOUT_FILE] === "string" ? original[LAYOUT_FILE].length : 0;
   console.log(`読み込み: ${読めた} ファイル / ${文字数} 文字（**索引から**。判定に要るのは ${LAYOUT_FILE}）`);
   if (原本が無い(original)) {
