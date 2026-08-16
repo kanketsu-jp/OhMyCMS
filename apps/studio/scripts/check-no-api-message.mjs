@@ -18,9 +18,10 @@
  * 🚨 **コメントの中の言及は落とさない。** `forms.ts` の JSDoc に「かつてあった」経緯を
  *    残してあるので、そこを違反にすると経緯を消す圧力になる。
  */
-import { globSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const NEEDLE = "apiMessage";
@@ -148,7 +149,7 @@ function scan(sources) {
   return hits;
 }
 
-const files = globSync("{app,components}/**/*.{ts,tsx}", { cwd: root });
+const files = trackedGlob("{app,components}/**/*.{ts,tsx}", { cwd: root });
 
 // ── 自己検査 ─────────────────────────────────────────────────
 console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
@@ -175,7 +176,7 @@ const 平均文字数の下限 = 800;
 //       50 は「この製品が app/ + components/ で 50 ファイルを下回る」ことを想定しない値。
 //       ＝ **育っても腐らない床**（司令塔の「絶対値は育つ」は、実測値に近い下限の話）。
 const 列挙の床 = 50;
-const 候補 = globSync("**/*.{ts,tsx}", { cwd: root, exclude: ["node_modules/**"] }).length;
+const 候補 = trackedGlob("**/*.{ts,tsx}", { cwd: root, exclude: ["node_modules/**"] }).length;
 const 総文字数 = sources.reduce((a, x) => a + x.text.length, 0);
 const 比率 = 候補 > 0 ? sources.length / 候補 : 0;
 const 平均 = sources.length > 0 ? Math.round(総文字数 / sources.length) : 0;

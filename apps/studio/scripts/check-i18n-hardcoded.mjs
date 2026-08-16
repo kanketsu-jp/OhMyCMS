@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { globSync } from "node:fs";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -138,7 +139,7 @@ function looksLikeUiEnglish(text) {
   return true;
 }
 
-const files = globSync("{app,components}/**/*.{ts,tsx}", { cwd: root })
+const files = trackedGlob("{app,components}/**/*.{ts,tsx}", { cwd: root })
   // 🚨 app/api/** は**意図して外している。しかし「画面に出ない」からではない。**
   // API のエラー文言は実際に画面へ出る（例: folders-manager.tsx の messageFrom が
   // payload.error.message をそのまま表示する）。**ここは既知の穴**であり、

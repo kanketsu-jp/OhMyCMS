@@ -16,9 +16,10 @@
 import { execFileSync } from "node:child_process";
 
 import { stripComments } from "./strip-comments.mjs";
-import { readFileSync, globSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -85,7 +86,7 @@ function rendersInsideSurface(file, source) {
   return source.includes("<Surface");
 }
 
-const files = globSync("{app,components}/**/*.tsx", { cwd: root }).sort();
+const files = trackedGlob("{app,components}/**/*.tsx", { cwd: root }).sort();
 
 // 🚨 **採取した HEAD と作業ツリーの状態を出す**（司令塔 2026-08-15）。
 //    共有ツリーでは **数分で HEAD も件数も動く**。出力だけを貼られた人は、

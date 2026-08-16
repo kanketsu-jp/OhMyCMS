@@ -24,9 +24,10 @@
  *    （2026-08-15 実測。しかも lefthook にも載っておらず、一度も走っていなかった）。
  *    → **0 が正常な規則**に据え直した。**在ること自体を違反にする。**
  */
-import { globSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PATTERN = /(?<![\w-])(cn-[a-z0-9-]+)/g;
@@ -86,7 +87,7 @@ function scan(sources) {
   return hits;
 }
 
-const files = globSync("{app,components}/**/*.tsx", { cwd: root });
+const files = trackedGlob("{app,components}/**/*.tsx", { cwd: root });
 const sources = files.map((file) => ({ file, text: readFileSync(resolve(root, file), "utf8") }));
 
 // ── 自己検査 ─────────────────────────────────────────────────

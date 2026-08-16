@@ -46,9 +46,10 @@
  *   node scripts/check-submit-once.mjs
  */
 
-import { readFileSync, globSync, existsSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -378,7 +379,7 @@ function reasonLabel(reason) {
   return `🚨 分類できていない理由: "${reason}"（この検査の不具合）`;
 }
 
-const files = globSync("{app,components}/**/*.tsx", { cwd: root }).sort();
+const files = trackedGlob("{app,components}/**/*.tsx", { cwd: root }).sort();
 
 // 🚨 ゼロ件ガード（count-before-you-report.md の要求）:
 // この検査の「自己検査（壊し方1〜3）」は**検出ルールが正しいか**しか証明しない。

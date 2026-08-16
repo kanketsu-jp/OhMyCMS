@@ -36,9 +36,10 @@
  * pre-commit の「速いものだけ」に収まらない（面の監査が別に測っている）。
  * 🚨 **見ていないことを書いておく。** 書かないと「この検査が緑＝高さは全部トークン経由」と読まれる。
  */
-import { globSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /** 操作部品として使われうる段だけ（4px 刻みの 24〜56px）。 */
@@ -126,7 +127,7 @@ function scan(sources) {
   return hits;
 }
 
-const files = globSync("{app,components}/**/*.tsx", { cwd: root });
+const files = trackedGlob("{app,components}/**/*.tsx", { cwd: root });
 const sources = files.map((file) => ({ file, text: readFileSync(resolve(root, file), "utf8") }));
 
 // ── 自己検査 ─────────────────────────────────────────────────

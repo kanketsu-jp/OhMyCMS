@@ -50,12 +50,13 @@
  *
  * 🚨 上書きしているファイル名を決め打ちにしない。**未コミットの差分は変わりうる**ので、
  *    components 配下 / app 配下を毎回走査して見つける（対象範囲は check-i18n-hardcoded.mjs の
- *    globSync("{app,components}" 配下の全 .ts/.tsx) と同じ考え方）。
+ *    trackedGlob("{app,components}" 配下の全 .ts/.tsx) と同じ考え方）。
  */
 
-import { globSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 import {
   normalize,
   normalizeTiptapKey,
@@ -118,7 +119,7 @@ function findConflicts(entries) {
  * 対象は毎回 glob で走査する）。
  */
 function collectAppOverrides(studioRoot) {
-  const files = globSync("{app,components}/**/*.{ts,tsx}", { cwd: studioRoot }).sort();
+  const files = trackedGlob("{app,components}/**/*.{ts,tsx}", { cwd: studioRoot }).sort();
   const map = new Map(); // normalized -> [{ raw, file }]
   for (const file of files) {
     const text = readFileSync(join(studioRoot, file), "utf8");

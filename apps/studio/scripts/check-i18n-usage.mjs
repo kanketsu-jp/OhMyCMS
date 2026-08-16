@@ -17,11 +17,12 @@ import { globSync } from "node:fs";
 import { resolve } from "node:path";
 import { ROOT as root, flatten, loadDictionary } from "./i18n-load.mjs";
 import { stripComments } from "./strip-comments.mjs";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 // 辞書は名前空間ごとのファイル。組み立ては i18n-load.mjs に集約している。
 const defined = flatten(loadDictionary("ja"));
 
-const files = globSync("{app,components}/**/*.{tsx,ts}", { cwd: root }).sort();
+const files = trackedGlob("{app,components}/**/*.{tsx,ts}", { cwd: root }).sort();
 
 const used = new Map(); // "ns.key" -> [{file, line}]
 const missing = [];

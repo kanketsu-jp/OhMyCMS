@@ -24,15 +24,16 @@
  *   `<X asChild …> A B </X>` のように**要素が2つ以上**並ぶものだけを落とす。
  *   式（`{cond && <A/>}`）や文字だけの子は、実行時に1つになりうるので落とさない。
  */
-import { globSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bad = [];
 let checked = 0;
 
-for (const file of globSync("{app,components}/**/*.tsx", { cwd: root })) {
+for (const file of trackedGlob("{app,components}/**/*.tsx", { cwd: root })) {
   const src = readFileSync(resolve(root, file), "utf8");
   // `asChild` を含む開始タグを探し、その要素の中身を粗く取り出す
   const re = /<([A-Z][\w.]*)\b([^>]*\basChild\b[^>]*)>/g;

@@ -26,6 +26,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { globSync } from "node:fs";
+import { trackedGlob } from "./lib/tracked-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -70,7 +71,7 @@ function findViolations(sources) {
 }
 
 function loadSources() {
-  const files = globSync("{app,components}/**/*.{ts,tsx}", { cwd: root }).sort();
+  const files = trackedGlob("{app,components}/**/*.{ts,tsx}", { cwd: root }).sort();
   const sources = {};
   for (const file of files) sources[file] = readFileSync(resolve(root, file), "utf8");
   return sources;
