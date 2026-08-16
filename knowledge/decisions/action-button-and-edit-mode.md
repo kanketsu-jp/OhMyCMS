@@ -102,7 +102,42 @@ x_rag_okf:
 
 ## 5. 対象（実測）
 
-**2026-08-15 実測: 「最初から編集できる」画面は 15 / 25 枚**（PC・見えていて disabled/readonly でない入力を持つ）
+### 5-1. 🚨 2026-08-16 に採り直した（こちらが最新）
+
+**母数 26 ルート / 🚨 対象 16 / 実装済み 1（`profile`）/ 入力 0 が 9。**
+
+```
+🚨 対象（表示モードが要る・未実装）16:
+  A 作る画面 5 … collections/new ／ files/new ／ files/new-folder ／
+                 collections/<c>/fields/new ／ content/<c>/new
+  B 一覧＋その場で足すフォーム 5 … labels ／ settings/{agents,policies,roles,users}
+  C まとまった設定・詳細 6 … settings/{general,sso,storage} ／
+                             collections/<c> ／ files/<id> ／ settings/policies/<id>
+🟢 実装済み 1 … profile（**本体の入力 0 と出る**＝ この数え方は「済んだ画面」を対象から外せている）
+🟢 対照 入力 0 が 9 … admin ／ collections ／ files ／ folders ／ notifications ／
+                      reports ／ settings/mcp ／ settings/version ／ content/<c>
+🚨 測れていない 0（header が出ない画面は 0 枚。404 の 3 本は母数から外した）
+```
+
+🚨 **5-2 の「15 / 25」と数が近いが、同じ集合ではない。** 突き合わせた差分:
+
+| 差分 | 中身 |
+|---|---|
+| 減 | `profile` … **実装済みになったので対象から外れた**（＝ 数え方が効いている証拠） |
+| 増 | `collections/<c>/fields/new` ／ `content/<c>/new` … **5-2 で見落としていた** |
+
+🚨 **この数え方の当たらないところ（申告）:**
+- **`content/<c>/new` は、フィールドを持つコレクションでしか対象にならない**
+  （実測: `zz_probe_actions` → 欄 4 ／ `zz_a`・`acc_748015_pl` → **欄 0**）。
+  🚨 **最初 `acc_748015_pl` で測って「対象外」と出た。フィールドが 0 本だっただけ**
+- **既存項目の編集 `content/<c>/<id>` は測っていない**（`new` と同型と**推測**）
+- **admin で測っている**。権限で欄が消える利用者では対象が減る
+- 動的 ID は一覧の先頭リンクから拾う。🚨 **最初 `/new` を拾ってしまい、詳細画面 3 本を
+  取りこぼした**（`^/admin/collections/[^/]+$` は `/admin/collections/new` にも当たる）
+
+### 5-2. 2026-08-15 の初回計測（残す。**古い**）
+
+**「最初から編集できる」画面は 15 / 25 枚**（PC・見えていて disabled/readonly でない入力を持つ）
 
 ```
 collections/new ／ collections/<c> ／ files/new ／ files/new-folder ／ files/<id> ／
@@ -110,8 +145,6 @@ labels ／ profile ／ settings/agents ／ settings/general ／ settings/policie
 settings/policies/<id> ／ settings/roles ／ settings/sso ／ settings/storage ／ settings/users
 🟢 対照 残り 10 枚は入力 0（一覧・詳細の表示だけ）＝ この数え方は「全部」を返していない
 ```
-
-🚨 **＝ 表示モードを新設する対象が 15 枚（全体の 6 割）。**
 
 **保存の効き方**: 15 枚のうち **「押した瞬間に効く」画面は 0 枚**。
 ```
