@@ -369,10 +369,27 @@ export async function createAccess(body: Record<string, unknown>): Promise<Acces
 }
 
 export async function deleteAccess(id: string): Promise<void> {
-  // 消す前に「誰のどのポリシーだったか」を控える（消したあとでは分からない）。
-  const target = await db<AccessRow>("directus_access").where({ id }).first();
-  const deleted = await db<AccessRow>("directus_access").where({ id }).delete();
-  if (!deleted) throw new ApiError(404, "ACCESS_NOT_FOUND", "ポリシー割り当てが見つかりません");
+  const target = await db.transaction(async (trx) => {
+    // 🚨 管理者が 0 人になる操作を拒む（231 A）。**誰が最初の人かは見ない。人数だけを見る。**
+    //    数えてから外すまでの間に別の要求が外すと 0 人になりうる（TOCTOU）ので、
+    //    admin 割り当ての行を **ロックしてから**数える。
+    // 🚨 `admin_access` は Administrator と dev-admin の **2 つ**が持つ（実測 2026-08-16）。
+    //    **名前では判定しない**。列で見る。
+    const admins = await trx("directus_access as a")
+      .join("directus_policies as p", "p.id", "a.policy")
+      .where("p.admin_access", true)
+      .whereNotNull("a.user")
+      .select("a.id as id")
+      .forUpdate();
+    if (admins.some((row) => row.id === id) && admins.length <= 1) {
+      throw new ApiError(409, "LAST_ADMIN_CANNOT_BE_REMOVED", "管理者が居なくなるため外せません");
+    }
+    // 消す前に「誰のどのポリシーだったか」を控える（消したあとでは分からない）。
+    const found = await trx<AccessRow>("directus_access").where({ id }).first();
+    const deleted = await trx<AccessRow>("directus_access").where({ id }).delete();
+    if (!deleted) throw new ApiError(404, "ACCESS_NOT_FOUND", "ポリシー割り当てが見つかりません");
+    return found;
+  });
 
   await notifyPolicyChange(target?.user ?? null, target?.policy ?? null, "revoked");
 }

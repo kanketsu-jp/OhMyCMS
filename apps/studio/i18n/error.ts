@@ -40,6 +40,10 @@ export const ERROR_KEYS = [
   // 🚨 大きさを言わない鍵。上限より小さくても起きる（9MB 台で落ちた実測）ので、
   //    file_too_large と同じ文言にすると嘘になる。
   "upload_unreadable",
+  // 🚨 管理者が 0 人になる操作の拒否（231 A・2026-08-16）。
+  //    conflict へ潰さない——「同名が在る」ではなく「**外すと誰も入れなくなる**」なので、
+  //    利用者がとる行動が違う（**先に別の人へ管理者を渡す**）。
+  "last_admin_cannot_be_removed",
   // 取りこぼしの受け皿
   "unexpected",
 ] as const;
@@ -76,6 +80,7 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   INVALID_INTERFACE: "invalid_interface",
   INVALID_SCHEMA: "invalid_body",
   INVALID_FILTER: "invalid_body",
+  LAST_ADMIN_CANNOT_BE_REMOVED: "last_admin_cannot_be_removed",
   // conflict は同名重複の 409 用: COLLECTION_EXISTS / FIELD_EXISTS / RELATION_EXISTS / LABEL_EXISTS。
   // FOLDER_NOT_EMPTY は「配下があるため削除できない」で同名重複ではないため、意図的に含めない。
   // 🚨 2026-08-16: 一度 **専用の鍵 folder_not_empty** を足したが、**同じ日に取り消した**。

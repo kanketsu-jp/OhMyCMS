@@ -15,5 +15,6 @@
   "relation_partial_failure": "列は作成されましたが、リレーションの作成に失敗しました。",
   "unauthenticated": "ログインし直してください。",
   "file_too_large": "ファイルが大きすぎます。50MB 以下にしてください。",
-  "upload_unreadable": "アップロードの内容を読み取れませんでした。もう一度お試しください。"
+  "upload_unreadable": "アップロードの内容を読み取れませんでした。もう一度お試しください。",
+  "last_admin_cannot_be_removed": "管理者が居なくなるため外せません"
 }
