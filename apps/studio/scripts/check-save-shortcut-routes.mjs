@@ -270,18 +270,27 @@ function main() {
       expect: "undeclared-addition",
       apply: () => ({ d: [...derived, "/admin/zz-self-test"], l: ledgerRoutes, r: removed }),
     },
+    // 🚨 **自己検査は実データの形に依存させない。**
+    //    2026-08-16、`removed` が空になった（全部戻った）瞬間に、
+    //    `removed[0]` を使っていたこの 2 本が成立しなくなり **自己検査が落ちた**。
+    //    ＝ **台帳が正しい状態になると検査が壊れる**という、逆立ちした依存だった。
+    //    → 壊し方は**その場で作った値だけ**で組む。
     {
       name: "壊し方4: removed に在るルートが写しにも在る（直ったのに台帳が古い）",
       expect: "declared-but-present",
-      apply: () => ({ d: [...derived, removed[0]?.route ?? "/admin/zz-none"], l: ledgerRoutes, r: removed }),
+      apply: () => ({
+        d: derived,
+        l: ledgerRoutes,
+        r: [{ route: derived[0], why: "自己検査のために作った値" }],
+      }),
     },
     {
       name: "壊し方5: removed の理由が空",
       expect: "removed-without-why",
       apply: () => ({
         d: derived,
-        l: ledgerRoutes,
-        r: [...removed.slice(1), { route: removed[0]?.route ?? "/admin/zz-none", why: "  " }],
+        l: [...ledgerRoutes, "/admin/zz-self-test"],
+        r: [{ route: "/admin/zz-self-test", why: "  " }],
       }),
     },
   ];

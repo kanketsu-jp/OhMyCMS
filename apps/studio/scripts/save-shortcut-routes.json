@@ -19,42 +19,37 @@
     "removed_measured_at": "d635b58（2026-08-16 16:35）の写し",
     "note": "removed の 4 ルートは、この sha の shortcuts-snapshot.ts で scope から消えていたもの。写しの scope は d635b58 の前 15 ルート → 後 11 ルートで、差の 4 が下の removed と一致する（入れ忘れ 0 / 誤って入れたもの 0）。",
     "🚨 いまは戻っている": "ece7d7b「③の 6 枚で ⌘Enter（保存）を戻す — フォームが自分で受ける」で、design の実測では 6 枚とも submit 1〜3（🟢 対照 /admin/collections/new 発火・🟢 陰性 ⌘B は 0）。つまり **画面では効く**。removed が『まだ外れている』と読めるが、それは d635b58 時点の記録であって、いまの状態ではない。",
-    "🚨 なぜ removed を消せないか": "写しは build-shortcuts-manifest.mjs が PAGE_ACTIONS から導出しており、design の新しい口（hooks/use-form-submit-shortcut.ts）を**まだ知らない**。実測（ece7d7b）: 写しの scope は **11 ルートのまま**／removed のうち写しに在るもの **0 件**。＝ この検査は『戻った』ことを見ていない。ここで removed を消すと、写しに無いのに台帳に在る状態になり **missing-without-reason で赤くなる**。→ **先に生成器へ口を足す**（担当は写しを作っている側）。足れば写しが増え、この検査が『removed に在るのに写しにも在る』で落ちて、そのとき removed を消す。",
-    "🚨 件数が 4 と 5 で違うのは正しい": "⌘Enter を失ったのは 4 ルート。<PageAction> を失ったのは 5 枚。差の 1 枚 policy-permissions は form= を持たない onClick だったので**元から ⌘Enter を持っていない**。ece7d7b では hook を入れたのでその 1 枚も効く（実測 submit 3）＝ **戻したのではなく 1 枚は新しく足した**。だから『removed 4』と『いま効く 5〜6 枚』を引き算しないこと。"
+    "🚨 件数が 4 と 5 で違うのは正しい": "⌘Enter を失ったのは 4 ルート。<PageAction> を失ったのは 5 枚。差の 1 枚 policy-permissions は form= を持たない onClick だったので**元から ⌘Enter を持っていない**。ece7d7b では hook を入れたのでその 1 枚も効く（実測 submit 3）＝ **戻したのではなく 1 枚は新しく足した**。だから『removed 4』と『いま効く 5〜6 枚』を引き算しないこと。",
+    "🚨 いま removed が空な理由": "生成器（build-shortcuts-manifest.mjs）が 1beda45 で useFormSubmitShortcut を呼ぶ画面も数えるようになり、写しの scope が 11 → 17 ルートになった。d635b58 で失った 4 ルートは全部戻り、さらに labels と settings/policies/[id] が新しく加わった（＝ 戻したのではなく増えた分が在る）。removed に在るものが写しにも在ると declared-but-present で落ちるので、removed を空にし、過去の記録は _history_removed へ移した。",
+    "🚨 写しと台帳は同じコミットで動かす": "実測（saml・2026-08-16）: 写しだけ先に入れると『写しに在るのに台帳に無い 6 件』で赤。台帳の removed だけ先に消すと『台帳に在る・写しに無い・理由が無い』で赤。＝ どちらを先に入れても、その間だけ門が赤くなる。2 ファイルは 1 コミットで入れる。"
   },
   "routes": [
-    "/admin/collections/new",
     "/admin/collections/[collection]/fields/new",
-    "/admin/content/[collection]/new",
+    "/admin/collections/new",
     "/admin/content/[collection]/[id]",
+    "/admin/content/[collection]/new",
+    "/admin/files/[id]",
     "/admin/files/new",
     "/admin/files/new-folder",
-    "/admin/files/[id]",
-    "/admin/settings/general",
-    "/admin/settings/storage",
-    "/admin/settings/sso",
+    "/admin/labels",
     "/admin/profile",
-    "/admin/settings/roles",
+    "/admin/settings/agents",
+    "/admin/settings/general",
     "/admin/settings/policies",
-    "/admin/settings/users",
-    "/admin/settings/agents"
+    "/admin/settings/policies/[id]",
+    "/admin/settings/roles",
+    "/admin/settings/sso",
+    "/admin/settings/storage",
+    "/admin/settings/users"
   ],
-  "removed": [
-    {
-      "route": "/admin/settings/roles",
-      "why": "🚨 意図した削除ではない。d635b58（一覧＋その場で足すフォーム 6 枚を揃える）で PAGE_ACTIONS から宣言が消えた副作用。design が『直すべき後退』と判断し、フォーム側で ⌘Enter を受ける形へ直す予定。直ったらこの行を消す。"
-    },
-    {
-      "route": "/admin/settings/policies",
-      "why": "🚨 同上（d635b58 の副作用・直す予定）。"
-    },
-    {
-      "route": "/admin/settings/users",
-      "why": "🚨 同上（d635b58 の副作用・直す予定）。"
-    },
-    {
-      "route": "/admin/settings/agents",
-      "why": "🚨 同上（d635b58 の副作用・直す予定）。settings/mcp から agents へ向かう href は残っているが kind:\"link\" で form を持たないため、⌘Enter は効かない。"
-    }
-  ]
+  "removed": [],
+  "_history_removed": {
+    "🚨 これは過去の記録": "d635b58 で宣言が消え、⌘Enter の保存の鍵を失っていた 4 ルート。ece7d7b（③の 6 枚でフォームが自分で受ける）と 1beda45（生成器が useFormSubmitShortcut を呼ぶ画面も数える）で戻ったので、removed からは外した。消さずにここへ移すのは、なぜこの検査が在るのかが失われるため。",
+    "routes": [
+      "/admin/settings/roles",
+      "/admin/settings/policies",
+      "/admin/settings/users",
+      "/admin/settings/agents"
+    ]
+  }
 }
