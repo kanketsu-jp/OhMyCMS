@@ -103,8 +103,11 @@ function parseArgs(argv) {
     else if (arg === "--no-up") args.noUp = true;
     else if (arg === "--down") args.down = true;
     else if (arg === "--help" || arg === "-h") args.help = true;
-    else if (arg === "--only") args.only = (argv[++i] ?? "").split(",").map((n) => Number(n.trim()));
-    else if (arg === "--red") args.red = (argv[++i] ?? "").split(",").map((n) => Number(n.trim()));
+    // 🚨 **`Number()` で黙って変換しない**（2026-08-16・saml が踏んだ）。
+    //    `Number("v1-a")` は **NaN** で、どの id とも一致せず、**0 件のまま「達成」**になっていた。
+    //    生の文字列で持ち、下の `validateOnly()` で「数でない」「在らない id」を**名指しで落とす**。
+    else if (arg === "--only") args.only = (argv[++i] ?? "").split(",").map((n) => n.trim()).filter(Boolean);
+    else if (arg === "--red") args.red = (argv[++i] ?? "").split(",").map((n) => n.trim()).filter(Boolean);
     else if (arg === "--base-url") args.baseUrl = argv[++i];
   }
   return args;
@@ -149,7 +152,8 @@ async function gitHead() {
 
 /** --only で絞られたとき、指定 id のどれかが対象に入っているか。 */
 function wantsAny(args, ids) {
-  return !args.only || ids.some((id) => args.only.includes(id));
+  // 🚨 `args.only` は**文字列の配列**（`--only` を数へ変換しなくなったため）。
+  return !args.only || ids.some((id) => args.only.includes(String(id)));
 }
 
 async function main() {
@@ -180,7 +184,10 @@ async function main() {
     // 受入基準8・9 が叩く先。--base-url が無ければ dev モードの studio。
     baseUrl: args.baseUrl ?? `http://localhost:${DEV_PORT}`,
     // RED 確認用。指定した項目をわざと壊れた状態で走らせる（F9h 受入基準3）。
-    red: args.red ?? [],
+    // 🚨 **ここで数へ戻す。** 検査側は `context.red?.includes(3)` と**数で比べている**
+    //    （実測: 03 / 04 / 05 / 07 / 08 の 5 本）。文字列のまま渡すと
+    //    **RED モードが黙って効かなくなる**（落ちないので気づけない）。
+    red: (args.red ?? []).map(Number),
     // 🚨 対象が手元かどうか。遠隔（Dokploy 上のインスタンス等）なら、
     //   手元の情報しか見ていない項目を PASS のままにしない（下の REMOTE_UNMEASURABLE）。
     remoteTarget: !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(
@@ -262,7 +269,11 @@ async function main() {
 
   const results = [];
 
-  const wanted = (id) => !args.only || args.only.includes(id);
+  // 🚨 **`args.only` は文字列の配列**（`--only` を数へ変換しなくなったため）。
+  //    ここを直し忘れて `includes(14)` のままにしたところ、**`--v1 --only 14` が 1 件も走らず
+  //    「達成」**になった（2026-08-16 実測）。**直そうとしていた穴を、自分で作った形。**
+  //    🚨 絞り込みは `wantsAny()`（154 行）と**ここの 2 箇所**に在る。**片方だけ直すと必ずずれる。**
+  const wanted = (id) => !args.only || args.only.includes(String(id));
 
   const runCheck = async (id, fn, title) => {
     if (!wanted(id)) return;
@@ -283,28 +294,63 @@ async function main() {
     }
   };
 
-  if (args.v1) {
-    // V1 の基準だけを走らせる（v0.9 の記録と混ぜない）
-    await runCheck(10, checkV1B, "V1-B ストレージ（S3 互換）");
-    await runCheck(11, checkV1C, "V1-C Tiptap の WYSIWYG");
-    await runCheck(12, checkV1D, "V1-D メール OTP");
-    await runCheck(13, checkV1A, "V1-A SAML（SSO）");
+  // 🚨 **走らせる項目を「データ」で持つ**（2026-08-16）。
+  //    以前は id が `runCheck(...)` の呼び出しに**埋まっている**だけだったので、
+  //    「いま在る id は何か」を **`--only` の検証に使えなかった**。
+  //    ＝ `--only v1-a` が **NaN → 一致 0 件 → それでも達成**になっていた（saml が 2 回踏んだ）。
+  //    🚨 **一覧をここに 1 つだけ置き、走らせるのも検証するのも同じ一覧を使う**
+  //       （2 箇所に書くと、必ず片方が腐る）。
+  const V1_CHECKS = [
+    [10, checkV1B, "V1-B ストレージ（S3 互換）"],
+    [11, checkV1C, "V1-C Tiptap の WYSIWYG"],
+    [12, checkV1D, "V1-D メール OTP"],
+    [13, checkV1A, "V1-A SAML（SSO）"],
     // 🚨 初回起動は**共有環境では誰も到達できない**経路（/onboarding が 307 で飛ぶ）。
     //    2026-08-15 に約10時間壊れて誰も踏まなかったので、毎回ここで踏む。
     //    使い捨ての Postgres(:5437) と worktree(:3110) を自分で立てて落とす（共有は触らない）。
-    await runCheck(14, checkV1E, "V1-E 初回起動（新規インストールで初期設定を終えられる）");
-  } else {
-  await runCheck(1, check01, "docker compose up だけで起動する");
-  await runCheck(2, check02, "環境変数だけで設定が完結する");
-  await runCheck(3, check03, "GUI から全機能へ到達できる（操作の確認は manual-3.md）");
-  await runCheck(4, check04, "CLI で同じことができる");
-  await runCheck(5, check5, "MCP 経由で触れ、権限が同じように効く");
-  await runCheck(6, check6, "管理者トークンなら MCP から設定も編集できる");
-  await runCheck(7, check07, "UI が日本語・英語に切り替わる / ハードコード無し");
-  await runCheck(8, check08, "他人の行に直打ち → 403/404");
-  await runCheck(9, check09, "SVG/HTML が attachment で配信される");
-  await runCheck(10, check10, "MCP の全ツールを実プロトコルで叩く");
+    [14, checkV1E, "V1-E 初回起動（新規インストールで初期設定を終えられる）"],
+  ];
+  const V09_CHECKS = [
+    [1, check01, "docker compose up だけで起動する"],
+    [2, check02, "環境変数だけで設定が完結する"],
+    [3, check03, "GUI から全機能へ到達できる（操作の確認は manual-3.md）"],
+    [4, check04, "CLI で同じことができる"],
+    [5, check5, "MCP 経由で触れ、権限が同じように効く"],
+    [6, check6, "管理者トークンなら MCP から設定も編集できる"],
+    [7, check07, "UI が日本語・英語に切り替わる / ハードコード無し"],
+    [8, check08, "他人の行に直打ち → 403/404"],
+    [9, check09, "SVG/HTML が attachment で配信される"],
+    [10, check10, "MCP の全ツールを実プロトコルで叩く"],
+  ];
+
+  // 🚨 `--only` の指定が効いているかを、**走らせる前に**確かめる。
+  //    効いていないまま走ると **0 件で「達成」**になる（＝「異常が無い 0」ではなく「指定が効いていない 0」）。
+  const roster = args.v1 ? V1_CHECKS : V09_CHECKS;
+  const here = roster.map(([id]) => String(id));
+  const there = (args.v1 ? V09_CHECKS : V1_CHECKS).map(([id]) => String(id));
+  if (args.only) {
+    const bad = args.only.filter((x) => !/^\d+$/.test(x));
+    const missing = args.only.filter((x) => /^\d+$/.test(x) && !here.includes(x));
+    const otherMode = missing.filter((x) => there.includes(x));
+    if (bad.length > 0 || missing.length > 0) {
+      const lines = ["", "🚨 --only の指定が効いていません（このまま走らせると 0 件で「達成」と出ます）。"];
+      if (bad.length > 0) lines.push(`  数でない指定: ${bad.join(",")}（id は数で指定してください）`);
+      if (missing.length > 0) lines.push(`  この一覧に無い id: ${missing.join(",")}`);
+      if (otherMode.length > 0) {
+        lines.push(
+          args.v1
+            ? `  🚨 ${otherMode.join(",")} は **--v1 を付けない**ときの項目です`
+            : `  🚨 ${otherMode.join(",")} は **--v1 が要ります**（例: node acceptance/run.mjs --v1 --only ${otherMode[0]}）`,
+        );
+      }
+      lines.push(`  いま在る id（${args.v1 ? "--v1" : "既定"}）: ${here.join(",")}`);
+      lines.push(...roster.map(([id, , title]) => `    ${id}  ${title}`));
+      process.stderr.write(`${lines.join("\n")}\n`);
+      return 2;
+    }
   }
+
+  for (const [id, fn, title] of roster) await runCheck(id, fn, title);
 
   results.sort((a, b) => a.id - b.id);
 
