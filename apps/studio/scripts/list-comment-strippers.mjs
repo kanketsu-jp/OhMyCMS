@@ -91,7 +91,16 @@ for (const rel of files) {
   });
 }
 
-console.log(`\nコメントを落とす仕組みを持つ検査: ${rows.length} 本（HEAD ${head} ／ 走査 ${files.length} 本）`);
+// 🚨 **数える前に、何を母集合にしたかを 1 行書く**（design の提案・2026-08-16）。
+//    私はこの一覧で **母集合の切り方を 5 回**間違えた（import / 自前 / 両方 / `check-*.mjs` /
+//    英語の名前と `//` の形）。**5 回とも違う想定**で、同じ間違いではなかった。
+//    ＝ 🚨 **「母集合を先に決めて、書く」という手順が無かった**。
+//    書いてあれば、読んだ人が **「その外は？」と聞ける**（いまは出力を見て初めて分かる）。
+console.log(
+  `\n母集合: \`apps/studio/scripts\` の **追跡済みの .mjs と .ts**（${files.length} 本・HEAD ${head}）` +
+    `\n  🚨 外にあるもの … \`.lefthook/*.sh\` ／ \`packages/**\` ／ \`acceptance/**\` は**見ていません**`,
+);
+console.log(`\nコメントを落とす仕組みを持つ検査: ${rows.length} 本`);
 console.log(`${"検査".padEnd(32)}${"種類".padEnd(22)}${"呼出".padStart(5)}${"自前語".padStart(7)}`);
 for (const r of rows.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name))) {
   console.log(`${r.name.padEnd(32)}${r.kind.padEnd(22)}${String(r.calls).padStart(5)}${String(r.own).padStart(7)}`);
