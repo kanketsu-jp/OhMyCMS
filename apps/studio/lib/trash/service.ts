@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
+import { deleteStoredObjects } from "@/lib/files/service";
 import { trashRetentionDays } from "./purge";
 import { applyFilter } from "@/lib/items/filter";
 import { resolvePermission, type PermissionAction } from "@/lib/permissions/resolve";
@@ -119,6 +120,44 @@ function sourceKindFor(collection: string): SourceKind {
   }
 }
 
+/**
+ * ゴミ箱が扱ってよいシステム表。**ここに書いた名前だけ**が
+ * `assertSafeIdentifier`（items API の壁）を迂回できる。
+ *
+ * 🚨 なぜ列挙するか: 条件で緩めると（「`ohmycms_` なら通す」等）、
+ *    **次に足された `ohmycms_*` が黙って通る**。列挙なら、足す人が必ずここに気づく。
+ *
+ * 🚨 `sourceKindFor` を流用しないこと。あれは **札の対応表**で `default` を持つ。
+ *    「ゴミ箱に入る表」の定義は `tableMetas()`（`deleted_at` を持つ表を実行時に探す）で、
+ *    そちらは **GUI で作った利用者コレクションも含む**（＝ 許可リストにはならない）。
+ *
+ * 🛑 `directus_permissions` は**入れない**（2026-08-17 司令塔の判断）。
+ *    権限の行を物理削除したときに何が起きるか（参照している役割・復元・追跡）を
+ *    誰も測っていない。詰まりの実害も 0 件だったので、**開けるほうが危ない**。
+ *    可否は堀池さん待ちとして board に出ている。
+ */
+const TRASH_SYSTEM_COLLECTIONS = new Set([
+  "directus_files",
+  "directus_folders",
+  "ohmycms_labels",
+  "ohmycms_label_assignments",
+]);
+
+/**
+ * ゴミ箱の経路で表名を検証する。
+ *
+ * 🚨 これが無かったせいで、**一覧には出るのに復元も完全削除もできない**状態だった
+ *    （2026-08-17 実測: ゴミ箱の `directus_files` 69 件が、削除も復元も 400 `SYSTEM_IDENTIFIER`）。
+ *    `listTrash` は `assertSafeIdentifier` を通らないので一覧には出て、
+ *    `visibleQueryFor` が通るので**押した瞬間に落ちる**——「見えるのに押せない」。
+ *
+ * 利用者コレクションは従来どおり `assertSafeIdentifier` で守る（items API の壁は緩めない）。
+ */
+function assertTrashCollection(collection: string): void {
+  if (TRASH_SYSTEM_COLLECTIONS.has(collection)) return;
+  assertSafeIdentifier(collection);
+}
+
 function permissionCollection(collection: string): string {
   if (collection === "ohmycms_labels" || collection === "ohmycms_label_assignments") {
     return "directus_files";
@@ -222,7 +261,7 @@ async function visibleQueryFor(
   meta: TableMeta,
   action: PermissionAction,
 ): Promise<{ query: Knex.QueryBuilder<Record<string, unknown>, Record<string, unknown>[]> }> {
-  assertSafeIdentifier(meta.collection);
+  assertTrashCollection(meta.collection);
   const permission = await resolvePermission(actor, permissionCollection(meta.collection), action);
   if (!permission.allowed) {
     throw new ApiError(403, "PERMISSION_DENIED", "権限がありません");
@@ -353,9 +392,16 @@ function manualReferences(collection: string, row: Record<string, unknown>): Ref
 }
 
 async function referenceState(issue: ReferenceIssue): Promise<ReferenceIssue | null> {
-  assertSafeIdentifier(issue.targetCollection);
   const overview = await getSchemaOverview();
-  const columns = overview[issue.targetCollection] ?? [];
+  // 🚨 **指し先は許可リストで絞らない。** ここは「その行がどこを指しているか」を**読むだけ**で、
+  //    指し先は**利用者が選べない**（外部キーの定義・`manualReferences` の定数・活動ログの
+  //    `collection` 列）。許可リストで絞ると、**実在する指し先まで 400 になる**
+  //    （2026-08-17 実測: ファイルの復元プレビューが `uploaded_by` → `directus_users` で落ちた。
+  //     `directus_files` を通しただけでは直らず、**2 段目で同じ壁に当たった**）。
+  // 🚨 代わりに **スキーマに実在する表だけ**を通す。名前は DB 由来になるので、
+  //    名前の形を検査するより強い（活動ログの `collection` は利用者の入力が入りうる）。
+  const columns = overview[issue.targetCollection];
+  if (!columns) return null;
   const primary = columns.find((column) => column.is_primary_key)?.name;
   if (!primary) return null;
   const hasDeletedAt = columns.some((column) => column.name === "deleted_at");
@@ -450,7 +496,7 @@ async function restoreOne(
   nullColumns: string[],
 ): Promise<void> {
   if (!key.primaryKey) return;
-  assertSafeIdentifier(key.collection);
+  assertTrashCollection(key.collection);
   const patch: Record<string, unknown> = { deleted_at: null };
   for (const column of nullColumns) {
     assertSafeIdentifier(column);
@@ -490,8 +536,21 @@ export async function permanentlyDeleteTrashItem(actor: Actor, encodedKey: strin
   await rowForKey(actor, key, "delete");
   const primaryKey = key.primaryKey;
   if (!primaryKey) return;
+
+  // 🚨 **ファイルは「行」と「実体」の 2 つを消す。順序は 実体 → 行。**
+  //    逆にすると、行が消えたあとに実体の削除が失敗したとき **どの実体が孤児か誰も辿れない**
+  //    （決定: knowledge/decisions/deleting-a-file-is-two-deletes.md）。
+  // 🚨 **トランザクションの外**で消す。保管先の削除は巻き戻せないので、
+  //    中に入れても「消えたものが戻る」ことはなく、**戻ったつもりになるだけ**。
+  // 🚨 実体が**元から無かった**のは失敗ではない（`deleteStoredObjects` が missing として返す）。
+  //    ここで投げると、**同じ id で永久に完全削除できなくなる**。
+  if (key.collection === "directus_files") {
+    const id = primaryKey.id;
+    if (id) await deleteStoredObjects(id);
+  }
+
   await db.transaction(async (trx) => {
-    assertSafeIdentifier(key.collection);
+    assertTrashCollection(key.collection);
     const query = trx<Record<string, unknown>>(key.collection).whereNotNull("deleted_at");
     applyPrimaryKey(query, primaryKey);
     await query.delete();
