@@ -137,6 +137,27 @@ await 除外を差し替える(`('directus_files'::text, '実体（バイト）�
 t("🚨 後始末 本物の除外（directus_files）へ戻した",
   Object.keys((await sqlで走らせる(いま)).skipped), ["directus_files"]);
 
+// 🚨 CASCADE で消えた行は、走行記録に入らない（toast の指摘・2026-08-16）。
+//    ラベルを掃除すると、割り当ては外部キーの CASCADE で消えるが、
+//    掃除自身の delete は 0 行しか返さない ＝ **記録は「0 件」と書く**。
+const ラベル = "cccc2222-0000-4000-8000-00000000000c";
+await db("ohmycms_labels").insert({ id: ラベル, name: "zz-purge-label", color: "#000000", deleted_at: 古い });
+await db("ohmycms_label_assignments").insert({
+  label_id: ラベル, target_type: "file", target_id: ID.新しい,
+});
+const 前 = Number((await db("ohmycms_label_assignments").where({ label_id: ラベル }).count({ c: "*" }).first())!.c);
+t("🟢 対照 割り当てが 1 件在る（掃除の前）", 前, 1);
+const rc = await sqlで走らせる(いま);
+t("🔴 90 日超のラベルは消えた", (await db("ohmycms_labels").where({ id: ラベル }).first()) ?? null, null);
+t("🔴 割り当ても消えた（外部キーの CASCADE）",
+  Number((await db("ohmycms_label_assignments").where({ label_id: ラベル }).count({ c: "*" }).first())!.c), 0);
+t("🚨 だが記録は割り当てを 0 件と書く（＝ CASCADE は数えていない）",
+  (rc.deleted as Record<string, number>)["ohmycms_label_assignments"], 0);
+t("🟢 対照 ラベル自身は 1 件と書く（＝ 直接消した分は数えている）",
+  (rc.deleted as Record<string, number>)["ohmycms_labels"], 1);
+t("🚨 CASCADE で消えうる表が、結果に出る",
+  (rc.cascade_may_delete ?? []).includes("ohmycms_label_assignments"), true);
+
 // 🚨 落ちたときに、人が読める場所へ出るか（記録に残るだけでは誰も見ない）
 await db.raw(`create table zz_purge_boom (id uuid primary key, deleted_at timestamptz)`);
 await db("zz_purge_boom").insert({ id: "ffff1111-0000-4000-8000-00000000000b", deleted_at: 古い });
