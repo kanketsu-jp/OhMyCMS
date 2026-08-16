@@ -59,7 +59,31 @@ x-app-env: &app-env
 
 services:
   db:
-    image: postgres:17
+    # 🚨 `postgres:17` から `pg_cron` を足した自前の image へ（289 C・2026-08-16）。
+    #    版は上げていない（`docker/Dockerfile.pgcron` に理由と実測）。
+    #    🚨 **ボリュームの定義は変えない**（`ohmycms-db-data` のまま）。
+    #    🚨 **これを反映するには db の再デプロイ（＝ 本番の DB の再起動）が要る。**
+    #       手順と戻し方は下のコメント。**堀池さんの許可なしに実行しないこと。**
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pgcron
+    image: ohmycms-db-pgcron
+    # 🚨 `shared_preload_libraries` は起動時にしか効かない（実測）。
+    #    ここを付けたまま image を `postgres:17` へ戻すと、
+    #    **FATAL: could not access file "pg_cron"** で **DB が起動しなくなる**（実測）。
+    #
+    #    ── 戻すとき（この順でなければ本番が上がらない）──
+    #    ① 予定を消す   `select cron.unschedule(jobid) from cron.job;`（pg_cron が居るうちに）
+    #    ② 🚨 **この command を先に外す**
+    #    ③ image を `postgres:17` へ戻す
+    #    ④ 再デプロイ
+    #    🚨 止まる時間は**未測定**（Dokploy の再デプロイ時間で決まり、repo からは分からない。
+    #       デプロイは GitHub Actions を通らないので記録も無い）。
+    command:
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=${POSTGRES_DB:-cms}
     # 🚨 ports: は書かない。DB はこの compose 内でしか繋がない。
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cms}

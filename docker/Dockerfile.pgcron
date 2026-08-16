@@ -1,0 +1,32 @@
+# Postgres に `pg_cron` を足しただけの image。
+#
+# 🚨 **版を上げない。** 共有 DB と同じ 17.10（Debian trixie ＝ pgdg13）。
+#    版が上がると、それ自体が別の移行になる（司令塔・2026-08-16）。
+#    実測: 素の `postgres:17.10-trixie` も、これを足した image も
+#    `show server_version` が **`17.10 (Debian 17.10-1.pgdg13+1)`** で**完全一致**。
+#
+# 🚨 **既製の pg_cron 入り image を使わない理由**（測って決めた）:
+#    docker hub の `pg_cron` … **星 0 の個人のものばかり**
+#    `citusdata/citus` … pg17 系は在るが、**中の小版が分からない**
+#    → **いまの image に拡張だけ足す**のが、版を動かさずに済む唯一の形。
+#
+# 🚨 **ボリュームはそのまま読める**（実測。隔離したボリュームで確認）:
+#    ① `postgres:17.10-trixie` で 1 行書く → 止める
+#    ② この image で同じボリュームを開く → **行が読める・中身も同じ**
+#
+# 🚨 **`shared_preload_libraries` が要る**（実測）:
+#    設定なしで `create extension pg_cron` → **ERROR: unrecognized configuration
+#    parameter "cron.database_name"**
+#    設定ありで起動 → `CREATE EXTENSION` 成功・`cron.schedule` で予定を登録できた。
+#    ＝ **DB の再起動を伴う**（起動時にしか効かない）。
+#
+# 🚨 **戻すときの順番を間違えると、DB が起動しない**（実測）:
+#    `postgres:17.10-trixie -c shared_preload_libraries=pg_cron`
+#      → 状態 **exited** ／ ログ **FATAL: could not access file "pg_cron"**
+#    ＝ 戻すときは ① 予定を消す → ② **command を先に外す** → ③ image を戻す、の順。
+FROM postgres:17.10-trixie
+
+# PGDG の apt リポジトリは base image に設定済みなので、拡張だけを入れる。
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-17-cron \
+ && rm -rf /var/lib/apt/lists/*

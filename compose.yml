@@ -52,8 +52,23 @@ x-app-env: &app-env
 
 services:
   db:
-    image: postgres:17
+    # 🚨 `postgres:17` から、`pg_cron` を足した自前の image へ（289 C・2026-08-16）。
+    #    版は上げていない（docker/Dockerfile.pgcron に理由と実測を書いた）。
+    #    🚨 **ボリュームの定義は変えない**（`ohmycms-db-data` のまま。実測で読めることを確認）。
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pgcron
+    image: ohmycms-db-pgcron
     container_name: ohmycms-db
+    # 🚨 `shared_preload_libraries` は**起動時にしか効かない**（実測）。
+    #    これを付けたまま素の `postgres:17` へ戻すと、
+    #    **FATAL: could not access file "pg_cron"** で**起動しなくなる**（実測）。
+    #    戻すときは ① 予定を消す → ② **この command を先に外す** → ③ image を戻す。
+    command:
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=${POSTGRES_DB:-cms}
     ports:
       - "${DB_PORT:-5436}:5432"
     environment:
