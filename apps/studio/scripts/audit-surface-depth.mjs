@@ -645,7 +645,7 @@ const PROBE = String.raw`(() => {
     const gap = b2.y - a2.y;
     if (gap > 48) continue;                                              // 離れすぎ = 別の区切り
     if (Math.min(a2.x2, b2.x2) - Math.max(a2.x1, b2.x1) <= 40) continue; // 横が重なっていない
-    if (a2.box !== b2.box) continue;   // 🚨 スクロールする領域の内と外（＝別の層）は比べない   // 🚨 スクロールする領域の内と外（＝別の層）は比べない
+    if (a2.box !== b2.box) continue;   // 🚨 スクロールする領域の内と外（＝別の層）は比べない
     // 2本のあいだに文字を持つ箱があれば、それは「別々の区切り」なので重複ではない
     const hasContent = textBoxes.some(([t, b3]) => t >= a2.y - 1 && b3 <= b2.y + 1);
     if (!hasContent) {
