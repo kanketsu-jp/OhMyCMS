@@ -46,6 +46,7 @@ x_rag_okf:
 - [i18n は必須（旧PJの方針を反転）](./decisions/i18n-required.md) — `decisions/i18n-required`
 - [原典（idea.md）から意図的に外した 3 件](./decisions/intentional-deviations-from-idea-md.md) — `decisions/intentional-deviations-from-idea-md`
 - [設定・スキーマの正本は JSON](./decisions/json-as-source-of-truth.md) — `decisions/json-as-source-of-truth`
+- [多層で守ると、層ごとの退行が外から見えなくなる](./decisions/layers-hide-each-others-regressions.md) — `decisions/layers-hide-each-others-regressions`
 - [migration を足す人は、直前に「他人の未適用分」を確認する](./decisions/migrations-are-shared.md) — `decisions/migrations-are-shared`
 - [開発サーバを外部へ公開しない（公開するのは本番ビルドだけ）](./decisions/never-expose-dev-server.md) — `decisions/never-expose-dev-server`
 - [Directus をフォークしない](./decisions/no-directus-fork.md) — `decisions/no-directus-fork`
