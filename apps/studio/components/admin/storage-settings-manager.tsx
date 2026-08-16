@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
+import { FieldValue } from "@/components/ui/field-value";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +43,7 @@ type Draft = {
 
 export function StorageSettingsManager({ settings }: { settings: StorageSettings }) {
   const t = useT("storage");
+  const tCommon = useT("common");
   const tError = useT("errors");
   const format = useFormat();
   const router = useRouter();
@@ -60,6 +62,8 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
   );
   const [draft, setDraft] = useState<Draft>(initial);
   const [error, setError] = useState<string | null>(null);
+  /** 表示モード ⇄ 編集モード（規約 `knowledge/decisions/action-button-and-edit-mode.md`）。 */
+  const [editing, setEditing] = useState(false);
 
   // 🚨 何も変えていないなら保存させない（憲章 §3c）。
   //    秘密の 2 つは**読み出せない**ので、`initial` は常に空文字で始まる。
@@ -132,6 +136,13 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
     router.refresh();
   });
 
+  /** 編集をやめて表示モードへ戻す。**入れた値は捨てる**（`initial` へ戻す。規約 §2-2）。 */
+  function cancelEditing() {
+    setError(null);
+    setDraft(initial);
+    setEditing(false);
+  }
+
   const textField = (
     key: keyof Pick<
       Draft,
@@ -141,9 +152,11 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
   ) => (
     <div className="grid gap-2">
       <Label htmlFor={`storage-${key}`}>{t(`${key}_label`)}</Label>
+      {/* 🚨 `text` / `url` は `readOnly` が効く型なので**要素を残す**（なぞってコピーできる。§2-1）。 */}
       <Input
         id={`storage-${key}`}
         type={type}
+        readOnly={!editing}
         value={draft[key]}
         onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
       />
@@ -160,13 +173,23 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
   ) => (
     <div className="grid gap-2">
       <Label htmlFor={`storage-${key}`}>{t(`${key}_label`)}</Label>
-      <Input
-        id={`storage-${key}`}
-        type="password"
-        value={draft[key]}
-        placeholder={set ? t("secret_set") : undefined}
-        onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
-      />
+      {/* 🚨 **秘密の値は、そもそもブラウザへ来ていません。**
+          props が持つのは `..._set`（設定済みかどうか）だけで、欄の初期値は空です
+          （実測 2026-08-16: 2 欄とも値の長さ 0 ／ ページの HTML に秘密らしい塊は無し。
+            🚨 ただし**この環境は未設定**なので、「設定済みのときに漏れないか」は測れていません）。
+          ＝ **表示モードで「見せる値」が存在しない**。空の password 欄を出しても意味が無いので、
+          **設定済みかどうかだけを文字で出す**（§2-1 の案 2）。 */}
+      {editing ? (
+        <Input
+          id={`storage-${key}`}
+          type="password"
+          value={draft[key]}
+          placeholder={set ? t("secret_set") : undefined}
+          onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
+        />
+      ) : (
+        <FieldValue id={`storage-${key}`}>{secretLabel(set)}</FieldValue>
+      )}
       <p className="text-xs text-muted-foreground">
         {t(`${key}_help`)}
         <span className="ml-2">{secretLabel(set)}</span>
@@ -217,18 +240,27 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
           <h2 className="text-sm font-semibold">{t("advanced_heading")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t("advanced_description")}</p>
         </div>
-        <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-          <input
-            id="storage-s3_force_path_style"
-            type="checkbox"
-            className="size-6"
-            checked={draft.s3_force_path_style}
-            onChange={(event) =>
-              setDraft({ ...draft, s3_force_path_style: event.target.checked })
-            }
-          />
-          {t("s3_force_path_style_label")}
-        </label>
+        {/* 🚨 `checkbox` は `readOnly` が**効かない**（属性は付くのに実クリックで変わる。実測 2026-08-16）。
+            表示モードでは**要素ごと置き換えて値を文字で出す**（§2-1・案 2。✓ の絵にしない）。 */}
+        {!editing ? (
+          <FieldValue id="storage-s3_force_path_style">
+            {t("s3_force_path_style_label")}:{" "}
+            {tCommon(draft.s3_force_path_style ? "state_enabled" : "state_disabled")}
+          </FieldValue>
+        ) : (
+          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
+            <input
+              id="storage-s3_force_path_style"
+              type="checkbox"
+              className="size-6"
+              checked={draft.s3_force_path_style}
+              onChange={(event) =>
+                setDraft({ ...draft, s3_force_path_style: event.target.checked })
+              }
+            />
+            {t("s3_force_path_style_label")}
+          </label>
+        )}
         <p className="text-xs text-muted-foreground">
           {t("s3_force_path_style_help")}
           <span className="ml-2">({sourceLabel("s3_force_path_style")})</span>
@@ -254,14 +286,32 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
             : t("never_updated")}
         </span>
       </div>
-      <PageAction
-        form="storage-settings-form"
-        role="primary"
-        pending={save.pending}
-        disabled={!dirty}
-        label={t("save_button")}
-        icon={<Check />}
-      />
+      {/* 🚨 主ボタンはモードで変わる（§2）。抜け道「やめる」は **▾ の中ではなく主の隣**（§4）。 */}
+      {editing ? (
+        <>
+          <PageAction
+            role="secondary"
+            label={tCommon("action_cancel")}
+            icon={<X />}
+            onClick={cancelEditing}
+          />
+          <PageAction
+            form="storage-settings-form"
+            role="primary"
+            pending={save.pending}
+            disabled={!dirty}
+            label={tCommon("action_save")}
+            icon={<Check />}
+          />
+        </>
+      ) : (
+        <PageAction
+          role="primary"
+          label={tCommon("action_edit")}
+          icon={<Pencil />}
+          onClick={() => setEditing(true)}
+        />
+      )}
     </form>
   );
 }
