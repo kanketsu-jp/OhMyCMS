@@ -474,10 +474,49 @@ export async function localAdminUserId(): Promise<string | null> {
     .first();
   if (settings?.local_admin_user_id) return settings.local_admin_user_id;
 
-  // 🚨 移行で埋まらなかった環境のための後退路。**黙って email へ戻らない**——
-  //    ここへ来たことが分かるように、呼び出し側が判断できる形で null を返す。
-  //    （**email で引き直すと、直した意味が消える**。埋め直しは画面か CLI でする）
-  return null;
+  // 🚨 ここから先は「id がまだ入っていない」環境（移行の前に HEAD が入った・
+  //    移行が候補を見つけられなかった・settings の行を作り直した等）。
+  //    実測 2026-08-17（onboard）: 空にすると**パスワードでのログインが 500** になり、
+  //    **唯一の管理者が締め出される**。しかも `isOnboardingCompleted()` が true なので
+  //    初期設定もやり直せない ＝ 🚨 **締め出された人は、直しに来られない。**
+  //
+  // 🚨 なので **email で 1 回だけ引き直して、settings へ書いてから返す**（埋め直し）。
+  //    「黙って email へ戻る」のとは違う——**戻ったまま気づかない**のを避けたかったので、
+  //    **書いて**次からは id で引けるようにし、**警告も出す**。
+  //
+  // 🚨 ただし引く条件は**狭くする**。email は外部（IdP）が書ける値なので、
+  //    素直に email だけで引くと **IdP が `local-admin@localhost` を送るだけで
+  //    その利用者を local admin にできてしまう**（`saml/verify.ts` は既存行を
+  //    email で見つけて SAML に結びつける）。そこで:
+  //      ・`provider = "local"` … SAML/dev で作られた行を除く
+  //      ・`external_identifier IS NULL` … 外部と結びついた行を除く
+  //        （SAML は結びつけるとき **必ず** この 2 つを書く。実測済み）
+  //      ・**候補がちょうど 1 件のときだけ** … 曖昧なら埋めない
+  //    どれか外れたら **null のまま**（安全側）。
+  const candidates = await db("directus_users")
+    .where({ email: LOCAL_ADMIN_EMAIL, provider: "local" })
+    .whereNull("external_identifier")
+    .select("id");
+
+  if (candidates.length !== 1) {
+    console.error(
+      `🚨 local admin を埋め直せません（候補 ${candidates.length} 件。1 件のときだけ埋めます）。\n` +
+        "  🚨 これは『探したが該当が無かった』です（『探していない』ではありません）。\n" +
+        "  外部（SAML 等）に結びついた行は、意図的に候補から外しています。",
+    );
+    return null;
+  }
+
+  const healed = candidates[0].id as string;
+  await db("ohmycms_settings")
+    .where({ id: SINGLE_ROW_ID })
+    .update({ local_admin_user_id: healed });
+  console.warn(
+    "🚨 ohmycms_settings.local_admin_user_id が空だったので、埋め直しました。\n" +
+      "  移行の前にコードが入ったか、移行が候補を見つけられなかった環境です。\n" +
+      "  次からは id で引きます（この警告は 1 度だけ出るはずです）。",
+  );
+  return healed;
 }
 
 /** 保存済みのセットアップパスワード（scryptハッシュ）。無ければ null。画面やAPIレスポンスへは絶対に出さないこと。 */
