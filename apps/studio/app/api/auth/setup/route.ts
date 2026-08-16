@@ -44,8 +44,21 @@ export async function POST(request: Request) {
       //    未完了時の一時セッション（setup-session）とは別物。これで /onboarding を経由せず /admin に入れる。
       const userId = await localAdminUserId();
       if (!userId) {
-        // 想定外（フラグは立っているのにユーザーが居ない）。安全側に倒して失敗させる。
-        throw new ApiError(401, "AUTH_FAILED", "パスワードが正しくありません");
+        // 🚨 **「パスワードが正しくありません」と言わない**（2026-08-17）。
+        //    ここへ来るのは、**パスワードが合っているのに local admin を引き当てられない**とき。
+        //    以前は同じ 401 AUTH_FAILED を返していたので、🚨 **利用者は「自分が間違えた」と読む**。
+        //    実際は設定の側が壊れている（`ohmycms_settings.local_admin_user_id` が空）。
+        // 🚨 利用者に「DB の話」もしない——**次にできること**だけを渡し、理由はログへ。
+        console.error(
+          "🚨 local admin を引き当てられません: ohmycms_settings.local_admin_user_id が空です。\n" +
+            "  移行（20260817010000）で埋まらなかったか、初期設定より前の環境です。\n" +
+            "  → 画面か CLI で、どの利用者が local admin かを指定してください。",
+        );
+        throw new ApiError(
+          500,
+          "LOCAL_ADMIN_NOT_LINKED",
+          "設定が壊れています。もう一度初期設定からやり直すか、この画面のことを管理者に伝えてください。",
+        );
       }
       const session = await issueSession(userId, request, "setup");
       const response = ok({ data: { type: "human", userId, role: null } });

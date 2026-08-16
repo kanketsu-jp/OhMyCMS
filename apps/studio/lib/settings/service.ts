@@ -205,6 +205,8 @@ type SettingsRow = {
   updated_at: Date | string | null;
   /** オンボーディングが済んだ時刻。null なら未完了。 */
   onboarding_completed_at: Date | string | null;
+  /** 🚨 local admin の利用者 id。**email で引かないため**（2026-08-17 の migration で足した）。 */
+  local_admin_user_id: string | null;
   /** 保存済みのセットアップパスワード(scryptハッシュ)。画面やAPIレスポンスには絶対に出さないこと。 */
   setup_password: string | null;
 };
@@ -460,11 +462,22 @@ export async function isOnboardingCompleted(): Promise<boolean> {
 
 /** local-admin ユーザーのIDを返す。居なければ null。 */
 export async function localAdminUserId(): Promise<string | null> {
-  const row = await db("directus_users")
-    .select("id")
-    .where({ email: LOCAL_ADMIN_EMAIL })
+  // 🚨 **email で引かない**（`guards-keyed-by-name-break-silently.md`）。
+  //    email は「あとで人が変える値」であり、さらに **外部（IdP）が変える値**でもある
+  //    （`lib/auth/saml/verify.ts` の `upsertSamlUser` が IdP の email で上書きする。
+  //     実測 2026-08-16: この環境で SAML は 11 件通っている ＝ 経路は生きている）。
+  //    email で引いていた頃は、管理者の email を変えると **401「パスワードが正しくありません」**
+  //    になった（パスワードは合っているのに）。
+  const settings = await db<SettingsRow>("ohmycms_settings")
+    .select("local_admin_user_id")
+    .where({ id: SINGLE_ROW_ID })
     .first();
-  return row?.id ?? null;
+  if (settings?.local_admin_user_id) return settings.local_admin_user_id;
+
+  // 🚨 移行で埋まらなかった環境のための後退路。**黙って email へ戻らない**——
+  //    ここへ来たことが分かるように、呼び出し側が判断できる形で null を返す。
+  //    （**email で引き直すと、直した意味が消える**。埋め直しは画面か CLI でする）
+  return null;
 }
 
 /** 保存済みのセットアップパスワード（scryptハッシュ）。無ければ null。画面やAPIレスポンスへは絶対に出さないこと。 */
@@ -606,6 +619,9 @@ export async function completeOnboardingWithAdmin(
       });
     }
 
+    // 🚨 ここは **初期設定のとき**なので、まだ settings に id が無い。
+    //    この時点では email で探してよい（**この直後に id を settings へ書く**ので、
+    //    以降は email に依存しない）。🚨 **ここを id で引くと、初回に必ず見つからない**。
     const existingUser = await trx("directus_users")
       .select("id")
       .where({ email: LOCAL_ADMIN_EMAIL })
@@ -633,6 +649,12 @@ export async function completeOnboardingWithAdmin(
         auth_data: null,
       });
     }
+
+    // 🚨 **ここで id を settings へ書く**。以降 `localAdminUserId()` は email を見ない。
+    //    （初期設定は 1 度きりなので、ここが唯一の書き込み口）
+    await trx("ohmycms_settings")
+      .where({ id: SINGLE_ROW_ID })
+      .update({ local_admin_user_id: userId });
 
     const existingAccess = await trx("directus_access")
       .select("id")

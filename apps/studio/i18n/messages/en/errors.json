@@ -21,5 +21,6 @@
   "last_admin_cannot_be_removed": "Cannot remove the last administrator",
   "policy_in_use": "Cannot delete: this policy is assigned to users",
   "role_in_use": "Cannot delete: this role is assigned to users",
-  "role_has_assignments": "Cannot delete: policies are assigned to this role"
+  "role_has_assignments": "Cannot delete: policies are assigned to this role",
+  "local_admin_not_linked": "Something is wrong with the setup. Start over from the initial setup, or tell your administrator about this screen."
 }
