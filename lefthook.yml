@@ -340,6 +340,10 @@ pre-commit:
     # 🚨 見ているのは**ソースに在るか**だけ。**実際に押して確かめてはいない**（それはブラウザの受入）。
     # 欄名の辞書（設問286 A）。表示側が生の識別子へ落ちること・
     # 書き込み側が壊れた形を通さないこと（fail-closed）。
+    # 利用者の表を、入口（itemsTable）を通さずに開いていないか（設問288 A）。
+    items-entry:
+      run: node apps/studio/scripts/check-items-entry.mjs
+
     field-labels:
       run: cd apps/studio && bun scripts/check-field-labels.ts
 

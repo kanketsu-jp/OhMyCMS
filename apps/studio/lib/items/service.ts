@@ -734,6 +734,34 @@ async function itemsWithRelations(
   return rows.map((row) => projectItem(row, collection, schemaOverview, options.selection));
 }
 
+/**
+ * 🚨 **利用者が作った表を開く、唯一の入口**（設問288 A・2026-08-16）。
+ *
+ * ご指示は「**全ての削除はソフトデリート**」で、**利用者が作った表も対象**と決まった。
+ * ＝ **消えた行を読まない条件**が、表を開くすべての場所に要る。
+ *
+ * 🚨 **各所に手で書かせない。** 書かせると、**1 箇所でも漏れたときに
+ * 「消したはずの行が画面に出る」**——しかも**その画面だけ**なので気づきにくい。
+ * → **開く場所を 1 本にして、条件はここだけに書く**。
+ *
+ * 🚨 **いまはまだ条件を足していない**（＝ **振る舞いは 1 つも変わらない**）。
+ * 既にある表には `deleted_at` がまだ無く、ここで条件を足すと**既存の表が全部空になる**ため。
+ * **既存の表へ列を足す手が入った直後に、ここへ 1 行足す。それで全部に効く。**
+ *
+ * 🚨 **この関数を通らない `trx(collection)` を、検査で止める**
+ * （`scripts/check-items-entry.mjs`）。**通らない道が 1 本でも在ると、入口の意味が無い。**
+ *
+ * 【測った 2026-08-16】この時点で、利用者の表を名指しで開いている箇所は **5 件**。
+ * `raw(` で開いている箇所は **0 件**（＝ 文字列で組み立てる抜け道は無い）。
+ */
+export function itemsTable(
+  conn: Knex | Knex.Transaction,
+  collection: string,
+): Knex.QueryBuilder {
+  // 🚨 ここに将来 `.whereNull(DELETED_AT_COLUMN)` を足す（土台が揃ってから）。
+  return conn(collection);
+}
+
 export async function listItems(
   actor: Actor,
   collection: string,
@@ -890,7 +918,7 @@ export async function getItem(
     relations,
     options.selection,
   );
-  const itemQuery = db(collection)
+  const itemQuery = itemsTable(db, collection)
     .select(selectedColumns)
     .where(primaryKey, id);
   if (permission.rowFilter) {
@@ -995,7 +1023,7 @@ async function assertRowsVisibleAfterWrite(
   if (!permission.rowFilter || rows.length === 0) return;
 
   const ids = rows.map((row) => row[primaryKey]);
-  const check = trx(collection);
+  const check = itemsTable(trx, collection);
   whereInValues(check, primaryKey, ids);
   applyFilter(check, permission.rowFilter, { collection, schemaOverview, relations });
   const visible = await check.select(primaryKey);
@@ -1035,7 +1063,7 @@ export async function createItems(
   const inserted = (await runTranslatingDbErrors(() =>
     db.transaction(async (trx) => {
     if (rows.length === 0) return [];
-    const writtenRows = await trx(collection).insert(rows).returning("*");
+    const writtenRows = await itemsTable(trx, collection).insert(rows).returning("*");
     await assertRowsVisibleAfterWrite(
       trx,
       collection,
@@ -1081,7 +1109,7 @@ export async function updateItem(
   const safeBody = await sanitizeRichTextFields(collection, body);
 
   const updated = await db.transaction(async (trx) => {
-    const updateQuery = trx(collection).where(primaryKey, id);
+    const updateQuery = itemsTable(trx, collection).where(primaryKey, id);
     if (permission.rowFilter) {
       applyFilter(updateQuery, permission.rowFilter, { collection, schemaOverview, relations });
     }
@@ -1118,7 +1146,7 @@ export async function deleteItem(
   const relations = permission.rowFilter ? await relationRows() : [];
 
   await db.transaction(async (trx) => {
-    const deleteQuery = trx(collection).where(primaryKey, id);
+    const deleteQuery = itemsTable(trx, collection).where(primaryKey, id);
     if (permission.rowFilter) {
       applyFilter(deleteQuery, permission.rowFilter, { collection, schemaOverview, relations });
     }
