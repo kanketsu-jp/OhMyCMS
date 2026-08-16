@@ -51,6 +51,41 @@ export async function runPurge(conn: Knex, now?: Date): Promise<PurgeResult> {
   return r.rows[0].result;
 }
 
+/** 直近の掃除の走行。**まだ 1 度も走っていなければ `null`。** */
+export type LastPurgeRun = {
+  started_at: string;
+  finished_at: string | null;
+  deleted_total: number;
+  /** 落ちたときだけ入る */
+  error: string | null;
+};
+
+/**
+ * 直近の掃除の走行を 1 件返す。
+ *
+ * 🚨 **なぜ要るか。** 掃除は cron から黙って走り、落ちても `error` に**記録されるだけ**。
+ * **記録に残ることと、読まれることは別**——読まれなければ、永久に落ち続ける。
+ *
+ * 🚨 **`/api/health` には載せない。** あそこは**認証不要**で、
+ * そのファイル自身が「詳細はログにだけ出す」と決めている（誰でも運用状態を読めてしまう）。
+ * → **認証済みの `/api/trash`** に載せる。**ゴミ箱を見ている人が、いちばん気にする情報**でもある。
+ *
+ * 🚨 **`null` は「まだ 1 度も走っていない」。** 「走って何も無かった」（`deleted_total: 0`）と
+ * 混ぜないこと——**0 件の 2 つの顔を、ここで分けている**。
+ */
+export async function lastPurgeRun(conn: Knex): Promise<LastPurgeRun | null> {
+  const row = await conn("ohmycms_trash_purge_runs")
+    .orderBy("id", "desc")
+    .first<{ started_at: Date; finished_at: Date | null; deleted_total: number; error: string | null }>();
+  if (!row) return null;
+  return {
+    started_at: new Date(row.started_at).toISOString(),
+    finished_at: row.finished_at ? new Date(row.finished_at).toISOString() : null,
+    deleted_total: Number(row.deleted_total),
+    error: row.error,
+  };
+}
+
 /**
  * 保持日数（画面の「あと何日」用）。
  *

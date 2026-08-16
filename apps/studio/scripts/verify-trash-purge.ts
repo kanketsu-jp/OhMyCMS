@@ -11,7 +11,7 @@
  * 終了コード: 0 = 全部通った / 1 = 期待と違う / 2 = 前提が整っていない
  */
 import knex from "knex";
-import { runPurge, trashRetentionDays, type PurgeResult } from "../lib/trash/purge";
+import { lastPurgeRun, runPurge, trashRetentionDays, type PurgeResult } from "../lib/trash/purge";
 
 const url = process.env.PROBE_DATABASE_URL;
 if (!url) { console.error("🚨 PROBE_DATABASE_URL が要ります（使い捨ての DB）"); process.exit(2); }
@@ -45,6 +45,8 @@ const 新しい = new Date(いま.getTime() - 3 * 日);
 // 🚨 「まだ 1 度も走っていない」を、走らせる前に測る
 t("🚨 まだ 1 度も走っていない（記録 0 件）",
   await 数("select count(*) c from ohmycms_trash_purge_runs"), 0);
+// 🚨 「まだ 1 度も走っていない」は、画面に見せる側でも null になること。
+t("🚨 lastPurgeRun は走る前 null（＝ まだ 1 度も走っていない）", await lastPurgeRun(db), null);
 
 // 使い捨ての表を 3 つ。うち 1 つは「あとから足した表」＝ 一覧を書かないことの証明。
 await db.raw(`create table zz_purge_a (id uuid primary key, deleted_at timestamptz)`);
@@ -134,6 +136,22 @@ t("🚨 薄い口の分も記録に残る（合計 5 件）",
 await 除外を差し替える(`('directus_files'::text, '実体（バイト）を消す手が SQL に無い'::text)`);
 t("🚨 後始末 本物の除外（directus_files）へ戻した",
   Object.keys((await sqlで走らせる(いま)).skipped), ["directus_files"]);
+
+// 🚨 落ちたときに、人が読める場所へ出るか（記録に残るだけでは誰も見ない）
+await db.raw(`create table zz_purge_boom (id uuid primary key, deleted_at timestamptz)`);
+await db("zz_purge_boom").insert({ id: "ffff1111-0000-4000-8000-00000000000b", deleted_at: 古い });
+await db.raw(`create function zz_boom() returns trigger language plpgsql as
+  $fn$ begin raise exception 'zz-boom'; end $fn$`);
+await db.raw(`create trigger zz_boom_t before delete on zz_purge_boom for each row execute function zz_boom()`);
+const 落ちた = await sqlで走らせる(いま);
+t("🔴 落ちたら error が返る", typeof 落ちた.error, "string");
+const 見える = await lastPurgeRun(db);
+t("🔴 落ちたことが lastPurgeRun から読める", (見える?.error ?? "").includes("zz-boom"), true);
+t("🟢 対照 その走行の deleted_total は 0（＝ 巻き戻っていない）", 見える?.deleted_total, 0);
+await db.raw(`drop table zz_purge_boom`); await db.raw(`drop function zz_boom()`);
+const 直った = await sqlで走らせる(いま);
+t("🟢 対照 直したら error は無い", 直った.error ?? null, null);
+t("🟢 対照 lastPurgeRun も error なしへ戻る", (await lastPurgeRun(db))?.error ?? null, null);
 
 console.log(`判定: OK ${ok} / NG ${ng}（＝走った assert の回数）`);
 await db.destroy();
