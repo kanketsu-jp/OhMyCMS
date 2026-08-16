@@ -86,6 +86,16 @@ function withoutComments(src) {
     console.error("🚨 [S0] migration を 1 本も拾えていません。走っていないのと同じです");
     process.exit(2);
   }
+  // 🚨 **床**（司令塔 2026-08-16）。0 判定だけでは「丸ごう減った」形を捕まえられない
+  //    （列挙が途中で止まる・pathspec が狭くなる）。
+  //    🚨 **実測値に近い床は腐る。遠い床は腐らない**——いま 42 本なので **床 10**。
+  //    （migration は増える一方で、10 を下回ることは想定しない）
+  const 本数の床 = 10;
+  if (files.length < 本数の床) {
+    console.error(`🚨 [S4] migration の列挙が床を割りました（${files.length} 本 < ${本数の床}）`);
+    console.error("     → 走査が途中で止まっている可能性があります。**種まき 0 本は結論になりません**");
+    process.exit(2);
+  }
   const 外 = seeding.filter((f) => f !== MIGRATION);
   for (const f of 外) {
     console.error(`  🚨 [S3] ${f} でも system_key を種まきしています。**この検査は読んでいません**`);
