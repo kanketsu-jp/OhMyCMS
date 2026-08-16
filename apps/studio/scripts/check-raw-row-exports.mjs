@@ -465,8 +465,16 @@ function directTableUsesIn(raw) {
   let bad = 0;
   let allowed = 0;
   let undecided = 0;
+  // 🚨 **「読めた量」を数える**（司令塔 2026-08-16）。
+  //    この検査は **違反 0 件が正常値**なので、読み込みが死んだときの
+  //    「0 ファイル / 0 件」が **正常な出力と一字一句同じ**になる。
+  //    ＝ **嘘の数字が出るより気づけない**（design の指摘）。
+  //    ファイル数だけでは足りない: **列挙は生きたまま読み込みだけ死ぬ**形が在る。
+  let 読めた文字数 = 0;
   for (const f of routes) {
-    for (const u of directTableUsesIn(readFileSync(f, "utf8"))) {
+    const 本文 = readFileSync(f, "utf8");
+    読めた文字数 += 本文.length;
+    for (const u of directTableUsesIn(本文)) {
       if (u.allowed) {
         allowed++;
         // 🚨 **未決のものは毎回出す。** 黙って緑が続くと、決める人が居ることを誰も思い出さない。
@@ -495,7 +503,16 @@ function directTableUsesIn(raw) {
   //    → **未追跡のまま置かれた route は、この検査に 1 度も読まれない。**
   //    コミットするときは staged ＝ 索引に入るので門としては効くが、
   //    **手で走らせたときは、作りかけのファイルを見ていない。**
-  console.log(`  app/ 配下 ${routes.length} ファイル / 直接読み ${bad} 件（承認 ${allowed} 件・うち🟡未決 ${undecided} 件）`);
+  console.log(`  app/ 配下 ${routes.length} ファイル / **読めた文字数 ${読めた文字数.toLocaleString("ja-JP")}** / 直接読み ${bad} 件（承認 ${allowed} 件・うち🟡未決 ${undecided} 件）`);
+  // 🚨 **読めた量が 0 なら、違反 0 件より先に「読み込みが壊れている」を言う。**
+  //    下限を数字で置かない（**repo が育つと腐る**。司令塔「絶対値は育つ」）。
+  //    🚨 **一部だけ読めなかった形は捕まえられない**【書いただけ】——
+  //    独立した見積もりが無いため（同じ readFileSync を 2 回呼んでも同じ嘘をつく）。
+  if (routes.length > 0 && 読めた文字数 === 0) {
+    violation(`    🚨 [R8] ${routes.length} ファイルを列挙したのに **1 文字も読めていない**`);
+    violation(`       → 「直接読み 0 件」は**違反が無い**のではなく、**読み込みか走査の範囲が壊れています**`);
+    total += 1;
+  }
   console.log("      🚨 母集合【書いただけ】: git の索引に在る app/**/*.ts(x) だけ。**未追跡のファイルは見ていません**");
   // 🚨 **列挙が「全部死んだ」は R0 が捕まえる**（実測 2026-08-16: 列挙先を存在しない場所へ変えると
   //    「app/ 配下 0 ファイル」→ [R0] → exit 1。**生のスタックは 0 行**）。
