@@ -37,9 +37,21 @@ export async function up(knex: Knex): Promise<void> {
   const [{ count: candidates }] = await knex("directus_users")
     .where({ email: "local-admin@localhost" })
     .count({ count: "*" });
+  const [{ count: settingsRows }] = await knex("ohmycms_settings").count({ count: "*" });
   const updated = (filled as { rowCount?: number }).rowCount ?? 0;
-  if (Number(candidates) === 0) {
-    // eslint-disable-next-line no-console
+
+  // 🚨 **初回起動では黙る**（2026-08-17。**一度ここで嘘を出した**）。
+  //    まっさらな DB では `ohmycms_settings` も `directus_users` も 0 行なので、
+  //    下の「埋められませんでした」が **必ず** 出る。だがそれは異常ではなく、
+  //    **初期設定がこれから id を書く**というだけ。**新規インストールの全員に
+  //    「ログインは通りません」と嘘を伝えることになる**ので、条件を分ける。
+  //    🚨 黙るときも**黙った理由を 1 行残す**（「見ていない 0」と読まれないため）。
+  if (Number(settingsRows) === 0) {
+    console.info(
+      "ℹ️ ohmycms_settings に行がありません（＝ まだ初期設定前）。\n" +
+        "  local_admin_user_id は初期設定のときに入ります。**異常ではありません。**",
+    );
+  } else if (Number(candidates) === 0) {
     console.warn(
       "🚨 local_admin_user_id を埋められませんでした（email='local-admin@localhost' の行が 0 件）。\n" +
         "  🚨 これは『探したが無かった』です（『探していない』ではありません）。\n" +
@@ -48,7 +60,6 @@ export async function up(knex: Knex): Promise<void> {
         "  （指定するまで、初期設定後のパスワードログインは通りません）",
     );
   } else if (updated === 0) {
-    // eslint-disable-next-line no-console
     console.warn(
       `🚨 候補は ${candidates} 件在るのに、1 行も更新されませんでした。` +
         "  ohmycms_settings の行が無いか、既に別の値が入っています。",

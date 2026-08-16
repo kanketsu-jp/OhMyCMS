@@ -650,12 +650,6 @@ export async function completeOnboardingWithAdmin(
       });
     }
 
-    // 🚨 **ここで id を settings へ書く**。以降 `localAdminUserId()` は email を見ない。
-    //    （初期設定は 1 度きりなので、ここが唯一の書き込み口）
-    await trx("ohmycms_settings")
-      .where({ id: SINGLE_ROW_ID })
-      .update({ local_admin_user_id: userId });
-
     const existingAccess = await trx("directus_access")
       .select("id")
       .where({ user: userId, policy: policyId })
@@ -675,6 +669,13 @@ export async function completeOnboardingWithAdmin(
       ...patch,
       setup_password: passwordHash,
       onboarding_completed_at: new Date(),
+      // 🚨 **id はここに含める**（2026-08-17。**一度これを別の update に分けて壊した**）。
+      //    分けると「settings の行が既に在る」という前提が要る。初回起動では **行はまだ無く**、
+      //    `.update()` は 0 行でもエラーにならないので **黙って何も起きない**
+      //    → `localAdminUserId()` が null → 初期設定を終えた直後の管理者が **500 で入れない**。
+      //    🚨 payload に入れれば、下の update / insert の **どちらの道でも必ず書かれる**
+      //    ＝ **「行が在るか」を気にしなくてよくなる**（前提が要らない形）。
+      local_admin_user_id: userId,
       updated_at: new Date(),
       updated_by: userId,
     };
