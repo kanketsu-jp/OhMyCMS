@@ -55,6 +55,8 @@ Knexは全DBドライバ(mysql/sqlite3/oracledb等)を動的requireするため�
 
 ユーザーがアップロードしたSVG/HTMLファイルをAPIから配信するとき、`Content-Disposition: inline` や未指定のままレスポンスすると、ブラウザがそのファイルをHTMLとして描画し、埋め込まれたスクリプトが実行されうる(SVGはXML内に`<script>`を埋め込める)。**必ず `Content-Disposition: attachment` を付け、ダウンロードとして扱わせる**。画像プレビューが必要な場合は、サーバ側でラスタライズ(PNG化)してから配信する。
 
+🚨 **`attachment` だけでは足りない。** ブラウザが中身を見て「HTML/SVG だ」と判断すると、`Content-Disposition` より先に描画してしまう経路が在る(SVG を `image/png` と偽って保存させる等)。これを止めるのが **`X-Content-Type-Options: nosniff`** で、**全応答の既定として `apps/studio/next.config.ts` の `headers()` に置いてある**(2026-08-17)。ファイル配信(`lib/files/service.ts` / `app/api/assets/[id]/route.ts`)と SAML metadata は、既定とは別の判断として**自前でも付けている**(既定を外した人が道連れにしないため)。**二重にはならない**(実測: 応答は 1 行)。
+
 ### 3.5 権限はフィルタで隠すのでなく、サーバ側で拒否する
 
 「権限が無いレコードは一覧に出さない」のようなUI側のフィルタだけで権限制御を済ませない。**アクセス権限の最終判断は必ずサーバ側(APIハンドラ or DB層)で行い、権限が無いリクエストは明示的に拒否(403/404)する**。クライアントに一度でも権限外データが渡ると、DevTools・キャッシュ・レスポンスログ経由で漏える。
