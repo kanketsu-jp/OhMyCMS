@@ -57,11 +57,30 @@ function isUnsupportedOperation(error: unknown): boolean {
  * だけとする。
  */
 function toStorageError(error: unknown): ApiError {
-  const name =
-    error && typeof error === "object" && "name" in error && typeof error.name === "string"
-      ? error.name
-      : "UnknownError";
-  return new ApiError(502, "STORAGE_ERROR", `ストレージへの接続に失敗しました (${name})`);
+  const e = error as
+    | { name?: unknown; code?: unknown; cause?: { name?: unknown }; $metadata?: { httpStatusCode?: unknown } }
+    | null
+    | undefined;
+  const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+  const name = str(e?.name) ?? "UnknownError";
+
+  // 🚨 **名前だけでは足りなかった**（2026-08-17 実測）。
+  //    MinIO 相手に `put` が **総称の `Error`** を投げ、`(Error)` としか出せなかったので、
+  //    **どこで落ちたのかを誰も言えなかった**（台・鍵・バケット・到達・素の node からの
+  //    PutObject は全部 200 で、Next の実行時経路だけが落ちていた）。
+  //
+  // 🚨 **足してよいのは「値を含まない識別子」だけ。**
+  //    `message` は出さない——`InvalidAccessKeyId` の本文は**アクセスキーそのもの**を含む。
+  //    `code`（`ECONNREFUSED` / `ERR_MODULE_NOT_FOUND` 等）と HTTP の状態、
+  //    そして `cause` の**名前**は、どれも値を持たない。
+  const parts = [
+    name,
+    str(e?.code) && `code=${str(e?.code)}`,
+    typeof e?.$metadata?.httpStatusCode === "number" && `http=${e.$metadata.httpStatusCode}`,
+    str(e?.cause?.name) && `cause=${str(e?.cause?.name)}`,
+  ].filter(Boolean);
+
+  return new ApiError(502, "STORAGE_ERROR", `ストレージへの接続に失敗しました (${parts.join(" ")})`);
 }
 
 async function bodyToBuffer(body: Buffer | ReadableStream): Promise<Buffer> {
