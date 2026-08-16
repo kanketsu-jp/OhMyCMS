@@ -406,6 +406,18 @@ pre-commit:
         - "apps/studio/scripts/build-shortcuts-manifest.mjs"   # 生成器そのもの
         - "apps/studio/scripts/tiptap-combos.mjs"              # 予約済みの組み合わせの元
         - ".claude/skills/ohmycms-mcp/references/shortcuts.md" # 🚨 写し自身（⑤ を塞ぐ）
+        # 🚨 2026-08-16 に足した（案B・司令塔承認）。**画面そのものが写しの中身を決めるから**。
+        #    写しの「モードで出し分ける画面」「押せる状態でないと効かない画面」は、
+        #    各ルートの到達先から「編集する」ボタンと `<PageAction … disabled=…>` を探して作る。
+        #    ＝ **画面の .tsx を変えると写しが変わる**。
+        #    実測: `65d8615`（`item-form.tsx` を表示/編集モードに分けた）で 5 → 7 件に増え、
+        #    🚨 **分割した本人は落ちず、次に上の 5 本へ触った人（polish）が踏んだ**
+        #    ＝ 今日 4 回目の「変更した人と、落ちる人が違う」。
+        #    🚨 **`3969dea`（生成器も索引から読む）では足りない**——索引化は
+        #    「共有ツリーで緑・clean で赤」を消すもので、**検査が走るかどうかは glob の話**。
+        #    🚨 副作用は意図したもの: **画面を触る人はほぼ全員この検査に当たる**（`--write` で直せる）。
+        - "apps/studio/components/admin/*.tsx"                 # 画面の部品（67 本）
+        - "apps/studio/app/(admin)/**/*.tsx"                   # 画面そのもの（32 本）
       run: cd apps/studio && node scripts/build-shortcuts-manifest.mjs
 
     # 本文（リッチテキスト）の保存側のガード。危険な URL / 許可外の節点 / 自作ブロックの属性、
