@@ -19,6 +19,7 @@ import type { RelationMeta } from "@/lib/schema/models";
 //    削除がソフトになり、**割り当てを消さなくなった**ため。
 //    消すのは 90 日後の掃除の側（そこで要るなら、そこで import すること）。
 import { authorizeTarget } from "@/lib/labels/service";
+import { liveRows } from "@/lib/files/live";
 import { getStorage, getStorageByName } from "@/lib/storage";
 import type { StorageDriver } from "@/lib/storage/driver";
 
@@ -183,11 +184,14 @@ export async function createBlurDataUrl(
  * 🚨 **90 日の掃除だけは、消えた行を見る必要がある**ので、そこは素の `db(...)` を使い、
  *    その場に理由を書くこと。
  */
+// 🚨 判定そのものは `lib/files/live.ts` に置いてある（`lib/labels/service.ts` も同じ判定が要り、
+//    ここに置くと **循環 import** になるため。理由はそのファイルに書いた）。
+//    ここは**型を当てるだけ**の薄い包み。
 function liveFiles() {
-  return db<FileRow>("directus_files").whereNull("deleted_at");
+  return liveRows<FileRow>("directus_files");
 }
 function liveFolders() {
-  return db<FolderRow>("directus_folders").whereNull("deleted_at");
+  return liveRows<FolderRow>("directus_folders");
 }
 
 export const FOLDER_COLORS = new Set(["slate", "red", "amber", "emerald", "sky", "violet"]);
