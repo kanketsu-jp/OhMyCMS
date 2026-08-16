@@ -13,12 +13,6 @@ const nextConfig: NextConfig = {
   // 参照: node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/serverExternalPackages.md
   serverExternalPackages: ["knex", "pg", "sharp"],
 
-  // 開発サーバを ngrok 越しに見るときだけ要る。別ホストから来た開発用リソースを
-  // Next が既定で拒否し、ログインの Server Action が黙って通らなくなるため。
-  // 🚨 開発時のみ有効な設定で、本番のビルドには影響しない。
-  //    列挙したホスト以外は従来どおり拒否される（＝全開放ではない）。
-  allowedDevOrigins: ["kmdr-dev-2.ngrok.app"],
-
   experimental: {
     // アップロードの受け口の上限。**既定は 10,485,760（ちょうど 10MB）**で、
     // 🚨 そのため `lib/files/service.ts` の上限判定へ**一度も到達していなかった**
