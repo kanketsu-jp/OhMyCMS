@@ -154,13 +154,21 @@ function stripComments(source) {
   //    （司令塔 → 全員「自分の検査が数だけを出しているなら、拾った行を 1〜3 本添えて」）。
   //    🟢 中身を消すという振る舞いは変えていない（囮 6 本・対照 3 本がそのまま判定する）。
   const blank = (s) => s.replace(/[^\n]/g, " ");
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, blank)
-    .replace(/^[ \t]*\/\/.*$/gm, blank)
-    // 🚨 文字列・テンプレートリテラルの**中身**を消す（引用符は残して構文を壊さない）
-    .replace(/"[^"\n]*"/g, (m) => `"${" ".repeat(Math.max(0, m.length - 2))}"`)
-    .replace(/'[^'\n]*'/g, (m) => `'${" ".repeat(Math.max(0, m.length - 2))}'`)
-    .replace(/`[^`]*`/g, (m) => "`" + blank(m.slice(1, -1)) + "`");
+  return (
+    source
+      .replace(/\/\*[\s\S]*?\*\//g, blank)
+      // 🚨 **文字列を先に消してから `//` を消す。順序が逆だと壊れる。**
+      //    先に `//` を消すと `"https://example.com"` の `//` をコメント開始と読み、
+      //    そこから行末までを落とす（polish が共通の strip-comments.mjs で見つけた根と同じ形）。
+      //    先に文字列の中身を空白にしておけば、その `//` は消えているので誤爆しない。
+      .replace(/"[^"\n]*"/g, (m) => `"${" ".repeat(Math.max(0, m.length - 2))}"`)
+      .replace(/'[^'\n]*'/g, (m) => `'${" ".repeat(Math.max(0, m.length - 2))}'`)
+      .replace(/`[^`]*`/g, (m) => "`" + blank(m.slice(1, -1)) + "`")
+      // 🚨 **行頭だけでなく行末のコメントも落とす**（2026-08-16 実測で漏れていた）。
+      //    直す前: `const x = 1; // FOO` の FOO が**残っていた** ＝ コメントの文字が実コードとして数えられる。
+      //    司令塔 → 全員「自前でコメントを落としている検査は、共通のものを直しても直らない」。
+      .replace(/\/\/[^\n]*/g, blank)
+  );
 }
 
 /**
