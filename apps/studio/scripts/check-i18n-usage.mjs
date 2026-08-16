@@ -135,6 +135,42 @@ const unused = [...defined]
   .filter((k) => !dynamicNamespaces.has(k.split(".")[0]))
   .sort();
 
+/**
+ * 「出番待ち」— **使う先がまだ書かれていないと分かっている**キー。
+ *
+ * 🚨 **除外しない。数からも引かない。** 未使用の一覧を「出番待ち」と「未分類」に**割るだけ**。
+ *    理由: 未使用が 25 件あって、そのうち 9 件が**意図して置いたもの**だと、
+ *    **本当に死んでいる 1 件が読まれなくなる**。赤が習慣になると、本物が埋もれる。
+ *
+ * 🚨 **接頭辞で一括りにしない**（`license.*` のような書き方をしない）。
+ *    一括りにすると、**あとで足された死んだキーまで黙って「出番待ち」に入ります**。
+ *
+ * 🚨 **この表自身が腐るので、腐りを下で検出する**（出番待ちなのに使われている／辞書に無い）。
+ */
+const PARKED = {
+  // `docs/design/license-keys.md` §11-1「スコープは `lib/` と CLI まで。API ルートは作らない」。
+  // `docs/index.md:13` も「課金/プラン/UI は対象外」と書いている。
+  // ＝ 画面が無いので呼ばれない。**先に文言だけ置いた**（地ならし）。
+  "license.error_license_bad_signature": "license-keys.md §11-1 / 画面は v1 の対象外",
+  "license.error_license_device_limit": "license-keys.md §11-1 / 画面は v1 の対象外",
+  "license.error_license_device_mismatch": "license-keys.md §11-1 / 画面は v1 の対象外",
+  "license.error_license_expired": "license-keys.md §11-1 / 画面は v1 の対象外",
+  "license.error_license_malformed": "license-keys.md §11-1 / 画面は v1 の対象外",
+  "license.error_license_public_key_missing": "license-keys.md §11-1 / 画面は v1 の対象外",
+  "license.error_license_revocation_stale": "license-keys.md §11-1 / 画面は v1 の対象外",
+  "license.error_license_revoked": "license-keys.md §11-1 / 画面は v1 の対象外",
+  "license.error_license_signing_key_missing": "license-keys.md §11-1 / 画面は v1 の対象外",
+};
+
+const parkedKeys = new Set(Object.keys(PARKED));
+const unusedParked = unused.filter((k) => parkedKeys.has(k));
+const unusedUnclassified = unused.filter((k) => !parkedKeys.has(k));
+
+/** 🚨 表の腐り。**「出番待ちに書いてあるのに、もう未使用ではない」**＝ 出番が来たので表から外す番。 */
+const parkedNowUsed = [...parkedKeys].filter((k) => defined.has(k) && used.has(k)).sort();
+/** 🚨 表の腐り。**「出番待ちに書いてあるのに、辞書に無い」**＝ キーが消えたので表から外す番。 */
+const parkedMissing = [...parkedKeys].filter((k) => !defined.has(k)).sort();
+
 /** 動的キーの名前空間配下で、静的には未使用に見えるもの（＝動的に引かれている想定）。 */
 const coveredByDynamic = [...defined]
   .filter((k) => !used.has(k))
@@ -144,7 +180,11 @@ const coveredByDynamic = [...defined]
 console.log(`辞書に定義されたキー: ${defined.size}`);
 console.log(`コードが呼んでいるキー（静的に解決できたもの）: ${used.size}`);
 console.log(`呼んでいるのに辞書に無い: ${missing.length}`);
-console.log(`辞書にあるのに未使用: ${unused.length}`);
+// 🚨 内訳の合計が元の数と一致することを、読む人がその場で確かめられるように並べる。
+console.log(
+  `辞書にあるのに未使用: ${unused.length}`
+    + `（＝ 出番待ち ${unusedParked.length} ＋ 未分類 ${unusedUnclassified.length}）`,
+);
 console.log(`動的キーの呼び出し箇所: ${dynamic.length}（配下 ${coveredByDynamic.length} キーは静的検証の対象外）`);
 
 if (dynamic.length > 0) {
@@ -162,9 +202,25 @@ if (missing.length > 0) {
     console.error(`  ${x.file}:${x.line}  ${x.key}`);
   }
 }
-if (unused.length > 0) {
-  console.warn("\n□ 辞書にあるのに未使用のキー（警告のみ・掃除候補）");
-  for (const key of unused) console.warn(`  ${key}`);
+if (unusedUnclassified.length > 0) {
+  console.warn(`\n□ 辞書にあるのに未使用のキー・未分類（警告のみ・掃除候補）: ${unusedUnclassified.length}`);
+  console.warn("  🚨 「まだ画面が無いだけ」なら、上の PARKED に理由つきで足すこと（消す前に）。");
+  for (const key of unusedUnclassified) console.warn(`  ${key}`);
+}
+if (unusedParked.length > 0) {
+  console.log(`\n□ 出番待ち（意図して置いてある。掃除候補ではない）: ${unusedParked.length}`);
+  for (const key of unusedParked) console.log(`  ${key}  ← ${PARKED[key]}`);
+}
+// 🚨 「出番待ち」の表そのものが腐っていないか。0 件でも黙らず、腐っていたら必ず出す。
+if (parkedNowUsed.length > 0) {
+  console.warn(`\n□ 出番待ちに書いてあるが、もう使われているキー: ${parkedNowUsed.length}`);
+  console.warn("  → 出番が来た。PARKED から外すこと。");
+  for (const key of parkedNowUsed) console.warn(`  ${key}`);
+}
+if (parkedMissing.length > 0) {
+  console.warn(`\n□ 出番待ちに書いてあるが、辞書に無いキー: ${parkedMissing.length}`);
+  console.warn("  → キーが消えた。PARKED から外すこと。");
+  for (const key of parkedMissing) console.warn(`  ${key}`);
 }
 
 // 未使用は警告どまり。呼び出し側の欠けだけを失敗にする。
