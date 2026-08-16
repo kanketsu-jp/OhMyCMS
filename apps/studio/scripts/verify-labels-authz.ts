@@ -37,7 +37,14 @@
 import { randomUUID } from "node:crypto";
 import type { Actor } from "../lib/auth/context";
 import { db } from "../lib/db/knex";
-import { labelsForTarget, setLabelsForTarget } from "../lib/labels/service";
+import {
+  createLabel,
+  deleteLabel,
+  labelsForTarget,
+  listLabels,
+  setLabelsForTarget,
+  targetIdsByLabelName,
+} from "../lib/labels/service";
 import { resolvePermission } from "../lib/permissions/resolve";
 
 let failures = 0;
@@ -86,6 +93,9 @@ const accessId = "00000000-0000-4000-8000-00000000a004";
 const attackerFileId = "00000000-0000-4000-8000-00000000a005";
 const victimFileId = "00000000-0000-4000-8000-00000000a006";
 const folderId = "00000000-0000-4000-8000-00000000a007";
+/** ラベルのソフトデリートを測るための使い捨てラベル（**固定 ID**・後片付けもこの ID を指す）。 */
+const probeLabelId = "00000000-0000-4000-8000-00000000a008";
+const probeLabelName = "zz-authz-softdelete-probe";
 
 function actorForUser(user: UserRow): Actor {
   return {
@@ -108,6 +118,18 @@ async function assignmentCount(): Promise<number> {
 async function cleanupAuthzFixture(): Promise<void> {
   await db("ohmycms_label_assignments")
     .whereIn("target_id", [attackerFileId, victimFileId, folderId])
+    .delete();
+  // 🚨 使い捨てラベルは **物理削除**（`deleteLabel` は印を立てるだけなので、
+  //    サービス層で消すと**ゴミ箱に残り続ける**）。ここは掃除なので素の delete でよい。
+  //    割り当ては `label_id` の CASCADE で道連れに消える（**物理削除なので動く**）。
+  // 🚨 **id だけでなく、名前の完全一致でも消す。** 実測 2026-08-16:
+  //    製品コードが物理削除だった版でこの検査を走らせると、#21 の `createLabel` が
+  //    **成功して別の UUID の行を作り**、id を指した掃除では**残った**（次の実行が
+  //    `LABEL_EXISTS` で止まった）。**前方一致ではなく完全一致**なので、
+  //    他のペインの `zz_*` を巻き込まない。
+  await db("ohmycms_labels")
+    .where({ id: probeLabelId })
+    .orWhere({ name: probeLabelName })
     .delete();
 
   // 🚨 消すのは **この検査が作った固定 ID の行だけ**。名前や email の前方一致で消さない。
@@ -384,6 +406,70 @@ async function runChecks(fixture: Fixture): Promise<void> {
     labelsForTarget(fixture.adminActor, "file", fixture.victimFileId),
   );
   check("13: 🟢 対照 戻すと、また読める", restoredRead === null, detail(restoredRead));
+
+  // ── ラベル側のソフトデリート（2026-08-16） ──────────────────────────
+  // 🚨 ここまでは **ファイルがゴミ箱に在るとき**の話。以下は **ラベルがゴミ箱に在るとき**。
+  //    どちらも「消えたものが読み書きに出てこない」だが、**外す場所が違う**
+  //    （前者は対象の行フィルタ、後者は join 先のラベルの印）。
+  const createdLabel = await createLabel(fixture.adminActor, { name: probeLabelName });
+  await db("ohmycms_labels").where({ id: createdLabel.id }).update({ id: probeLabelId });
+  await setLabelsForTarget(fixture.adminActor, "file", fixture.victimFileId, [probeLabelId]);
+  const attachedBefore = (
+    await labelsForTarget(fixture.adminActor, "file", fixture.victimFileId)
+  ).some((label) => label.id === probeLabelId);
+  check("14: 🟢 対照 消す前は、対象に付いて見える", attachedBefore, `付いている=${attachedBefore}`);
+
+  const assignmentsBeforeDelete = await assignmentCount();
+  await deleteLabel(fixture.adminActor, probeLabelId);
+
+  const rowAfter = await db("ohmycms_labels")
+    .where({ id: probeLabelId })
+    .first<{ deleted_at: string | null } | undefined>();
+  check(
+    "15: 削除は行を消さず、印を立てる（ゴミ箱に出せる）",
+    Boolean(rowAfter) && rowAfter?.deleted_at !== null,
+    `行=${rowAfter ? "在る" : "無い"} / deleted_at=${rowAfter?.deleted_at ?? "null"}`,
+  );
+  check(
+    "16: 🚨 割り当ての行は消えない（戻したときに付き直さなくてよい）",
+    (await assignmentCount()) === assignmentsBeforeDelete,
+    `${assignmentsBeforeDelete} 件 → ${await assignmentCount()} 件`,
+  );
+
+  const listed = (await listLabels(fixture.adminActor)).some((l) => l.id === probeLabelId);
+  check("17: 一覧に出ない", !listed, `一覧に在る=${listed}`);
+  const attachedAfter = (
+    await labelsForTarget(fixture.adminActor, "file", fixture.victimFileId)
+  ).some((label) => label.id === probeLabelId);
+  check("18: 対象に付いたまま見えない", !attachedAfter, `付いて見える=${attachedAfter}`);
+  const searched = await targetIdsByLabelName("file", probeLabelName);
+  check("19: 検索でも引っかからない", searched.size === 0, `${searched.size} 件`);
+
+  const reattach = await caught(() =>
+    setLabelsForTarget(fixture.adminActor, "file", fixture.attackerFileId, [probeLabelId]),
+  );
+  check(
+    "20: ゴミ箱のラベルは付け直せない（id を知っていても）",
+    reattach?.status === 400 && reattach.code === "LABEL_NOT_FOUND",
+    detail(reattach),
+  );
+  const recreate = await caught(() => createLabel(fixture.adminActor, { name: probeLabelName }));
+  check(
+    "21: 同じ名前は作れないが、**ゴミ箱に在ると分かる文言**になる",
+    recreate?.status === 409 && recreate.code === "LABEL_EXISTS_TRASHED",
+    detail(recreate),
+  );
+
+  // 🚨 対照: **戻すと、割り当ても含めて元どおり**（290 A「戻すと全部戻る」の実測）。
+  await db("ohmycms_labels").where({ id: probeLabelId }).update({ deleted_at: null });
+  const restoredAttached = (
+    await labelsForTarget(fixture.adminActor, "file", fixture.victimFileId)
+  ).some((label) => label.id === probeLabelId);
+  check(
+    "22: 🟢 対照 戻すと、ラベルも割り当ても戻る",
+    restoredAttached,
+    `付いて見える=${restoredAttached}`,
+  );
 }
 
 async function main(): Promise<number> {

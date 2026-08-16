@@ -98,6 +98,11 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
         return t("error_system_label");
       case "LABEL_EXISTS":
         return t("error_duplicate");
+      // 🚨 **同じ 409 でも、ぶつかった相手が画面に出ていない**（ゴミ箱の中）。
+      //    `error_duplicate` と同じ文言にすると、**一覧に無いのに作れない**と読める。
+      //    どうすれば進めるか（戻す／完全に削除する）まで書く。
+      case "LABEL_EXISTS_TRASHED":
+        return t("error_duplicate_trashed");
       case "LABEL_NOT_FOUND":
         return t("error_not_found");
       case "INVALID_FIELD":

@@ -33,6 +33,7 @@
   "save_failed": "保存できませんでした",
   "delete_failed": "削除できませんでした",
   "error_duplicate": "同じ名前のラベルがあります",
+  "error_duplicate_trashed": "同じ名前のラベルがゴミ箱にあります。戻すか、ゴミ箱から完全に削除してください",
   "error_forbidden": "この操作をする権限がありません",
   "error_not_found": "そのラベルはもうありません。ほかの場所で消された可能性があります",
   "error_invalid": "入力が正しくありません",

@@ -20,8 +20,19 @@ import { db } from "@/lib/db/knex";
  *    そこは素の `db(...)` を使い、**その場に理由を書くこと**。
  */
 
-/** ゴミ箱の対象になる表。**ここに無い表を渡せない**（打ち間違いを型で止める）。 */
-export type SoftDeletableTable = "directus_files" | "directus_folders";
+/**
+ * ゴミ箱の対象になる表。**ここに無い表を渡せない**（打ち間違いを型で止める）。
+ *
+ * 🚨 `ohmycms_labels` を足した（2026-08-16・toast）。ラベルの削除も印を立てる形になり、
+ *    **同じ判定を labels 側で書き直すと 2 箇所になる**（このファイルの存在理由そのもの）。
+ *
+ * 🚨 **`ohmycms_label_assignments` は、列は在るが、ここには足していない。**
+ *    割り当ては**それ自体を消さない**。付いている相手（ファイル／ラベル）が
+ *    生きているかで見せ方が決まるので、**読むときに join 先で外す**。
+ *    足すと「割り当ての印」と「相手の印」の 2 つが同じことを言い、
+ *    **食い違ったときにどちらが正か決められなくなる**。
+ */
+export type SoftDeletableTable = "directus_files" | "directus_folders" | "ohmycms_labels";
 
 /**
  * 生きている行だけの問い合わせ。**型は呼ぶ側が決める**。

@@ -41,6 +41,10 @@ type LabelRow = {
   system_key: string | null;
   created_at: string;
   created_by: string | null;
+  // 🚨 **外へ出さない**（`toPublic` が写す欄に入れていない）。
+  //    ゴミ箱の中身は `lib/trash` が別の入口で出すもので、
+  //    ラベルの一覧に「消えた印」を混ぜると、**読む側が 2 通りの意味を持つ**。
+  deleted_at: string | null;
 };
 
 /**
@@ -225,7 +229,12 @@ async function readLabelsForTarget(
   targetType: LabelTargetType,
   targetId: string,
 ): Promise<PublicLabel[]> {
+  // 🚨 ここでは `liveRows` を使えない。`liveRows` は `whereNull("deleted_at")` と
+  //    **修飾なし**で書くので、**両方の表が `deleted_at` を持つこの join では
+  //    「column reference deleted_at is ambiguous」で落ちる**（実測して直した）。
+  //    join を含む問い合わせでは、**表名まで書く**こと。
   const rows = await db<LabelRow>("ohmycms_labels")
+    .whereNull("ohmycms_labels.deleted_at")
     .join(
       "ohmycms_label_assignments",
       "ohmycms_labels.id",
@@ -235,6 +244,8 @@ async function readLabelsForTarget(
       "ohmycms_label_assignments.target_type": targetType,
       "ohmycms_label_assignments.target_id": targetId,
     })
+    // 🚨 **割り当ての行は消さない。** ラベルをゴミ箱へ入れても割り当ては残り、
+    //    ここで **ラベル側の印**を見て外す。戻したときに付き直す必要が無いのはこのため。
     .select("ohmycms_labels.*")
     .orderBy([{ column: "is_system", order: "desc" }, { column: "name", order: "asc" }]);
   return rows.map(toPublic);
@@ -243,7 +254,7 @@ async function readLabelsForTarget(
 export async function listLabels(actor: Actor): Promise<PublicLabel[]> {
   await assertPermission(actor, "read");
   // 🚨 システムラベルを先に、その後は名前順。画面で「消せないもの」が固まって見える。
-  const rows = await db<LabelRow>("ohmycms_labels")
+  const rows = await liveRows<LabelRow>("ohmycms_labels")
     .select("*")
     .orderBy([{ column: "is_system", order: "desc" }, { column: "name", order: "asc" }]);
   return rows.map(toPublic);
@@ -259,8 +270,18 @@ export async function createLabel(
 
   // 🚨 同じ名前を2つ作らせない。DB の一意制約でも弾かれるが、
   //    そのままだと「重複キー」という内部の文言が利用者に出る。
+  // 🚨 **ここは `liveRows` を使えない。** 一意索引 `ohmycms_labels_name_unique` は
+  //    `deleted_at` を見ない**全件の索引**なので（実測 2026-08-16）、
+  //    ゴミ箱の中のラベルも**名前を押さえたまま**。生きている行だけを見て通すと、
+  //    **DB が「重複キー」を投げて内部の文言が利用者に出る**。
   const existing = await db<LabelRow>("ohmycms_labels").where({ name }).first();
   if (existing) {
+    // 🚨 **画面に出ていないラベルと衝突した場合**は、別の文言にする。
+    //    同じ「すでに同じ名前があります」だと、**一覧に無いのに作れない**という
+    //    説明できない状態になる（利用者はゴミ箱を見に行けない）。
+    if (existing.deleted_at) {
+      throw new ApiError(409, "LABEL_EXISTS_TRASHED", "同じ名前のラベルがゴミ箱にあります");
+    }
     throw new ApiError(409, "LABEL_EXISTS", "同じ名前のラベルがあります");
   }
 
@@ -282,7 +303,9 @@ export async function updateLabel(
   body: Record<string, unknown>,
 ): Promise<PublicLabel> {
   await assertPermission(actor, "update");
-  const current = await db<LabelRow>("ohmycms_labels").where({ id }).first();
+  // 🚨 ゴミ箱の中のラベルは**編集できない**（404）。戻してから直す。
+  //    「見えないのに名前だけ変えられる」を作らないため。
+  const current = await liveRows<LabelRow>("ohmycms_labels").where({ id }).first();
   if (!current) {
     throw new ApiError(404, "LABEL_NOT_FOUND", "ラベルが見つかりません");
   }
@@ -291,8 +314,12 @@ export async function updateLabel(
   if (body.name !== undefined) {
     const name = requireName(body.name);
     if (name !== current.name) {
+      // 🚨 `createLabel` と同じ理由で全件を見る（一意索引が `deleted_at` を見ないため）。
       const duplicate = await db<LabelRow>("ohmycms_labels").where({ name }).first();
       if (duplicate) {
+        if (duplicate.deleted_at) {
+          throw new ApiError(409, "LABEL_EXISTS_TRASHED", "同じ名前のラベルがゴミ箱にあります");
+        }
         throw new ApiError(409, "LABEL_EXISTS", "同じ名前のラベルがあります");
       }
     }
@@ -308,22 +335,30 @@ export async function updateLabel(
 }
 
 /**
- * 🚨 **ここはまだ物理削除**（283 A のソフトデリートは、ファイル/フォルダ側だけが入っている）。
+ * ラベルをゴミ箱へ入れる（**印を立てるだけ。行は消さない**・2026-08-16）。
  *
- * 実測 2026-08-16: `ohmycms_labels` に `deleted_at` の列は**在る**が、
- * **非 null の行は 0**（🟢 対照 全 3 行）＝ **消えたラベルは、まだ存在しえない**。
+ * 🚨 **もとは物理削除だった。** 反転した理由は、ゴミ箱の画面が
+ *    `sourceKind: "labels"` を持っているのに、**実装が物理削除のままだと
+ *    その枝が永遠に 0 件**になるため（design が型から見つけ、司令塔が案 a で決めた）。
  *
- * 🚨 **ここを soft delete にするときは、同じコミットで 2 つ足すこと:**
- *   ① `readLabelsForTarget` で **消えたラベルを出さない**
- *      （いま足すと「一度も通らない枝」を増やすので、**足していない**）
- *   ② 🚨 **割り当ての後片付け**。いま `ohmycms_label_assignments.label_id` は
- *      `onDelete("CASCADE")` で、**物理削除でしか動かない**。
- *      soft にすると **割り当ての行が残り、生きているファイルに
- *      「消えたラベル」が付いたまま見える**。
+ * 🚨 **割り当て（`ohmycms_label_assignments`）はここで触らない。**
+ *    `label_id` の外部キーは `onDelete("CASCADE")` だが、**CASCADE は物理削除でしか動かない**。
+ *    ＝ 印を立てるだけだと割り当ての行は残る。**それでよい**:
+ *      ・読む側（`readLabelsForTarget` / `targetIdsByLabelName`）が **ラベル側の印**で外す
+ *      ・戻したとき、**割り当てを付け直さなくてもラベルが戻る**（290 A「戻すと全部戻る」に合う）
+ *    🚨 **90 日後の完全削除でこの行を消すのは CASCADE の仕事**（物理削除に戻るので動く）。
+ *      **その経路はまだ書かれていない**（289 待ち）。
+ *
+ * 🚨 **名前は押さえたまま**になる。一意索引 `ohmycms_labels_name_unique` は
+ *    `deleted_at` を見ない全件の索引なので、**ゴミ箱の中の名前は再利用できない**。
+ *    `createLabel` はそれを `LABEL_EXISTS_TRASHED` として別の文言で伝える。
+ *    **名前を空けたいなら部分索引（`where deleted_at is null`）への migration が要る**
+ *    ＝ 表の変更なので、**私（toast）の一存では入れていない**。
  */
 export async function deleteLabel(actor: Actor, id: string): Promise<void> {
   await assertPermission(actor, "update");
-  const current = await db<LabelRow>("ohmycms_labels").where({ id }).first();
+  // 🚨 既にゴミ箱に在るものは 404。「二度消せる」を作らない。
+  const current = await liveRows<LabelRow>("ohmycms_labels").where({ id }).first();
   if (!current) {
     throw new ApiError(404, "LABEL_NOT_FOUND", "ラベルが見つかりません");
   }
@@ -332,8 +367,7 @@ export async function deleteLabel(actor: Actor, id: string): Promise<void> {
   if (current.is_system) {
     throw new ApiError(403, "LABEL_IS_SYSTEM", "このラベルは削除できません");
   }
-  // 割り当ては外部キーの CASCADE で一緒に消える。
-  await db("ohmycms_labels").where({ id }).delete();
+  await db("ohmycms_labels").where({ id }).update({ deleted_at: db.fn.now() });
 }
 
 /** 対象1件に付いているラベル。 */
@@ -367,8 +401,10 @@ export async function setLabelsForTarget(
   const ids = Array.from(new Set(labelIds as string[]));
 
   // 🚨 存在しないラベル ID を黙って捨てない。指定が通ったのに付いていない、を防ぐ。
+  // 🚨 **ゴミ箱の中のラベルも「無い」扱い**（`liveRows`）。id を知っている人が
+  //    消えたラベルを付け直せると、**一覧に出ないラベルが対象に付く**。
   if (ids.length > 0) {
-    const found = await db<LabelRow>("ohmycms_labels").whereIn("id", ids).select("id");
+    const found = await liveRows<LabelRow>("ohmycms_labels").whereIn("id", ids).select("id");
     if (found.length !== ids.length) {
       throw new ApiError(400, "LABEL_NOT_FOUND", "指定されたラベルが見つかりません");
     }
@@ -444,6 +480,9 @@ export async function targetIdsByLabelName(
   const rows = await db("ohmycms_label_assignments as a")
     .join("ohmycms_labels as l", "a.label_id", "l.id")
     .where("a.target_type", targetType)
+    // 🚨 ゴミ箱の中のラベルでは引っかからない。**表名（別名）まで書く**——
+    //    `a` にも `deleted_at` が在るので、修飾しないと ambiguous で落ちる。
+    .whereNull("l.deleted_at")
     // 🚨 `%` と `_` を打ち消す。打ち消さないと、`_` を含む検索語が
     //    「任意の1文字」として効いて、関係ないものまで拾う。
     .whereRaw("lower(l.name) like ? escape '\\'", [
