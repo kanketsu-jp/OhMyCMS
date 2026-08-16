@@ -473,11 +473,14 @@ function checkUserMenuVisibility(sources) {
  * 戻り値は `{ violations, scannedFiles, judgedExpressionsByFile }`。
  * `scannedFiles` は GUARD_FILE を除いて実際に規則 A/B/F を当てた本数
  * （「候補」＝ Object.keys(sources).length とは別物）。
- * `judgedExpressionsByFile` は `{ ファイル名: 実際に checkLabelExpression() を呼んだ回数 }`
- * （規則 A/B の JSX 属性・規則 F の object literal の両方を合算）。
- * 🚨 由来: 2026-08-16 司令塔指摘。「置換 N 件」は差し込んだ文字列がソースに入ったことしか
- * 示さず、findViolations がその式まで**判定した**かは別。ここで実際に判定した式の数を
- * ファイル別に数えて返し、呼び出し側（「見逃す入力の実演」）が「届いた」ことを実測できるようにする。
+ * `judgedExpressionsByFile` は `{ ファイル名: checkLabelExpression() に渡した式そのものの配列 }`
+ * （規則 A/B の JSX 属性・規則 F の object literal の両方を合算。配列の長さが「判定した回数」）。
+ * 🚨 由来: 2026-08-16 司令塔指摘（1回目）。「置換 N 件」は差し込んだ文字列がソースに入ったことしか
+ * 示さず、findViolations がその式まで**判定した**かは別。ここで実際に判定した式の**実物**を
+ * ファイル別に集めて返し、呼び出し側（「見逃す入力の実演」）が「届いた」ことを実測できるようにする。
+ * 🚨 由来: 2026-08-16 司令塔指摘（2回目）。件数だけだと、**同じファイルの他の式が N 件在れば
+ * N ≥ 1 になり、囮そのものが判定されていなくても「届いた」ように見える**。件数でなく実物
+ * （式の文字列そのもの）を持たせ、呼び出し側で「差し込んだ式そのものが在るか」を照合できるようにした。
  */
 function findViolations(sources) {
   const violations = [];
@@ -490,7 +493,8 @@ function findViolations(sources) {
   for (const [file, source] of Object.entries(sources)) {
     if (file === GUARD_FILE) continue;
     scannedFiles += 1;
-    let judgedForFile = 0;
+    // 🚨 数ではなく実物（判定した式の文字列そのもの）を集める。理由は上のJSDoc参照。
+    const judgedForFile = [];
 
     // A/B: `userLabel={...}`（JSX 属性として直接渡している式）
     for (const m of source.matchAll(/userLabel=\{([^}]*)\}/g)) {
@@ -501,7 +505,7 @@ function findViolations(sources) {
         missingRule: "B",
         passThroughRule: "H",
       });
-      judgedForFile += 1;
+      judgedForFile.push(expression);
     }
 
     // F: object literal の `userLabel:`（spread や変数化で隠れている式）
@@ -511,7 +515,7 @@ function findViolations(sources) {
         missingRule: "F",
         passThroughRule: "H",
       });
-      judgedForFile += 1;
+      judgedForFile.push(expression);
     }
 
     judgedExpressionsByFile[file] = judgedForFile;
@@ -1010,6 +1014,19 @@ function buildBlindSpotSources({ replacement, extraDecl, withProbeFile }) {
   return { sources, count };
 }
 
+/**
+ * 実演プローブが `replacement` に書いた `userLabel={式}` から、式そのものを取り出す。
+ * findViolations の A/B 抽出（`/userLabel=\{([^}]*)\}/`）と**同じ正規表現**を使うことで、
+ * 「この囮が実際に判定される形では何と読まれるはずか」を、判定側の実装と揃える
+ * （別の正規表現で手書きすると、抽出のクセ〔例: テンプレートリテラルの `${...}` の内側で
+ * 最初の `}` に止まる〕がずれて、一致しないのに「一致するはず」と誤解する）。
+ * 一致しなければ null（＝この照合の仕組み自体が使えないプローブ。呼び出し側で扱う）。
+ */
+function extractProbeExpression(replacement) {
+  const m = /userLabel=\{([^}]*)\}/.exec(replacement);
+  return m ? m[1].trim() : null;
+}
+
 const blindSpotProbes = [
   {
     label: "① 別ファイルの関数を経由（zzLeakyLabel が生のメールを返す）",
@@ -1059,11 +1076,16 @@ for (const probe of blindSpotProbes) {
 
   const { violations: probeViolations, judgedExpressionsByFile } = findViolations(sources);
   // 🚨 「届いたか」は「置換 N 件」（差し込んだ文字列がソースに入ったか）とは別物。
-  //    findViolations が実際にこのファイルの userLabel 式を何件判定したかを見る
-  //    （司令塔 2026-08-16 指摘: 置換 1 件は「届いて見逃した」と「そもそも届かなかった」を
-  //    区別しない）。
-  const judgedCount = judgedExpressionsByFile[BLIND_SPOT_LAYOUT_FILE] ?? 0;
-  const reachedSuffix =
+  //    findViolations が実際にこのファイルの userLabel 式を何件判定したかだけでなく、
+  //    **この囮が差し込んだ式そのもの**が判定された一覧（実物）に在るかまで照合する
+  //    （司令塔 2026-08-16 再指摘: 「N 件を判定」は**同じファイルの他の式が N 件在れば**
+  //    N ≥ 1 になり、この行の囮そのものが判定されていなくても「届いた」ように見える。
+  //    「届いて通した」と「届かずに undefined」が同じ表示になっていた）。
+  const judgedExprs = judgedExpressionsByFile[BLIND_SPOT_LAYOUT_FILE] ?? [];
+  const judgedCount = judgedExprs.length;
+  const expectedExpr = extractProbeExpression(probe.replacement);
+  const probeReached = expectedExpr !== null && judgedExprs.includes(expectedExpr);
+  const reachedCountSuffix =
     judgedCount > 0
       ? `／🟢 判定に届いた: layout.tsx の userLabel 式 ${judgedCount} 件を判定`
       : "／🚨 判定に届いていません（layout.tsx の userLabel 式 0 件）。「見逃した」ではなく「測れていない」です";
@@ -1071,16 +1093,30 @@ for (const probe of blindSpotProbes) {
   const detected = probeViolations.length > 0;
   const detectedRules = [...new Set(probeViolations.map((v) => v.rule))].join(",") || "-";
 
-  if (judgedCount === 0) {
+  if (judgedCount === 0 || !probeReached) {
     // 🚨 これは「拾える」側の行にも当てる（届かずにたまたま0件、を防ぐ）。
+    //    判定は「実物が一覧に在るか」で落とす（数では落とさない）。同じファイルの
+    //    他の式が判定されているだけ（judgedCount > 0 だが probeReached === false）でも、
+    //    この行の囮そのものは測れていないので、ここで打ち切る。
     //    判定に届いていない以上、detected の true/false に意味が無いので、
     //    以降の分岐（observe / true / false）へ進めずここで無条件に失敗として扱う。
+    const sample =
+      judgedExprs
+        .slice(0, 2)
+        .map((e) => `userLabel={${e}}`)
+        .join(" / ") || "（判定された式は 0 件）";
     console.error(
-      `  🚨 ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）${reachedSuffix}`,
+      `  🚨 ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）${reachedCountSuffix}`,
+    );
+    console.error(
+      `        この行の式は判定されていません。「見逃した」ではなく「測れていない」です。` +
+        `／🟢 判定した実物（先頭2件）: ${sample}`,
     );
     blindSpotRegression = true;
     continue;
   }
+
+  const reachedSuffix = `${reachedCountSuffix}／🟢 判定した実物: userLabel={${expectedExpr}}`;
 
   if (probe.mode === "observe") {
     // 🚨 期待値を決め打ちしない。実測した結果をそのまま「拾う／見逃す」で出す
