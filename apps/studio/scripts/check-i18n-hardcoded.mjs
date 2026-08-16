@@ -16,6 +16,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { globSync } from "node:fs";
 import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -33,63 +34,22 @@ const ALLOWED_LITERALS = new Set([
 ]);
 
 /**
- * 行コメント・ブロックコメント・JSX コメントを空白へ潰す。
- * 文字列リテラル内の "//" を誤って消さないよう、簡易的に文字列を先に飛ばす。
+ * 🚨 **自前の実装を捨てて、共有（`scripts/strip-comments.mjs`）へ寄せた**（2026-08-16・toast）。
+ *
+ * もとはこのファイルの中に同名の `stripComments` を持っていた。polish が
+ * 「**同じ名前で中身が違うものが 7 つ在る**」と数えて挙げた 6 本のうちの 1 本。
+ *
+ * 🚨 **寄せた理由は、自前が同じ穴を持っていたから**（実測 2026-08-16）:
+ *   🔴 **引用符を含む正規表現リテラル**（`[^"'] ` を含む形）の**後ろのコメントが落ちない**
+ *      （正規表現の中の引用符を
+ *      「文字列の開始」と読む）→ **コメントの日本語をハードコードとして数える**
+ *      ＝ 🚨 **正解を違反と言う**（憲章 §1）。**経緯を日本語で書いた人が、自分のコミットで落ちる**。
+ *   🟢 共有は `8bfccf0` でこの穴が直っている（**同じ 5 通りで比べて、違うのはこの 1 通りだけ**）。
+ *
+ * 🚨 **`check-no-api-message` は寄せていない**（同じ日に、私が意図して分けた）。
+ *   あちらは**行頭しか見ない**ので、この穴を**構造的に持たない**。
+ *   ＝ **「共有へ寄せる」を規則にしない。持っている穴で決める。**
  */
-function stripComments(source) {
-  let out = "";
-  let i = 0;
-  const n = source.length;
-
-  while (i < n) {
-    const ch = source[i];
-    const next = source[i + 1];
-
-    // 文字列 / テンプレートリテラル
-    if (ch === '"' || ch === "'" || ch === "`") {
-      const quote = ch;
-      out += ch;
-      i += 1;
-      while (i < n) {
-        if (source[i] === "\\") {
-          out += source[i] + (source[i + 1] ?? "");
-          i += 2;
-          continue;
-        }
-        out += source[i];
-        if (source[i] === quote) {
-          i += 1;
-          break;
-        }
-        i += 1;
-      }
-      continue;
-    }
-
-    // 行コメント
-    if (ch === "/" && next === "/") {
-      while (i < n && source[i] !== "\n") {
-        i += 1;
-      }
-      continue;
-    }
-
-    // ブロックコメント（JSX の {/* */} もここで潰れる）
-    if (ch === "/" && next === "*") {
-      i += 2;
-      while (i < n && !(source[i] === "*" && source[i + 1] === "/")) {
-        if (source[i] === "\n") out += "\n";
-        i += 1;
-      }
-      i += 2;
-      continue;
-    }
-
-    out += ch;
-    i += 1;
-  }
-  return out;
-}
 
 /** JSX のテキストノード（>ここ<）を拾う。 */
 function findJsxText(source) {
