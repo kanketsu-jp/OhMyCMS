@@ -58,8 +58,18 @@ for (const f of files) {
   src.split("\n").forEach((line, i) => {
     // 入口の中の `conn(collection)` は正しい呼び出しなので除く
     if (/\bconn\(\s*collection\s*\)/.test(line)) return;
-    const m = /\b(trx|db)\(\s*collection\s*\)/.exec(line);
-    if (m) 違反.push(`${f}:${i + 1}  ${line.trim().slice(0, 72)}`);
+    // 🚨 **名前で決め打ちしない**（2026-08-16・実際に取りこぼした）。
+    //    以前は `(trx|db)\(collection\)` だけを見ていたので、
+    //    `lib/items/query.ts` の **`client(collection)`**（一覧と件数）を**素通り**していた。
+    //    ＝ 引数の名前が違うだけで、**同じことをしている道が見えなくなる**。
+    //    → **識別子を問わず** `なにか(collection)` を拾い、入口自身だけを除く。
+    //    🚨 **直後に `.` が続くもの**（＝ そのまま問い合わせを組み立てている）だけを拾う。
+    //    識別子を問わないだけだと、`isSystemTableName(collection)` や
+    //    `確認済み.has(collection)` まで拾って **10 件中 8 件が誤検出**になった（実測）。
+    //    🚨 **この形は見えない**（下の【鳴る】で毎回その場で確かめている）:
+    //      `const q = client(collection);` … **変数へ入れてから後で組み立てる**
+    const m = /(?<![.\w$])([A-Za-z_$][\w$]*)\(\s*collection\s*\)\s*\./.exec(line);
+    if (m && m[1] !== "itemsTable") 違反.push(`${f}:${i + 1}  ${line.trim().slice(0, 72)}`);
   });
 }
 

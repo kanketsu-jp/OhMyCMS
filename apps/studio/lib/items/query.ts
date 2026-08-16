@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/schema/errors";
 import type { RelationMeta } from "@/lib/schema/models";
 import { assertSafeIdentifier } from "@/lib/schema/validate";
 import { applyFilter, type FilterObject } from "./filter";
+import { itemsTable } from "./table";
 import {
   assertColumnExists,
   columnsFor,
@@ -301,7 +302,7 @@ export function buildQuery({
     relations,
     options.selection,
   );
-  const query = client(collection).select(selectedColumns);
+  const query = itemsTable(client, collection).select(selectedColumns);
 
   if (options.filter) {
     applyFilter(query, options.filter, {
@@ -335,7 +336,7 @@ export async function countItems({
   permissionMap,
   filtered,
 }: BuildQueryArgs & { filtered: boolean }): Promise<number> {
-  const query = client(collection).count<{ count: string }[]>({ count: "*" });
+  const query = itemsTable(client, collection).count<{ count: string }[]>({ count: "*" });
 
   if (filtered && options.filter) {
     applyFilter(query, options.filter, {
