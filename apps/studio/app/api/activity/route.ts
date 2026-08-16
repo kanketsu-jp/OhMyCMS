@@ -1,8 +1,12 @@
 import { requireActor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
+import { applyFilter } from "@/lib/items/filter";
+import { getPrimaryKey } from "@/lib/items/relations";
+import { itemsTable } from "@/lib/items/table";
 import { resolvePermission } from "@/lib/permissions/resolve";
 import { errorResponse, ok } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
+import { getSchemaOverview } from "@/lib/schema/introspect";
 
 export const runtime = "nodejs";
 
@@ -67,19 +71,35 @@ export async function GET(request: Request) {
 
     const limit = parseLimit(url.searchParams.get("limit"));
 
-    // 🚨 既知の穴（security 2026-08-15 実測 / docs/design/panel-logs-history.md §4 フラグ5）:
-    //    ここは collection 単位でしか絞らず、resolution.rowFilter を**適用していない**。
-    //    行フィルタ付き "log" 権限では、読めないはずの item の活動まで返る
-    //    （sec_probe_ プローブで実測: route=2件 / 正=1件 / leaked_item2=true）。
-    //    現状は latent（directus_permissions=0 行＝フィルタ付き "log" が未配布なので漏洩は顕在化していない）。
-    //    直すときは activity.item を対象コレクションの実テーブルへ結合し resolution.rowFilter を適用する
-    //    （item READ と同じ強制。lib/items/filter）。司令塔の a(文書化＋番人)/b(先回りで直す) 判断待ち。
     const query = db<ActivityRow>("directus_activity")
       .select("action", "timestamp", "item", "user", "actor_type")
       .where("collection", collection)
       .orderBy("timestamp", "desc")
       .limit(limit);
     if (item) query.andWhere("item", item);
+
+    if (resolution.rowFilter) {
+      // 🚨 行フィルタ（rowFilter）を効かせる（security 2026-08-15 実測の穴を塞ぐ / 306(b)）:
+      //    resolution.allowed だけでなく resolution.rowFilter も強制する。対象コレクションの
+      //    実テーブルへ resolution.rowFilter を適用し、条件を満たす主キー値だけを
+      //    directus_activity.item と突き合わせる（items の READ と同じ強制。lib/items/filter）。
+      //    directus_activity.item は varchar(255)。主キーが uuid/int の場合に型が合わないため、
+      //    サブクエリ側で ::text へ明示キャストして揃える（PG の暗黙キャストに頼らない）。
+      //    rowFilter が null（admin・tenantScope 無フィルタ）のときはこの絞り込みを行わない
+      //    （現状維持）。対象テーブルが削除済みで存在しない場合は getPrimaryKey / このクエリが
+      //    失敗し、行は返らない（＝より安全側。フィルタ無し経路と挙動が異なる点は既知）。
+      const schemaOverview = await getSchemaOverview();
+      const primaryKey = getPrimaryKey(schemaOverview, collection);
+      const allowedItemIds = itemsTable(db, collection).select(
+        db.raw("??::text as id", [primaryKey]),
+      );
+      applyFilter(allowedItemIds, resolution.rowFilter, {
+        collection,
+        schemaOverview,
+        relations: [],
+      });
+      query.whereIn("item", allowedItemIds);
+    }
 
     const rows = await query;
     const data: ActivityEntry[] = rows.map((row) => ({
