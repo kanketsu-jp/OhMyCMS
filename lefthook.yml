@@ -104,6 +104,14 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-qualified-keys.mjs
 
+    # ログイン画面に SAML の入口を作ったら、断りの文言の鍵も一緒に足させる。
+    # 🚨 いまは入口が 0 件なので**何も止めない**。入口を作った人の手元で、その瞬間に落ちる。
+    #    由来: 設問 292 A（transient を断る）。表示する画面が無いので鍵を先に足さない判断をした
+    #    （i18n/error.ts に「呼び手が無い鍵を足して取り消した」記録が在るため）。
+    saml-entry-key:
+      root: "apps/studio"
+      run: node scripts/check-saml-entry-needs-key.mjs
+
     # ショートカットの被り（堀池「ショートカットは被ってはいけない」）。
     # 🚨 走るたびに囮を2つ仕込んで検出できることを確かめ、拾えた件数も出す
     #    （「被りが無いから緑」と「拾えていないから緑」を区別するため）。
