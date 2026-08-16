@@ -1,7 +1,7 @@
 ---
 type: decision
 title: i18n は必須（旧PJの方針を反転）
-description: 全UI文言を辞書化し日本語・英語に対応する。旧PJで堀池が明示していた「i18n は作らない」という決定を反転させたもの。🚨 ただし実行時に増える欄の名前は DB 側（`directus_fields.translations` という**列**。表では無いので `\dt` では見つからない）で、配線済みは項目一覧の見出しと入力欄のラベルまで。右パネルの列選択は未検証で、フィールド一覧に欄名を出す前に内部列の扱いを決める必要がある。
+description: 全UI文言を辞書化し日本語・英語に対応する。旧PJで堀池が明示していた「i18n は作らない」という決定を反転させたもの。🚨 ただし実行時に増える欄の名前は DB 側（`directus_fields.translations` という**列**。表では無いので `\dt` では見つからない）で、配線済みは項目一覧の見出しと入力欄のラベルまで。右パネルの列選択は未検証で、フィールド一覧に欄名を出す前に内部列の扱いを決める必要がある。コレクションの表示名も同じ列方式（`directus_collections.translations`・設問318 A）だが画面側は未着手。🚨 いま翻訳を持つのはフィールドとコレクションの 2 つだけで、roles / policies / presets は足していない。
 tags: [i18n, ui, apps-studio]
 status: active
 generated:
