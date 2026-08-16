@@ -144,7 +144,19 @@ function hasFormWithId(source, id) {
 // 🚨 **0 ガードは 0 しか見ない**／**絶対値は repo が育つと腐る**（司令塔 2026-08-16）。
 //    → **1 ファイルあたりの平均文字数**で見る。**repo が育っても平均は育たない。**
 //      読み込みが壊れれば平均は落ち、走査の範囲がおかしくなれば平均も動く。
+// 🚨 **なぜ「平均文字数」を選んだか**（`check-surface-nesting` は比率。**揃えないのが正しい**）:
+//    この検査は **395 本を全部読む＝間引きが無い**ので、走査 ÷ 候補は常に 1.0 で動かない。
+//    動くのは「**本数はそのままで痩せる**」側なので、**1 ファイルあたりの平均**を見る。
+// 🚨 **平均だけでは足りない**（design の実測・2026-08-16）: **本数ごと減ると平均は動かない**。
+//    → **床**（実測値から遠い絶対値）で「丸ごと減る」を捕まえる。
 const AVG_CHARS_BASELINE = 3639; // 2026-08-16 実測（1437569 / 395）
+const SOURCES_FLOOR = 100; // 🚨 395 から遠い床。app/ と components/ がここを下回ることは想定しない
+if (sources.length > 0 && sources.length < SOURCES_FLOOR) {
+  console.error(`\n🚨 走査したソースが ${sources.length} 本です（床 ${SOURCES_FLOOR} 本を下回りました）。`);
+  console.error("   **走査そのものが途中で止まっている**可能性があります");
+  console.error("   （平均文字数は本数と一緒に減るので動きません。**床だけが見ています**）。");
+  process.exit(1);
+}
 const avgChars = sources.length > 0 ? Math.round(code.length / sources.length) : 0;
 console.log(`  1 ファイルあたり ${avgChars} 文字（基準 ${AVG_CHARS_BASELINE} ／ 半分未満なら落とす）`);
 if (code.length > 0 && avgChars < Math.floor(AVG_CHARS_BASELINE / 2)) {
