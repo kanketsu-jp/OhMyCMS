@@ -20,7 +20,8 @@
  * この検査は**漏れを見せて人に判断させる**——除外するなら、下の表に理由を書く。
  * 書けば次の人が消せるし、書かなければ落ち続ける。
  */
-import { globSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -73,7 +74,7 @@ function toRoutePath(f) {
 
 /** app/(admin) 配下の page.tsx から実在するルートを作る。`[param]` を含むものは別扱い。 */
 function routesFromDisk() {
-  const files = globSync("app/(admin)/**/page.tsx", { cwd: root });
+  const files = trackedGlob("app/(admin)/**/page.tsx", { cwd: root });
   return files
     // 🚨 **ディスクの page.tsx と、実際に URL になるものは違う**（2026-08-15・storage の指摘した形:
     //    「守りが見ている値と、実装が使う値は同じか」）。Next.js は次を URL にしない:
@@ -90,7 +91,10 @@ function routesFromDisk() {
 
 /** 監査の DEFAULT_PATHS を読む（import すると Chrome を起動してしまうので、テキストで抜く）。 */
 function crawledPaths() {
-  const src = readFileSync(resolve(root, "scripts/audit-surface-depth.mjs"), "utf8");
+  // 🚨 **両側を同じ側（索引）から読む**。片側だけ索引に移すと、赤の向きが裏返るだけになる
+  //    （2026-08-16 実測。詳しくは lib/tracked-files.mjs の `readTracked` の説明）。
+  const src = readTracked(resolve(root, "scripts/audit-surface-depth.mjs"));
+  if (src === null) return null;
   const m = src.match(/const DEFAULT_PATHS = \[([\s\S]*?)\n\];/);
   if (!m) return null;
   return [...m[1].matchAll(/"(\/[^"]*)"/g)].map((x) => x[1]);
@@ -178,14 +182,15 @@ if (missing.length === 0 && stale.length === 0) process.exit(0);
 if (missing.length > 0) {
   console.error(`\n🚨 実在するのに巡回していないページ: ${missing.length} 件`);
   console.error("   **開けるのに一度も測っていない**＝この監査の「違反なし」は、その分だけ嘘です。");
-  // 🚨 この検査は staged ではなく**ディスクを見る**（globSync）。
-  //    ＝ **コミットしていない一時ファイルでも落ちる＝全員のコミットが止まる**。
-  //    2026-08-15 実測: 未追跡の page.tsx を 1 枚置いただけで exit 1 になった。
-  //    実際に design が zz-tree-probe / zz-wrap-probe を app/ 配下へ置いており、
-  //    **消し忘れていたら全員を止めていた**（司令塔が「門が止まる形」の 3 件目として記録）。
+  // 🚨 **この検査は索引（git ls-files / git show :path）を見る**。2026-08-16 に変えた。
+  //    以前はディスク（globSync）を見ていたので、**コミットしていない一時ファイルでも落ち、
+  //    そのファイルに触っていない人のコミットが止まった**（2026-08-15 実測: 未追跡の page.tsx を
+  //    1 枚置いただけで exit 1。design の zz-tree-probe / zz-wrap-probe が実際にそれを起こした）。
+  //    🚨 いまは **ページも巡回一覧も索引から**読むので、**両方まだ入っていなければ緑**。
+  //    ＝ **書きかけの人が、他人を落とさない。入れた側だけ入っていれば、入れた人が落ちる。**
   console.error(
     "\n   🚨 心当たりが「検証用に置いた一時ページ」なら、**消してください**。" +
-      "\n      この検査は staged ではなくディスクを見るので、**コミットしていなくても落ちます**。" +
+      "\n      この検査は索引を見るので、**`git add` したものが対象**です（未追跡のままなら落ちません）。" +
       "\n      一時ファイルはリポジトリの外（scratchpad）へ置くこと。",
   );
   for (const r of missing) console.error(`  ${r.path}   (${r.file})`);

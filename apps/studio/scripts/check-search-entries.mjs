@@ -16,7 +16,8 @@
  *   node scripts/check-search-entries.mjs
  */
 
-import { globSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -75,7 +76,7 @@ function routeFromPageFile(file) {
 
 function extractStaticRoutes() {
   return uniqueSorted(
-    globSync(`${ADMIN_APP_DIR}/**/page.tsx`, { cwd: root })
+    trackedGlob(`${ADMIN_APP_DIR}/**/page.tsx`, { cwd: root })
       .map(routeFromPageFile)
       .filter((route) => route !== null),
   );
@@ -111,8 +112,19 @@ function insertAfterCount(source, marker, insertion) {
   return { count, source: source.replace(marker, `${marker}${insertion}`) };
 }
 
-const layoutSource = readFileSync(resolve(root, LAYOUT_SOURCE), "utf8");
-const searchSource = readFileSync(resolve(root, SEARCH_SOURCE), "utf8");
+// 🚨 **両側を同じ側（索引）から読む**。ルートの列挙を索引にして宣言を作業ツリーのままにすると、
+//    「実在するのに宣言が無い」が「宣言が在るのに実在しない」に**裏返るだけ**になる
+//    （2026-08-16 実測。詳しくは lib/tracked-files.mjs の `readTracked`）。
+//    ＝ **どちらもまだ入っていなければ緑**。入れた側だけ入っていれば、入れた人が落ちる。
+const layoutSource = readTracked(resolve(root, LAYOUT_SOURCE));
+const searchSource = readTracked(resolve(root, SEARCH_SOURCE));
+// 🚨 `null`（未追跡）は「中身が空」ではない。この 2 本は追跡済みでなければ検査そのものが成り立たない。
+for (const [name, src] of [[LAYOUT_SOURCE, layoutSource], [SEARCH_SOURCE, searchSource]]) {
+  if (src === null) {
+    console.error(`🚨 ${name} が索引にありません。**この検査は何も照合していません**（緑にしないでください）`);
+    process.exit(1);
+  }
+}
 const routes = extractStaticRoutes();
 
 console.log("■ 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）");

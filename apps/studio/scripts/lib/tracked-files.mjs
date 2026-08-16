@@ -75,3 +75,27 @@ export function isTracked(absPath) {
   const fromRepo = relative(REPO_ROOT, resolve(absPath)).split("\\").join("/");
   return trackedFiles().has(fromRepo);
 }
+
+/**
+ * **索引にある版**のファイルを読む（`git show :<path>`）。追跡していなければ `null`。
+ *
+ * 🚨 なぜ要るか（2026-08-16・toast が見つけ、司令塔が採った形）:
+ *   **存在を照合する検査**（宣言と実体を突き合わせるもの）で、**片側だけを索引に移すと
+ *   赤の向きが裏返るだけ**になる。実測:
+ *     ページの列挙を `trackedGlob`（索引）にし、巡回一覧を `readFileSync`（作業ツリー）のままにしたら
+ *       変換前 …「実在するのに**巡回していない**ページ 1 件」（未追跡の実体が見えていた）
+ *       変換後 … 🚨「巡回一覧に在るが**実在しない**ページ 1 件」（宣言だけ見えていた）
+ *   → **両側を同じ側（索引）から読む**。すると「**どちらもまだ入っていない → 緑**」になり、
+ *     書きかけの人が他人を落とさない。**入れた側だけ入っていれば、その人が落ちる。**
+ *
+ * 🚨 `null`（未追跡）を「中身が空」と同じに扱わないこと。
+ *   呼ぶ側で「まだ入っていない」として**照合の対象から外す**か、明示的に落とすかを決める。
+ */
+export function readTracked(absPath) {
+  const fromRepo = relative(REPO_ROOT, resolve(absPath)).split("\\").join("/");
+  if (!trackedFiles().has(fromRepo)) return null;
+  return execFileSync("git", ["-C", REPO_ROOT, "show", `:${fromRepo}`], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+}

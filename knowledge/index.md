@@ -29,6 +29,7 @@ x_rag_okf:
 - [アクションボタンは1つ。表示モードと編集モードを分ける](./decisions/action-button-and-edit-mode.md) — `decisions/action-button-and-edit-mode`
 - [アバターは絵文字にする。メールの頭文字を出さない](./decisions/avatar-is-emoji-not-initials.md) — `knowledge/decisions/avatar-is-emoji-not-initials.md`
 - [検査は「何を見ていないか」を言えて初めて検査になる](./decisions/checks-must-declare-blind-spots.md) — `decisions/checks-must-declare-blind-spots`
+- [検査は索引を見る。ただし「走査」と「照合」で直し方が違う](./decisions/checks-read-the-index-not-the-worktree.md) — `decisions/checks-read-the-index-not-the-worktree`
 - [欄の名前で効く守りは、名前を変えた瞬間に黙って外れる](./decisions/guards-keyed-by-name-break-silently.md) — `decisions/guards-keyed-by-name-break-silently`
 - [CLI と MCP は REST API 経由（DB 直接アクセス禁止）](./decisions/cli-mcp-over-rest.md) — `decisions/cli-mcp-over-rest`
 - [DB は PostgreSQL（Cloudflare D1 は撤回）](./decisions/db-postgres.md) — `decisions/db-postgres`
