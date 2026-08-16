@@ -61,6 +61,25 @@ for (let i = 0; i < parts.length; i += 1) {
   dirty.push({ mark, path });
 }
 
+/**
+ * 経過時間を、**読める単位**で出す。
+ *
+ * 🚨 由来（2026-08-16・shell の指摘）: 最初は **秒 / 分だけ**だったので、
+ *   **17.5 時間が「1050 分前」**と出た。＝ **「8 時間前」と「たった今」が同じ顔をする**。
+ *   実際 `scripts/gate.sh` は 17.5 時間 索引と違っていた（**その間この道具の母集合の外**だったので
+ *   1 行も出していないが、**次に同じことが起きたときに気づける形にする**）。
+ * 🚨 **24 時間を超えたら「置き忘れかもしれません」を添える**（**数字だけでは読み飛ばされる**）。
+ */
+function 経過(ms) {
+  const 秒 = ms / 1000;
+  if (秒 < 60) return `${Math.round(秒)} 秒前`;
+  const 分 = 秒 / 60;
+  if (分 < 60) return `${Math.round(分)} 分前`;
+  const 時間 = 分 / 60;
+  if (時間 < 24) return `**${Math.round(時間)} 時間前**`;
+  return `🚨 **${Math.round(時間 / 24)} 日前**（**置き忘れかもしれません**）`;
+}
+
 if (dirty.length === 0) {
   // 🚨 何も出さない（緑のときに毎回 1 行出すと、読まれなくなる）
   process.exit(0);
@@ -74,7 +93,7 @@ for (const d of dirty) {
   let age = "";
   try {
     const ms = Date.now() - statSync(resolve(REPO_ROOT, d.path)).mtimeMs;
-    age = `／最後に書かれたのは ${ms < 60_000 ? `${Math.round(ms / 1000)} 秒前` : `${Math.round(ms / 60_000)} 分前`}`;
+    age = `／最後に書かれたのは ${経過(ms)}`;
   } catch {
     age = "／更新時刻が読めません";
   }
