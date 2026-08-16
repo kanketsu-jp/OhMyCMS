@@ -171,6 +171,29 @@ for (const m of actionsTable.matchAll(/^ {2}"(\/admin[^"]*)": \[([\s\S]*?)^ {2}\
   }
 }
 
+// ── ④-2 🚨 **`useFormSubmitShortcut` を呼んでいる画面**も `save` の範囲 ────────
+// 由来: 2026-08-16（design の依頼・onboard が場所を特定）。
+//   `PAGE_ACTIONS` に「主要かつ submit」を宣言していなくても、画面側が
+//   `hooks/use-form-submit-shortcut.ts` を呼んでいれば ⌘Enter で保存が走る。
+//   🚨 **この生成器はその口を知らなかった**ので、写しは「保存の鍵が効くルート」を
+//   少なく出したまま**検査は緑**だった（＝ 今日の「集めたが誰も読まない」と同じ性質。
+//   **緑だが、事実を写していない**）。
+// 🚨 名前で探している（`useFormSubmitShortcut(`）。**別名で包まれたら見えない**——
+//   この生成器の `useShortcut(` と同じ弱さで、冒頭の「見ていない範囲」に書いてあるとおり。
+// 🚨 **0 件なら落とす**。2026-08-16 時点で 6 部品が呼んでいるので、0 は「見ていない 0」の合図。
+const hookCallers = sources.filter((f) => /useFormSubmitShortcut\s*\(/.test(stripComments(readSrc(f) ?? "")));
+if (hookCallers.length === 0) {
+  problems.push(
+    "`useFormSubmitShortcut(` を呼ぶ部品が **0 件**でした。🚨 2026-08-16 時点で 6 部品" +
+      "（labels / policies / roles / users-policy / agents / policy-permissions）が呼んでいるので、" +
+      "**探し方が壊れた合図**です。名前が変わっていないか確かめてください",
+  );
+}
+const hookRoutes = pageReach
+  .filter(({ reach }) => hookCallers.some((f) => reach.has(f)))
+  .map((p) => p.route);
+for (const r of hookRoutes) if (!submitRoutes.includes(r)) submitRoutes.push(r);
+
 // ── ④b エディタの中で意味が変わるか（**Tiptap の抽出は shell の持ち物を import**） ──
 // 🚨 **写さない。** 抽出を repo に 2 つ持つと、片方だけ直る（今日それを 1 本潰したばかり）。
 // 🚨 **受け取る側でも確かめる**（守りを 1 点に置かない）。shell の守りは「入力の生表記」を
@@ -204,7 +227,9 @@ const manifest = combos.map(({ id, key }) => {
     if (id === "save") {
       // 🚨 辿り着けるかではなく、**宣言があるルート**で決める（上のコメント参照）
       scope = submitRoutes.length > 0 ? submitRoutes.map((r) => `page:${r}`) : "unknown";
-      scopeWhy = `PAGE_ACTIONS に「主要かつ submit」を宣言しているルート ${submitRoutes.length} 件`;
+      scopeWhy =
+        `PAGE_ACTIONS に「主要かつ submit」を宣言しているルート ＋ ` +
+        `useFormSubmitShortcut を呼んでいる画面（${hookRoutes.length} 件）＝ 合わせて ${submitRoutes.length} 件`;
     } else if (registrars.some((f) => layoutReach.has(f))) {
       scope = "global";
       scopeWhy = "app/(admin)/layout.tsx から import で辿り着ける";

@@ -50,7 +50,13 @@
       "page:/admin/settings/general",
       "page:/admin/settings/storage",
       "page:/admin/settings/sso",
-      "page:/admin/profile"
+      "page:/admin/profile",
+      "page:/admin/labels",
+      "page:/admin/settings/agents",
+      "page:/admin/settings/policies/[id]",
+      "page:/admin/settings/policies",
+      "page:/admin/settings/roles",
+      "page:/admin/settings/users"
     ],
     "label_key": "common.shortcut_save",
     "editor": {
