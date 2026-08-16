@@ -41,6 +41,17 @@
  *       `knowledge/decisions/checks-must-declare-blind-spots.md`
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readTracked } from "./lib/tracked-files.mjs";
+// 🚨 **読み口は索引（git）から**。作業ツリーを直読みしない。
+//    1 つの作業ツリーを多数のペインで共有しているので、直読みすると**他人の書きかけ**が見える
+//    （2026-08-16、未追跡の `trash-*` が 2 本の検査を赤くし、触っていない人のコミットが止まった）。
+//    🚨 未追跡は `null`。**「まだ入っていない」として飛ばす**（空文字にすると「中身が無い」と数え、
+//    **見ていない 0** を作る）。詳しくは `scripts/lib/tracked-files.mjs`。
+/** 索引から読む。未追跡なら空（＝ 走査対象から実質外れる）。**呼ぶ側で 0 件の顔を書くこと。** */
+function readSrcOrEmpty(file, _enc) {
+  return readTracked(file) ?? "";
+}
+
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -130,7 +141,7 @@ function collect() {
       if (statSync(p).isDirectory()) walk(p, r);
       else if (/\.tsx?$/.test(e)) {
         候補 += 1;
-        out.push({ file: r, text: readFileSync(p, "utf8") });
+        out.push({ file: r, text: readSrcOrEmpty(p, "utf8") });
       }
     }
   })(root, "");

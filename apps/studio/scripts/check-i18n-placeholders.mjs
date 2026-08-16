@@ -28,18 +28,36 @@
  * 決定: `knowledge/decisions/checks-must-declare-blind-spots.md`
  */
 import { readdirSync, readFileSync } from "node:fs";
+import { readTracked } from "./lib/tracked-files.mjs";
+// 🚨 **読み口は索引（git）から**。作業ツリーを直読みしない。
+//    1 つの作業ツリーを多数のペインで共有しているので、直読みすると**他人の書きかけ**が見える
+//    （2026-08-16、未追跡の `trash-*` が 2 本の検査を赤くし、触っていない人のコミットが止まった）。
+//    🚨 未追跡は `null`。**「まだ入っていない」として飛ばす**（空文字にすると「中身が無い」と数え、
+//    **見ていない 0** を作る）。詳しくは `scripts/lib/tracked-files.mjs`。
+/** 索引から読む。未追跡なら空（＝ 走査対象から実質外れる）。**呼ぶ側で 0 件の顔を書くこと。** */
+function readSrcOrEmpty(file, _enc) {
+  return readTracked(file) ?? "";
+}
+
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** そのロケールの全文言を `名前空間.鍵` → 文字列 で返す。 */
+/** 🚨 未追跡で飛ばした辞書（**「見ていない」を見えるようにする**）。 */
+const 飛ばした = [];
+
 function load(loc) {
   const dir = resolve(root, "i18n/messages", loc);
   const out = {};
   for (const f of readdirSync(dir)) {
     if (!f.endsWith(".json")) continue;
-    const j = JSON.parse(readFileSync(resolve(dir, f), "utf8"));
+    // 🚨 未追跡（まだ `git add` していない辞書）は**飛ばす**。空文字を JSON.parse すると落ちる。
+    //    飛ばした件数は下で出す（**黙って 0 件にしない**）。
+    const src = readTracked(resolve(dir, f));
+    if (src === null) { 飛ばした.push(`${loc}/${f}`); continue; }
+    const j = JSON.parse(src);
     for (const [k, v] of Object.entries(j)) {
       if (typeof v === "string") out[`${f.replace(/\.json$/, "")}.${k}`] = v;
     }
@@ -159,6 +177,12 @@ if (selfTestFailed) {
 const hits = scan(ja, en);
 console.log(`\n■ 判定`);
 console.log(`  対象: 共通の鍵 ${共通} 件`);
+// 🚨 「飛ばした 0 件」と「飛ばした N 件」を必ず出す（**見ていない分を黙らせない**）。
+console.log(
+  飛ばした.length === 0
+    ? "  未追跡で飛ばした辞書: 0 件（＝ 全部の辞書を索引から読めている）"
+    : `  🚨 未追跡で飛ばした辞書: ${飛ばした.length} 件 → ${飛ばした.join(" / ")}（**この分は見ていません**）`,
+);
 for (const rule of ["プレースホルダが違う", "どちらかが空"]) {
   const n = hits.filter((h) => h.rule === rule).length;
   console.log(`    ${String(n).padStart(3)} 件  ${rule}`);

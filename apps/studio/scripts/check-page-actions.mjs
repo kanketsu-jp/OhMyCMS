@@ -43,6 +43,17 @@ import { execFileSync } from "node:child_process";
 
 import { stripComments } from "./strip-comments.mjs";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { readTracked } from "./lib/tracked-files.mjs";
+// 🚨 **読み口は索引（git）から**。作業ツリーを直読みしない。
+//    1 つの作業ツリーを多数のペインで共有しているので、直読みすると**他人の書きかけ**が見える
+//    （2026-08-16、未追跡の `trash-*` が 2 本の検査を赤くし、触っていない人のコミットが止まった）。
+//    🚨 未追跡は `null`。**「まだ入っていない」として飛ばす**（空文字にすると「中身が無い」と数え、
+//    **見ていない 0** を作る）。詳しくは `scripts/lib/tracked-files.mjs`。
+/** 索引から読む。未追跡なら空（＝ 走査対象から実質外れる）。**呼ぶ側で 0 件の顔を書くこと。** */
+function readSrcOrEmpty(file, _enc) {
+  return readTracked(file) ?? "";
+}
+
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,7 +74,7 @@ if (!existsSync(actionsPath)) {
 //    ＝ **コメントアウトした定義を、生きている定義として数えていた**。
 //    いま差 0 なのは、まだ誰もコメントアウトしていないだけ（＝まだ出番が来ていない過検出）。
 //    🚨 囮を最初 `export const PAGE_ACTIONS` の**前**に置いて、**範囲外で何も試していなかった**。
-const src = stripComments(readFileSync(actionsPath, "utf8"));
+const src = stripComments(readSrcOrEmpty(actionsPath, "utf8"));
 
 // ── 定義を取り出す ──────────────────────────────────────────
 // 🚨 `PAGE_ACTIONS` の中だけを見る。型定義（PageActionDef）や docstring の
@@ -102,7 +113,7 @@ for (const full of new Set(labelKeys)) {
       problems.push(`[辞書] labelKey "${full}" … ${locale} に名前空間 ${ns} が無い`);
       continue;
     }
-    const dict = JSON.parse(readFileSync(file, "utf8"));
+    const dict = JSON.parse(readSrcOrEmpty(file, "utf8"));
     if (!(key in dict)) problems.push(`[辞書] labelKey "${full}" … ${locale} にキーが無い`);
   }
 }
@@ -121,7 +132,7 @@ const sources = [];
 })(root);
 
 // 🚨 **コメントを実装として数えない**（2026-08-15 実測。詳細は strip-comments.mjs）。
-const code = sources.map((f) => stripComments(readFileSync(f, "utf8"))).join("\n");
+const code = sources.map((f) => stripComments(readSrcOrEmpty(f, "utf8"))).join("\n");
 if (sources.length === 0) problems.push("[空振り] 走査対象のソースが 0 件");
 
 // 🚨 **採取した HEAD と作業ツリーの状態を出す**（司令塔 2026-08-15）。
@@ -215,7 +226,7 @@ for (const id of new Set(formIds)) {
 // 揃っていないと「パンくずは出るのにボタンが無い」「その逆」が起きる。
 let metaRoutes = new Set();
 if (existsSync(metaPath)) {
-  const metaSrc = readFileSync(metaPath, "utf8");
+  const metaSrc = readSrcOrEmpty(metaPath, "utf8");
   metaRoutes = new Set(
     [...metaSrc.matchAll(/^ {2}"(\/admin[^"]*)":/gm)].map((m) => m[1]),
   );

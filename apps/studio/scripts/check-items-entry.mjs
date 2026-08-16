@@ -17,6 +17,17 @@
  * 使い方: `node scripts/check-items-entry.mjs`（違反があれば exit 1）
  */
 import { readFileSync, readdirSync } from "node:fs";
+import { readTracked } from "./lib/tracked-files.mjs";
+// 🚨 **読み口は索引（git）から**。作業ツリーを直読みしない。
+//    1 つの作業ツリーを多数のペインで共有しているので、直読みすると**他人の書きかけ**が見える
+//    （2026-08-16、未追跡の `trash-*` が 2 本の検査を赤くし、触っていない人のコミットが止まった）。
+//    🚨 未追跡は `null`。**「まだ入っていない」として飛ばす**（空文字にすると「中身が無い」と数え、
+//    **見ていない 0** を作る）。詳しくは `scripts/lib/tracked-files.mjs`。
+/** 索引から読む。未追跡なら空（＝ 走査対象から実質外れる）。**呼ぶ側で 0 件の顔を書くこと。** */
+function readSrcOrEmpty(file, _enc) {
+  return readTracked(file) ?? "";
+}
+
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -50,8 +61,12 @@ if (files.length === 0) {
 let 読めた = 0;
 const 違反 = [];
 let 入口の定義 = 0;
+let 飛ばした = 0;
 for (const f of files) {
-  const raw = readFileSync(join(ITEMS, f), "utf8");
+  // 🚨 未追跡（まだ `git add` していない）は**飛ばす**。空文字にすると「中身が無いファイル」として
+  //    数えてしまい、**見ていない 0** を作る。
+  const raw = readTracked(join(ITEMS, f));
+  if (raw === null) { 飛ばした += 1; continue; }
   読めた += raw.length;
   const src = stripComments(raw);
   if (/export function itemsTable\(/.test(src)) 入口の定義 += 1;
@@ -74,6 +89,11 @@ for (const f of files) {
 }
 
 console.log(`対象: lib/items の .ts ${files.length} 本 / 読めた文字数 ${読めた}`);
+console.log(
+  飛ばした === 0
+    ? "  未追跡で飛ばした: 0 本（＝ 全部を索引から読めている）"
+    : `  🚨 未追跡で飛ばした: ${飛ばした} 本（**この分は見ていません**）`,
+);
 // 🚨 読めた量が 0 なら「違反 0 件」ではなく「何も見ていない」。
 if (読めた < 5000) {
   console.error(`✖ 読めた文字数が ${読めた} しかありません（下限 5000）`);
