@@ -940,6 +940,13 @@ if (Math.round(bytesRead / files.length) < MIN_AVG_BYTES) {
   console.error("  検出器が部分的に壊れたか、対象が本当に減ったか。減ったのなら MIN_SCANNED を下げてください。");
 }
 console.log("\n■ 死角の見張り（見逃すはずの形が、拾えるようになっていないか）");
+// 🚨 「届いたか」を出力で示す（2026-08-16・司令塔の指示）。「検出 0 件」は
+//    **届いて判定が通した**とも **そもそも届かなかった**とも読める。下の「拾うはず」2 本が
+//    1 件以上を返していることが、**同じ関数に同じ形で入力が届いている**ことの証拠。
+console.log(
+  "  🚨 「検出 0 件」の読み方: 下の**拾うはず 2 本が 1 件以上**を返していれば、判定に**届いている**。" +
+    "その 2 本が 0 なら、上の 0 は「見逃した」ではなく「**届いていない**」。",
+);
 for (const [name, code, shouldMiss, exists] of BLIND_SPOTS) {
   const got = findMutationLines(`${BASELINE}\n${code}`).length - blindBase;
   const ok = shouldMiss ? got === 0 : got > 0;
