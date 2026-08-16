@@ -678,6 +678,13 @@ const PROBE = String.raw`(() => {
       } else if (n.nodeType === 1) {
         const pos = getComputedStyle(n).position;
         if (pos === "absolute" || pos === "fixed") continue;   // 🚨 浮いている印は文字ではない
+        // 🚨 2026-08-16 追加: **読み上げ専用（sr-only）は「描かれない文字」。**
+        //    clip-path: inset(50%) で箱を潰しているだけなので **position は static のまま**。
+        //    上の absolute 除外では引っかからない。
+        //    実例: ▾ の引き金は**見える文字を 1 つも持たず**、子は sr-only の span だけ。
+        //    それを文字として測り、「5.3px ずれている」と報告していた（[w4A:p24 / base2] が発見）。
+        //    🚨 **同じファイルに srOnly() が既に在るのに、ここでは使っていなかった。**
+        if (srOnly(n)) continue;
       } else {
         continue;
       }
