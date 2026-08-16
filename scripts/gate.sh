@@ -144,10 +144,19 @@ printf '%s\n' "$JOBS" | while IFS="$(printf '\037')" read -r job root cmd; do
       #    ＝ **見えるようにするのが直しで、止めるのは別の判断**。
       #    🚨 いまは **落とさない**。stale を直す手が分かってから、落とす側を入れる
       #    （**stale 3 件のまま赤にすると、直し方が分からないのに全員の push が止まる**）。
-      kd=$(grep -oE '以降に [0-9]+ 件' "$jlog" 2>/dev/null | grep -oE '[0-9]+' | head -1); kd=${kd:-0}
-      ks=$(grep -cE '^\s*warn[[:space:]]+stale' "$jlog" 2>/dev/null || true); ks=${ks:-0}
-      log "  ✅ ${job}  索引: drift ${kd} 件 / stale ${ks} 件（🚨 どちらも 0 でも数を出す。いまは落としません）"
-      [ "$ks" != "0" ] && grep -E '^\s*warn[[:space:]]+stale' "$jlog" | head -n 5 | sed 's/^/      /'
+      kd=$(grep -aoE '以降に [0-9]+ 件' "$jlog" 2>/dev/null | grep -oE '[0-9]+' | head -1); kd=${kd:-0}
+      ks=$(grep -acE '^[[:space:]]*warn[[:space:]]+stale' "$jlog" 2>/dev/null || true); ks=${ks:-0}
+      # 🚨 **隔離ツリーでは stale の検査が走りません**（2026-08-16 実測）。
+      #    同じ HEAD で: 共有ツリー … index-drift 1 ＋ **stale 3** ／ 隔離ツリー … index-drift 1 ＋ **stale 0**
+      #    ＝ 🚨 **ここの 0 は「異常が無い 0」ではなく「見ていない 0」**。原因は未特定。
+      #    → **0 を「stale 無し」と書かない。** 出すのは drift だけにし、stale は測れないと言う。
+      if [ "$ks" = "0" ]; then
+        log "  ✅ ${job}  索引: drift ${kd} 件 / 🚨 stale は**測れていません**（隔離ツリーでは検査が走らない・実測）"
+        log "      → stale は共有ツリーで \`rokf doctor\` を引いてください"
+      else
+        log "  ✅ ${job}  索引: drift ${kd} 件 / stale ${ks} 件"
+        grep -aE '^[[:space:]]*warn[[:space:]]+stale' "$jlog" | head -n 5 | sed 's/^/      /'
+      fi
     elif [ -n "$why0" ] && grep -qE '⚠|🚨|warn' "$jlog" 2>/dev/null; then
       # 🚨 緑だが、この job は落ちない設計。**出力に警告が在る**ので出す。
       log "  ✅ ${job} 🚨 ただし出力に警告があります（${why0}）"
