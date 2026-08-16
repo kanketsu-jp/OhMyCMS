@@ -24,6 +24,7 @@ x_rag_okf:
 - [apps/studio（管理画面 + REST API）](./areas/apps-studio.md) — `areas/apps-studio`
 - [デザインの規約（design-system）](./areas/design-system.md) — `areas/design-system`
 - [権限と認可（permissions）](./areas/permissions.md) — `areas/permissions`
+- [SAML（SSO）の現状](./areas/auth-sso.md) — `areas/auth-sso`
 - [アクションボタンは1つ。表示モードと編集モードを分ける](./decisions/action-button-and-edit-mode.md) — `decisions/action-button-and-edit-mode`
 - [指示書は AGENTS.md を正本にする](./decisions/agents-md-as-canonical.md) — `decisions/agents-md-as-canonical`
 - [認証は SAML → メール OTP → パスワードの順に使う](./decisions/auth-methods.md) — `decisions/auth-methods`
@@ -32,6 +33,7 @@ x_rag_okf:
 - [検査は索引を見る。ただし「走査」と「照合」で直し方が違う](./decisions/checks-read-the-index-not-the-worktree.md) — `decisions/checks-read-the-index-not-the-worktree`
 - [CLI と MCP は REST API 経由（DB 直接アクセス禁止）](./decisions/cli-mcp-over-rest.md) — `decisions/cli-mcp-over-rest`
 - [DB は PostgreSQL（Cloudflare D1 は撤回）](./decisions/db-postgres.md) — `decisions/db-postgres`
+- [ファイルの削除は 2 回消す。順番は「実体 → 行」](./decisions/deleting-a-file-is-two-deletes.md) — `decisions/deleting-a-file-is-two-deletes`
 - [画面に置くものには理由が要る（枠・常設・背景・寸法）](./decisions/every-element-must-earn-its-place.md) — `decisions/every-element-must-earn-its-place`
 - [フォルダは「誰かの持ち物」にしない](./decisions/folders-are-not-owned.md) — `decisions/folders-are-not-owned`
 - [欄の名前で効く守りは、名前を変えた瞬間に黙って外れる](./decisions/guards-keyed-by-name-break-silently.md) — `decisions/guards-keyed-by-name-break-silently`
