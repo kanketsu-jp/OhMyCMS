@@ -11,6 +11,8 @@
   "invalid_field": "The field is not valid.",
   "invalid_interface": "This editing interface is not available for the selected type. Change the type or editing interface.",
   "conflict": "Something with that name already exists. Use a different name and try again.",
+  "already_exists": "That already exists.",
+  "item_exists_trashed": "An item with that ID is in Trash. Restore it, or delete it permanently from Trash.",
   "unexpected": "Could not complete the request. Please try again later.",
   "relation_partial_failure": "The column was created, but the relation could not be created.",
   "unauthenticated": "Please sign in again.",

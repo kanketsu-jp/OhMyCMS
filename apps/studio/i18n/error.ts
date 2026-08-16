@@ -32,6 +32,14 @@ export const ERROR_KEYS = [
   "invalid_field",
   "invalid_interface",
   "conflict",
+  // 🚨 `conflict` に相乗りさせない。あちらは「同じ**名前**のものがある。名前を変えて」で、
+  //    **主キーの重複でもゴミ箱の話でもない**。1 つの鍵に意味を 2 つ入れない。
+  // 🚨 `already_exists` は **23505（一意制約違反）全部**に付く汎用の code から来るので、
+  //    **どの列がぶつかったかを言わない**（「ID が重複」と書くと、名前の重複のとき嘘になる）。
+  //    実測 2026-08-16: この 2 つは写像に無く、**どちらも `unexpected` に落ちていた**
+  //    （＝ 利用者には「処理できませんでした」しか出ていなかった。schema の変更より前から）。
+  "already_exists",
+  "item_exists_trashed",
   // 🚨 401。以前は lib/admin/api.ts が「認証が必要です」という日本語を直接持っていた。
   //    鍵にしないと permission_denied（403）へ潰れ、**入り直せば直る**ことが伝わらない。
   "unauthenticated",
@@ -106,6 +114,12 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   FIELD_EXISTS: "conflict",
   RELATION_EXISTS: "conflict",
   LABEL_EXISTS: "conflict",
+  // 🚨 汎用の 409（`lib/schema/errors.ts` が 23505 に付ける）。**列を言わない文言**へ。
+  ALREADY_EXISTS: "already_exists",
+  // 🚨 ゴミ箱の中の行とぶつかった 409（schema・2026-08-16）。
+  //    **いまの画面からは起きない**（作成フォームに主キーの欄が無い・schema が実測）。
+  //    API / SDK を直に叩く経路でだけ返るので、**画面の鍵としては `already_exists` が本命**。
+  ITEM_EXISTS_TRASHED: "item_exists_trashed",
   COLLECTION_NOT_FOUND: "not_found",
   FIELD_NOT_FOUND: "not_found",
   ITEM_NOT_FOUND: "not_found",
