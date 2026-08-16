@@ -8,10 +8,28 @@ import { isSamlPlaceholderEmail } from "@/lib/auth/saml/placeholder-email";
 // 記号は言語で変わらない（日本語版と英語版で違う絵文字にする理由が無い）。
 const DEFAULT_AVATAR_EMOJI = "🙂";
 
-function visibleHuman(me: MeResult | null): Extract<MeResult, { type: "human" }> | null {
+/**
+ * 画面に出してよい「人」だけを通す。出せないなら null。
+ *
+ * 🚨 **`localAdminUserId` は必須の引数にしてある**（省略可にしない）。
+ * 省略できると、次に呼ぶ人が渡し忘れたところで**黙って隠れなくなる**
+ * （型で落ちないので、誰も気づかない）。**渡し忘れはコンパイルで止める。**
+ *
+ * 🚨 **id と メール の両方で弾く（OR）。片方に倒さない。**
+ *   ・**id** … メールを変えられても隠せる（**本来の守り**。
+ *     `knowledge/decisions/guards-keyed-by-name-break-silently.md`）
+ *   ・**メール** … `ohmycms_settings.local_admin_user_id` がまだ空の環境でも隠せる
+ *     （移行前・移行が埋められなかった環境。**id だけにすると、そこで漏れる**）
+ * どちらか一方でも当たれば隠すので、**OR は判定を狭めない**。
+ */
+function visibleHuman(
+  me: MeResult | null,
+  localAdminUserId: string | null,
+): Extract<MeResult, { type: "human" }> | null {
   if (!me) return null;
   // エージェント（機械）は人のアカウント行に出さない。
   if (me.type !== "human") return null;
+  if (localAdminUserId !== null && me.userId === localAdminUserId) return null;
   if (me.email === LOCAL_ADMIN_EMAIL) return null;
   return me;
 }
@@ -40,13 +58,19 @@ function visibleHuman(me: MeResult | null): Extract<MeResult, { type: "human" }>
  * 本物のログイン中の人が、自分のアカウントの行に自分のアドレスを見るのは正常。
  * 塞ぐのは**起動用の合成 ID と SAML の埋め草だけ**で、メールアドレス一般ではない。
  */
-export function displayUserLabel(me: MeResult | null): string | null {
-  const human = visibleHuman(me);
+export function displayUserLabel(
+  me: MeResult | null,
+  localAdminUserId: string | null,
+): string | null {
+  const human = visibleHuman(me, localAdminUserId);
   return human && !isSamlPlaceholderEmail(human.email) ? human.email : null;
 }
 
-export function displayUserPicture(me: MeResult | null): string | null {
-  return visibleHuman(me)?.picture ?? null;
+export function displayUserPicture(
+  me: MeResult | null,
+  localAdminUserId: string | null,
+): string | null {
+  return visibleHuman(me, localAdminUserId)?.picture ?? null;
 }
 
 /**
@@ -55,8 +79,11 @@ export function displayUserPicture(me: MeResult | null): string | null {
  * 優先順位: SSO の画像（`displayUserPicture` が別途優先される）→ 利用者が選んだ絵文字 → 既定の絵文字。
  * 🚨 戻り値は必ず文字列。アバターは常に何かを出すため、null にしない。
  */
-export function displayUserAvatarEmoji(me: MeResult | null): string {
-  return visibleHuman(me)?.avatarEmoji ?? DEFAULT_AVATAR_EMOJI;
+export function displayUserAvatarEmoji(
+  me: MeResult | null,
+  localAdminUserId: string | null,
+): string {
+  return visibleHuman(me, localAdminUserId)?.avatarEmoji ?? DEFAULT_AVATAR_EMOJI;
 }
 
 /**
@@ -68,8 +95,12 @@ export function displayUserAvatarEmoji(me: MeResult | null): string {
  * 片方しか無ければその片方だけを返す（区切りが余らない）。両方無ければ null
  * （呼び出し側が辞書の控えを出す）。空白だけの値は無いものとして扱う。
  */
-export function displayUserName(me: MeResult | null, locale: Locale): string | null {
-  const human = visibleHuman(me);
+export function displayUserName(
+  me: MeResult | null,
+  locale: Locale,
+  localAdminUserId: string | null,
+): string | null {
+  const human = visibleHuman(me, localAdminUserId);
   if (!human) return null;
 
   const first = human.firstName?.trim() || null;

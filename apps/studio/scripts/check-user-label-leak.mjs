@@ -587,6 +587,26 @@ function findViolations(sources) {
           "visibleHuman が isSamlPlaceholderEmail() を呼んでいる（やりすぎ。SAML の利用者は名前・画像・絵文字まで消える。弾きは displayUserLabel だけに置く）",
       });
     }
+
+    // 🚨 I: **利用者 id での比較**が visibleHuman に在るか（2026-08-17 追加）。
+    //    規則 E（メールでの比較）だけだと、**メールを変えられた瞬間に隠せなくなる**
+    //    （`knowledge/decisions/guards-keyed-by-name-break-silently.md`）。
+    //    実際に「管理者が自分のメールを変えるとログインできない」形で表に出た。
+    // 🚨 **E を I に置き換えない。両方要る。**
+    //    ・id …… メールを変えられても隠せる
+    //    ・メール … `ohmycms_settings.local_admin_user_id` が空の環境でも隠せる
+    //    片方だけにすると、もう片方の環境で漏れる。
+    // 🚨 「`localAdminUserId` という語が在る」だけでは足りない（引数名にも出る）。
+    //    **`me.userId === localAdminUserId` という比較そのもの**まで見る。
+    if (visibleHumanBody && !/me\.userId\s*===\s*localAdminUserId/.test(visibleHumanBody)) {
+      violations.push({
+        file: GUARD_FILE,
+        line: 0,
+        rule: "I",
+        detail:
+          "visibleHuman が利用者 id で比較していない（メールだけで隠している。メールは人も IdP も変える値なので、変えられた瞬間に隠せなくなる）",
+      });
+    }
   }
 
   // G: UserMenu の呼び出し側から見える形で渡っているか
@@ -673,7 +693,7 @@ const selfTests = [
     apply(sources) {
       const file = "app/(admin)/layout.tsx";
       const before = sources[file];
-      const needle = "userLabel={displayUserLabel(me.ok ? me.data : null)}";
+      const needle = "userLabel={displayUserLabel(me.ok ? me.data : null, localAdminId)}";
       const count = countOccurrences(before, needle);
       const after = before.replaceAll(
         needle,
@@ -689,6 +709,24 @@ const selfTests = [
       const needle = "if (me.email === LOCAL_ADMIN_EMAIL) return null;";
       const count = countOccurrences(before, needle);
       const after = before.replaceAll(needle, "");
+      return { sources: { ...sources, [GUARD_FILE]: after }, count };
+    },
+  },
+  {
+    // 🚨 規則 I の的（2026-08-17 追加）。**メールの比較は残したまま、id の比較だけ**を取り除く。
+    //    壊し方2（メールを取り除く）と対になっている:
+    //      壊し方2 … メールだけ消す → 規則 C/E が鳴る
+    //      壊し方9 … id だけ消す  → 🚨 **規則 I だけが鳴る**
+    //    🚨 **片方ずつ消して、それぞれ別の規則が鳴ることを毎回確かめる。**
+    //    両方まとめて消すと「どちらが効いたか」が分からず、
+    //    **id の守りが消えても C/E が鳴るので気づけない**（＝ 規則を足した意味が消える）。
+    name: "壊し方9: 見張り役から 利用者 id の比較だけを取り除く（メールの比較は残す）",
+    apply(sources) {
+      const before = sources[GUARD_FILE];
+      const needle =
+        "  if (localAdminUserId !== null && me.userId === localAdminUserId) return null;\n";
+      const count = countOccurrences(before, needle);
+      const after = before.replace(needle, "");
       return { sources: { ...sources, [GUARD_FILE]: after }, count };
     },
   },
@@ -733,7 +771,7 @@ const selfTests = [
     apply(sources) {
       const file = "app/(admin)/layout.tsx";
       const before = sources[file];
-      const needle = "userLabel={displayUserLabel(me.ok ? me.data : null)}";
+      const needle = "userLabel={displayUserLabel(me.ok ? me.data : null, localAdminId)}";
       const replacement =
         '{...{ userLabel: me.ok && me.data.type === "human" ? me.data.email : null }}';
       const count = countOccurrences(before, needle) > 0 ? 1 : 0;
@@ -749,7 +787,7 @@ const selfTests = [
       const file = "app/(admin)/layout.tsx";
       const before = sources[file];
       const declAnchor = 'const leftSidebarDefaultOpen = sidebarCookie !== "false";';
-      const needle = "userLabel={displayUserLabel(me.ok ? me.data : null)}";
+      const needle = "userLabel={displayUserLabel(me.ok ? me.data : null, localAdminId)}";
       const anchorCount = countOccurrences(before, declAnchor);
       const needleCount = countOccurrences(before, needle);
       if (anchorCount === 0 || needleCount === 0) {
@@ -987,7 +1025,7 @@ for (const test of greenTests) {
 
 const BLIND_SPOT_LAYOUT_FILE = "app/(admin)/layout.tsx";
 const BLIND_SPOT_PROBE_FILE = "lib/admin/zz-leak-probe.ts";
-const BLIND_SPOT_NEEDLE = "userLabel={displayUserLabel(me.ok ? me.data : null)}";
+const BLIND_SPOT_NEEDLE = "userLabel={displayUserLabel(me.ok ? me.data : null, localAdminId)}";
 const BLIND_SPOT_DECL_ANCHOR = 'const leftSidebarDefaultOpen = sidebarCookie !== "false";';
 const BLIND_SPOT_PROBE_SOURCE =
   "// 診断専用のメモリ上の写し。ディスクには書かない（check-user-label-leak.mjs の自己診断）。\n" +
@@ -1190,7 +1228,7 @@ const avgChars = scannedFiles > 0 ? Math.floor(totalChars / scannedFiles) : 0;
 console.log(
   `  対象: 候補 ${candidateFiles} 本（app/**, components/** ＋ ${GUARD_FILE}）/ 走査 ${scannedFiles} 本（読めた文字数 ${totalChars}・平均 ${avgChars} / 下限 ${AVG_CHARS_MIN_THRESHOLD}）`,
 );
-console.log(`        （${GUARD_FILE} は規則 A/B/F/G の対象外。規則 C/D/E で別に見る）`);
+console.log(`        （${GUARD_FILE} は規則 A/B/F/G の対象外。規則 C/D/E/I で別に見る）`);
 console.log(`  違反: ${violations.length} 件`);
 
 // 🚨 走査数の基準線チェック（既存の「走査0なら落とす」門とは別物。0ではないが、

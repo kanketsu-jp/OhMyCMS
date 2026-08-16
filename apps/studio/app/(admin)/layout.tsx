@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch, currentUser } from "@/lib/admin/api";
+import { localAdminUserId } from "@/lib/settings/service";
 import { displayUserAvatarEmoji, displayUserLabel, displayUserName, displayUserPicture } from "@/lib/admin/user-label";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import { BugReportNav } from "@/components/admin/bug-report-nav";
@@ -74,6 +75,11 @@ export default async function AdminLayout({
   const logo = await projectLogo();
   const accent = await projectColor();
   const me = await currentUser();
+  // 🚨 内部専用の固定ユーザー（local admin）を画面から隠すための id。
+  //    **メールで名指ししない**（人も IdP も変える値。
+  //    `knowledge/decisions/guards-keyed-by-name-break-silently.md`）。
+  //    ここで 1 回だけ引き、下の displayUser* へ渡す。
+  const localAdminId = await localAdminUserId();
   const locale = await getLocale();
   if (!me.ok && me.status === 401) {
     // 🚨 セットアップの印を持っている人を /login へ返すと輪ができる（2026-08-13 実事故）。
@@ -225,10 +231,10 @@ export default async function AdminLayout({
         reports={reportsNav}
         // 🚨 auth が `displayUserName(me, locale)` を供えたので、null から差し替え済み。
         //    1行目には本名が出る（無ければ `UserMenu` 側の「表示名 → 無ければ辞書の控え」で埋まる）。
-        userName={displayUserName(me.ok ? me.data : null, locale)}
-        userLabel={displayUserLabel(me.ok ? me.data : null)}
-        userPicture={displayUserPicture(me.ok ? me.data : null)}
-        userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null)}
+        userName={displayUserName(me.ok ? me.data : null, locale, localAdminId)}
+        userLabel={displayUserLabel(me.ok ? me.data : null, localAdminId)}
+        userPicture={displayUserPicture(me.ok ? me.data : null, localAdminId)}
+        userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null, localAdminId)}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ヘッダーは **左｜中央｜右** の3つの塊。堀池さん（原文・2026-08-15）:
@@ -308,10 +314,10 @@ export default async function AdminLayout({
         contentHeading={t("content_heading")}
         // 🚨 auth が `displayUserName(me, locale)` を供えたので、null から差し替え済み。
         //    1行目には本名が出る（無ければ `UserMenu` 側の「表示名 → 無ければ辞書の控え」で埋まる）。
-        userName={displayUserName(me.ok ? me.data : null, locale)}
-        userLabel={displayUserLabel(me.ok ? me.data : null)}
-        userPicture={displayUserPicture(me.ok ? me.data : null)}
-        userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null)}
+        userName={displayUserName(me.ok ? me.data : null, locale, localAdminId)}
+        userLabel={displayUserLabel(me.ok ? me.data : null, localAdminId)}
+        userPicture={displayUserPicture(me.ok ? me.data : null, localAdminId)}
+        userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null, localAdminId)}
       />
       {/* 🚨 `MobileNav` も Provider の中に置く。SP のドロワーから右パネルを開くものが入るため
           （不具合報告の「報告する」）。`MobileNav` は fixed なので、flex の並びには影響しない。 */}
