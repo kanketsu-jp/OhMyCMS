@@ -1,6 +1,6 @@
 import { requireActor } from "@/lib/auth/context";
 import { uploadFile, listFiles } from "@/lib/files/service";
-import { maxUploadBytes, maxUploadMb } from "@/lib/files/upload-limit";
+import { maxUploadMb, proxyBodyLimitBytes } from "@/lib/files/upload-limit";
 import { errorResponse, ok } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 
@@ -34,10 +34,14 @@ function formString(formData: FormData, key: string): string | null | undefined 
  */
 async function readFormData(request: Request): Promise<FormData> {
   // 先に長さで弾く。ここで弾けば本文を読まずに済むので、無駄な転送も起きない。
-  // 🚨 `content-length` は**多重部分の飾りを含む**ので、ファイル本体より少し大きい。
-  //    ここは「明らかに超えている」を弾くための門で、正確な判定は service 側が行う。
+  // 🚨 **比べる相手は「本文の上限」であって「ファイルの上限」ではない。**
+  //    `content-length` は**多重部分の飾り**（境界文字列・ファイル名・ヘッダ）を含むので、
+  //    ファイル本体より必ず大きい。ファイルの上限と比べると、
+  //    🚨 **ちょうど上限のファイルが「上限以下にしてください」で弾かれる**——嘘になる。
+  //    （2026-08-16 実測: 20MB ちょうど 20,971,520 バイトが 413 になった）
+  //    正確な判定は service 側が**ファイルの実バイト数**で行う。ここは粗い門でよい。
   const declared = Number(request.headers.get("content-length") ?? "");
-  if (Number.isFinite(declared) && declared > maxUploadBytes()) {
+  if (Number.isFinite(declared) && declared > proxyBodyLimitBytes()) {
     throw new ApiError(413, "FILE_TOO_LARGE", `ファイルサイズは${maxUploadMb()}MB以下にしてください`);
   }
   try {

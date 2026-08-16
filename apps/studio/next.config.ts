@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+// 🚨 上限は 1 箇所から配る。ここに数字を書かない（同じ値をアプリ側の判定も使う）。
+import { proxyBodyLimitBytes } from "./lib/files/upload-limit";
 
 const nextConfig: NextConfig = {
   // Docker (docker/Dockerfile) で最小構成の runner イメージを作るための出力形式。
@@ -16,6 +18,18 @@ const nextConfig: NextConfig = {
   // 🚨 開発時のみ有効な設定で、本番のビルドには影響しない。
   //    列挙したホスト以外は従来どおり拒否される（＝全開放ではない）。
   allowedDevOrigins: ["kmdr-dev-2.ngrok.app"],
+
+  experimental: {
+    // アップロードの受け口の上限。**既定は 10,485,760（ちょうど 10MB）**で、
+    // 🚨 そのため `lib/files/service.ts` の上限判定へ**一度も到達していなかった**
+    //    （2026-08-16 実測: 9MB 通る / 9.996MB 落ちる / 10MB 落ちる。
+    //      既定値と境目が一致した）。利用者には HTTP 500 が返っていた。
+    // 🚨 `proxy.ts` が在るので、この上限が要求の入口で効く。
+    // 🚨 **数字を直書きしない。** `lib/files/upload-limit.ts` が唯一の出どころで、
+    //    アプリ側の判定も同じ値から配る（片方だけ直すと、通す門と落とす門が食い違う）。
+    //    ここはアプリ側より 1MB 大きい（多重部分の飾りのぶん。理由は upload-limit.ts）。
+    proxyClientMaxBodySize: proxyBodyLimitBytes(),
+  },
 };
 
 export default nextConfig;
