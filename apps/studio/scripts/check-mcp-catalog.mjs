@@ -450,7 +450,7 @@ if (!WRITE) {
     //    「**写しがずれた**」＝ **この検査の存在理由そのもの**だった。
     //    🚨 これは【鳴る】。**数が合わなければ落ちる**（＝足したことに気づける）。
     //    通っていることまでは保証しない（**通したかは人が台で確かめる**）。
-    const EXIT_BRANCHES = 16;
+    const EXIT_BRANCHES = 17;
     const branches = (self.match(/process\.exit\(1\)/g) ?? []).length;
     if (branches !== EXIT_BRANCHES) {
       console.error(`🚨 落ちる分岐の数が変わりました（記録 ${EXIT_BRANCHES} → いま ${branches}）。`);
@@ -537,15 +537,36 @@ if (current === rendered) {
       console.error("   → 生成物の形が変わった可能性。--json で作り直してください。");
       process.exit(1);
     }
+    // 🚨 **終了コードでなく stdout を読む。**（polish の実測 2026-08-16）
+    //    生成器は **JSON を出したあとに exit 1 になることが在る**
+    //    （Skills 側の生成物がずれている状態）。
+    //    ＝ **exit だけ見ると「壊れている」、stdout だけ見ると「取れている」**。
+    //    🚨 例外にすると、**私の検査が polish の別件で落ち**、しかも理由が
+    //    「生成器を動かせませんでした」になって、**どちらの持ち物の話か分からなくなる**。
+    let raw = "";
+    let generatorExit = 0;
+    try {
+      raw = execFileSync("node", [join(HERE, "build-shortcuts-manifest.mjs"), "--json"], { encoding: "utf8" });
+    } catch (error) {
+      raw = error.stdout ?? "";
+      generatorExit = error.status ?? 1;
+    }
     let live;
     try {
-      live = JSON.parse(
-        execFileSync("node", [join(HERE, "build-shortcuts-manifest.mjs"), "--json"], { encoding: "utf8" }),
-      );
-    } catch (error) {
-      console.error("🚨 ショートカットの生成器を動かせませんでした。**「ずれ無し」ではなく「測れていません」です。**");
-      console.error(`   ${String(error.message).split("\n")[0].slice(0, 160)}`);
+      live = JSON.parse(raw);
+    } catch {
+      console.error("🚨 ショートカットの生成器から JSON を取れませんでした。**「ずれ無し」ではなく「測れていません」です。**");
+      console.error(`   生成器の終了コード: ${generatorExit} ／ 出力の先頭: ${JSON.stringify(raw.slice(0, 80))}`);
+      console.error("   → `node scripts/build-shortcuts-manifest.mjs --json` を直に走らせてください。");
       process.exit(1);
+    }
+    // 🚨 JSON は取れたが生成器が落ちている ＝ **polish 側の別件**。
+    //    ここでは落とさない（**私の写しはずれていない**ので）。ただし黙らない。
+    if (generatorExit !== 0) {
+      console.log(
+        `  ⚠️ ショートカットの生成器が exit ${generatorExit} で終わりました（**JSON は取れています**）。` +
+          "\n     🚨 これは **build-shortcuts-manifest.mjs 側（polish）の別件**で、この写しのずれではありません。",
+      );
     }
     // 🚨 **0 件は失敗**（空の一覧を「全部 global」と読ませない・司令塔 2026-08-16）。
     if (!Array.isArray(live) || live.length === 0) {
@@ -554,6 +575,17 @@ if (current === rendered) {
     }
     const saved = JSON.parse(m[1]);
     const unknown = live.filter((s) => s.scope === "unknown").length;
+    // 🚨 **配列の scope が空でないこと**（polish の依頼 2026-08-16）。
+    //    `[]` は「**どこでも効かない**」と読めてしまう。
+    //    polish 側は「導出できたルートが 0 件なら unknown にする」ので出ないはずだが、
+    //    🚨 **「出ないはず」は測られていない**（本人の申告）。**こちらで二重に見る。**
+    const emptyScope = live.filter((s) => Array.isArray(s.scope) && s.scope.length === 0);
+    if (emptyScope.length > 0) {
+      console.error("🚨 scope が**空の配列**のものが在ります。「どこでも効かない」と読まれます。");
+      for (const s of emptyScope) console.error(`   ${s.key} → ${s.action}`);
+      console.error("   → 導出できないなら \"unknown\" にしてください（build-shortcuts-manifest.mjs 側）。");
+      process.exit(1);
+    }
     if (JSON.stringify(saved) !== JSON.stringify(live)) {
       console.error("🚨 ショートカットの写しが、正とずれています。");
       console.error(`   正 ${live.length} 件 / 写し ${saved.length} 件`);
