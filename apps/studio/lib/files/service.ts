@@ -12,15 +12,17 @@ import {
   type PermissionResolution,
 } from "@/lib/permissions/resolve";
 import { ApiError } from "@/lib/schema/errors";
+import { maxUploadBytes, maxUploadMb } from "@/lib/files/upload-limit";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { RelationMeta } from "@/lib/schema/models";
 import { authorizeTarget, removeLabelsForTarget } from "@/lib/labels/service";
 import { getStorage, getStorageByName } from "@/lib/storage";
 import type { StorageDriver } from "@/lib/storage/driver";
 
-// 🚨 ルート側（app/api/files/route.ts）が **本文を読む前**に同じ値で弾くため公開する。
-//    2 箇所に別々の数字を書くと、片方だけ直したときに**通す門と落とす門が食い違う**。
-export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+// 🚨 上限は `lib/files/upload-limit.ts` が唯一の出どころ（そこに理由を書いてある）。
+//    ここに数字を書き戻さないこと。**Next の受け口の上限とも、同じ値から配っている。**
+//    2026-08-16 まで 50MB を直書きしていたが、**Next の受け口が既定 10MB だったので
+//    この判定へは一度も到達していなかった**（＝ 死んだ上限）。
 const MAX_TRANSFORM_DIMENSION = 4000;
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
@@ -485,8 +487,8 @@ async function storageForRow(row: FileRow): Promise<StorageDriver> {
 }
 
 export async function uploadFile(actor: Actor | null, input: UploadFileInput): Promise<PublicFileRow> {
-  if (input.body.byteLength > MAX_UPLOAD_SIZE) {
-    throw new ApiError(413, "FILE_TOO_LARGE", "ファイルサイズは50MB以下にしてください");
+  if (input.body.byteLength > maxUploadBytes()) {
+    throw new ApiError(413, "FILE_TOO_LARGE", `ファイルサイズは${maxUploadMb()}MB以下にしてください`);
   }
 
   const id = randomUUID();
