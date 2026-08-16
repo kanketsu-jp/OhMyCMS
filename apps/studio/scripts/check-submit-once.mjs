@@ -464,7 +464,13 @@ const formActions = { total: 0, unguarded: [] };
 //    「**ほとんど見ていない**」は塞げない。そこで下限をラチェットにする（MAX_PENDING と同じ形）。
 //    実測 2026-08-16: **30 本**。ここに実測値をそのまま書き、下回ったら落とす。
 //    🚨 **自動導出しない**——導出すると、減った日に下限も一緒に下がって何も言わなくなる。
-const MIN_SCANNED = 30;
+// 🚨 **床**（2026-08-16・design の分類で置き直した）。実測は 30 本だが、ここに 30 と書くと
+//    **画面が 1 つ減っただけで鳴る**＝ 実測値に近い絶対値は腐る（司令塔の訂正:
+//    「絶対値は悪」ではなく「**実測値に近い絶対値**が悪い」）。
+//    🚨 これは**ラチェットではない**。目的が違う——PENDING の上限は「改善を固定する」ためだが、
+//    こちらは「**走査が丸ごと止まったのを捕まえる**」ため。締め続けるものではない。
+//    app/ + components/ で `method:` を持つ画面が 15 を下回ることは想定しない。
+const MIN_SCANNED = 15;
 // 🚨 **1 ファイルあたりの平均文字数**の下限（2026-08-16・shell の形）。
 //    最初は**合計**の下限（434,000）を置いたが、🚨 **合計は repo が育つと腐る**——
 //    ファイルが増えれば合計も増え、下限は毎年ゆるくなる。**平均は育たない。**
@@ -929,13 +935,9 @@ if (Math.round(bytesRead / files.length) < MIN_AVG_BYTES) {
   console.error("🚨 判定が 1 本も働いていません（🟢 読み込みは足りているので、読めていないせいではありません）。");
   console.error("  （検出器が壊れた／走査対象の形が変わった、のどちらか。**緑にしてはいけない状態です**）");
 } else if (scannedWithHits < MIN_SCANNED) {
-  console.error(`🚨 判定が働いた本数が下限を下回りました（${scannedWithHits} 本 < 下限 ${MIN_SCANNED} 本）。`);
+  console.error(`🚨 判定が働いた本数が床を割りました（${scannedWithHits} 本 < 床 ${MIN_SCANNED} 本）。`);
   console.error("  0 ではないので「何も見ていない」ではありませんが、**ほとんど見ていない**状態です。");
   console.error("  検出器が部分的に壊れたか、対象が本当に減ったか。減ったのなら MIN_SCANNED を下げてください。");
-} else if (scannedWithHits > MIN_SCANNED) {
-  console.log(
-    `  🚨 下限より多いです（${scannedWithHits} > ${MIN_SCANNED}）。MIN_SCANNED を ${scannedWithHits} へ上げてください（ラチェットは締め続けないと意味を持ちません）。`,
-  );
 }
 console.log("\n■ 死角の見張り（見逃すはずの形が、拾えるようになっていないか）");
 for (const [name, code, shouldMiss, exists] of BLIND_SPOTS) {
