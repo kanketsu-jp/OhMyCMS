@@ -277,13 +277,36 @@ export async function check(context) {
         details: [...details, wt.stderr.slice(-400)], repro,
       });
     }
+    // 🚨 **この検査は、自分の DB を自分で指す**（2026-08-17。それまでは指せていなかった）。
+    //   何が起きていたか（実測でつながった 5 段）:
+    //     ① 根に `.env` が在り `DATABASE_URL=…:5436`（共有 DB）
+    //     ② 受入は `bun acceptance/run.mjs`（`package.json`）＝ **bun が根の `.env` を自動で読む**
+    //        🟢 対照 `node -e` は読まない ＝ **bun だけの挙動**
+    //     ③ `lib/proc.mjs` の `run()` は `{...process.env, ...env}` ＝ **子は親の env を継ぐ**
+    //     ④ `apps/studio/lib/db/knexfile.ts` は
+    //        **`process.env.DATABASE_URL` が在るときは `.env.local` を読まない**
+    //     ⑤ ＝ 下で書く `.env.local`（:5437）は**読まれず**、migrate は**共有 DB** を見て
+    //        `Already up to date` を返す。使い捨ての DB は空のまま
+    //   🚨 **「手で叩くと通るのに、harness から呼ぶと落ちる」の芯がこれ**（＝ 誰が親か）。
+    //   ✅ したがって **env を消すのではなく、値を入れる**。
+    //      消す形は knexfile の fallback に依存し、**fallback が変わればまた黙って別の DB を見る**。
+    const DSN = `postgres://cms:cms@localhost:${DB_PORT}/cms`;
+    const 子の環境 = { DATABASE_URL: DSN, ALLOW_DEV_LOGIN: "1" };
+    // 🚨 **どの DB を見に行ったかを出力に残す**（秘密は出さない。ホストとポートだけ）。
+    details.push(`子へ渡す DATABASE_URL: localhost:${DB_PORT}（使い捨て側）`);
+
     writeFileSync(
       join(WORKTREE, "apps/studio/.env.local"),
-      `DATABASE_URL=postgres://cms:cms@localhost:${DB_PORT}/cms\nALLOW_DEV_LOGIN=1\n`,
+      `DATABASE_URL=${DSN}\nALLOW_DEV_LOGIN=1\n`,
     );
 
-    const install = await run("bun", ["install", "--frozen-lockfile"], { cwd: WORKTREE });
-    const migrate = await run("bun", ["run", "migrate"], { cwd: join(WORKTREE, "apps/studio") });
+    // 🚨 **DB へ繋ぐ子には、全部これを渡す。** この検査が子を起こすのは 13 箇所だが、
+    //   `docker` / `git` / `lsof` / `kill` / `bash …lsof` は **DATABASE_URL を読まない**
+    //   （`docker exec … psql` は**コンテナの中**で `-U cms -d cms` に繋ぐので env と無関係）。
+    //   ＝ **渡す必要が在るのは下の 3 つ（install / migrate / dev サーバ）だけ**。
+    //   🚨 子を足すときは、**DB を読む子かどうかを必ず確かめること**。
+    const install = await run("bun", ["install", "--frozen-lockfile"], { cwd: WORKTREE, env: 子の環境 });
+    const migrate = await run("bun", ["run", "migrate"], { cwd: join(WORKTREE, "apps/studio"), env: 子の環境 });
     // 🚨 **成功したときも、何が起きたかを出す**（2026-08-17・design の案）。
     //   直す前は **非 0 のときだけ** details に出していたので、
     //   「exit 0 なのに表が無い」が出たとき、**migrate が何をしたのかを誰も見られなかった**。
@@ -303,10 +326,11 @@ export async function check(context) {
       });
     }
 
+    // 🚨 dev サーバも **同じ使い捨て DB を指す**（ここが漏れると、画面だけ共有 DB を見る）。
     run("bash", ["-lc",
       `cd ${JSON.stringify(join(WORKTREE, "apps/studio"))} && ` +
       `nohup bun x next dev --port ${PORT} > /dev/null 2>&1 < /dev/null &`,
-    ]);
+    ], { env: 子の環境 });
     let reachable = false;
     for (let i = 0; i < 60; i++) {
       const res = await fetch(`http://localhost:${PORT}/login`, { redirect: "manual" }).catch(() => null);
