@@ -11,6 +11,7 @@ import { ApiError, rethrowAsConflict } from "@/lib/schema/errors";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { ColumnInfo, RelationMeta } from "@/lib/schema/models";
 import { assertSafeIdentifier, isSystemTableName } from "@/lib/schema/validate";
+import { DELETED_AT_COLUMN } from "@/lib/schema/service";
 import { applyFilter, type FilterObject } from "./filter";
 import { sanitizeRichTextFields } from "./richtext";
 import {
@@ -754,6 +755,78 @@ async function itemsWithRelations(
  * 【測った 2026-08-16】この時点で、利用者の表を名指しで開いている箇所は **5 件**。
  * `raw(` で開いている箇所は **0 件**（＝ 文字列で組み立てる抜け道は無い）。
  */
+/**
+ * 🚨 **利用者が作った表に、ソフトデリートの印を「無ければ足す」**（設問288 A・2026-08-16）。
+ *
+ * 表の名前は**実行時にしか分からない**ので、migration では書けない。
+ * 司令塔の判断で **A（その表を初めて開いたとき）** に走らせる
+ * （B の「起動時に全部」は、**開発サーバを全ペインで共有している**ため、
+ *  誰かの再起動のたびに全表ぶんの DDL 確認が走る）。
+ *
+ * 🚨 **半分の表にだけ付いた状態は「正常」**（開いた表から順に付くので、途中の状態が必ず在る）。
+ *   だから**入口の条件は「列が在る表だけ」に効かせる**——列が無い表では条件を足さない。
+ *
+ * 対象の絞り方（司令塔の判断）:
+ *   ✅ `directus_collections` に**登録されているもの**
+ *      【測った 2026-08-16】利用者側の実表 13 件中、登録なしは `agent_principals` の **1 件**だけ。
+ *      🚨 `mcp_allowed_*` / `mcp_forbidden_*` は**登録されている**ので**対象に入る**
+ *      （**GUI 作成分と区別が付かない**ため。ソフトデリートは**消さない側**へ倒す変更なので、
+ *        余計に含めても壊れない。外して間違えると**消えて戻せない**）。
+ *   🚨 **主キーの無い表は対象外**（戻すときに「どの行か」を特定できない。
+ *      【測った】`zz_probe_dialog` が該当。ボードの 307 で決まるまで対象外）。
+ *
+ * 🚨 **失敗を握りつぶさない**。ログに出し、**覚えない**（＝次に開いたときに再試行する）。
+ * 🚨 `ADD COLUMN IF NOT EXISTS` なので、**二重に走っても安全**。
+ */
+const 列を足した = new Set<string>();
+
+export async function ensureDeletedAtColumn(
+  conn: Knex | Knex.Transaction,
+  collection: string,
+): Promise<void> {
+  if (列を足した.has(collection)) return;
+
+  const 登録 = await conn("directus_collections").where({ collection }).first();
+  if (!登録) {
+    // 🚨 登録が無い表は対象外。**覚える**（毎回問い合わせない）。
+    列を足した.add(collection);
+    return;
+  }
+
+  const 主キー = await conn.raw<{ rows: { c: string }[] }>(
+    `select kcu.column_name as c
+       from information_schema.table_constraints tc
+       join information_schema.key_column_usage kcu
+         on kcu.constraint_name = tc.constraint_name and kcu.table_schema = tc.table_schema
+      where tc.table_schema = 'public' and tc.table_name = ? and tc.constraint_type = 'PRIMARY KEY'
+      limit 1`,
+    [collection],
+  );
+  if (主キー.rows.length === 0) {
+    // 🚨 **対象外にしたことをログに出す**（司令塔の条件）。黙って飛ばさない。
+    console.warn(
+      `[softdelete] ${collection} は主キーが無いので deleted_at を足しません`
+      + `（戻すときに行を特定できないため。ボード 307 待ち）`,
+    );
+    列を足した.add(collection);
+    return;
+  }
+
+  try {
+    await conn.raw(`ALTER TABLE ?? ADD COLUMN IF NOT EXISTS ?? timestamptz`, [
+      collection,
+      DELETED_AT_COLUMN,
+    ]);
+    列を足した.add(collection);
+  } catch (error) {
+    // 🚨 **覚えない**。次に開いたときにもう一度試す。
+    console.error(
+      `[softdelete] ${collection} に deleted_at を足せませんでした`
+      + `（次に開いたときに再試行します）: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 export function itemsTable(
   conn: Knex | Knex.Transaction,
   collection: string,
@@ -767,6 +840,7 @@ export async function listItems(
   collection: string,
   query: ItemsQueryInput,
 ): Promise<ItemsListResult> {
+  await ensureDeletedAtColumn(db, collection);
   const schemaOverview = await getSchemaOverview();
   assertUserCollection(collection, schemaOverview);
   const primaryKey = getPrimaryKey(schemaOverview, collection);
@@ -868,6 +942,7 @@ export async function getItem(
   id: string,
   query: ItemsQueryInput = {},
 ): Promise<Item> {
+  await ensureDeletedAtColumn(db, collection);
   const schemaOverview = await getSchemaOverview();
   assertUserCollection(collection, schemaOverview);
   const primaryKey = getPrimaryKey(schemaOverview, collection);
@@ -1038,6 +1113,7 @@ export async function createItems(
   body: unknown,
   context: ActivityContext,
 ): Promise<Item | Item[]> {
+  await ensureDeletedAtColumn(db, collection);
   const schemaOverview = await getSchemaOverview();
   const columns = assertUserCollection(collection, schemaOverview);
   const permission = await permissionForAction(actor, collection, "create");
@@ -1091,6 +1167,7 @@ export async function updateItem(
   body: unknown,
   context: ActivityContext,
 ): Promise<Item> {
+  await ensureDeletedAtColumn(db, collection);
   if (!isRecord(body)) {
     throw new ApiError(400, "INVALID_BODY", "JSONオブジェクトを指定してください");
   }
@@ -1139,6 +1216,7 @@ export async function deleteItem(
   id: string,
   context: ActivityContext,
 ): Promise<void> {
+  await ensureDeletedAtColumn(db, collection);
   const schemaOverview = await getSchemaOverview();
   assertUserCollection(collection, schemaOverview);
   const permission = await permissionForAction(actor, collection, "delete");
