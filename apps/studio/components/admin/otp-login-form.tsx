@@ -34,6 +34,26 @@ export function OtpLoginForm() {
       return;
     }
 
+    // 🚨 **初期設定が終わっていない間だけ**、サーバが `diagnosis` を返す（正直な理由）。
+    //    そのときは**コード入力へ進めない**——進めると「6 桁を入れてください」と出て、
+    //    来ないメールを待たせる形が残る。
+    //    🚨 初期設定が済んだあとは `diagnosis` が**付かない**ので、下の「送りました」だけになる
+    //    （＝ 列挙対策は元のまま。ここに条件を足して揃えに来ないこと）。
+    const payload = (await response.json().catch(() => null)) as
+      | { data?: { requested?: boolean; diagnosis?: string } }
+      | null;
+    const diagnosis = payload?.data?.diagnosis;
+    if (diagnosis && diagnosis !== "sent") {
+      setError(
+        diagnosis === "no-account"
+          ? t("otp_setup_no_account")
+          : diagnosis === "mail-not-configured"
+            ? t("otp_setup_mail_not_configured")
+            : t("otp_setup_rate_limited"),
+      );
+      return;
+    }
+
     // 🚨 「送りました」とだけ表示する。存在の有無は出さない。
     setStage("code");
   });

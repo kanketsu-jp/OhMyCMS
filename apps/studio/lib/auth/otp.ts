@@ -118,6 +118,80 @@ export async function requestLoginCode(email: string): Promise<void> {
 }
 
 /**
+ * 確認コードの要求が、実際には何が起きたのかを**正直に返す**版。
+ *
+ * 🚨 **初期設定が終わっていない間だけ使う。** 使ってよい理由:
+ *    初期設定が未完了のとき、**本物のアドレスを持つ利用者は 1 人も居ない**
+ *    （管理者は `LOCAL_ADMIN_EMAIL` という置き換え用の値）。
+ *    ＝ **列挙できる対象がゼロ**なので、正直に返しても何も漏れない。
+ *    🚨 逆に、初期設定が済んだあとは**隠すべき他人の口座が在る**ので、必ず黙る側
+ *    （`requestLoginCode`）へ戻る。**同じ設計が、場面によって守りにも害にもなる。**
+ *
+ * 🚨 **なぜ要るか**（2026-08-16 実測・使い捨ての実体）:
+ *    初期設定の直後に本物のアドレスで要求すると
+ *      HTTP 200 / `{"requested":true}` / 🚨 **code の行は 0**（＝ 記録すら作られない）
+ *      🟢 対照 `local-admin@localhost` … HTTP 200 / **本文も同じ** / code の行 **1**
+ *    そして画面は「確認コードを送りました。**届かないときは、しばらくしてからもう一度**」と出す。
+ *    ＝ **利用者は、来ないメールを、案内どおり待ち続ける。**
+ *
+ * 🚨 **`requestLoginCode` は 1 行も変えていない。** 沈黙はあちらの設計の中身なので、
+ *    分岐を足すと守りが薄くなる。ここは**別の関数**として足し、実際の発行はあちらへ委ねる。
+ *    （そのぶん問い合わせが二重になるが、この道は初期設定中しか通らない）
+ */
+/**
+ * 🚨 **いま実際に返るのは `no-account` だけ**（2026-08-16 実測・使い捨ての実体）。
+ *    初期設定が未完了のとき、**利用者は 1 人も居ない**（管理者は `completeOnboardingWithAdmin`
+ *    が作るので、完了と同時にしか生まれない）。したがって:
+ *      `no-account` ………… 【鳴る】実測: 本物のアドレスでも `local-admin@localhost` でも
+ *                            `{"requested":false,"diagnosis":"no-account"}`
+ *      `sent` ……………… 🚨【書いただけ】利用者が居ないので到達しない
+ *      `mail-not-configured` 🚨【書いただけ】同上（利用者が居て初めて手前を抜ける）
+ *      `rate-limited` ……… 🚨【書いただけ】同上（行が作られないので上限に当たらない）
+ *
+ * 🚨 **通らない枝を「守り」として数えないこと。** 残してあるのは、初期設定の途中で
+ *    アドレスを登録する形（設問 319 の (a)）が入ると **到達しうる**ため。
+ *    そのときは**到達したことを実測してから**、この注記を書き換える。
+ */
+export type LoginCodeDiagnosis =
+  /** 発行した（メールも送る側へ渡した）。🚨 いまは到達しない */
+  | "sent"
+  /** そのアドレスの利用者が居ない ＝ **送る対象がそもそも無い**。🚨 いま返るのはこれだけ */
+  | "no-account"
+  /** SMTP が設定されていない ＝ **発行しても届かない**。🚨 いまは到達しない */
+  | "mail-not-configured"
+  /** 上限（60 秒に 1 通 / 1 時間に 5 通）。🚨 いまは到達しない */
+  | "rate-limited";
+
+export async function diagnoseLoginCodeRequest(email: string): Promise<LoginCodeDiagnosis> {
+  const normalized = normalizeEmail(email);
+  const now = new Date();
+
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const recent = await db<LoginCodeRow>("ohmycms_login_codes")
+    .select("created_at")
+    .where({ email: normalized })
+    .andWhere("created_at", ">", oneHourAgo)
+    .orderBy("created_at", "desc");
+  if (recent.length >= MAX_PER_HOUR) return "rate-limited";
+  const last = recent[0];
+  if (last && now.getTime() - new Date(last.created_at).getTime() < RESEND_INTERVAL_MS) {
+    return "rate-limited";
+  }
+
+  const user = await db("directus_users")
+    .select("id")
+    .where({ email: normalized, status: "active" })
+    .first();
+  if (!user) return "no-account";
+
+  // 🚨 **発行する前に**見る。設定が無いまま発行すると、行だけ増えて誰にも届かない。
+  if (!(await mailConfig())) return "mail-not-configured";
+
+  await requestLoginCode(email);
+  return "sent";
+}
+
+/**
  * コードを照合する。成功したら { userId }、失敗したら null を返す。
  * 🚨 コード・ハッシュ・メールをログに出さない。
  */
