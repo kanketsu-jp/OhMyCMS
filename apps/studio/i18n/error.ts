@@ -35,6 +35,14 @@ export const ERROR_KEYS = [
   // 🚨 401。以前は lib/admin/api.ts が「認証が必要です」という日本語を直接持っていた。
   //    鍵にしないと permission_denied（403）へ潰れ、**入り直せば直る**ことが伝わらない。
   "unauthenticated",
+  // ファイル・フォルダ由来（storage・2026-08-16）
+  // 🚨 conflict にまとめない。「同名が在る」と「配下が在る」は**次にやることが違う**
+  //    （名前を変える／中身を移す）。1 つの鍵にすると、どちらとも取れる文言になる。
+  "folder_not_empty",
+  "file_too_large",
+  // 🚨 大きさを言わない鍵。上限より小さくても起きる（9MB 台で落ちた実測）ので、
+  //    file_too_large と同じ文言にすると嘘になる。
+  "upload_unreadable",
   // 取りこぼしの受け皿
   "unexpected",
 ] as const;
@@ -73,6 +81,9 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   INVALID_FILTER: "invalid_body",
   // conflict は同名重複の 409 用: COLLECTION_EXISTS / FIELD_EXISTS / RELATION_EXISTS / LABEL_EXISTS。
   // FOLDER_NOT_EMPTY は「配下があるため削除できない」で同名重複ではないため、意図的に含めない。
+  // 🚨 2026-08-16: そのため **写像そのものが無く**、画面では「予期しないエラー」に化けていた
+  //    （実測: 英語の画面で "Failed to upload file"）。conflict ではなく
+  //    **専用の鍵 folder_not_empty** を与えて解決した。**除外の判断は変えていない。**
   COLLECTION_EXISTS: "conflict",
   FIELD_EXISTS: "conflict",
   RELATION_EXISTS: "conflict",
@@ -82,6 +93,12 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   ITEM_NOT_FOUND: "not_found",
   RELATION_NOT_FOUND: "not_found",
   FOLDER_NOT_FOUND: "not_found",
+  FILE_NOT_FOUND: "not_found",
+  FILE_NOT_STORED: "not_found",
+  FILE_REQUIRED: "field_required",
+  FOLDER_NOT_EMPTY: "folder_not_empty",
+  FILE_TOO_LARGE: "file_too_large",
+  UPLOAD_BODY_UNREADABLE: "upload_unreadable",
   ROLE_NOT_FOUND: "not_found",
   POLICY_NOT_FOUND: "not_found",
   LABEL_NOT_FOUND: "not_found",
