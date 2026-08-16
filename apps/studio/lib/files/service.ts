@@ -589,7 +589,26 @@ export async function uploadFile(actor: Actor | null, input: UploadFileInput): P
       .returning("*");
     return toPublicFile(row);
   } catch (error) {
-    await storage.delete(key);
+    // 🚨 **巻き戻しで元の例外を殺さない。**
+    //    ここが素で `await storage.delete(key)` だったとき、**delete が投げると下の
+    //    `throw error` に到達せず、本当の失敗が消えていた**（2026-08-17 実測: V1-B が
+    //    502 `STORAGE_ERROR (Error)` を返し、**SDK の例外名すら分からなくなった**）。
+    //    ＝ 502 の括弧に出るのは「最後に投げた人の名前」で、原因の名前ではなかった。
+    try {
+      await storage.delete(key);
+    } catch (cleanupError) {
+      // 🚨 **握り潰さない。** 黙ると「**消し残しが在るのに誰も知らない**」になる
+      //    （＝ 孤児が増えるのに、増えたことが分からない）。
+      //    🚨 **名前だけ残す**（`toStorageError` と同じ理由——例外オブジェクトには
+      //       アクセスキー等が入りうるので、そのままログへ出さない）。
+      console.error(
+        "[files] アップロードの巻き戻しに失敗しました（実体が残っている可能性があります）",
+        {
+          key,
+          name: cleanupError instanceof Error ? cleanupError.name : "UnknownError",
+        },
+      );
+    }
     throw error;
   }
 }
