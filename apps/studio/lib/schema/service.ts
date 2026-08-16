@@ -22,6 +22,10 @@ import { parseFieldTranslations } from "./labels";
 
 const COLLECTION_META_COLUMNS = new Set([
   "note",
+  // 🚨 表示名の辞書（設問318）。**API から書けるようにする**ためにここへ足す。
+  //    足さないと `pickAllowed` が黙って捨てるのではなく `UNSUPPORTED_COLLECTION_META` で
+  //    弾くので、**画面から名前を付けられない**（`directus_fields.translations` と同じ扱い）。
+  "translations",
   "display_template",
   "hidden",
   "singleton",

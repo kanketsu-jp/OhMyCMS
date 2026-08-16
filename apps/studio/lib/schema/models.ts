@@ -28,6 +28,14 @@ export type CollectionMeta = {
   collapse: string;
   status: string;
   autosave_revision_interval: number | null;
+  /**
+   * コレクションの表示名の辞書（設問318）。`{"ja": "記事", "en": "Articles"}`。
+   * 🚨 **null が既定**。null のときは**表名をそのまま出す**——
+   * 「まだ名前を付けていない」と「空文字の名前を付けた」を区別するため。
+   * 読むときは必ず `collectionLabel()` を通すこと（`fieldLabel` と同じ理由で、
+   * 各所に `?? collection` を書くと必ず割れる）。
+   */
+  translations: Record<string, string> | null;
 };
 
 export type FieldMeta = {
