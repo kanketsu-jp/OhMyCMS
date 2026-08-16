@@ -56,7 +56,14 @@ const head = execFileSync("git", ["-C", REPO_ROOT, "rev-parse", "--short", "HEAD
   }
 }
 
-const files = trackedGlob("scripts/check-*.mjs", { cwd: resolve(SCRIPTS, "..") });
+// 🚨 走査範囲は `scripts` の **`.mjs` と `.ts` 全部**（2026-08-16・schema と auth の指摘で直した）。
+//    最初は `check-*.mjs` だけ（34 本）で、**`.ts` の検査**（`check-field-labels.ts`）と
+//    **`check-` で始まらない道具**が丸ごと視界の外だった。
+//    ＝ 🚨 **「出ない」を「持っていない」と読める形**だった。**母集合を広げ、内訳で出す。**
+const files = [
+  ...trackedGlob("scripts/*.mjs", { cwd: resolve(SCRIPTS, "..") }),
+  ...trackedGlob("scripts/*.ts", { cwd: resolve(SCRIPTS, "..") }),
+].sort();
 if (files.length === 0) {
   console.error("🚨 走査対象が 0 本でした。**この 0 は「見ていない 0」です**");
   process.exit(1);
@@ -107,6 +114,15 @@ for (const r of rows.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.local
       : "\n🚨 形でだけ見つかった検査: " + extra.length + " 本 → " + extra.join(" / ") + "（**名前が違うので分類から漏れていました**）",
   );
 }
+
+// 🚨 **4 つ目の区分**（base2 の指摘・2026-08-16）: **そもそもコメントを落としていない**検査。
+//    これを出さないと、**一覧に出ない＝見ていない**のか**仕組みを持っていない**のかが区別できない
+//    （実際に auth と schema が「私の検査が出ません」と報せてきた）。
+const none = files.length - rows.length;
+console.log(
+  `\n走査 ${files.length} 本 ＝ 仕組みを持つ ${rows.length} 本 ＋ 🚨 **持たない ${none} 本**` +
+    `（＝ コメントを落としていない。**一覧に出ないのは「見ていない」ではなく「持っていない」**）`,
+);
 
 const shared = rows.filter((r) => r.kind.startsWith("共有")).length;
 console.log(
