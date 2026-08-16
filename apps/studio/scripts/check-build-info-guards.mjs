@@ -98,7 +98,13 @@ function read(relative) {
  * 🚨 **この下限は【書いただけ】**（自動では追随しません）。2026-08-16 時点の実測サイズの
  * おおよそ半分。**増えたら上げてよい。下げるときは理由を書くこと。**
  */
-const 読めた量の下限 = { ".dockerignore": 800, "docker/Dockerfile": 5000, ".github/workflows/ci.yml": 6000 };
+// 🚨 **実測値に近い床は腐る。遠い床は腐らない**（2026-08-16 訂正）。
+//    最初は実測の **約 47%**（800 / 5000 / 6000）に置いたが、**正当な整理でも鳴る**。
+//    実測の **約 12%** へ下げた。**引き換えに捕まえられなくなるもの**も書いておく:
+//      🚨 `.dockerignore` が **250 バイト**まで痩せても通る（800 のときは落ちた）
+//    それでも守れるもの: **32 バイト → exit 2 / 150 バイト → exit 2**（実測）
+//    ＝ **「丸ごと痩せた」は捕まえ、「少し減った」は通す**。
+const 読めた量の下限 = { ".dockerignore": 200, "docker/Dockerfile": 1200, ".github/workflows/ci.yml": 1500 };
 
 const dockerignore = read(".dockerignore");
 const dockerfile = read("docker/Dockerfile");
