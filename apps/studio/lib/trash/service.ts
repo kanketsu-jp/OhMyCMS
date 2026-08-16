@@ -43,6 +43,14 @@ type ReferenceIssue = {
   column: string;
   targetCollection: string;
   targetLabel: string;
+  /**
+   * 🚨 **指し先の「行」の名前**（`targetLabel` は**種類**なので別物）。
+   * 確認の文言「この項目は **◯◯** を指していますが…」の ◯◯ はこちら。
+   * 種類（"collection" / "files"）を入れると「この項目は *collection* を指しています」になる。
+   * 🚨 **1 つの値に意味を 2 つ入れない**（schema の指摘・2026-08-16）。
+   * 指し先が見つからない／名前を取れないときは **null**（**呼ぶ側が「不明」を出せるように**）。
+   */
+  targetName: string | null;
   value: string;
   state: "trashed" | "missing";
 };
@@ -305,6 +313,7 @@ function manualReferences(collection: string, row: Record<string, unknown>): Ref
         column: "target_id",
         targetCollection: "directus_files",
         targetLabel: targetLabel("directus_files"),
+        targetName: null,
         value: targetId,
         state: "missing",
       }];
@@ -314,6 +323,7 @@ function manualReferences(collection: string, row: Record<string, unknown>): Ref
         column: "target_id",
         targetCollection: "directus_folders",
         targetLabel: targetLabel("directus_folders"),
+        targetName: null,
         value: targetId,
         state: "missing",
       }];
@@ -327,6 +337,7 @@ function manualReferences(collection: string, row: Record<string, unknown>): Ref
         column: "item",
         targetCollection,
         targetLabel: targetLabel(targetCollection),
+        targetName: null,
         value: item,
         state: "missing",
       }];
@@ -342,12 +353,17 @@ async function referenceState(issue: ReferenceIssue): Promise<ReferenceIssue | n
   const primary = columns.find((column) => column.is_primary_key)?.name;
   if (!primary) return null;
   const hasDeletedAt = columns.some((column) => column.name === "deleted_at");
+  // 🚨 **入口（itemsTable）を通さない。** 指し先は**ゴミ箱に在る**（deleted_at が立っている）ので、
+  //    入口を通すと**必ず 0 件**になる（schema の指摘・2026-08-16）。ここは直に引く。
+  // 🚨 表示名も**同じ問い合わせで**取る（問い合わせを増やさない）。
+  //    列は `*` で取り、`displayName()` に渡す（一覧の「何を」と**同じ文字列**になる）。
   const row = await db<Record<string, unknown>>(issue.targetCollection)
     .where(primary, issue.value)
-    .first(hasDeletedAt ? ["deleted_at"] : [primary]);
+    .first();
   if (!row) return { ...issue, state: "missing" };
+  const targetName = displayName(row, [primary]);
   if (hasDeletedAt && row.deleted_at !== null && row.deleted_at !== undefined) {
-    return { ...issue, state: "trashed" };
+    return { ...issue, state: "trashed", targetName: targetName || null };
   }
   return null;
 }
@@ -366,6 +382,7 @@ async function outgoingReferences(
       column: column.name,
       targetCollection: column.foreign_key_table,
       targetLabel: targetLabel(column.foreign_key_table),
+      targetName: null,
       value: String(value),
       state: "missing",
     });
