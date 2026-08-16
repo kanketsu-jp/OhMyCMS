@@ -348,9 +348,42 @@ pre-commit:
     # 🚨 生成物なので **更新しないと腐る**。ずれたら落ちる（`--write` で作り直す）。
     # 🚨 この検査が見ていない範囲: **実際に押して効いたかは 1 件も見ていない**（静的な導出だけ）。
     #    `useShortcut(` を**名前で探している**ので、別名で包まれたら見えない。
+    # 🚨 **誰が落ちるか**を 2026-08-16 に測って直した（別 clone・staged を毎回確認）。
+    #   直す前（`root: "apps/studio"` だけ・glob 無し）の実測:
+    #     ①写しが古い + **無関係なファイル**だけ staged … 🔴 exit=1 ← **5 ペインが止まった形**
+    #     ②元(shortcuts.ts)を変えた本人 …………………… 🔴 exit=1（**本人でも落ちていた**。
+    #        司令塔の「本人では落ちない」は誤り。最初コメント追加で試して exit=0 になったが、
+    #        🚨 **それは門が甘いのでなく、導出結果が変わらない壊し方だった**）
+    #     ④`apps/studio` の**外だけ**を触るコミット（packages/mcp 等）… skip（古くても通る）
+    #     ⑤🚨 **写しを手で書き換えてコミット** ……………… skip
+    #        （写しに「手で直さない」と書いてあるのに**門は止めなかった**。写しは root の外だから）
+    #   → root を外し、glob を **元 + 写し**に向けた。直したあとの実測（🎯 は狙い）:
+    #     ①🎯落ちない → 🟢 skip ／ ②🎯落ちる → 🔴 exit=1 ／ ⑤🎯落ちる → 🔴 exit=1
+    #     ⑥CI 相当(`--all-files`)・写しが古い 🎯落ちる → 🔴 exit=1
+    #     🟢 対照⑦ 写しが正しい+無関係 → skip ／ 🟢 対照⑧ CI 相当・写しが正しい → **exit=0**
+    #
+    # 🚨 lefthook の性質 2 つ（測って分かった。ここを間違えると**静かに何も走らない**）:
+    #   ・`root:` があるとき **glob はリポジトリ相対のフルパス**で書く（root からの相対は当たらない）。
+    #     既存の `glob: "*.{ts,tsx}"` が効いているのは `*` が何にでも当たるから。
+    #   ・`root:` があると **root の外は staged_files から落ちる** ので、
+    #     `.claude/…` を glob に書いても効かない。**root を外すと HIT する**。
+    #     → だから `run:` の側で `cd apps/studio` する。
+    #
+    # 🚨 **この glob が見ていない範囲**（塞げないものは隠さず書く）:
+    #   生成器が実際に読むファイルは **292 本**（node_modules 除く。fs を横取りして数えた）。
+    #   ＝ 下の 5 本の外にも、原理的に写しを動かせる経路が在る。
+    #   🚨 「実際に動かせるか」は 2 通り試して**どちらも動かせなかった**
+    #      （別部品に `useShortcut(SHORTCUTS.toggleRightSidebar, …)` を足す／layout から
+    #        global-search の行を消す）が、**「狭いらしい」までしか言えない。「狭い」とは言えない**。
+    #   → **CI の `bun x lefthook run pre-commit --all-files` を最後の網として残す**（⑥⑧で確認済み）。
     shortcuts-manifest:
-      root: "apps/studio"
-      run: node scripts/build-shortcuts-manifest.mjs
+      glob:
+        - "apps/studio/components/admin/shortcuts.ts"          # 鍵と項目の元
+        - "apps/studio/lib/admin/page-actions.ts"              # save の効くルートの元
+        - "apps/studio/scripts/build-shortcuts-manifest.mjs"   # 生成器そのもの
+        - "apps/studio/scripts/tiptap-combos.mjs"              # 予約済みの組み合わせの元
+        - ".claude/skills/ohmycms-mcp/references/shortcuts.md" # 🚨 写し自身（⑤ を塞ぐ）
+      run: cd apps/studio && node scripts/build-shortcuts-manifest.mjs
 
     # 本文（リッチテキスト）の保存側のガード。危険な URL / 許可外の節点 / 自作ブロックの属性、
     # そして **Mod-Enter を Tiptap へ返していないこと**（返すと保存に改行が混ざる）を見る。
