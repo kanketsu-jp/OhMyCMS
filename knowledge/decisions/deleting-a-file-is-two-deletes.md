@@ -1,7 +1,7 @@
 ---
 type: decision
 title: ファイルの削除は 2 回消す。順番は「実体 → 行」
-description: ゴミ箱の「完全に削除」も 90 日の掃除も、行を消す前に保管先の実体を消す。逆にすると key を持つ行が先に消えて、二度と辿れない孤児になる。実体を消す判定は lib/files の deleteStoredObjects 1 箇所に置き、ゴミ箱側はそれを呼ぶだけにする（掃除も lib/trash 側へ置く。lib/files に置くと循環する）。
+description: ゴミ箱の「完全に削除」も 90 日の掃除も、行を消す前に保管先の実体を消す。逆にすると key を持つ行が先に消えて、二度と辿れない孤児になる。実体を消す判定は lib/files の deleteStoredObjects 1 箇所に置き、ゴミ箱側はそれを呼ぶだけにする（掃除も lib/trash 側へ置く。lib/files に置くと循環する）。知っているキーは分岐に置かず必ず消す——deletePrefix が在る側だけを通す形は、local / s3 が両方持つので反対側が一度も通らず、測れない分岐になる。
 tags: [files, architecture, permissions]
 status: active
 generated:
