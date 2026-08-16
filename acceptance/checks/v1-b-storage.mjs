@@ -236,8 +236,20 @@ export async function check(context) {
         disposition || "(未指定)", "attachment"),
     );
 
+    // 🚨 **この assertion が見ていない範囲**（`decisions/checks-must-declare-blind-spots`）。
+    //   見るのは **応答に nosniff が在るか**だけで、**誰が供給したかは見ていない**。
+    //   nosniff は 2 箇所から入る:
+    //     ① 自前 … `app/api/assets/[id]/route.ts:31`（`asset.contentTypeOptions`）
+    //     ② 既定 … `next.config.ts` の `headers()`。source が **`/:path*`＝全経路**
+    //   ＝ 🚨 **①が消えても、②が同じ値を同じ応答に入れるので、ここは緑のままになる。**
+    //     **自前の消失は、この検査では検出できない。**
+    //   🟢 実測（2026-08-17・design）: 未ログインで `/api/assets/<uuid>` を叩くと
+    //     **401 の応答にも `X-Content-Type-Options: nosniff` が 1 行**在る
+    //     （＝ **route に入る前に②が付けている**。①を通らない応答でも付く証拠）。
+    //   🚨 **②を外して測る逃げ道は無い**（`/:path*` なので「既定が効かない口」が存在しない）。
+    //     ①の生存を見たいなら、**応答ではなくコードを見る検査**が要る（ここには無い）。
     assertions.push(
-      assertion("negative", "SVG にも nosniff が付く",
+      assertion("negative", "SVG にも nosniff が付く（🚨 供給元は問わない）",
         (svgAsset?.headers?.get("x-content-type-options") ?? "").includes("nosniff"),
         svgAsset?.headers?.get("x-content-type-options") ?? "(未指定)", "nosniff"),
     );

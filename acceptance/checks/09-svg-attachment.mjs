@@ -186,16 +186,29 @@ export async function check(context) {
           "text/html でも image/svg+xml でもない（または attachment）"),
       );
 
-      // 判定は落とさないが、報告には残す（防御の多層化として直す価値がある）。
-      if (!disguisedResponse.headers.get("x-content-type-options")) {
-        details.push(
-          "note: /api/assets のレスポンスに X-Content-Type-Options: nosniff がありません。" +
-            "保存される MIME はクライアント申告と拡張子から決まるため、" +
-            "SVG の中身を image/png として保存させることができます" +
-            "（Chrome では画像ドキュメント扱いになり script は実行されないことを実測済み）。" +
-            "多層防御として nosniff の付与を推奨します。",
-        );
-      }
+      // 🚨 **ここは以前「nosniff が無ければ note を出す」だった。いまその条件は成立しない。**
+      //   `next.config.ts` の `headers()` が **`/:path*`＝全経路**に nosniff を入れるようになったので、
+      //   **この if は二度と真にならない**（＝ **出ない note を、出る顔で置いていた**）。
+      //   🟢 実測（2026-08-17・design）: 未ログインの `/api/assets/<uuid>` は
+      //     **401 でも nosniff が 1 行**返る（＝ route を通らなくても付く）。
+      //   → **note（落ちない・条件付き）から assertion（落ちる・常に評価）へ上げる。**
+      //     「推奨します」と書いて放置するのではなく、**約束として測る**。
+      //
+      // 🚨 **この assertion が見ていない範囲**（`decisions/checks-must-declare-blind-spots`）:
+      //   **応答に nosniff が在るか**しか見ない。**誰が供給したかは見ていない**。
+      //   ①自前（`app/api/assets/[id]/route.ts:31`）と ②既定（`next.config.ts`）の 2 層が在り、
+      //   🚨 **①が消えても②が同じ値を入れるので緑のまま**。**自前の消失は検出できない。**
+      //   ＝ ここが守るのは「**利用者に届く応答に nosniff が在る**」までで、
+      //     「**多層防御が 2 層のまま保たれている**」ではない（同じ盲点が `v1-b-storage.mjs` にも在る）。
+      assertions.push(
+        assertion("negative", "MIME を偽った SVG の配信にも nosniff が付く（🚨 供給元は問わない）",
+          (disguisedResponse.headers.get("x-content-type-options") ?? "").includes("nosniff"),
+          disguisedResponse.headers.get("x-content-type-options") ?? "(未指定)", "nosniff"),
+      );
+      // 🚨 消した note の中身は、いま assertion が測っている:
+      //   「保存される MIME はクライアント申告と拡張子から決まるので、SVG の中身を image/png と
+      //     偽って保存させられる。nosniff がその抜け道を塞ぐ」
+      //     （Chrome では画像ドキュメント扱いになり script は実行されないことを、当時実測済み）
     }
 
     // 【否定形⑤】認証なしでアセットを取れない
