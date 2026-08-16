@@ -31,9 +31,24 @@
  *    ＝ design がフォーム側へ ⌘Enter を移しても、**生成器の導出元が増えれば写しが正しくなる**ので、
  *      この検査は**そのまま動く**（仕組みではなく「できること」を見ている）。
  *
+ * 🚨 **数える単位は「ルート」であって「画面（ファイル）」ではない。**
+ *   同じ退行を、画面で数えると **5**、ルートで数えると **4** になる（2026-08-16 実測）。
+ *   d635b58 で `<PageAction>` を失ったのは 5 ファイル:
+ *     agents / policies / roles / users-policy … `form=` を持つ `role="primary"` → **⌘Enter を失った（4）**
+ *     policy-permissions ………………………… 🚨 `form=` が**無く** `onClick`（kind: "button"）
+ *                                             → `page-action.tsx` が `!form` で降りるので
+ *                                               **元から ⌘Enter を持っていない**（失っていない）
+ *   ＝ **単位が違うだけでなく、5 枚目は種類が違う。** 出力には必ず「ルート」と書く。
+ *
  * 🚨 **この検査が見ていない形**（毎回その場で通している囮以外）:
  *   ▫️ 写しと実装がずれている場合 → こちらは `mcp-catalog` の担当（役割を分けている）
  *   ▫️ 「保存できる状態のときだけ効く」（disabled / 編集モード）→ 写しの別の節が扱う
+ *   ▫️ ヘッダの主ボタンを失っただけの画面（`form=` を持たないもの）→ **この検査の対象外**
+ *      （⌘Enter は元から効いていないため。マウスの導線は `page-actions-rendered` の担当）
+ *
+ * 🚨 **導出元を足す場所はここではない。** design がフォーム側で ⌘Enter を受ける口を作ったら、
+ *    足すのは `build-shortcuts-manifest.mjs` の `submitRoutes`（＝ 写しを作っている側）。
+ *    この検査は写しを読むだけなので、**1 行も直さなくてよい**。
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -184,8 +199,9 @@ function main() {
 
   // 🚨 どちら側から読んだか・何文字読んだかを必ず出す（黙って切り替えると赤の向きが変わった理由が分からない）
   console.log(
-    `読み込み: 写し ${snap.source.length} 文字（${snap.from}）→ ⌘Enter の scope ${derived === null ? "🚨 取り出せません" : `${derived.length} 件`}` +
-      ` ／ 台帳 ${ledgerRoutes.length} 件・外した ${removed.length} 件（${led.from}）`,
+    `読み込み: 写し ${snap.source.length} 文字（${snap.from}）→ ⌘Enter の scope ${derived === null ? "🚨 取り出せません" : `${derived.length} ルート`}` +
+      ` ／ 台帳 ${ledgerRoutes.length} ルート・外した ${removed.length} ルート（${led.from}）` +
+      "\n  🚨 単位は**ルート**（画面＝ファイルで数えると数が変わる。同じ退行が 5 画面 / 4 ルート）",
   );
 
   // ── 入口の囮: 取り出しが本当に効いているか（実際に踏んだ形を含める） ─────────
@@ -264,7 +280,7 @@ function main() {
   console.log("\n■ 対照（壊していない実物で誤検出しないことを確かめる）");
   console.log(
     `  ${control.violations.length === 0 ? "✅" : "❌"} 実物 → 検出 ${control.violations.length} 件` +
-      `（写し ${control.counts.derived} ＋ 外した ${removed.filter((r) => !derived.includes(r.route)).length} ＝ 台帳 ${control.counts.ledger}）`,
+      `（写し ${control.counts.derived} ＋ 外した ${removed.filter((r) => !derived.includes(r.route)).length} ＝ 台帳 ${control.counts.ledger} ルート）`,
   );
 
   console.log("\n■ 判定");
