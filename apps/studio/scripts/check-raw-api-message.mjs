@@ -201,6 +201,13 @@ const 比率 = sources.候補 > 0 ? sources.length / sources.候補 : 0;
 const 平均 = sources.length === 0 ? 0 : Math.round(総文字数 / sources.length);
 const 足りている =
   比率 >= 比率の下限 && 比率 <= 比率の上限 && 平均 >= 平均文字数の下限 && sources.length >= 列挙の床;
+// 🚨 **母集合を、出力に 1 行で書く**（2026-08-16・auth の指摘）。
+//    コメントにだけ書いても、**読む人には出力しか見えない**。
+//    「その外は？」を聞けるようにするために、**外したものまで書く**。
+console.log(
+  `  母集合: \`apps/studio\` の **app/ と components/** の .ts / .tsx` +
+    `（🚨 **見ていない**: lib/ ／ scripts/ ／ i18n/ ／ packages/ ／ acceptance/）`,
+);
 console.log(
   `  ${足りている ? "✅" : "❌"} 対象を拾えている  **候補** ${sources.候補} → **列挙** ${sources.length}` +
     `（比率 ${比率.toFixed(3)}。許容 ${比率の下限}〜${比率の上限}・床 ${列挙の床}） / ` +
