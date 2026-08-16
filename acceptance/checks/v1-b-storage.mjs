@@ -430,9 +430,19 @@ export async function check(context) {
     //   `lib/report.mjs:92-104` は FAIL/BLOCKED でしか details を出さない）。
     //   ＝ **片付けが壊れたら、この検査が赤くなる**（`decisions/probes-clean-up-by-id`）。
     //   🚨 ここは `finally` の中だが、`statusFromAssertions` はこの後（431 行）なので数に入る。
+    // 🚨 **`remaining === 0` で採らない**（storage の指摘・2026-08-17）。
+    //   `remaining` は「**後の一覧に自分の id が在るか**」なので、
+    //   **一覧に出ない理由が「消えた」以外にもあり得る**（権限・行フィルタで見えないだけ）。
+    //   ＝ 🚨 **1 件も完全削除できていなくても 0 になり得る**。**静かに緑になる形**。
+    //   ✅ **消えたことを、消えたこと自体（`purged`）で数える**。`remaining` は補助として出す。
+    //   🟢 対照になる実例: 2026-08-17 の :3103 では完全削除が 6 件とも 400 だったが、
+    //     `remaining` は「残り 6 件」で正しく出た——**あのときは一覧に出ていたから**。
+    //     ＝ **一覧に出ない条件が揃ったときだけ、静かに通る**（🚨 その条件は誰も作って試していない）。
     assertions.push(
-      assertion("negative", "片付け: 自分が上げたファイルがゴミ箱に残らない",
-        cleanup.remaining === 0, `残り ${cleanup.remaining} 件`, "残り 0 件"),
+      assertion("negative", "片付け: 上げたファイルを全部 完全削除できた",
+        cleanup.purged === cleanup.tried,
+        `完全削除 ${cleanup.purged} / 上げた ${cleanup.tried}（一覧に残り ${cleanup.remaining}）`,
+        `完全削除 ${cleanup.tried} 件`),
     );
   }
 

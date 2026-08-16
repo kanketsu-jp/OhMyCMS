@@ -68,6 +68,11 @@ export function looksLikeLeftover(name) {
  *   （`400 SYSTEM_IDENTIFIER`）。だからこの 2 段目は、それ以降にしか書けない。
  *
  * 🚨 **握り潰さない。** 消えなかった件数を返すので、**呼び手は details に出すこと**。
+ *
+ * 🚨 **判定は `purged === tried` で採ること。`remaining === 0` で採らない**（storage の指摘・2026-08-17）。
+ *   `remaining` は「**後の一覧に自分の id が在るか**」なので、**一覧に出ない理由が
+ *   「消えた」以外にもあり得る**（権限・行フィルタで見えないだけ）。
+ *   ＝ **1 件も完全削除できていなくても 0 になり得る**。**`remaining` は補助**。
  *   「片付けた」ではなく「**何件が消えて、何件が残ったか**」を書く。
  *
  * @returns {Promise<{tried:number, softDeleted:number, purged:number, remaining:number, notes:string[]}>}
