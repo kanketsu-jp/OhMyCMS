@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
+import { FieldValue } from "@/components/ui/field-value";
 import { CopyButton } from "@/components/ui/copy-button";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ type EntryMode = "metadata" | "manual";
 
 export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   const t = useT("sso");
+  const tCommon = useT("common");
   const tError = useT("errors");
   const format = useFormat();
   const router = useRouter();
@@ -86,6 +88,14 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   });
 
   const [error, setError] = useState<string | null>(null);
+  /**
+   * 表示モード ⇄ 編集モード（規約 `knowledge/decisions/action-button-and-edit-mode.md`）。
+   *
+   * 🚨 この画面の欄は**すべて controlled**（`value` + `onChange`）なので、
+   * `settings-manager.tsx` のような `<form key>` の作り直しは要らない。
+   * 代わりに「やめる」で**状態を props の値へ戻す**（§2-2 の「入れた値を捨てる」）。
+   */
+  const [editing, setEditing] = useState(false);
 
   // 🚨 §3c「未入力なら確定を無効にする」。
   //    どちらの入力方法を選んでいるかで、何が揃っていれば足りるかが変わる。
@@ -97,6 +107,24 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   //    （`app/api/settings/saml/route.ts`）。UI だけに守らせない（`AGENTS.md §3.5`）。
   const ready =
     mode === "metadata" ? metadataXml.trim().length > 0 : Boolean(entityId && ssoUrl && certificate);
+
+  /** 編集をやめて表示モードへ戻す。**入れた値は捨てる**（props の値へ戻す）。 */
+  function cancelEditing() {
+    setError(null);
+    setMode(settings.idpSsoUrl ? "manual" : "metadata");
+    setMetadataXml("");
+    setEntityId(settings.idpEntityId ?? "");
+    setSsoUrl(settings.idpSsoUrl ?? "");
+    setCertificate(settings.idpCertificates[0] ?? "");
+    setEnabled(settings.enabled);
+    setAttributes({
+      email: settings.attributes.email.join("\n"),
+      firstName: settings.attributes.firstName.join("\n"),
+      lastName: settings.attributes.lastName.join("\n"),
+      groups: settings.attributes.groups.join("\n"),
+    });
+    setEditing(false);
+  }
 
   const save = useSubmitOnce(async () => {
     setError(null);
@@ -160,9 +188,11 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
   ) => (
     <div className="grid gap-2">
       <Label htmlFor={`saml-attribute-${key}`}>{t(labelKey)}</Label>
+      {/* 🚨 `textarea` は `readOnly` が効く型なので**要素を残す**（なぞってコピーできる）。§2-1 */}
       <Textarea
         id={`saml-attribute-${key}`}
         rows={2}
+        readOnly={!editing}
         value={attributes[key]}
         onChange={(event) => setAttributes({ ...attributes, [key]: event.target.value })}
       />
@@ -247,6 +277,11 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
                （`scripts/audit-surface-depth.mjs` が SP で検出）。
                操作の的は `label` 全体なので高さトークンを使い、
                つまみ自体も 24px（`size-6`）に上げる。 */}
+        {/* 🚨 表示モードは**要素ごと置き換えて、選ばれている名前だけを文字で出す**（§2-1・案 2）。
+            `radio` は `readOnly` が**効かない**（属性は付くのに実クリックで変わる。実測 2026-08-16）。 */}
+        {!editing ? (
+          <FieldValue>{t(mode === "metadata" ? "entry_metadata" : "entry_manual")}</FieldValue>
+        ) : (
         <div className="flex flex-wrap gap-x-6 text-sm">
           {(["metadata", "manual"] as EntryMode[]).map((value) => (
             <label key={value} className="flex min-h-(--control-h) items-center gap-2 md:min-h-(--control-h-pc)">
@@ -265,6 +300,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
             </label>
           ))}
         </div>
+        )}
 
         {mode === "metadata" ? (
           <div className="grid gap-2">
@@ -272,6 +308,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
             <Textarea
               id="saml-metadata"
               rows={6}
+              readOnly={!editing}
               value={metadataXml}
               onChange={(event) => setMetadataXml(event.target.value)}
             />
@@ -283,6 +320,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
               <Label htmlFor="saml-idp-entity-id">{t("idp_entity_id_label")}</Label>
               <Input
                 id="saml-idp-entity-id"
+                readOnly={!editing}
                 value={entityId}
                 onChange={(event) => setEntityId(event.target.value)}
               />
@@ -293,6 +331,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
               <Label htmlFor="saml-idp-sso-url">{t("idp_sso_url_label")}</Label>
               <Input
                 id="saml-idp-sso-url"
+                readOnly={!editing}
                 value={ssoUrl}
                 onChange={(event) => setSsoUrl(event.target.value)}
               />
@@ -304,6 +343,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
               <Textarea
                 id="saml-certificate"
                 rows={5}
+                readOnly={!editing}
                 value={certificate}
                 onChange={(event) => setCertificate(event.target.value)}
               />
@@ -336,15 +376,24 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
       {/* ── 有効化（🚨 締め出さないことを画面で伝える） ── */}
       <section className="space-y-3">
         {/* 🚨 radio と同じ理由でタップ領域を上げている（素の checkbox は 13px）。 */}
-        <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-          <input
-            type="checkbox"
-            className="size-6"
-            checked={enabled}
-            onChange={(event) => setEnabled(event.target.checked)}
-          />
-          {t("enable_label")}
-        </label>
+        {/* 🚨 `checkbox` は `readOnly` が**効かない**（属性は付き `el.readOnly === true` になるのに、
+            実クリックで変わる。実測 2026-08-16）。表示モードでは**要素ごと置き換えて値を文字で出す**。
+            🚨 ✓ の絵にしない（読み上げに乗らない）。 */}
+        {!editing ? (
+          <FieldValue>
+            {t("enable_label")}: {tCommon(enabled ? "state_enabled" : "state_disabled")}
+          </FieldValue>
+        ) : (
+          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
+            <input
+              type="checkbox"
+              className="size-6"
+              checked={enabled}
+              onChange={(event) => setEnabled(event.target.checked)}
+            />
+            {t("enable_label")}
+          </label>
+        )}
         <p className="text-xs text-muted-foreground">{t("enable_help")}</p>
         <p className="text-xs text-muted-foreground">{t("password_still_works")}</p>
       </section>
@@ -355,15 +404,33 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
           {settings.updatedAt ? format.dateTime(new Date(settings.updatedAt)) : t("never_updated")}
         </span>
       </div>
-      <PageAction
-        form="saml-settings-form"
-        role="primary"
-        pending={save.pending}
-        // 🚨 §3c: 未入力なら確定できない。
-        disabled={!ready}
-        label={t("save_button")}
-        icon={<Check />}
-      />
+      {/* 🚨 主ボタンはモードで変わる（規約 §2）。抜け道「やめる」は **▾ の中ではなく主の隣**（§4）。 */}
+      {editing ? (
+        <>
+          <PageAction
+            role="secondary"
+            label={tCommon("action_cancel")}
+            icon={<X />}
+            onClick={cancelEditing}
+          />
+          <PageAction
+            form="saml-settings-form"
+            role="primary"
+            pending={save.pending}
+            // 🚨 §3c: 未入力なら確定できない。
+            disabled={!ready}
+            label={tCommon("action_save")}
+            icon={<Check />}
+          />
+        </>
+      ) : (
+        <PageAction
+          role="primary"
+          label={tCommon("action_edit")}
+          icon={<Pencil />}
+          onClick={() => setEditing(true)}
+        />
+      )}
     </form>
   );
 }

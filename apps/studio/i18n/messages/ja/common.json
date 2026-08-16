@@ -25,5 +25,7 @@
   "shortcut_search": "検索",
   "shortcut_submit": "送信",
   "shortcut_toggle_left_sidebar": "メニューの開閉",
-  "shortcut_toggle_right_sidebar": "詳細パネルの開閉"
+  "shortcut_toggle_right_sidebar": "詳細パネルの開閉",
+  "state_enabled": "有効",
+  "state_disabled": "無効"
 }

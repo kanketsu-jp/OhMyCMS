@@ -25,5 +25,7 @@
   "shortcut_search": "Search",
   "shortcut_submit": "Submit",
   "shortcut_toggle_left_sidebar": "Toggle menu",
-  "shortcut_toggle_right_sidebar": "Toggle detail panel"
+  "shortcut_toggle_right_sidebar": "Toggle detail panel",
+  "state_enabled": "Enabled",
+  "state_disabled": "Disabled"
 }
