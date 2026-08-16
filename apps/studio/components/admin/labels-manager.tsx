@@ -6,6 +6,7 @@ import { Lock, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { labelDisplayName } from "@/components/admin/label-display-name";
 import { useT } from "@/i18n/client";
@@ -203,6 +204,9 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
     setLabels((current) => current.filter((row) => row.id !== label.id));
     toast.success(t("deleted"));
   });
+  const createDisabled = create.pending || name.trim() === "";
+
+  useFormSubmitShortcut("label-create-form", { pending: create.pending, disabled: createDisabled });
 
   return (
     <div className="space-y-8">
@@ -313,6 +317,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
       <section className="space-y-3">
         <h2 className="text-sm font-medium">{t("create_heading")}</h2>
         <form
+          id="label-create-form"
           className="flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
             event.preventDefault();
@@ -350,7 +355,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
               ))}
             </select>
           </div>
-          <Button type="submit" disabled={create.pending || name.trim() === ""}>
+          <Button type="submit" disabled={createDisabled}>
             {create.pending ? t("creating") : t("create_submit")}
           </Button>
         </form>

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
+import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
@@ -88,6 +89,8 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
     toast.success(t("deleted"));
     router.refresh();
   }, (id) => id);
+
+  useFormSubmitShortcut("policy-create-form", { pending: create.pending });
 
   return (
     <div className="space-y-4">

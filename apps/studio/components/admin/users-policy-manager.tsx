@@ -7,6 +7,7 @@ import { FormDraft } from "@/components/admin/form-draft";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
+import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
@@ -73,6 +74,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
     return key ? tError(key) : fallback;
   };
   const [error, setError] = useState<string | null>(null);
+  const assignDisabled = users.length === 0 || policies.length === 0;
 
   const assign = useSubmitOnce(async (formData: FormData) => {
     setError(null);
@@ -104,6 +106,8 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
     toast.success(t("assignment_removed"));
     router.refresh();
   }, (id) => id);
+
+  useFormSubmitShortcut("user-policy-assign-form", { pending: assign.pending, disabled: assignDisabled });
 
   return (
     <div className="space-y-4">
@@ -175,7 +179,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         {/* 🚨 選ぶものが無いなら押させない（憲章 §3c）。
             select が空だと送信しても中身が無く、サーバへ無意味な要求が飛ぶ。
             由来: `19e6f3c` でヘッダーへ移したとき、この判定を落としていた（saml が実測で検出）。 */}
-        <Button type="submit" loading={assign.pending} disabled={users.length === 0 || policies.length === 0}>
+        <Button type="submit" loading={assign.pending} disabled={assignDisabled}>
           <Plus />
           {t("assign_button")}
         </Button>

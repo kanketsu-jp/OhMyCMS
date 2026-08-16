@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
@@ -101,6 +102,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
   const [editing, setEditing] = useState<PermissionRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const columns = useMemo(() => fieldsFor(collections, collection), [collections, collection]);
+  const saveDisabled = !collection;
 
   function resetForm() {
     setEditing(null);
@@ -160,6 +162,8 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
     router.refresh();
   }, (id) => String(id));
 
+  useFormSubmitShortcut("policy-permission-form", { pending: save.pending, disabled: saveDisabled });
+
   return (
     <div className="space-y-6">
       {error ? (
@@ -216,6 +220,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
         <p className="text-sm text-muted-foreground">{t("no_permissions")}</p>
       ) : null}
       <form
+        id="policy-permission-form"
         className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
@@ -295,7 +300,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           <p className="text-xs leading-5 text-muted-foreground">{t("filter_json_help_combination")}</p>
         </div>
         <div className="flex gap-2">
-          <Button type="submit" loading={save.pending} disabled={!collection}>
+          <Button type="submit" loading={save.pending} disabled={saveDisabled}>
             <Save />
             {editing ? t("update_button") : t("add_button")}
           </Button>

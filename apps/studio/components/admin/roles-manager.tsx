@@ -11,6 +11,7 @@ import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/e
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
+import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 
 export type RoleRow = {
@@ -84,6 +85,8 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
     toast.success(t("deleted"));
     router.refresh();
   }, (id) => id);
+
+  useFormSubmitShortcut("role-create-form", { pending: create.pending });
 
   return (
     <div className="space-y-4">

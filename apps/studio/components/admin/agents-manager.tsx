@@ -12,6 +12,7 @@ import { ScrollFade } from "@/components/ui/scroll-fade";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
@@ -243,6 +244,8 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
     toast.success(t("revoked"));
     router.refresh();
   }, (id) => id);
+
+  useFormSubmitShortcut("agent-issue-form", { pending: create.pending });
 
   return (
     <div className="space-y-4">
