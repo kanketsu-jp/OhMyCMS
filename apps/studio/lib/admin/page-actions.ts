@@ -63,6 +63,15 @@ export type PageActionDef = {
   role: "primary" | "secondary";
   /** 取り消せない操作（削除）。押し間違いが戻せないものだけ true */
   destructive?: boolean;
+  /**
+   * ▾（オプション）の中に出る操作。**主ボタンの横には出ない**。
+   *
+   * 🚨 283 A（堀池さん 2026-08-15「削除はオプションへ」）で、削除が ▾ の中へ移った。
+   *    入れ子の `options` にせず**平らな 1 行**にしてあるのは、`check-page-actions` が
+   *    ブロックを字下げ 2 で切るため（**入れ子にすると次のルートを飲み込む**。
+   *    2026-08-16 に実際に起こした）。
+   */
+  inMenu?: boolean;
 };
 
 /**
@@ -96,13 +105,6 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
   ],
   // フィールド定義の画面。次にすることは**フィールドを足す**こと。
   "/admin/collections/[collection]": [
-    // 🚨 **削除はここに宣言できません。** 2026-08-16 の 283 A（堀池さん）で
-    //    「主アクションを別のものにし、**削除はオプションへ**」となり、
-    //    削除は `<PageAction options={[…]}>` の **▾ の中**へ入った。
-    //    **この表は 1 ルート＝1 組の宣言しか持てず、▾ の中を表せない**（profile と同じ）。
-    //    🚨 **＝ 削除の辞書キーとフォーム id は、いま検査の範囲外**。壊れても気づかない。
-    //    → 表に `options` を持たせるなら、そのときここも宣言に戻すこと。
-    //
     // 🚨 **字下げを変えないこと。** `check-page-actions` はブロックを
     //    `^ {2}"…": \[ … ^ {2}\],` で切り出すので、閉じ `],` が 2 でないと
     //    **次のルートまで飲み込み**、主要ボタンが 2 件に見える（2026-08-16 に実際にやった）。
@@ -112,6 +114,15 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
       icon: "Plus",
       href: "/admin/collections/[collection]/fields/new",
       role: "primary",
+    },
+    {
+      kind: "submit",
+      labelKey: "collections.delete_button",
+      icon: "Trash2",
+      form: "collection-delete-form",
+      role: "secondary",
+      destructive: true,
+      inMenu: true,
     },
   ],
   "/admin/collections/[collection]/fields/new": [

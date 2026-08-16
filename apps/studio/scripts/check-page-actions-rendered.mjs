@@ -36,6 +36,14 @@
  *
  * `kind:"submit"` は、たどり着いた範囲に **その `form` の id を持つ呼び出し**が
  * あることまで見る（id を書き間違えると、押しても黙って何も起きないため）。
+ *
+ * 🚨 **`inMenu: true`（▾ の中）は `form=` では照合できない**（2026-08-16）。
+ *    ▾ の中の項目は `<PageAction options={[{ formId: "…" }]}>` という**オブジェクトの
+ *    プロパティ**として渡っていて、HTML の `form=` 属性ではない。
+ *    → `inMenu` の宣言は、`options={[ … ]}` の**中だけ**に限って `formId: "…"` を探して照合する。
+ *    🚨 **`formId` という名前を素で探さないこと**。`form-draft.tsx` など無関係な用途で
+ *       `formId` という名前が別の意味で 16 ファイルに出てくる（実測 2026-08-16）。
+ *       `options={[ … ]}` の中に絞ることで、その無関係な出現を拾わない。
  */
 
 import { execFileSync } from "node:child_process";
@@ -77,12 +85,28 @@ const marks = [...table.matchAll(/^ {2}"(\/admin[^"]*)":\s*\[/gm)].map((m) => ({
   route: m[1],
   at: m.index ?? 0,
 }));
+/**
+ * 🚨 **1 個ずつの宣言（オブジェクト）に分けて読む。** `form:` が
+ *    `inMenu: true` を伴うかどうかで、照合先（`form=` か `options` の中の `formId:` か）が
+ *    変わるため、ブロック全体をまとめて正規表現で拾うと区別が付かない。
+ *    このファイルのエントリはすべてフラット（ネストしたオブジェクトを持たない）なので、
+ *    `{ ... }` を最短一致で切れば 1 個ずつになる。
+ */
 const declarations = marks.map((mark, i) => {
   const block = table.slice(mark.at, i + 1 < marks.length ? marks[i + 1].at : table.length);
+  const entryTexts = [...block.matchAll(/\{[^{}]*\}/g)].map((m) => m[0]);
+  const entryObjs = entryTexts.map((text) => ({
+    kind: text.match(/kind:\s*"(\w+)"/)?.[1] ?? null,
+    form: text.match(/form:\s*"([^"]+)"/)?.[1] ?? null,
+    inMenu: /inMenu:\s*true/.test(text),
+  }));
   return {
     route: mark.route,
-    entries: [...block.matchAll(/kind:\s*"(\w+)"/g)].map((m) => m[1]),
-    forms: [...block.matchAll(/form:\s*"([^"]+)"/g)].map((m) => m[1]),
+    entries: entryObjs.map((e) => e.kind).filter((k) => k !== null),
+    // `inMenu` でない `form:` … HTML の `form=` 属性で照合する（従来どおり）
+    forms: entryObjs.filter((e) => e.form && !e.inMenu).map((e) => e.form),
+    // `inMenu: true` の `form:` … ▾ の中の `options={[{ formId: "…" }]}` で照合する
+    menuForms: entryObjs.filter((e) => e.form && e.inMenu).map((e) => e.form),
   };
 });
 
@@ -126,12 +150,21 @@ function reachableFrom(entryFile) {
  * 1 ファイルぶんのソースから、`<PageAction>` の呼び出し数と `form=` の id を取り出す。
  * 🚨 **囮も本番もこの関数を通す。** 囮の中に同じ正規表現を書き写すと、
  *    本物が壊れても囮は ✅ のままになる（司令塔 2026-08-15）。
+ *
+ * 🚨 **`formIds` は `options={[ … ]}` の中だけを見る**（2026-08-16）。
+ *    `formId` という名前は `form-draft.tsx` 等**無関係な用途**で 16 ファイルに出てくる
+ *    （実測。ほとんどは同一ファイル内の別 prop）。素の `formId:` を拾うと過検出になるので、
+ *    まず `options={[ … ]}` の範囲を切り出してから、その中だけを見る。
  */
 function callSitesIn(body) {
   const hits = body.match(/<PageAction\b/g);
+  const optionsBlocks = [...body.matchAll(/options=\{\[([\s\S]*?)\]\}/g)].map((m) => m[1]);
   return {
     calls: hits ? hits.length : 0,
     forms: [...body.matchAll(/form=["{]"?([\w-]+)"?/g)].map((m) => m[1]),
+    formIds: optionsBlocks.flatMap((block) =>
+      [...block.matchAll(/formId:\s*"([\w-]+)"/g)].map((m) => m[1]),
+    ),
   };
 }
 
@@ -141,7 +174,8 @@ let inspectedFiles = 0;
 let foundCallSites = 0;
 const samples = [];
 
-for (const { route, entries, forms } of declarations) {
+let menuFormMatches = 0;
+for (const { route, entries, forms, menuForms } of declarations) {
   const page = resolve(root, `app/(admin)${route}/page.tsx`);
   if (!existsSync(page)) {
     problems.push(`${route} … 宣言はあるのに page.tsx が無い`);
@@ -154,18 +188,21 @@ for (const { route, entries, forms } of declarations) {
 
   let calls = 0;
   const formsSeen = new Set();
+  const formIdsSeen = new Set();
   for (const file of files) {
     // 🚨 **コメントを実装として数えない**（2026-08-15 実測）。
     //    `form="collection-delete-form"` を**コメントが供給**していて、
     //    実装行を消しても検査が緑のままだった（メモリ上で再現済み）。
     const found = callSitesIn(stripComments(readFileSync(file, "utf8")));
-    if (found.calls === 0 && found.forms.length === 0) continue;
+    if (found.calls === 0 && found.forms.length === 0 && found.formIds.length === 0) continue;
     if (found.calls > 0 && samples.length < 3) {
       samples.push(`${file.replace(root + "/", "")}  <PageAction> ${found.calls} 件` +
-        (found.forms.length > 0 ? ` / form=${[...new Set(found.forms)].join(",")}` : ""));
+        (found.forms.length > 0 ? ` / form=${[...new Set(found.forms)].join(",")}` : "") +
+        (found.formIds.length > 0 ? ` / options内 formId=${[...new Set(found.formIds)].join(",")}` : ""));
     }
     calls += found.calls;
     for (const id of found.forms) formsSeen.add(id);
+    for (const id of found.formIds) formIdsSeen.add(id);
   }
   foundCallSites += calls;
 
@@ -201,7 +238,17 @@ for (const { route, entries, forms } of declarations) {
   // 🚨 `submit` は form の id まで一致していること。id が違うと黙って効かない。
   for (const form of new Set(forms)) {
     if (!formsSeen.has(form)) {
-      problems.push(`${route} … form="${form}" を宣言しているが、その id を渡す呼び出しが無い`);
+      problems.push(`${route} … form="${form}" を宣言しているが、その id を渡す呼び出しが無い（form= で照合）`);
+    }
+  }
+
+  // 🚨 `inMenu: true` は `form=` ではなく、`options={[ … ]}` の中の `formId:` で照合する。
+  for (const form of new Set(menuForms)) {
+    if (formIdsSeen.has(form)) {
+      console.log(`  ✅ ${route} … ▾ の中の宣言 "${form}" を options 内の formId: で照合した`);
+      menuFormMatches += 1;
+    } else {
+      problems.push(`${route} … form="${form}"（▾ の中・inMenu: true）を宣言しているが、options 内に formId: で渡す呼び出しが無い`);
     }
   }
 }
@@ -229,8 +276,30 @@ for (const { route, entries, forms } of declarations) {
   }
 }
 
+// ── 自己検査（囮その2。`inMenu`（▾ の中）の formId 照合が options={[…]} に限定できているか）──
+{
+  const real = 'options={[{ label: "x", formId: "zz-decoy-menu-form" }]}';
+  const bareOutsideOptions = 'const formId = "zz-decoy-menu-form"; // options の外';
+  const positive = callSitesIn(real);
+  const negative = callSitesIn(bareOutsideOptions);
+  const okPositive = positive.formIds.includes("zz-decoy-menu-form");
+  // 🚨 **素の `formId:` を options の外で拾わないこと。** `form-draft.tsx` 等、
+  //    無関係な用途の `formId` が 16 ファイルに出てくる（実測 2026-08-16）。
+  const okNegative = !negative.formIds.includes("zz-decoy-menu-form");
+  console.log("自己検査（囮その2・▾ の formId）:");
+  console.log(`  ${okPositive ? "✅" : "🚨"} 囮(+): options={[{ formId: "…" }]} → ` +
+    `${okPositive ? "拾えた" : "拾えず"}`);
+  console.log(`  ${okNegative ? "✅" : "🚨"} 囮(-): options の**外**にある素の formId: → ` +
+    `${okNegative ? "拾わない（無関係な formId を過検出しない）" : "🚨 拾ってしまう"}`);
+  if (!okPositive || !okNegative) {
+    console.error("\n🚨 自己検査（囮その2）に失敗しました。**この検査の結果は信用できません**。");
+    process.exit(1);
+  }
+}
+
 console.log(`宣言のあるルート: ${declarations.length} 件 / page.tsx があり検査したもの: ${inspectedRoutes} 件`);
 console.log(`辿ったファイル: のべ ${inspectedFiles} 件 / 見つけた <PageAction>: のべ ${foundCallSites} 件`);
+console.log(`▾ の中の宣言を formId: で照合した件数: ${menuFormMatches} 件（options={[ … ]} の中だけを見た）`);
 // 🚨 **数だけを出さない。拾った実物を 3 本添える**（司令塔 2026-08-16）。
 //    「のべ N 件」だけでは、**何を数えたのか**を読んだ人が確かめられない。
 if (samples.length > 0) {
