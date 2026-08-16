@@ -283,6 +283,109 @@ const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.sp
   }
 }
 
+  // ── ショートカットの写し（`packages/mcp/src/shortcuts-snapshot.ts`）─────────
+  //
+  // 🚨 **同じ「生成された写し」なので、同じ場所で守る。**
+  //    別の検査にすると `lefthook.yml`（**9 ペインが共有**）を触ることになり、
+  //    そちらのほうが事故が大きい（2026-08-16 の判断）。
+  //    🚨 **正は `apps/studio/components/admin/shortcuts.ts`**。
+  //    生成器（`build-shortcuts-manifest.mjs`）は polish の持ち物なので、
+  //    **私は写さない側に回り、あちらの出力を正として突き合わせる**。
+  {
+    const snapPath = join(MCP_SRC, "shortcuts-snapshot.ts");
+    const snap = readOrStop(snapPath, "ショートカットの写し");
+    const m = snap.match(/SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot\[\] = ([\s\S]*?) as const;/);
+    if (!m) {
+      console.error("🚨 ショートカットの写しから中身を取り出せませんでした。**測れていません**");
+      console.error("   → 生成物の形が変わった可能性。--json で作り直してください。");
+      process.exit(1);
+    }
+    // 🚨 **終了コードでなく stdout を読む。**（polish の実測 2026-08-16）
+    //    生成器は **JSON を出したあとに exit 1 になることが在る**
+    //    （Skills 側の生成物がずれている状態）。
+    //    ＝ **exit だけ見ると「壊れている」、stdout だけ見ると「取れている」**。
+    //    🚨 例外にすると、**私の検査が polish の別件で落ち**、しかも理由が
+    //    「生成器を動かせませんでした」になって、**どちらの持ち物の話か分からなくなる**。
+    let raw = "";
+    let generatorExit = 0;
+    try {
+      raw = execFileSync("node", [join(HERE, "build-shortcuts-manifest.mjs"), "--json"], { encoding: "utf8" });
+    } catch (error) {
+      raw = error.stdout ?? "";
+      generatorExit = error.status ?? 1;
+    }
+    let live;
+    try {
+      live = JSON.parse(raw);
+    } catch {
+      console.error("🚨 ショートカットの生成器から JSON を取れませんでした。**「ずれ無し」ではなく「測れていません」です。**");
+      console.error(`   生成器の終了コード: ${generatorExit} ／ 出力の先頭: ${JSON.stringify(raw.slice(0, 80))}`);
+      console.error("   → `node scripts/build-shortcuts-manifest.mjs --json` を直に走らせてください。");
+      process.exit(1);
+    }
+    // 🚨 JSON は取れたが生成器が落ちている ＝ **polish 側の別件**。
+    //    ここでは落とさない（**私の写しはずれていない**ので）。ただし黙らない。
+    if (generatorExit !== 0) {
+      console.log(
+        `  ⚠️ ショートカットの生成器が exit ${generatorExit} で終わりました（**JSON は取れています**）。` +
+          "\n     🚨 これは **build-shortcuts-manifest.mjs 側（polish）の別件**で、この写しのずれではありません。",
+      );
+    }
+    // 🚨 **0 件は失敗**（空の一覧を「全部 global」と読ませない・司令塔 2026-08-16）。
+    if (!Array.isArray(live) || live.length === 0) {
+      console.error("🚨 ショートカットを 1 件も導出できませんでした。**「無い」ではなく「見ていない」です。**");
+      process.exit(1);
+    }
+    // 🚨 **`--write` なら、ここで写しも作り直す（そして続行する）。**
+    //    以前は「作り直して配列へ入れ直してください」と**手作業を案内**していた。
+    //    生成器（polish の持ち物）の形が変わった瞬間に**全員のコミットが止まり**、
+    //    しかも直す手段が手作業では、止まった人が直せない
+    //    （2026-08-16、別の写しで実際に 5 人が止まった。**落ちるときは直し方まで要る**）。
+    if (WRITE) {
+      // 🚨 **字下げを足さない。** 一度 2 スペース足す形で書いたら、**中身が同じでも 77 行の差分**が出た
+      //    （＝ `--write` を打つたびにノイズになる。2026-08-16 実測）。
+      //    元の生成と**同じ `JSON.stringify(x, null, 2)`** に揃える。
+      const rendered = JSON.stringify(live, null, 2);
+      const unknownNow = live.filter((s) => s.scope === "unknown").length;
+      const next = snap
+        .replace(
+          /(SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot\[\] = )[\s\S]*?( as const;)/,
+          `$1${rendered}$2`,
+        )
+        .replace(/(export const SHORTCUTS_UNKNOWN_SCOPE = )\d+;/, `$1${unknownNow};`);
+      if (next === snap) {
+        console.log("⚠️  ショートカットの写しは既に一致しています（書き換えていません）。");
+      } else {
+        writeFileSync(snapPath, next);
+        console.log(`✅ ショートカットの写しを作り直しました: ${live.length} 件 → ${snapPath}`);
+      }
+    } else {
+    const saved = JSON.parse(m[1]);
+    const unknown = live.filter((s) => s.scope === "unknown").length;
+    // 🚨 **配列の scope が空でないこと**（polish の依頼 2026-08-16）。
+    //    `[]` は「**どこでも効かない**」と読めてしまう。
+    //    polish 側は「導出できたルートが 0 件なら unknown にする」ので出ないはずだが、
+    //    🚨 **「出ないはず」は測られていない**（本人の申告）。**こちらで二重に見る。**
+    const emptyScope = live.filter((s) => Array.isArray(s.scope) && s.scope.length === 0);
+    if (emptyScope.length > 0) {
+      console.error("🚨 scope が**空の配列**のものが在ります。「どこでも効かない」と読まれます。");
+      for (const s of emptyScope) console.error(`   ${s.key} → ${s.action}`);
+      console.error("   → 導出できないなら \"unknown\" にしてください（build-shortcuts-manifest.mjs 側）。");
+      process.exit(1);
+    }
+    if (JSON.stringify(saved) !== JSON.stringify(live)) {
+      console.error("🚨 ショートカットの写しが、正とずれています。");
+      console.error(`   正 ${live.length} 件 / 写し ${saved.length} 件`);
+      console.error("   直すには: node scripts/check-mcp-catalog.mjs --write（1 コマンドで直ります）");
+      process.exit(1);
+    }
+    // 🚨 **数だけ出さない。実物を 1 本添える**（抽出が正気かをその場で確かめられるように）。
+    const sample = live[0];
+    console.log(`  ショートカット ${live.length} 件 — 正と写しが一致 ／ scope を導出できなかったもの: ${unknown} 件`);
+    console.log(`     例 ${sample.key} → ${sample.action} / scope=${JSON.stringify(sample.scope).slice(0, 60)}`);
+    }
+  }
+
 // 🚨 自己検査: 囮を仕込んで、**この実行で**検出できることを確かめる。
 //    「違反 0 件」が「異常が無い」なのか「見ていない」なのかを、毎回その場で割るため。
 //
@@ -520,85 +623,6 @@ if (current === rendered) {
   //    文言を拾えていないのに「完全一致」と出しました（2026-08-15・このファイルの冒頭に記録）。
   //    読んだ人が「抽出が正気か」をその場で確かめられるように、生の値を出す。
   //    規律は覚えている間しか効かないが、出力なら覚えていなくても効く。
-  // ── ショートカットの写し（`packages/mcp/src/shortcuts-snapshot.ts`）─────────
-  //
-  // 🚨 **同じ「生成された写し」なので、同じ場所で守る。**
-  //    別の検査にすると `lefthook.yml`（**9 ペインが共有**）を触ることになり、
-  //    そちらのほうが事故が大きい（2026-08-16 の判断）。
-  //    🚨 **正は `apps/studio/components/admin/shortcuts.ts`**。
-  //    生成器（`build-shortcuts-manifest.mjs`）は polish の持ち物なので、
-  //    **私は写さない側に回り、あちらの出力を正として突き合わせる**。
-  {
-    const snapPath = join(MCP_SRC, "shortcuts-snapshot.ts");
-    const snap = readOrStop(snapPath, "ショートカットの写し");
-    const m = snap.match(/SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot\[\] = ([\s\S]*?) as const;/);
-    if (!m) {
-      console.error("🚨 ショートカットの写しから中身を取り出せませんでした。**測れていません**");
-      console.error("   → 生成物の形が変わった可能性。--json で作り直してください。");
-      process.exit(1);
-    }
-    // 🚨 **終了コードでなく stdout を読む。**（polish の実測 2026-08-16）
-    //    生成器は **JSON を出したあとに exit 1 になることが在る**
-    //    （Skills 側の生成物がずれている状態）。
-    //    ＝ **exit だけ見ると「壊れている」、stdout だけ見ると「取れている」**。
-    //    🚨 例外にすると、**私の検査が polish の別件で落ち**、しかも理由が
-    //    「生成器を動かせませんでした」になって、**どちらの持ち物の話か分からなくなる**。
-    let raw = "";
-    let generatorExit = 0;
-    try {
-      raw = execFileSync("node", [join(HERE, "build-shortcuts-manifest.mjs"), "--json"], { encoding: "utf8" });
-    } catch (error) {
-      raw = error.stdout ?? "";
-      generatorExit = error.status ?? 1;
-    }
-    let live;
-    try {
-      live = JSON.parse(raw);
-    } catch {
-      console.error("🚨 ショートカットの生成器から JSON を取れませんでした。**「ずれ無し」ではなく「測れていません」です。**");
-      console.error(`   生成器の終了コード: ${generatorExit} ／ 出力の先頭: ${JSON.stringify(raw.slice(0, 80))}`);
-      console.error("   → `node scripts/build-shortcuts-manifest.mjs --json` を直に走らせてください。");
-      process.exit(1);
-    }
-    // 🚨 JSON は取れたが生成器が落ちている ＝ **polish 側の別件**。
-    //    ここでは落とさない（**私の写しはずれていない**ので）。ただし黙らない。
-    if (generatorExit !== 0) {
-      console.log(
-        `  ⚠️ ショートカットの生成器が exit ${generatorExit} で終わりました（**JSON は取れています**）。` +
-          "\n     🚨 これは **build-shortcuts-manifest.mjs 側（polish）の別件**で、この写しのずれではありません。",
-      );
-    }
-    // 🚨 **0 件は失敗**（空の一覧を「全部 global」と読ませない・司令塔 2026-08-16）。
-    if (!Array.isArray(live) || live.length === 0) {
-      console.error("🚨 ショートカットを 1 件も導出できませんでした。**「無い」ではなく「見ていない」です。**");
-      process.exit(1);
-    }
-    const saved = JSON.parse(m[1]);
-    const unknown = live.filter((s) => s.scope === "unknown").length;
-    // 🚨 **配列の scope が空でないこと**（polish の依頼 2026-08-16）。
-    //    `[]` は「**どこでも効かない**」と読めてしまう。
-    //    polish 側は「導出できたルートが 0 件なら unknown にする」ので出ないはずだが、
-    //    🚨 **「出ないはず」は測られていない**（本人の申告）。**こちらで二重に見る。**
-    const emptyScope = live.filter((s) => Array.isArray(s.scope) && s.scope.length === 0);
-    if (emptyScope.length > 0) {
-      console.error("🚨 scope が**空の配列**のものが在ります。「どこでも効かない」と読まれます。");
-      for (const s of emptyScope) console.error(`   ${s.key} → ${s.action}`);
-      console.error("   → 導出できないなら \"unknown\" にしてください（build-shortcuts-manifest.mjs 側）。");
-      process.exit(1);
-    }
-    if (JSON.stringify(saved) !== JSON.stringify(live)) {
-      console.error("🚨 ショートカットの写しが、正とずれています。");
-      console.error(`   正 ${live.length} 件 / 写し ${saved.length} 件`);
-      console.error("   直すには: node scripts/build-shortcuts-manifest.mjs --json で作り直して");
-      console.error("             packages/mcp/src/shortcuts-snapshot.ts の配列へ入れ直してください。");
-      process.exit(1);
-    }
-    // 🚨 **数だけ出さない。実物を 1 本添える**（抽出が正気かをその場で確かめられるように）。
-    const sample = live[0];
-    console.log(`  ショートカット ${live.length} 件 — 正と写しが一致 ／ scope を導出できなかったもの: ${unknown} 件`);
-    console.log(`     例 ${sample.key} → ${sample.action} / scope=${JSON.stringify(sample.scope).slice(0, 60)}`);
-  }
-
   const withText = tools.filter((t) => t.title && t.description).length;
   console.log(`  文言まで拾えたもの: ${withText} / ${tools.length}` +
     (withText === tools.length ? "" : "  🚨 **拾えていないものがあります**"));
