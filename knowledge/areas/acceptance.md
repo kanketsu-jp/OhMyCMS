@@ -1,7 +1,7 @@
 ---
 type: area
 title: 受入ハーネス（acceptance）
-description: pnpm acceptance で v0.9 MVP の受入基準9項目を機械判定するハーネス。依存0本・肯定形と否定形を必ずセット・未実装はSKIPでPASSにしない、が設計原則。
+description: pnpm acceptance で v0.9 MVP の受入基準を機械判定するハーネス。🚨 実装は 10 本（2026-08-15 に #10「MCP の全ツールを実プロトコルで叩く」が増え、長らく総覧が 9 のままだった）。🚨 2026-08-17 に測り直して 1 PASS / 2 FAIL / 7 BLOCKED（BLOCKED 5 本は dev-login が HTTP 0 の 1 原因）。依存0本・肯定形と否定形を必ずセット・未実装はSKIPでPASSにしない、が設計原則。
 tags: [acceptance, testing, permissions, ci]
 status: active
 generated:
@@ -42,9 +42,16 @@ pnpm acceptance --red 8          # RED確認: その項目をわざと壊してF
 判定は **PASS / FAIL / SKIP / BLOCKED / MANUAL** の5種類（`acceptance/lib/result.mjs`）。
 **PASS 以外が1つでもあれば未達（exit≠0）。** SKIP も MANUAL も「通った」扱いにしない。
 
-## 受入基準 9 項目
+## 受入基準（**基準は 9 項目・実装は 10 本**）
 
 `.temp/2026-08-13/specs/00-phase-plan-and-contract.md` §5 が正。
+🚨 **その正本は `.temp/` に在る**（`.gitignore` 対象・**clone した人は読めない**）。
+
+🚨 **§5 の基準は 9 項目だが、ハーネスは 10 本走る。**
+**10 本目 `#10 MCP の全ツールを実プロトコルで叩く`**（`checks/10-mcp-verify.mjs`）は
+**2026-08-15 に足された**もので、**§5 には無い**。
+🚨 **総覧はそれを 2 日間ぶん追随していなかった**（2026-08-17・design が数えて直した）。
+**「9 項目」で数えると 1 本落ちる。走る本数は `V09_CHECKS` を引くこと。**
 
 | # | 基準 | 検証方法 |
 |---|---|---|
@@ -134,6 +141,28 @@ studio-acc が開発ビルドである理由: 本番ビルドは `next build` �
 INSERT し、そこから先はすべて API 経由で操作する（`00-phase-plan-and-contract.md` §2 のブートストラップ手順）。
 
 ## 現在の結果
+
+### 🚨 2026-08-17 に測り直した（**こちらが最新**・design）
+
+```
+① 既定（v0.9・10 本）… **1 PASS / 2 FAIL / 7 BLOCKED**   591 秒・木 `2443c2c`・`--docker` 無し
+🟢 PASS … #7 i18n（ja 857 / en 857・ハードコード 0）
+🔴 FAIL … #3 GUI 到達（ナビ 0 本）／ #10 MCP 全ツール（ツール 0 個）
+🚨 BLOCKED 7 … #1 #2（`--docker` 未指定・設計どおり）
+              #4 #5 #6 #8 #9 … 🚨 **5 本とも同じ理由**（`dev-login が HTTP 0`）
+
+② `--v1`（V1・5 本）… **2 PASS / 3 BLOCKED**   156 秒・木 `752434a`
+🟢 PASS … V1-C Tiptap ／ V1-D メール OTP
+🚨 BLOCKED … V1-B（保存先が local。s3 でない）／ V1-A（Keycloak :3108 が無い）／
+            V1-E（`relation "ohmycms_settings" does not exist`）
+```
+
+🚨 **①と②は違う木を測っている**（①の 591 秒の間に他の人がコミットした）。**合算しないこと。**
+🚨 **BLOCKED は「未達」ではない。** そして **BLOCKED 5 本は 1 つの原因**なので、
+**「5 本落ちている」ではなく「1 つの原因で 5 本が測れていない」**と読む。
+🚨 **掃除（90 日で消す）は 1 本も測られていない**——**受入に項目が無い**（v0.9 10 本 / V1 5 本のどちらにも）。
+
+### 2026-08-13 実測（**古い。残すのは「達成済み」の出どころを辿るため**）
 
 2026-08-13 実測（`--docker` 無し）:
 
