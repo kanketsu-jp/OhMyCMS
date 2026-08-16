@@ -232,6 +232,12 @@ for (const file of files) {
     // 🚨 これは「拾う」が、**正しい理由で拾っていない**（下の注記）
     ["ring-1 ring-border", 'className="rounded-lg ring-1 ring-border p-4"', "caught"],
     ["ring-1 ring-zinc-200", 'className="rounded-lg ring-1 ring-zinc-200 p-4"', "missed"],
+    // 🚨 **過検出の側**（2026-08-16 実測）。`\bborder\b` は `border-b` にも当たるので、
+    //    **下線だけの箱**を「囲む罫線」として拾う。＝ **囲んでいないのに面と呼ぶ**。
+    //    🚨 design の実測「クラスが在ることは、線が引かれていることではない」の静的版。
+    //    【測った】いまこのツリーに `rounded-* + border-<方向>` の組は **0 件**
+    //    （🟢 対照: 素直な `rounded-* + border` は **24 ファイル**）＝ **まだ出番が来ていない過検出**。
+    ["🚨 過検出: rounded + border-b（下線だけ）", 'className="rounded-lg border-b p-4"', "caught"],
     // 🟢 対照
     ["🟢 対照(+) 素直な面", 'className="rounded-lg border p-4"', "caught"],
     ["🟢 対照(-) 面でない", 'className="flex gap-2"', "missed"],
