@@ -948,11 +948,15 @@ console.log(
     "その 2 本が 0 なら、上の 0 は「見逃した」ではなく「**届いていない**」。",
 );
 for (const [name, code, shouldMiss, exists] of BLIND_SPOTS) {
-  const got = findMutationLines(`${BASELINE}\n${code}`).length - blindBase;
+  const hits = findMutationLines(`${BASELINE}\n${code}`);
+  const got = hits.length - blindBase;
   const ok = shouldMiss ? got === 0 : got > 0;
   if (!ok) blindDrift = true;
+  // 🚨 判定だけでは「届いて通した」と「届かなかった」が同じ顔になる（schema の形）。
+  //    拾った側は**返ってきた実物**（行番号と理由）を出す。実物が出ていれば、そこまで来た証拠。
+  const 実物 = got > 0 ? `  → 実物 ${JSON.stringify(hits.slice(-got).map((h) => `${h.line}:${h.reason}`))}` : "";
   console.log(
-    `  ${ok ? "✅" : "❌"} ${shouldMiss ? "見逃すはず" : "拾うはず  "} ${name}（検出 ${got} 件）｜ 実在: ${typeof exists === "function" ? exists() : exists}`,
+    `  ${ok ? "✅" : "❌"} ${shouldMiss ? "見逃すはず" : "拾うはず  "} ${name}（検出 ${got} 件）｜ 実在: ${typeof exists === "function" ? exists() : exists}${実物}`,
   );
 }
 console.log(
