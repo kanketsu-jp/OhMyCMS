@@ -323,6 +323,14 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
 
       <SurfaceDivider />
 
+      {/*
+        🚨 表示モードでも操作できる。理由: 選んだ瞬間に反映され、保存前の状態を持たない
+           （`handleLocaleChange` が値の変化でそのまま送る。上の氏名欄とは違い、
+             「保存していない変更」が存在しない ＝ 編集モードに入れる意味が無い）。
+        規約: `knowledge/decisions/action-button-and-edit-mode.md` §7 の例外。
+        🚨 この 1 行を消さないこと。消すと、棚卸しのたびに「直し忘れ」として拾われる
+           （2026-08-16 に実際そう読まれかけた。`[role=combobox]` で探すと出てくる）。
+      */}
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="profile-language-title">
         <SurfaceTitle id="profile-language-title">{t("profile_language_section")}</SurfaceTitle>
         <form action={setLocaleAction}>

@@ -104,27 +104,39 @@ x_rag_okf:
 
 ### 5-1. 🚨 2026-08-16 に採り直した（こちらが最新）
 
-**母数 26 ルート / 🚨 対象 16 / 実装済み 1（`profile`）/ 入力 0 が 9。**
+**母数 26 ルート / 🚨 対象 17 / 入力 0 が 9 / 🚨 測れていない 0。**
 
 ```
-🚨 対象（表示モードが要る・未実装）16:
+🚨 対象（表示モードが要る）17:
   A 作る画面 5 … collections/new ／ files/new ／ files/new-folder ／
                  collections/<c>/fields/new ／ content/<c>/new
   B 一覧＋その場で足すフォーム 5 … labels ／ settings/{agents,policies,roles,users}
   C まとまった設定・詳細 6 … settings/{general,sso,storage} ／
                              collections/<c> ／ files/<id> ／ settings/policies/<id>
-🟢 実装済み 1 … profile（**本体の入力 0 と出る**＝ この数え方は「済んだ画面」を対象から外せている）
+  D 部分的に実装済み 1 … profile（**名前欄は分けた。言語切替は §7 の例外**）
 🟢 対照 入力 0 が 9 … admin ／ collections ／ files ／ folders ／ notifications ／
                       reports ／ settings/mcp ／ settings/version ／ content/<c>
-🚨 測れていない 0（header が出ない画面は 0 枚。404 の 3 本は母数から外した）
 ```
+
+🚨 **探し方を 2 通り走らせている。1 通りでは足りなかった:**
+
+```
+A 素の入力 … input / textarea / select / contenteditable
+B 🚨 role  … [role=switch|combobox|checkbox|radio|slider|spinbutton|textbox]
+   理由: **shadcn は Radix なので、スイッチも選択も `<button>`**。A では 1 つも見えない
+実測: **A では 0 だが B では見つかった画面が 1 枚**（profile の言語切替 `combobox`「日本語」）
+```
+
+🚨 **最初は A だけで数え、`profile` を「実装済みなので対象外」と報告した。誤りだった。**
+**「対象が無い」に見えたのは、探し方が 1 通りしか無かったから**（＝「見ていない 0」）。
+**「無い」と結論する前に、別の探し方を 1 つ試すこと。**
 
 🚨 **5-2 の「15 / 25」と数が近いが、同じ集合ではない。** 突き合わせた差分:
 
 | 差分 | 中身 |
 |---|---|
-| 減 | `profile` … **実装済みになったので対象から外れた**（＝ 数え方が効いている証拠） |
 | 増 | `collections/<c>/fields/new` ／ `content/<c>/new` … **5-2 で見落としていた** |
+| 内訳が変わった | `profile` … 名前欄は分けたが、**言語切替は表示モードのまま操作できる**（§7 の例外） |
 
 🚨 **この数え方の当たらないところ（申告）:**
 - **`content/<c>/new` は、フィールドを持つコレクションでしか対象にならない**
@@ -178,10 +190,27 @@ settings/policies/<id> ／ settings/roles ／ settings/sso ／ settings/storage 
 
 | 条件 | 該当 |
 |---|---|
-| 押した瞬間に効く画面（表示モードが嘘になる） | **探して 0 件**（§5 の実測。fetch/XHR を横取りして確認） |
+| 押した瞬間に効く**画面** | **0 件**（§5-2 の実測。fetch/XHR を横取りして確認） |
+| 🚨 押した瞬間に効く**部品**（画面の中の 1 つ） | **1 件**（`profile` の言語切替） |
 
-🚨 **条件を 1 つしか試していないので、「例外が無い」の証拠ではない。**
-**上記以外の理由で例外にしたい画面が出たら、この表に条件ごと足すこと。**
+🚨 **2026-08-16 訂正: 「探して 0 件」は誤りだった。** 数えていたのは**画面**の単位で、
+**画面の中の 1 部品**が押した瞬間に効く形を見ていなかった。
+
+```
+/admin/profile の言語切替（Radix Select）
+  値を変えた瞬間に送信する（profile-settings.tsx の onValueChange → startTransition）
+  ＝ **保存されていない変更を持ちえない**（§2 の境目でいうと表示モード側）
+  → 🚨 **編集モードに入れない。表示モードのまま操作できてよい**
+```
+
+**そのコードに書く 1 行:**
+```
+🚨 表示モードでも操作できる。理由: 選んだ瞬間に反映され、保存前の状態を持たない
+```
+
+🚨 **この 1 件は「探し方を変えたら出た」もの。**
+素の `select` を探す方法では見えず、`[role=combobox]` で初めて見えた（§5-1）。
+**「例外が無い」と書く前に、探し方を 2 通り以上試すこと。**
 
 **例外にするときの書き方:**
 ```
