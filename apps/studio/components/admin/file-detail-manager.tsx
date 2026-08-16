@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Trash2 } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
-import { Button } from "@/components/ui/button";
+import { FieldValue } from "@/components/ui/field-value";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,6 +51,7 @@ function errorKeyFrom(payload: unknown): ErrorKey | null {
 
 export function FileDetailManager({ file, folders }: { file: FileRow; folders: FolderRow[] }) {
   const t = useT("files");
+  const tCommon = useT("common");
   const tError = useT("errors");
   const messageFrom = (payload: unknown, fallback: string) => {
     const key = errorKeyFrom(payload);
@@ -58,6 +59,21 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
   };
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  /** 表示モード ⇄ 編集モード（規約 `knowledge/decisions/action-button-and-edit-mode.md`）。 */
+  const [editing, setEditing] = useState(false);
+  /**
+   * 🚨 「やめる」で**入れた値を捨てる**ための鍵（§2-2）。この画面の欄は uncontrolled
+   * （`defaultValue`）なので、`readOnly` にしても **DOM の値は残る**。
+   * 増やすと `<form>` が作り直され、`defaultValue` が引き直される。
+   */
+  const [formKey, setFormKey] = useState(0);
+
+  /** 編集をやめて表示モードへ戻す。**入れた値は捨てる**。 */
+  function cancelEditing() {
+    setError(null);
+    setEditing(false);
+    setFormKey((k) => k + 1);
+  }
 
   const save = useSubmitOnce(async (formData: FormData) => {
     setError(null);
@@ -104,42 +120,78 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
           {error}
         </div>
       ) : null}
-      <form id="file-detail-form" action={save.run} className="space-y-4">
+      <form
+        // 🚨 `key` を増やすと作り直され、`defaultValue` が引き直される（「やめる」の実体）
+        key={formKey}
+        id="file-detail-form"
+        action={save.run}
+        className="space-y-4"
+      >
         <FormDraft formId="file-detail-form" />
         <div className="space-y-1.5">
           <Label htmlFor="title">{t("title_label")}</Label>
-          <Input id="title" name="title" defaultValue={file.title ?? ""} />
+          {/* 🚨 `text` / `textarea` は `readOnly` が効く型なので**要素を残す**（なぞってコピーできる。§2-1） */}
+          <Input id="title" name="title" readOnly={!editing} defaultValue={file.title ?? ""} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="description">{t("description_label")}</Label>
-          <Textarea id="description" name="description" defaultValue={file.description ?? ""} className="min-h-28" />
+          <Textarea id="description" name="description" readOnly={!editing} defaultValue={file.description ?? ""} className="min-h-28" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="tags">{t("tags_label")}</Label>
-          <Input id="tags" name="tags" defaultValue={file.tags ?? ""} />
+          <Input id="tags" name="tags" readOnly={!editing} defaultValue={file.tags ?? ""} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="folder">{t("folder_label")}</Label>
-          <select id="folder" name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={file.folder ?? ""}>
-            <option value="">{t("no_folder_option")}</option>
-            {folders.map((folder) => (
-              <option key={folder.id} value={folder.id}>{folder.name}</option>
-            ))}
-          </select>
+          {/* 🚨 `<select>` は `readOnly` という性質を**そもそも持たない**（実測 2026-08-16）。
+              表示モードでは**要素ごと置き換えて、選ばれている値を文字で出す**（§2-1・案 2）。 */}
+          {editing ? (
+            <select id="folder" name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={file.folder ?? ""}>
+              <option value="">{t("no_folder_option")}</option>
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id}>{folder.name}</option>
+              ))}
+            </select>
+          ) : (
+            <FieldValue id="folder">
+              {folders.find((folder) => folder.id === file.folder)?.name ?? t("no_folder_option")}
+            </FieldValue>
+          )}
         </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="destructive" disabled={remove.pending} onClick={() => void remove.run()}>
-            <Trash2 />
-            {t("delete_button")}
-          </Button>
-        </div>
-        <PageAction
-          form="file-detail-form"
-          role="primary"
-          pending={save.pending}
-          label={t("save_button")}
-          icon={<Check />}
-        />
+        {/* 🚨 主ボタンはモードで変わる（§2）。抜け道「やめる」は **▾ の中ではなく主の隣**（§4）。
+            🚨 **削除は本文から ▾ の中へ移した**（§3「破壊的な操作は誤って押されないよう必ず ▾」）。
+            `/admin/collections/<c>` で 283 A を当てたのと同じ形。 */}
+        {editing ? (
+          <>
+            <PageAction
+              role="secondary"
+              label={tCommon("action_cancel")}
+              icon={<X />}
+              onClick={cancelEditing}
+            />
+            <PageAction
+              form="file-detail-form"
+              role="primary"
+              pending={save.pending}
+              label={tCommon("action_save")}
+              icon={<Check />}
+            />
+          </>
+        ) : (
+          <PageAction
+            role="primary"
+            label={tCommon("action_edit")}
+            icon={<Pencil />}
+            onClick={() => setEditing(true)}
+            options={[
+              {
+                label: t("delete_button"),
+                destructive: true,
+                onSelect: () => void remove.run(),
+              },
+            ]}
+          />
+        )}
       </form>
     </div>
   );

@@ -208,22 +208,32 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
     },
   ],
   "/admin/files/[id]": [
+    // 🚨 2026-08-16、この画面を表示モード / 編集モードに分けた（`file-detail-manager.tsx`）。
+    //    **画面を開いた直後に出るのは「編集する」だけ**なので、ここにはそれを書く。
+    //    `/admin/profile` と同じ形（この表にはモードの概念が無い。下の「見ていない範囲」）。
+    //
+    // 🚨 **この表が見ていない範囲**（塞げないものは隠さず書く）:
+    //    ・**編集モードの「保存」「やめる」は、ここに宣言できない**
+    //      （表は 1 ルート＝1 組で、**状態で入れ替わるもの**を表せない）
+    //    ・＝ **その 2 つが壊れても、`check-page-actions` / `-rendered` は気づかない**
+    //    🚨 ・**この表が古くなっても、検査は通る。** 実際、2026-08-16 に主アクションを
+    //      「保存」から「編集する」へ変えたとき、**2 本とも緑のままだった**
+    //      （検査は「宣言が実在するものを指すか」を見ており、**実物と一致するかは見ていない**）
     {
-      kind: "submit",
-      labelKey: "files.save_button",
-      icon: "Check",
-      form: "file-detail-form",
+      kind: "button",
+      labelKey: "common.action_edit",
+      icon: "Pencil",
       role: "primary",
     },
-    // 🚨 `submit` ではない。削除は**保存と同じ form の中**にある `type="button"` で、
-    //    専用の form を持たない（`file-detail-manager.tsx`）。
-    //    form 属性で外から送れないので、押したときの処理を渡す形にする。
+    // 🚨 削除は**本文から ▾ の中へ移した**（規約 §3「破壊的な操作は必ず ▾ の中」）。
+    //    `submit` ではない。専用の form を持たず、押したときの処理を渡す形。
     {
       kind: "button",
       labelKey: "files.delete_button",
       icon: "Trash2",
       role: "secondary",
       destructive: true,
+      inMenu: true,
     },
   ],
 
