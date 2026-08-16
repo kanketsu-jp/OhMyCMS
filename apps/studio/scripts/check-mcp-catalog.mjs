@@ -391,6 +391,23 @@ if (!WRITE) {
   {
     const self = readOrStop(fileURLToPath(import.meta.url), "この検査自身");
     const header = self.slice(0, self.indexOf("*/"));
+
+    // 🚨 **落ちる分岐を足したら、台で通してからこの数を更新すること**
+    //    （司令塔 2026-08-16 / design の③「死んだ条件」）。
+    //    永久に false の比較は、`node --check` も終了コードも出力も**何も言わない**。
+    //    通して見るしかない。2026-08-16 に全 11 本を台で通したところ、
+    //    🚨 **3 本はその日まで一度も通っていなかった**——うち 1 本は
+    //    「**写しがずれた**」＝ **この検査の存在理由そのもの**だった。
+    //    🚨 これは【鳴る】。**数が合わなければ落ちる**（＝足したことに気づける）。
+    //    通っていることまでは保証しない（**通したかは人が台で確かめる**）。
+    const EXIT_BRANCHES = 12;
+    const branches = (self.match(/process\.exit\(1\)/g) ?? []).length;
+    if (branches !== EXIT_BRANCHES) {
+      console.error(`🚨 落ちる分岐の数が変わりました（記録 ${EXIT_BRANCHES} → いま ${branches}）。`);
+      console.error("   → 足した分岐を**台で実際に通して**から、EXIT_BRANCHES を更新してください。");
+      console.error("     🚨 死んだ条件（永久に false）は、通さないかぎり気づけません。");
+      process.exit(1);
+    }
     const missing = blind
       .map(([label, , , recorded]) => `${label} → **${recorded}**`)
       .filter((phrase) => !header.includes(phrase));
