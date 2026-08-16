@@ -45,6 +45,12 @@ for (let i = 0; i < parts.length; i += 1) {
   const path = entry.slice(3);
   if (mark.startsWith("R")) i += 1; // rename の元パスを読み飛ばす
   if (!/\.(mjs|cjs|ts|sh)$/.test(path)) continue;
+  // 🚨 **staged 済みは窓ではない**（2026-08-16 実測: 自分が `git add` した新規検査を
+  //    「編集中」と出してしまった）。危ないのは **作業ツリーが索引と違う**もの＝**書きかけ**。
+  //    `git status --porcelain` の 2 文字目が作業ツリー側（` ` なら索引と同じ）。
+  //    未追跡（`??`）は、まだ何も決まっていないので窓として数える。
+  const inFlight = mark === "??" || mark[1] !== " ";
+  if (!inFlight) continue;
   dirty.push({ mark, path });
 }
 
