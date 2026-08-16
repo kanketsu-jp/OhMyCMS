@@ -1,0 +1,45 @@
+{
+  "_why": [
+    "⌘Enter で保存できる画面の台帳。**キーボードだけで操作する人の保存の導線**なので、",
+    "黙って減らないようにする。マウスで押せる人には代わりが在るが、そうでない人には代わりが無い。",
+    "（『見える／押せる／読み上げられる』の 3 つ目）",
+    "",
+    "🚨 減らすときは routes から消すのではなく removed に理由つきで移す。",
+    "   理由が書けないなら、それは意図した削除ではない。"
+  ],
+  "routes": [
+    "/admin/collections/new",
+    "/admin/collections/[collection]/fields/new",
+    "/admin/content/[collection]/new",
+    "/admin/content/[collection]/[id]",
+    "/admin/files/new",
+    "/admin/files/new-folder",
+    "/admin/files/[id]",
+    "/admin/settings/general",
+    "/admin/settings/storage",
+    "/admin/settings/sso",
+    "/admin/profile",
+    "/admin/settings/roles",
+    "/admin/settings/policies",
+    "/admin/settings/users",
+    "/admin/settings/agents"
+  ],
+  "removed": [
+    {
+      "route": "/admin/settings/roles",
+      "why": "🚨 意図した削除ではない。d635b58（一覧＋その場で足すフォーム 6 枚を揃える）で PAGE_ACTIONS から宣言が消えた副作用。design が『直すべき後退』と判断し、フォーム側で ⌘Enter を受ける形へ直す予定。直ったらこの行を消す。"
+    },
+    {
+      "route": "/admin/settings/policies",
+      "why": "🚨 同上（d635b58 の副作用・直す予定）。"
+    },
+    {
+      "route": "/admin/settings/users",
+      "why": "🚨 同上（d635b58 の副作用・直す予定）。"
+    },
+    {
+      "route": "/admin/settings/agents",
+      "why": "🚨 同上（d635b58 の副作用・直す予定）。settings/mcp から agents へ向かう href は残っているが kind:\"link\" で form を持たないため、⌘Enter は効かない。"
+    }
+  ]
+}
