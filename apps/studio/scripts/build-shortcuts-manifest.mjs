@@ -49,6 +49,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, globSync, existsSync } from "node:fs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,6 +64,23 @@ const AS_JSON = process.argv.includes("--json");
 const AS_WRITE = process.argv.includes("--write");
 const SKILL_REF = resolve(root, "../../.claude/skills/ohmycms-mcp/references/shortcuts.md");
 const log = (...a) => { if (!AS_JSON) console.log(...a); };
+
+/**
+ * 🚨 **この生成器は索引（git）から読む。作業ツリーからは読まない。**
+ *
+ * 由来: 2026-08-16。`--write` で作った写しに、**別のペインが編集中だった
+ * `users-policy-manager.tsx` の状態**（`<PageAction>` が在った版）が入り、
+ * その人が書き換えた瞬間に写しがずれて **CI と全員のコミットが止まった**。
+ * ＝ 生成物が「そのとき誰かの手元にあった状態」に依存していた。
+ *
+ * 🚨 **索引から読めば、共有ツリーでも新しい clone でも同じ出力になる**
+ *    （CI が測っているのは clean な worktree なので、そこと一致する）。
+ * 🚨 未追跡（`null`）は **「まだ入っていない」として飛ばす**。空文字にしない
+ *    （空にすると「中身が無いファイル」として数え、**見ていない 0** を作る）。
+ */
+function readSrc(file) {
+  return readTracked(file);
+}
 
 /** `@/…` と相対の import を実ファイルへ解決する（外部パッケージは追わない）。 */
 function resolveImport(spec, fromFile) {
@@ -87,7 +105,8 @@ function reachableFrom(entryFile) {
     if (!file || seen.has(file)) continue;
     seen.add(file);
     let body;
-    try { body = readFileSync(file, "utf8"); } catch { continue; }
+    body = readSrc(file);
+    if (body === null) continue; // 未追跡＝まだ入っていない
     for (const m of stripComments(body).matchAll(/from\s+"([^"]+)"/g)) {
       const next = resolveImport(m[1], file);
       if (next && !seen.has(next)) stack.push(next);
@@ -98,7 +117,7 @@ function reachableFrom(entryFile) {
 
 // ── ① SHORTCUTS（id → 組み合わせ） ───────────────────────────────────
 const shortcutsFile = resolve(root, "components/admin/shortcuts.ts");
-const shortcutsSrc = stripComments(readFileSync(shortcutsFile, "utf8"));
+const shortcutsSrc = stripComments(readSrc(shortcutsFile) ?? "");
 // 🚨 **表の終わりで切る。** 最初は `slice(tableAt)` で末尾まで見ていて、
 //    後ろにある `KEY_SYMBOL`（`arrowleft: "←"` など）まで**ショートアップとして数えた**
 //    （実測: 6 件のはずが 13 件。自己検査の「辞書キーが無い」で 7 件が落ちて気づいた）。
@@ -112,7 +131,7 @@ const combos = [...table.matchAll(/^\s{2}([A-Za-z_$][\w$]*):\s*"([^"]+)",/gm)]
 // ── ② 登録している部品（useShortcut(SHORTCUTS.<id>） ─────────────────
 // 🚨 呼び出しは 1 行に収まらない（`useShortcut(\n  SHORTCUTS.save,` の形が実在する）。
 //    行で探さず、**ファイル全体を 1 つの文字列として**見る。
-const sources = globSync("{app,components}/**/*.{ts,tsx}", { cwd: root })
+const sources = trackedGlob("{app,components}/**/*.{ts,tsx}", { cwd: root })
   .map((rel) => resolve(root, rel));
 // 🚨 **登録元は 1 つとは限らない。全部持つ。**
 //    最初は `if (!registrar.has(id))` で**最初の 1 つだけ**を採っていて、
@@ -120,7 +139,7 @@ const sources = globSync("{app,components}/**/*.{ts,tsx}", { cwd: root })
 //    ＝ **「1 つ見つけたら終わり」は、数を 1 に潰す。**（実測 2026-08-16）
 const registrar = new Map(); // id → 登録している部品のパス（複数）
 for (const file of sources) {
-  const body = stripComments(readFileSync(file, "utf8"));
+  const body = stripComments(readSrc(file) ?? "");
   for (const m of body.matchAll(/useShortcut\(\s*SHORTCUTS\.([A-Za-z_$][\w$]*)/g)) {
     const list = registrar.get(m[1]) ?? [];
     if (!list.includes(file)) list.push(file);
@@ -131,7 +150,7 @@ for (const file of sources) {
 // ── ③ 入口（layout と各 page）からの到達 ─────────────────────────────
 const layoutFile = resolve(root, "app/(admin)/layout.tsx");
 const layoutReach = existsSync(layoutFile) ? reachableFrom(layoutFile) : new Set();
-const pages = globSync("app/(admin)/**/page.tsx", { cwd: root })
+const pages = trackedGlob("app/(admin)/**/page.tsx", { cwd: root })
   .map((rel) => ({
     route: `/${rel.replace(/^app\/\(admin\)\//, "").replace(/\/page\.tsx$/, "")}`,
     file: resolve(root, rel),
@@ -139,7 +158,7 @@ const pages = globSync("app/(admin)/**/page.tsx", { cwd: root })
 const pageReach = pages.map((p) => ({ ...p, reach: reachableFrom(p.file) }));
 
 // ── ④ `save` の追加条件（PAGE_ACTIONS の「主要かつ submit」） ────────
-const actionsSrc = stripComments(readFileSync(resolve(root, "lib/admin/page-actions.ts"), "utf8"));
+const actionsSrc = stripComments(readSrc(resolve(root, "lib/admin/page-actions.ts")) ?? "");
 const actionsTable = actionsSrc.slice(actionsSrc.indexOf("export const PAGE_ACTIONS"));
 const submitRoutes = [];
 for (const m of actionsTable.matchAll(/^ {2}"(\/admin[^"]*)": \[([\s\S]*?)^ {2}\],/gm)) {
@@ -311,7 +330,7 @@ for (const m of manifest) {
 const modeSplit = pageReach
   .filter(({ reach }) =>
     [...reach].some(
-      (f) => !f.endsWith("lib/admin/page-actions.ts") && /\("action_edit"\)/.test(readFileSync(f, "utf8")),
+      (f) => !f.endsWith("lib/admin/page-actions.ts") && /\("action_edit"\)/.test(readSrc(f) ?? ""),
     ),
   )
   .map((p) => p.route)
@@ -332,7 +351,7 @@ const gatedSave = pageReach
     const conds = [];
     for (const f of reach) {
       if (f.endsWith("lib/admin/page-actions.ts")) continue;
-      for (const m of readFileSync(f, "utf8").matchAll(/<PageAction\b[\s\S]*?^\s*\/>/gm)) {
+      for (const m of (readSrc(f) ?? "").matchAll(/<PageAction\b[\s\S]*?^\s*\/>/gm)) {
         const b = m[0];
         if (!/role="primary"/.test(b) || !/\bform=/.test(b)) continue;
         const d = b.match(/\bdisabled=\{([^}]*)\}/);
