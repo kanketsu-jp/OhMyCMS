@@ -1,17 +1,16 @@
 import { requireActor } from "@/lib/auth/context";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
-import {
-  listTrash,
-  permanentlyDeleteTrashItem,
-  TRASH_RETENTION_DAYS,
-} from "@/lib/trash/service";
+import { db } from "@/lib/db/knex";
+import { trashRetentionDays } from "@/lib/trash/purge";
+import { listTrash, permanentlyDeleteTrashItem } from "@/lib/trash/service";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
-    return ok({ data: await listTrash(actor), retention_days: TRASH_RETENTION_DAYS });
+    // 🚨 保持日数は SQL 側の正本から引く（掃除と同じ 1 つを読む）。
+      return ok({ data: await listTrash(actor), retention_days: await trashRetentionDays(db) });
   } catch (error) {
     return errorResponse(error);
   }

@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
+import { trashRetentionDays } from "./purge";
 import { applyFilter } from "@/lib/items/filter";
 import { resolvePermission, type PermissionAction } from "@/lib/permissions/resolve";
 import { ApiError } from "@/lib/schema/errors";
@@ -9,7 +10,10 @@ import type { ColumnInfo, RelationMeta } from "@/lib/schema/models";
 import { assertSafeIdentifier } from "@/lib/schema/validate";
 
 // 設定化は別作業。決定は knowledge/decisions/trash-and-restore-ui.md §4
-export const TRASH_RETENTION_DAYS = 90;
+// 🚨 **保持日数の正本は SQL 側**（`ohmycms_trash_retention_days()`）。
+// ここに `90` を書き戻さないこと——**掃除と画面が別々の数を持つと、
+// 掃除が消したあとも画面が「あと N 日」と言う**ずれ方をする。
+// 読むには `trashRetentionDays(conn)`（`lib/trash/purge.ts`）を使う。
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DISPLAY_FIELDS = [
@@ -191,9 +195,9 @@ function deletedAtString(value: unknown): string {
   return new Date(String(value)).toISOString();
 }
 
-function remainingDays(deletedAt: string, now: number): number {
+function remainingDays(deletedAt: string, now: number, retentionDays: number): number {
   const elapsed = Math.floor((now - new Date(deletedAt).getTime()) / DAY_MS);
-  return Math.max(0, TRASH_RETENTION_DAYS - elapsed);
+  return Math.max(0, retentionDays - elapsed);
 }
 
 async function tableMetas(): Promise<TableMeta[]> {
@@ -237,6 +241,8 @@ async function visibleQueryFor(
 export async function listTrash(actor: Actor): Promise<TrashItem[]> {
   const metas = await tableMetas();
   const now = Date.now();
+  // 🚨 保持日数は SQL 側の正本から引く（この関数の中に 90 を書かない）。
+  const retentionDays = await trashRetentionDays(db);
   const rows = await Promise.all(
     metas.map(async (meta) => {
       const permission = await resolvePermission(actor, permissionCollection(meta.collection), "read");
@@ -260,7 +266,7 @@ export async function listTrash(actor: Actor): Promise<TrashItem[]> {
           sourceKind: meta.sourceKind,
           sourceLabel: meta.sourceLabel,
           deletedAt,
-          daysRemaining: remainingDays(deletedAt, now),
+          daysRemaining: remainingDays(deletedAt, now, retentionDays),
           canRestore: primaryKey !== null,
           disabledReason: primaryKey === null ? "missing_primary_key" : null,
         };
