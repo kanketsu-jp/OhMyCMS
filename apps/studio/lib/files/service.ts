@@ -15,7 +15,10 @@ import { ApiError } from "@/lib/schema/errors";
 import { maxUploadBytes, maxUploadMb } from "@/lib/files/upload-limit";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { RelationMeta } from "@/lib/schema/models";
-import { authorizeTarget, removeLabelsForTarget } from "@/lib/labels/service";
+// 🚨 `removeLabelsForTarget` の import を外した（2026-08-16）。
+//    削除がソフトになり、**割り当てを消さなくなった**ため。
+//    消すのは 90 日後の掃除の側（そこで要るなら、そこで import すること）。
+import { authorizeTarget } from "@/lib/labels/service";
 import { getStorage, getStorageByName } from "@/lib/storage";
 import type { StorageDriver } from "@/lib/storage/driver";
 
@@ -168,6 +171,25 @@ export async function createBlurDataUrl(
  * 🚨 増やすときは**辞書（`folders.color_*`）も一緒に足す**。片方だけ増やすと、
  *    選べるのに名前が出ない（または名前だけあって選べない）状態になる。
  */
+/**
+ * 🚨 **生きている行だけを見る入口。ここを通らない問い合わせを書かないこと。**
+ *
+ * 削除は「消す」ではなく「印を立てる」（`deleted_at`）に変わった（283 A・2026-08-16）。
+ * そのため **`db("directus_files")` を素で書くと、消したはずのものが画面に出る。**
+ * 🚨 手で 13 箇所に `whereNull` を書く形にしない——**必ずどこかが漏れる**
+ *    （schema が items 側で同じ判断をしている）。
+ *
+ * 🚨 **insert はここを通さない**（新しい行に「生きている」条件は無い）。
+ * 🚨 **90 日の掃除だけは、消えた行を見る必要がある**ので、そこは素の `db(...)` を使い、
+ *    その場に理由を書くこと。
+ */
+function liveFiles() {
+  return db<FileRow>("directus_files").whereNull("deleted_at");
+}
+function liveFolders() {
+  return db<FolderRow>("directus_folders").whereNull("deleted_at");
+}
+
 export const FOLDER_COLORS = new Set(["slate", "red", "amber", "emerald", "sky", "violet"]);
 
 type ResizeFit = "cover" | "contain" | "inside" | "outside";
@@ -200,6 +222,11 @@ type FileRow = {
   blur_data_url: string | null;
   /** 配信用の圧縮版のキー。null なら圧縮版なし（元をそのまま配信する）。 */
   compressed_key: string | null;
+  /**
+   * ゴミ箱に入れた時刻。**null なら生きている**（283 A・2026-08-16）。
+   * 🚨 読むときは必ず `liveFiles()` を通す。素の `db("directus_files")` を書かない。
+   */
+  deleted_at: string | null;
 };
 
 /**
@@ -238,7 +265,11 @@ type FileRow = {
  */
 declare const publicFileBrand: unique symbol;
 
-export type PublicFileRow = Omit<FileRow, "compressed_key"> & {
+// 🚨 `deleted_at` も外へ出さない（2026-08-16）。**いま読む側が誰も居ない**ので、
+//    出すと「まだ出番が来ていない」列を API の契約に足すことになる（SDK / CLI / MCP も見る）。
+//    🚨 **ゴミ箱の画面を作る人へ**: そこで初めて要るので、**そのときに足して、
+//    画面で出ることを実測してください**。
+export type PublicFileRow = Omit<FileRow, "compressed_key" | "deleted_at"> & {
   readonly [publicFileBrand]: true;
 };
 
@@ -248,10 +279,13 @@ export type PublicFileRow = Omit<FileRow, "compressed_key"> & {
  */
 function toPublicFile(row: FileRow): PublicFileRow {
   // compressed_key だけを落とす（他の列は今までどおり返す）。
-  const publicFields: Omit<FileRow, "compressed_key"> & { compressed_key?: string | null } = {
+  const publicFields: Omit<FileRow, "compressed_key" | "deleted_at"> & { compressed_key?: string | null; deleted_at?: string | null } = {
     ...row,
   };
   delete publicFields.compressed_key;
+  // 🚨 **型で外しただけでは消えない**（このファイルの上に「型は守り手ではない」と書いてある）。
+  //    実行時にも落とす。落とさないと `{ ...row }` でそのまま外へ出る。
+  delete publicFields.deleted_at;
   return publicFields as PublicFileRow;
 }
 
@@ -264,6 +298,8 @@ type FolderRow = {
    * 🚨 生の色コードを持たない。持つと**テーマを変えたときにフォルダだけ取り残される**。
    */
   color: string | null;
+  /** ゴミ箱に入れた時刻。**null なら生きている**。読むときは `liveFolders()` を通す。 */
+  deleted_at: string | null;
 };
 
 type SystemCollection = "directus_files" | "directus_folders";
@@ -443,7 +479,7 @@ async function findFile(
   schemaOverview: SchemaOverview,
   relations: RelationMeta[],
 ): Promise<FileRow> {
-  const query = db<FileRow>("directus_files").where({ id });
+  const query = liveFiles().where({ id });
   applyRowFilter(query, rowFilter, "directus_files", schemaOverview, relations);
   const row = await query.first();
   if (!row) {
@@ -559,7 +595,7 @@ export async function listFiles(actor: Actor, input: ListInput): Promise<PublicF
   const permission = await permissionForAction(actor, "directus_files", "read");
   const relations = permission.rowFilter ? await relationRows() : [];
   const { limit, offset } = parseList(input);
-  const query = db<FileRow>("directus_files")
+  const query = liveFiles()
     .select("*")
     .orderBy("uploaded_on", "desc")
     .limit(limit)
@@ -615,7 +651,7 @@ export async function updateFile(
     Object.entries(patch).filter(([, value]) => value !== undefined),
   );
 
-  const [row] = await db<FileRow>("directus_files")
+  const [row] = await liveFiles()
     .where({ id })
     .modify((query) => {
       applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
@@ -638,22 +674,18 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
   const permission = await permissionForAction(actor, "directus_files", "delete");
   const relations = permission.rowFilter ? await relationRows() : [];
   const row = await findFile(id, permission.rowFilter, schemaOverview, relations);
-  const auth = await authorizeTarget(actor, "file", id, "delete");
-  const key = ensureStoredFile(row);
-  // 🚨 削除も**保存したときの保管先**へ。今の設定で消すと、切り替え前のファイルが
-  //    消えずに残る（利用者は消したつもりでいる）。
-  const storage = await storageForRow(row);
-  if (storage.deletePrefix) {
-    await storage.deletePrefix(`${id}/`);
-  } else {
-    await storage.delete(key);
-  }
-  const deleteQuery = db<FileRow>("directus_files").where({ id });
-  applyRowFilter(deleteQuery, permission.rowFilter, "directus_files", schemaOverview, relations);
-  await deleteQuery.delete();
-  // 🚨 ラベルの割り当ては外部キーで消えない（target_id が files と folders の
-  //    どちらも指すため、外部キーを張れない）。**ここで消さないと残り続ける。**
-  await removeLabelsForTarget("file", id, auth);
+  // 🚨 権限の確認は残す（ラベルの割り当てまで含めて消してよいか）。
+  //    いまは割り当てを消さないが、**消せる権限が無い人が削除できてはいけない**。
+  await authorizeTarget(actor, "file", id, "delete");
+  // 🚨 **実体を消さない**（283 A・2026-08-16「ソフトデリートおよびゴミ箱を導入」）。
+  //    消すと**戻せない**——ゴミ箱から戻したときに、一覧には出るが開けない状態になる。
+  //    実体は 90 日後の掃除が消す。ここで `storage.deletePrefix` を呼ばないこと。
+  // 🚨 **ラベルの割り当ても消さない**。外部キーが張れない（target_id が files と
+  //    folders のどちらも指す）ので、以前はここで消していた。消すと**戻すときに戻らない**。
+  //    画面から隠すのは、割り当て側の担当（`ohmycms_label_assignments` を見る側）。
+  const softDelete = liveFiles().where({ id });
+  applyRowFilter(softDelete, permission.rowFilter, "directus_files", schemaOverview, relations);
+  await softDelete.update({ deleted_at: db.fn.now() });
 }
 
 function parseDimension(value: string | null | undefined, field: string): number | undefined {
@@ -842,7 +874,7 @@ export async function listFolders(actor: Actor, input: ListInput): Promise<Folde
   const permission = await permissionForAction(actor, "directus_folders", "read");
   const relations = permission.rowFilter ? await relationRows() : [];
   const { limit, offset } = parseList(input);
-  const query = db<FolderRow>("directus_folders")
+  const query = liveFolders()
     .select("*")
     .orderBy("name")
     .limit(limit)
@@ -882,7 +914,7 @@ export async function getFolder(actor: Actor, id: string): Promise<FolderRow> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_folders", "read");
   const relations = permission.rowFilter ? await relationRows() : [];
-  const query = db<FolderRow>("directus_folders").where({ id });
+  const query = liveFolders().where({ id });
   applyRowFilter(query, permission.rowFilter, "directus_folders", schemaOverview, relations);
   const row = await query.first();
   if (!row) {
@@ -934,7 +966,7 @@ export async function updateFolder(
         // 🚨 既に輪が在るデータでも止まる（無限に登らない）
         if (seen.has(cursor)) break;
         seen.add(cursor);
-        const up: Pick<FolderRow, "parent"> | undefined = await db<FolderRow>("directus_folders")
+        const up: Pick<FolderRow, "parent"> | undefined = await liveFolders()
           .where({ id: cursor })
           .first("parent");
         cursor = up?.parent ?? null;
@@ -952,7 +984,7 @@ export async function updateFolder(
     update.color = color;
   }
 
-  const [row] = await db<FolderRow>("directus_folders")
+  const [row] = await liveFolders()
     .where({ id })
     .modify((query) => {
       applyRowFilter(query, permission.rowFilter, "directus_folders", schemaOverview, relations);
@@ -969,30 +1001,32 @@ export async function deleteFolder(actor: Actor, id: string): Promise<void> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_folders", "delete");
   const relations = permission.rowFilter ? await relationRows() : [];
-  const visibleQuery = db<FolderRow>("directus_folders").where({ id });
+  const visibleQuery = liveFolders().where({ id });
   applyRowFilter(visibleQuery, permission.rowFilter, "directus_folders", schemaOverview, relations);
   const visible = await visibleQuery.first();
   if (!visible) {
     throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
   }
-  const auth = await authorizeTarget(actor, "folder", id, "delete");
+  // 🚨 ファイルと同じく、権限の確認だけ残す（割り当ては消さない）。
+  await authorizeTarget(actor, "folder", id, "delete");
 
-  const file = await db<FileRow>("directus_files").where({ folder: id }).first();
+  // 🚨 **中身の判定は「生きているもの」だけを数える**（入口 `liveFiles` / `liveFolders`）。
+  //    ゴミ箱に入っているファイルが中に在っても、それは「空でない」ではない。
+  const file = await liveFiles().where({ folder: id }).first();
   if (file) {
     throw new ApiError(409, "FOLDER_NOT_EMPTY", "フォルダ配下にファイルがあります");
   }
-  const child = await db<FolderRow>("directus_folders").where({ parent: id }).first();
+  const child = await liveFolders().where({ parent: id }).first();
   if (child) {
     throw new ApiError(409, "FOLDER_NOT_EMPTY", "フォルダ配下にフォルダがあります");
   }
-  const deleteQuery = db<FolderRow>("directus_folders").where({ id });
-  applyRowFilter(deleteQuery, permission.rowFilter, "directus_folders", schemaOverview, relations);
-  const deleted = await deleteQuery.delete();
-  if (!deleted) {
+  // 🚨 **消さずに印を立てる**（283 A）。割り当ても消さない（戻すときに要る）。
+  const softDelete = liveFolders().where({ id });
+  applyRowFilter(softDelete, permission.rowFilter, "directus_folders", schemaOverview, relations);
+  const marked = await softDelete.update({ deleted_at: db.fn.now() });
+  if (!marked) {
     throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
   }
-  // 🚨 ファイルと同じ理由で、ここで割り当てを消す。
-  await removeLabelsForTarget("folder", id, auth);
 }
 
 export function recordBody(body: unknown): Record<string, unknown> {
