@@ -147,9 +147,30 @@ for (const [名, 実物] of [[".dockerignore", dockerignore], ["docker/Dockerfil
  *   `DETECTED_DIRTY` / `dirty の出どころ`）に `#` は含まれないので、切っても消えない
  *   （**含まれていたら対照が落ちて検査ごと失敗する**ので、黙って通ることはない）。
  */
+// 🚨 **文字列の中の `#` を、コメントの始まりと読まない**（2026-08-16・自分で測って見つけた）。
+//    それまでは `line.split("#")[0]` の素朴な形で、**同じ行に `"http://x/#f"` が在ると
+//    そこから先の実コードごと落ちて**いた（実測: ci.yml の `--build-arg GIT_SHA` の行に
+//    足したら、**対照が落ちて検査ごと exit 2**）。誤検知の向きなので黙って通りはしないが、
+//    **他人が URL を書いた瞬間に、この検査が理由もなく落ちる**。
+// 🚨 共有の `strip-comments.mjs` は **JS/TS の `//` と `/* */`** 用なので、ここでは使えない
+//    （Dockerfile / YAML のコメントは `#`）。**同じ考え方で、`#` 版をここに書く**。
 const コメントを落とす = (text) => text
   .split("\n")
-  .map((line) => line.split("#")[0])
+  .map((line) => {
+    let 引用 = null;
+    for (let i = 0; i < line.length; i += 1) {
+      const c = line[i];
+      if (引用) {
+        if (c === "\\") i += 1;
+        else if (c === 引用) 引用 = null;
+      } else if (c === '"' || c === "'") {
+        引用 = c;
+      } else if (c === "#") {
+        return line.slice(0, i);
+      }
+    }
+    return line;
+  })
   .join("\n");
 
 // 🚨 検査#3 の判定そのもの。**自己検査の囮は、この関数を呼ぶ**。

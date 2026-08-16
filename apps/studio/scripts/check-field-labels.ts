@@ -19,6 +19,7 @@
  *    逆方向が無いと過検出を捕まえられない。
  */
 import { readFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { fieldLabel, parseFieldTranslations } from "../lib/schema/labels";
 let ok=0, ng=0;
 const 読んだ = { labels: 0, service: 0 };
@@ -63,7 +64,12 @@ t("🚨 大文字の鍵でも引ける（読む側も小文字に寄せる）", 
   読んだ.service = service.length;
   読んだ.labels = readFileSync(new URL("../lib/schema/labels.ts", import.meta.url), "utf8").length;
   // 🚨 コメントを落としてから見る（「コメントに書いただけ」を実装として数えない）
-  const 実 = service.split("\n").map((l) => l.split("//")[0]).join("\n");
+  // 🚨 **共有の実装を使う**（2026-08-16・自分で測って穴を見つけた）。
+  //    それまでは `l.split("//")[0]` の素朴な形で、**同じ行に URL があると
+  //    そこから先の実コードごと落ちて**いた（実測: `const u = "https://…"; assertFieldMetaShape(…)`
+  //    → 呼び出しが 0 件になり、**赤くなった**）。誤検知の向きなので黙って通りはしないが、
+  //    **他人が URL を書いた瞬間に、この検査が理由もなく落ちる**。
+  const 実 = stripComments(service);
   // 🚨 **ファイル全体で探さない**（2026-08-16 実測）。`assertFieldMetaShape` の中に
   //    `"translations" in meta` が在るので、**許可リストから外しても素通りした**。
   //    → **FIELD_META_COLUMNS の中だけ**を切り出して見る。
