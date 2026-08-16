@@ -54,10 +54,12 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, mkdi
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { readTracked, isTracked } from "./lib/tracked-files.mjs";
+import { dirname, join, relative } from "node:path";
+import { readTracked, isTracked, trackedFiles } from "./lib/tracked-files.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+// 🚨 索引の一覧はリポジトリ相対で返るので、突き合わせる基点を持つ。
+const REPO_ROOT_FOR_LIST = join(HERE, "..", "..", "..");
 const MCP_SRC = join(HERE, "..", "..", "..", "packages", "mcp", "src");
 const SOURCE = join(MCP_SRC, "catalog.ts");
 // 🚨 **独立した数え先**。目録と同じ書き方の思い込みを共有しないため、
@@ -80,7 +82,26 @@ function collectTs(dir) {
   }
   return out;
 }
-const SERVER_FILES = collectTs(MCP_SRC);
+// 🚨 **一覧も索引から採る。** 中身だけ索引にして一覧を作業ツリーから採ると、
+//    **他人が作業ツリーでファイルを消した瞬間、黙って読む本数が減る**
+//    （2026-08-16 実測: `result.ts` を外すと 5 → 4 本になり、それでも
+//     「未追跡で飛ばした: 0 本」と出た ＝ **見ていないのに「全部見た」と読める**）。
+//    polish が同じ形（一覧だけ索引・中身は作業ツリー）を直したのと、**向きが逆の同じ漏れ**。
+// 🚨 `trackedGlob` は使わない。**作業ツリーの glob ∩ 追跡済み**なので、
+//    **索引に在って作業ツリーに無いファイル（他人が消した最中）が出ません**
+//    （2026-08-16 実測。それだと「読んだ本数が黙って減る」が塞げない）。
+//    → **索引の一覧そのもの**（`trackedFiles()`）から採る。
+const MCP_SRC_REL = relative(REPO_ROOT_FOR_LIST, MCP_SRC).split("\\").join("/");
+const SERVER_FILES = [...trackedFiles()]
+  .filter((rel) => rel.startsWith(`${MCP_SRC_REL}/`) && rel.endsWith(".ts"))
+  .map((rel) => join(REPO_ROOT_FOR_LIST, rel))
+  .filter((p) => p !== SOURCE)
+  .sort();
+// 🚨 **作業ツリーとの差も出す**（「索引から採ったので安心」で終わらせない）。
+//    差が在る＝誰かが編集中、ということが読む人に見えるように。
+const WORKTREE_FILES = collectTs(MCP_SRC).sort();
+const onlyWorktree = WORKTREE_FILES.filter((p) => !SERVER_FILES.includes(p)).map((p) => p.split("/").pop());
+const onlyIndex = SERVER_FILES.filter((p) => !WORKTREE_FILES.includes(p)).map((p) => p.split("/").pop());
 const COPY = join(HERE, "..", "lib", "mcp", "tool-catalog.json");
 const WRITE = process.argv.includes("--write");
 
@@ -236,7 +257,9 @@ const serverText = SERVER_FILES.filter((f) => isTracked(f))
   const registered = registeredNames(serverText).length;
   console.log(
     `■ 走査 … 候補 ${candidates} 本 / 読んだ .ts ${SERVER_FILES.length - skippedUntracked.length} 本` +
-      `（未追跡で飛ばした: ${skippedUntracked.length} 本${skippedUntracked.length ? "＝" + skippedUntracked.join(", ") : ""}）` +
+      `（未追跡で飛ばした: ${skippedUntracked.length} 本${skippedUntracked.length ? "＝" + skippedUntracked.join(", ") : ""}` +
+      `／ 索引にだけ在る: ${onlyIndex.length} 本${onlyIndex.length ? "＝" + onlyIndex.join(", ") : ""}` +
+      `／ 作業ツリーにだけ在る: ${onlyWorktree.length} 本${onlyWorktree.length ? "＝" + onlyWorktree.join(", ") : ""}）` +
       `（読めた文字数 ${serverText.length}・正の catalog.ts は除く） / 見つけた登録 ${registered} 件`,
   );
 
