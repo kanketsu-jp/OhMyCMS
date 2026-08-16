@@ -35,10 +35,7 @@ export const ERROR_KEYS = [
   // 🚨 401。以前は lib/admin/api.ts が「認証が必要です」という日本語を直接持っていた。
   //    鍵にしないと permission_denied（403）へ潰れ、**入り直せば直る**ことが伝わらない。
   "unauthenticated",
-  // ファイル・フォルダ由来（storage・2026-08-16）
-  // 🚨 conflict にまとめない。「同名が在る」と「配下が在る」は**次にやることが違う**
-  //    （名前を変える／中身を移す）。1 つの鍵にすると、どちらとも取れる文言になる。
-  "folder_not_empty",
+  // ファイル由来（storage・2026-08-16）
   "file_too_large",
   // 🚨 大きさを言わない鍵。上限より小さくても起きる（9MB 台で落ちた実測）ので、
   //    file_too_large と同じ文言にすると嘘になる。
@@ -81,9 +78,16 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   INVALID_FILTER: "invalid_body",
   // conflict は同名重複の 409 用: COLLECTION_EXISTS / FIELD_EXISTS / RELATION_EXISTS / LABEL_EXISTS。
   // FOLDER_NOT_EMPTY は「配下があるため削除できない」で同名重複ではないため、意図的に含めない。
-  // 🚨 2026-08-16: そのため **写像そのものが無く**、画面では「予期しないエラー」に化けていた
-  //    （実測: 英語の画面で "Failed to upload file"）。conflict ではなく
-  //    **専用の鍵 folder_not_empty** を与えて解決した。**除外の判断は変えていない。**
+  // 🚨 2026-08-16: 一度 **専用の鍵 folder_not_empty** を足したが、**同じ日に取り消した**。
+  //    理由は 3 つ、どれも実測:
+  //    ① **呼び手が無い** … フォルダを消す画面は folder-grid の 1 枚だけで、
+  //       そこは **409 を状態コードで先に分岐**するので、この写像に届かない
+  //    ② **二重になる** … 同じ内容が folders 名前空間の `error_folder_not_empty` に既に在る
+  //       （同じことを 2 箇所に書くと、片方が必ず腐る）
+  //    ③ 🚨 **1 つの code に意味が 2 つ** … 「配下にファイル」と「配下にフォルダ」の
+  //       両方が FOLDER_NOT_EMPTY。1 鍵にすると、**片方には嘘の文言**になる
+  //    → 直すなら **code を割る**（FOLDER_HAS_FILES / FOLDER_HAS_SUBFOLDERS）のが先。
+  //       それは API の契約が変わる（CLI / MCP / SDK）ので、**判断を仰いでいる**。
   COLLECTION_EXISTS: "conflict",
   FIELD_EXISTS: "conflict",
   RELATION_EXISTS: "conflict",
@@ -96,7 +100,6 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   FILE_NOT_FOUND: "not_found",
   FILE_NOT_STORED: "not_found",
   FILE_REQUIRED: "field_required",
-  FOLDER_NOT_EMPTY: "folder_not_empty",
   FILE_TOO_LARGE: "file_too_large",
   UPLOAD_BODY_UNREADABLE: "upload_unreadable",
   ROLE_NOT_FOUND: "not_found",
