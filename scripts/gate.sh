@@ -148,7 +148,13 @@ printf '%s\n' "$JOBS" | while IFS="$(printf '\037')" read -r job root cmd; do
       ks=$(grep -acE '^[[:space:]]*warn[[:space:]]+stale' "$jlog" 2>/dev/null || true); ks=${ks:-0}
       # 🚨 **隔離ツリーでは stale の検査が走りません**（2026-08-16 実測）。
       #    同じ HEAD で: 共有ツリー … index-drift 1 ＋ **stale 3** ／ 隔離ツリー … index-drift 1 ＋ **stale 0**
-      #    ＝ 🚨 **ここの 0 は「異常が無い 0」ではなく「見ていない 0」**。原因は未特定。
+      #    ＝ 🚨 **ここの 0 は「異常が無い 0」ではなく「見ていない 0」**。
+      #    🚨 原因を特定した（2026-08-16）: **`.rag-okf/`（`config.json` と `index.sqlite`）が
+      #    gitignore 対象で、隔離ツリーには存在しない**。stale は索引 DB と突き合わせる検査なので、
+      #    索引が無いと**黙って飛ぶ**（drift は git だけで出せるので出る）。
+      #    🟢 実測: `.rag-okf` を隔離ツリーへ copy すると **stale 3 が出る**（＝ 検査自体は動く）。
+      #    ＝ base2 が見つけた「bun が cwd の .env を読む」と同じ族——
+      #      **道具が、git に無い場所から状態を読む**。
       #    → **0 を「stale 無し」と書かない。** 出すのは drift だけにし、stale は測れないと言う。
       if [ "$ks" = "0" ]; then
         log "  ✅ ${job}  索引: drift ${kd} 件 / 🚨 stale は**測れていません**（隔離ツリーでは検査が走らない・実測）"
