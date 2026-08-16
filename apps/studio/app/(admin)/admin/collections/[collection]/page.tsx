@@ -106,18 +106,25 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       {/* 🚨 **囲まない**（`PageAction` は portal で外へ出るので、ここに中身は残らない）。
           🚨 form は**残す**。`form="collection-delete-form"` が指す相手そのものなので、
              消すと削除ボタンが黙って効かなくなる（中身は空でよい）。 */}
+      <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post" />
+      {/* 🚨 **主アクションは 1 つ。削除は ▾ の中**（堀池さん 283 A・2026-08-15 原文:
+          「主アクションを別のものにし、削除はオプションへ」）。
+          規約 `knowledge/decisions/action-button-and-edit-mode.md` §3。
+          🚨 主を「フィールド追加」にしたのは**規約の表がそう決めている**から。
+          **押された回数は測れない**（記録を取っていない）ので、**頻度の根拠は推測**。
+          🚨 押したあとの振る舞い（ゴミ箱へ入るのか消えるのか）と文言は **288 待ち**。
+          ここで決めたのは**置き場所だけ**。 */}
       <PageAction
         href={`/admin/collections/${encoded}/fields/new`}
         label={tFields("add_title")}
         icon={<Plus />}
-      />
-      <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post" />
-      <PageAction
-        form="collection-delete-form"
-        role="secondary"
-        destructive
-        label={tCollections("delete_button")}
-        icon={<Trash2 />}
+        options={[
+          {
+            label: tCollections("delete_button"),
+            formId: "collection-delete-form",
+            destructive: true,
+          },
+        ]}
       />
       <ErrorBanner
         message={

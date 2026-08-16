@@ -72,6 +72,14 @@ export type ActionOption = {
   label: string;
   onSelect?: () => void;
   href?: string;
+  /**
+   * ページの中の `<form id="...">` を送る。
+   *
+   * 🚨 **Server Component から ▾ を使うには、これが要る**（2026-08-16）。
+   *    `onSelect` は**関数なので Server Component から渡せない**（シリアライズできない）。
+   *    削除のように「フォームを送る」操作は、**id を文字列で渡す**形でしか表せない。
+   */
+  formId?: string;
   /** 取り消せない操作。赤く出す（規約 §3「破壊的な操作は必ず ▾ の中」） */
   destructive?: boolean;
 };
@@ -220,7 +228,10 @@ function renderAction({
   //    揃えないと、並んだ3つのうち1つだけ 12px になる。
   //    経緯は `docs/research/ja-en-ui-evidence.md` の例外の段落に集約してある。
   const text = <span className={cn(compact && "min-w-0 truncate text-[11px]")}>{label}</span>;
-  const compactClassName = compact ? "w-full min-w-0 overflow-hidden px-1" : undefined;
+  // 🚨 ▾ と組にすると `w-full` では収まらない（群の中では **`flex-1`** で縮ませる）。
+  const compactClassName = compact
+    ? cn("min-w-0 overflow-hidden px-1", options?.length ? "flex-1" : "w-full")
+    : undefined;
 
   const 主 = (() => {
   if (href) {
@@ -265,11 +276,15 @@ function renderAction({
   // 🚨 大きさは `icon-sm`。SP では `size-(--control-h)` ＝ **44px**（規約の受入）。
   // 🚨 角の丸めは `ButtonGroup` が持つ（自分で rounded-l-none を書かない。2 箇所に散る）。
   return (
+    // 🚨 SP では **`w-full`**（`ButtonGroup` の既定は `w-fit` ＝ 中身の幅。**画面からはみ出す**）。
+    //    実測 2026-08-16: 幅 390 の画面で ▾ が **x=404**（＝画面の外）にあり、
+    //    `elementFromPoint` が **null** を返した。**開かないのではなく、届かなかった**。
+    //    → 群は `w-full`、主ボタンは `flex-1 min-w-0` で縮ませ、▾ は `shrink-0` で 44px を守る。
     <ButtonGroup className={cn(order, compact && "w-full min-w-0")}>
       {主}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant={variant} size="icon-sm" disabled={disabled}>
+          <Button type="button" variant={variant} size="icon-sm" disabled={disabled} className="shrink-0">
             <span className="sr-only">{optionsLabel}</span>
             <ChevronDownIcon aria-hidden="true" />
           </Button>
@@ -281,6 +296,14 @@ function renderAction({
               //    2026-08-15 にパンくずで同じ直しをしている。
               <DropdownMenuItem key={o.label} variant={o.destructive ? "destructive" : "default"} asChild>
                 <Link href={o.href}>{o.label}</Link>
+              </DropdownMenuItem>
+            ) : o.formId ? (
+              // 🚨 `type="submit"` を忘れると**押しても何も起きない**（既定は button）。
+              //    `button.tsx` の申し送りと同じ罠。
+              <DropdownMenuItem key={o.label} variant={o.destructive ? "destructive" : "default"} asChild>
+                <button type="submit" form={o.formId} className="w-full text-left">
+                  {o.label}
+                </button>
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem

@@ -96,20 +96,22 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
   ],
   // フィールド定義の画面。次にすることは**フィールドを足す**こと。
   "/admin/collections/[collection]": [
+    // 🚨 **削除はここに宣言できません。** 2026-08-16 の 283 A（堀池さん）で
+    //    「主アクションを別のものにし、**削除はオプションへ**」となり、
+    //    削除は `<PageAction options={[…]}>` の **▾ の中**へ入った。
+    //    **この表は 1 ルート＝1 組の宣言しか持てず、▾ の中を表せない**（profile と同じ）。
+    //    🚨 **＝ 削除の辞書キーとフォーム id は、いま検査の範囲外**。壊れても気づかない。
+    //    → 表に `options` を持たせるなら、そのときここも宣言に戻すこと。
+    //
+    // 🚨 **字下げを変えないこと。** `check-page-actions` はブロックを
+    //    `^ {2}"…": \[ … ^ {2}\],` で切り出すので、閉じ `],` が 2 でないと
+    //    **次のルートまで飲み込み**、主要ボタンが 2 件に見える（2026-08-16 に実際にやった）。
     {
       kind: "link",
       labelKey: "fields.add_button",
       icon: "Plus",
       href: "/admin/collections/[collection]/fields/new",
       role: "primary",
-    },
-    {
-      kind: "submit",
-      labelKey: "collections.delete_button",
-      icon: "Trash2",
-      form: "collection-delete-form",
-      role: "secondary",
-      destructive: true,
     },
   ],
   "/admin/collections/[collection]/fields/new": [
