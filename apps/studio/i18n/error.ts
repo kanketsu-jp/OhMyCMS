@@ -48,6 +48,8 @@ export const ERROR_KEYS = [
   //    ポリシーとロールで、利用者がとる行動が違う（**割り当てを外す** / **利用者のロールを変える**）。
   "policy_in_use",
   "role_in_use",
+  // 🚨 「利用者が居る」と分ける（ロールにポリシーが割り当たっているだけの場合）。
+  "role_has_assignments",
   // 取りこぼしの受け皿
   "unexpected",
 ] as const;
@@ -87,6 +89,7 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   LAST_ADMIN_CANNOT_BE_REMOVED: "last_admin_cannot_be_removed",
   POLICY_IN_USE: "policy_in_use",
   ROLE_IN_USE: "role_in_use",
+  ROLE_HAS_ASSIGNMENTS: "role_has_assignments",
   // conflict は同名重複の 409 用: COLLECTION_EXISTS / FIELD_EXISTS / RELATION_EXISTS / LABEL_EXISTS。
   // FOLDER_NOT_EMPTY は「配下があるため削除できない」で同名重複ではないため、意図的に含めない。
   // 🚨 2026-08-16: 一度 **専用の鍵 folder_not_empty** を足したが、**同じ日に取り消した**。

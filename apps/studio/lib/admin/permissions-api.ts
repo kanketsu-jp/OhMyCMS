@@ -207,8 +207,16 @@ export async function deleteRole(id: string): Promise<void> {
     //    231 A と同じく、数えてから消すまでの間に増えないよう **ロックしてから**数える。
     const access = await trx("directus_access").where({ role: id }).select("id").forUpdate();
     const users = await trx("directus_users").where({ role: id }).select("id").forUpdate();
-    if (access.length > 0 || users.length > 0) {
+    // 🚨 理由を分ける（2026-08-16・onboard の実測で気づいた）。
+    //    `directus_access.role` に紐づけただけの状態でも「**利用者が居る**」と出ていたが、
+    //    そのとき利用者は 1 人も紐づいていない（紐づいているのは**ポリシーの割り当て**）。
+    //    **文言が実際の理由とずれる**ので、code と鍵ごと分ける。
+    //    順序は「利用者が先」——両方に紐づいているとき、**重いほうの理由**を出す。
+    if (users.length > 0) {
       throw new ApiError(409, "ROLE_IN_USE", "このロールを使っている利用者が居るため削除できません");
+    }
+    if (access.length > 0) {
+      throw new ApiError(409, "ROLE_HAS_ASSIGNMENTS", "このロールにポリシーが割り当てられているため削除できません");
     }
     const deleted = await trx<RoleRow>("directus_roles").where({ id }).delete();
     if (!deleted) throw new ApiError(404, "ROLE_NOT_FOUND", "ロールが見つかりません");

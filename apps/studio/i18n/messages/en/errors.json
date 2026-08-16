@@ -18,5 +18,6 @@
   "upload_unreadable": "The upload could not be read. Please try again.",
   "last_admin_cannot_be_removed": "Cannot remove the last administrator",
   "policy_in_use": "Cannot delete: this policy is assigned to users",
-  "role_in_use": "Cannot delete: this role is assigned to users"
+  "role_in_use": "Cannot delete: this role is assigned to users",
+  "role_has_assignments": "Cannot delete: policies are assigned to this role"
 }
