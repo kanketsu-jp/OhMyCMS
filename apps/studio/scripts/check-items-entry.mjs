@@ -38,7 +38,14 @@ function stripComments(source) {
   let out = "", i = 0, quote = null, block = false;
   while (i < source.length) {
     const c = source[i], n = source[i + 1];
-    if (block) { if (c === "*" && n === "/") { block = false; i += 2; } else i += 1; continue; }
+    // 🚨 **行数を保つ**（2026-08-16・自分で踏んだ）。ブロックコメントの中の改行を落としていたので、
+    //    **報告する行番号が実物とずれていた**（実測: 実物 1165 行を「1102」と報告していた）。
+    //    行がずれると ①人が開いても違う行に行き着く ②**直前の行に書いた印**も探せない。
+    if (block) {
+      if (c === "*" && n === "/") { block = false; i += 2; }
+      else { if (c === "\n") out += "\n"; i += 1; }
+      continue;
+    }
     if (quote) {
       if (c === "\\") { out += c + (n ?? ""); i += 2; continue; }
       if (c === quote) quote = null;
@@ -60,6 +67,7 @@ if (files.length === 0) {
 
 let 読めた = 0;
 const 違反 = [];
+const 動的違反 = [];
 let 入口の定義 = 0;
 let 飛ばした = 0;
 for (const f of files) {
@@ -70,7 +78,13 @@ for (const f of files) {
   読めた += raw.length;
   const src = stripComments(raw);
   if (/export function itemsTable\(/.test(src)) 入口の定義 += 1;
-  src.split("\n").forEach((line, i) => {
+  const 行配列 = src.split("\n");
+  // 🚨 **印は生のソースから探す**（2026-08-16・自分で踏んだ）。
+  //    `src` は**コメントを落としたあと**なので、
+  //    そこから「入口を通さない理由:」を探しても**必ず見つかりません**
+  //    ＝ **理由を書いても免除されない**（＝ 書いた人は「効かない」としか分からない）。
+  const 生行配列 = raw.split("\n");
+  行配列.forEach((line, i) => {
     // 入口の中の `conn(collection)` は正しい呼び出しなので除く
     if (/\bconn\(\s*collection\s*\)/.test(line)) return;
     // 🚨 **名前で決め打ちしない**（2026-08-16・実際に取りこぼした）。
@@ -85,6 +99,22 @@ for (const f of files) {
     //      `const q = client(collection);` … **変数へ入れてから後で組み立てる**
     const m = /(?<![.\w$])([A-Za-z_$][\w$]*)\(\s*collection\s*\)\s*\./.exec(line);
     if (m && m[1] !== "itemsTable") 違反.push(`${f}:${i + 1}  ${line.trim().slice(0, 72)}`);
+
+    // 🚨 **引数の名前で決め打ちしない**（2026-08-16・自分で漏らした）。
+    //    上の式は `(collection)` という**名前**しか見ておらず、
+    //    `db(relation.targetCollection)` を**素通り**していた
+    //    ＝ **関連の取得が入口を通らず、ゴミ箱の行が「関連する項目」として出る**形だった。
+    //    → **表名が動的なもの**（文字列リテラルでない）は、全部ここで見る。
+    // 🚨 `db("directus_fields")` のような**リテラル**は対象外（システム表。入口は利用者の表のもの）。
+    // 🚨 通さない正当な理由が在るときは、**直前の 3 行のどこかに理由を書く**。
+    //    印だけでなく**理由**を書かせる（印だけだと、次の人が意味を確かめられない）。
+    const 動的 = /(?<![.\w$])(db|trx|conn|client|knex)\s*(?:<[^>]*>)?\s*\(\s*([^)"'`\s][^)]*)\)/.test(line);
+    if (動的 && !/itemsTable/.test(line)) {
+      const 前3行 = 生行配列.slice(Math.max(0, i - 3), i).join("\n");
+      if (!/入口を通さない理由:/.test(前3行)) {
+        動的違反.push(`${f}:${i + 1}  ${line.trim().slice(0, 72)}`);
+      }
+    }
   });
 }
 
@@ -132,6 +162,13 @@ if (不足.length > 0) {
   process.exit(1);
 }
 console.log(`根拠: 内部列の正本 INTERNAL_COLUMNS を、断る側と登録側の両方が読んでいる`);
+
+if (動的違反.length > 0) {
+  console.error(`✖ 動的な表名を、入口を通さずに開いています（${動的違反.length} 件）`);
+  for (const v of 動的違反) console.error(`   ${v}`);
+  console.error("  🚨 `itemsTable(conn, <表名>)` を通すか、**直前の 3 行に「入口を通さない理由:」を書いて**ください。");
+  process.exit(1);
+}
 
 if (違反.length > 0) {
   console.error(`✖ 入口を通らずに利用者の表を開いています（${違反.length} 件）`);

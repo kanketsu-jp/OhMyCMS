@@ -593,7 +593,14 @@ async function resolveRelationsForItems(
         childSelection,
         relation.targetColumn,
       );
-      const query = db(relation.targetCollection)
+      // 🚨 **関連の取得も入口を通す**（2026-08-16・自分で見つけた漏れ）。
+    //    ここは `db(relation.targetCollection)` を直に開いていたので、
+    //    **ゴミ箱に入れた行が「関連する項目」として出続ける**形だった。
+    //    （実データにリレーションが 0 件なので**実測では出ていない**——**コードで見つけた漏れ**）
+    // 🚨 相手の表に列が在るかは、**相手について**確かめないと分からない
+    //    （`列が在る` は「開いたことのある表」しか知らないため）。
+    await ensureDeletedAtColumn(db, relation.targetCollection);
+    const query = itemsTable(db, relation.targetCollection)
         .select(selectedColumns)
       whereInValues(query, relation.targetColumn, keys);
       if (targetPermission.rowFilter) {
@@ -659,7 +666,14 @@ async function resolveRelationsForItems(
       childSelection,
       relation.targetColumn,
     );
-    const query = db(relation.targetCollection)
+    // 🚨 **関連の取得も入口を通す**（2026-08-16・自分で見つけた漏れ）。
+    //    ここは `db(relation.targetCollection)` を直に開いていたので、
+    //    **ゴミ箱に入れた行が「関連する項目」として出続ける**形だった。
+    //    （実データにリレーションが 0 件なので**実測では出ていない**——**コードで見つけた漏れ**）
+    // 🚨 相手の表に列が在るかは、**相手について**確かめないと分からない
+    //    （`列が在る` は「開いたことのある表」しか知らないため）。
+    await ensureDeletedAtColumn(db, relation.targetCollection);
+    const query = itemsTable(db, relation.targetCollection)
       .select(selectedColumns)
     whereInValues(query, relation.targetColumn, keys);
     if (targetPermission.rowFilter) {
@@ -1162,7 +1176,10 @@ export async function createItems(
       .map((row) => (row as Item)[primaryKey])
       .filter((v) => v !== undefined && v !== null);
     if (主キー値.length > 0) {
-      const ぶつかった = await db(collection)
+      // 入口を通さない理由: **消えている行を探すのがここの目的**。
+  //   入口（`itemsTable`）は消えた行を隠すので、通すと**必ず 0 件**になり、
+  //   「ゴミ箱に在る」を判定できなくなる。
+  const ぶつかった = await db(collection)
         .whereIn(primaryKey, 主キー値 as (string | number)[])
         .whereNotNull(DELETED_AT_COLUMN)
         .first();
