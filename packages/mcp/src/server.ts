@@ -430,12 +430,27 @@ export function createServer(client: OhMyCmsClient): McpServer {
   //    `packages/mcp` は `apps/studio` を import できないため（shortcuts-snapshot.ts の冒頭）。
   //    🚨 **押させない。** 操作するのは Chrome 拡張などの側で、ここは「伝わる」側。
   server.registerTool("ohmycms_shortcuts_list", TOOL_CATALOG.ohmycms_shortcuts_list, async () =>
-    run(async () => ({
-      shortcuts: [...SHORTCUTS_SNAPSHOT],
-      count: SHORTCUTS_SNAPSHOT.length,
-      // 🚨 0 でも返す（「見ていない 0」と区別できるように）。
-      unknown_scope: SHORTCUTS_UNKNOWN_SCOPE,
-    })),
+    run(async () => {
+      // 🚨 **形を変えるのはここ 1 箇所だけ**（写しは生成器と同じ形のまま持つ）。
+      const actions = SHORTCUTS_SNAPSHOT.map((s) => ({
+        action: s.action,
+        label_key: s.label_key,
+        scope: s.scope,
+        editor: s.editor,
+        // 🚨 **未割り当ては null**。空文字にしない（「空文字のキー」と読めてしまう）。
+        assigned_key: s.key ? s.key : null,
+      }));
+      const assigned = actions.filter((a) => a.assigned_key !== null).length;
+      return {
+        actions,
+        count: actions.length,
+        // 🚨 **0 でも返す。** 「1 つも割り当てられていない」は**正常**（既定が空）であり、
+        //    「一覧が取れていない」とは別。読む側が区別できるように、両方の数を出す。
+        assigned_count: assigned,
+        unassigned_count: actions.length - assigned,
+        unknown_scope: SHORTCUTS_UNKNOWN_SCOPE,
+      };
+    }),
   );
 
   return server;

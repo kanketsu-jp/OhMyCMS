@@ -191,7 +191,7 @@ export const TOOL_CATALOG = {
   ohmycms_shortcuts_list: {
     title: "ショートカット一覧",
     description:
-      "画面のキーボードショートカットを返す。認証は不要（画面の作りを説明するだけで、データには触れない）。scope は使われている場所から導出したもので、導出できないものは unknown（global に倒していない）。key は現時点で実装が固定で持っている値であり、恒久の割り当てではない（今後は利用者が割り当て、初期は空になる予定）。",
+      "割り当てられる操作の一覧を返す。認証は不要（画面の作りを説明するだけで、データには触れない）。assigned_key は現在の割り当てで、null は未割り当て（既定は空なので、null が並ぶのは正常。異常なのは count が 0 のとき）。scope は使われている場所から導出したもので、導出できないものは unknown（global に倒していない）。",
     inputSchema: S.EMPTY_INPUT,
     outputSchema: S.SHORTCUTS_LIST_OUTPUT,
     // 🚨 押させない。読むだけ。外にも出ない（写しを返すので openWorldHint は付けない）。

@@ -32,27 +32,31 @@ export const ERROR_OUTPUT = {
  *   🚨 `"unknown"` を `"global"` と読まないこと（**倒すと嘘になる**）。
  */
 export const SHORTCUTS_LIST_OUTPUT = {
-  shortcuts: z
+  actions: z
     .array(
       z.object({
-        key: z.string().describe("mod は macOS で Command、その他で Ctrl"),
-        action: z.string(),
+        action: z.string().describe("割り当てられる操作の名前"),
+        label_key: z.string().describe("表示名は辞書の鍵。画面の言語で変わる"),
         scope: z
           .union([z.string(), z.array(z.string())])
           .describe('"global" / "editor" / "unknown" / ["page:…", …]'),
-        label_key: z.string().describe("表示名は辞書の鍵。画面の言語で変わる"),
         editor: z
           .object({
             conflicts: z.boolean(),
-            // 🚨 衝突しているときだけ入る（誰が取っているか）。
             owner: z.array(z.string()).optional(),
           })
           .describe("本文入力中は編集側が先に取るか"),
+        assigned_key: z
+          .string()
+          .nullable()
+          .describe('🚨 いま割り当てられているキー。**null は「未割り当て」で、正常な状態**'),
       }),
     )
-    .describe("画面で使えるショートカット"),
-  count: z.number().describe("件数。🚨 0 は「無い」ではなく異常"),
-  unknown_scope: z.number().describe("scope を導出できなかった件数。🚨 0 でも返す"),
+    .describe("割り当てられる操作の一覧"),
+  count: z.number().describe("操作の数。🚨 0 は「無い」ではなく異常"),
+  assigned_count: z.number().describe("キーが割り当てられている数。🚨 0 でも正常"),
+  unassigned_count: z.number().describe("未割り当ての数。🚨 0 でも返す"),
+  unknown_scope: z.number().describe("scope を導出できなかった数。🚨 0 でも返す"),
   ...ERROR_OUTPUT,
 };
 
