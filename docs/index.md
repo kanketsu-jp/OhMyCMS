@@ -9,6 +9,7 @@
 - [Dokploy へのデプロイ手順（OhMyCMS）](./deploy/dokploy.md) — clone→build→HTTP 200 の手順
 - [AI ガイド型オンボーディング（ストレージ/Cloudflare 設定の自動化）](./design/ai-guided-onboarding-storage.md) — OhMyCMS の MCP 連携でオンボーディング中に Cloudflare 設定まで案内する設計素材
 - [API 濫用ロック ＆ OpenTelemetry 連携（運用ハードニング）](./design/api-abuse-lock-and-otel.md) — 同一キーの大量アクセスを一時ロックし、OTel と連携しやすくする設計素材
+- [採らなかった案: ラベルの一意制約を部分索引にする](./design/labels-unique-partial-index-rejected.md) — 消した名前を空けると戻せなくなる。不採用の理由と、使い捨て DB での実測
 - [ライセンスキー — 発行 / 検証 / 失効の設計](./design/license-keys.md) — 発行・検証・失効の実装設計（課金/プラン/UIは対象外）
 - [右パネル ⑤ ログ・履歴 — 設計（範囲 B: ログを本物にする）](./design/panel-logs-history.md) — Codex/Sonnet へ渡す実装仕様（検証は security 担当・委譲不可）
 - [【未決】フィールド名を日本語で付けられるようにする（directus_fields.translations）](./design/pending-field-display-name.md) — 実装仕様は完成、堀池の承認待ち
