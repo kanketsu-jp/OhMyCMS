@@ -6,7 +6,8 @@ import { FormDraft } from "@/components/admin/form-draft";
 import { FilePicker } from "@/components/admin/file-picker";
 import { RichTextField } from "@/components/admin/rich-text-field";
 import { CopyButton } from "@/components/ui/copy-button";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
+import { fieldLabel } from "@/lib/schema/labels";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,7 @@ function isGeneratedPrimaryUuid(field: FieldResult): boolean {
 
 
 export async function ItemForm({ collection, fields, itemId, item }: Props) {
+  const locale = await getLocale();
   const t = await getT("fields");
   const tItems = await getT("items");
   const isEdit = Boolean(item);
@@ -87,7 +89,9 @@ export async function ItemForm({ collection, fields, itemId, item }: Props) {
             />
             <div className="flex flex-wrap items-center gap-2">
               <Label htmlFor={fieldName}>
-                {field.field}
+                {/* 🚨 欄名は辞書を通す（設問286 A）。辞書が無ければ fieldLabel が
+                    生の識別子に落ちるので、名前を付けるまで表示は変わらない。 */}
+                {fieldLabel(field, locale)}
                 {required ? <span className="text-destructive">*</span> : null}
               </Label>
               {canCopyReadonly ? (
