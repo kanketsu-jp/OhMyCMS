@@ -258,13 +258,34 @@ for (const m of src.matchAll(/^ {2}"(\/admin[^"]*)": \[([\s\S]*?)^ {2}\],/gm)) {
         "静的に数えられないので、主要が何件あるか分かりません（\"primary\" / \"secondary\" と直接書いてください）",
     );
   }
-  const count = (block.match(/role: "primary"/g) ?? []).length;
-  primaryCounts.push({ route, count });
-  if (count !== 1) {
-    problems.push(
-      `[主要] ルート "${route}" の主要ボタンが ${count} 件（1 件でなければならない）` +
-        `${count === 0 ? "。既定の操作が無い" : "。どれが『まずこれ』か分からなくなる"}`,
-    );
+  // 🚨 **モードごとに数える**（2026-08-16 に `mode` を足した）。
+  //    表示モードの「編集する」と編集モードの「保存」は**同時には出ない**ので、
+  //    ルート全体で数えると 2 件になって落ちる。**「まずこれ」が消えるのは同じ画面の中でだけ**。
+  //    🚨 `mode` **省略は「どちらのモードでも出る」**なので、**両方に数える**（型の JSDoc）。
+  const 行 = [...block.matchAll(/\{([\s\S]*?)\}/g)].map((x) => x[1]);
+  if (行.length === 0) {
+    problems.push(`[読めない] ルート "${route}" の宣言を 1 件も切り出せませんでした（書き方が変わった可能性）`);
+  }
+  const モード別 = { view: 0, edit: 0 };
+  for (const 一行 of 行) {
+    if (!/role:\s*"primary"/.test(一行)) continue;
+    const m = 一行.match(/mode:\s*"(view|edit)"/);
+    if (m) モード別[m[1]] += 1;
+    else {
+      モード別.view += 1;
+      モード別.edit += 1;
+    }
+  }
+  const count = Math.max(モード別.view, モード別.edit);
+  primaryCounts.push({ route, count, モード別 });
+  for (const [モード, n] of Object.entries(モード別)) {
+    if (n !== 1) {
+      problems.push(
+        `[主要] ルート "${route}" の**${モード === "view" ? "表示" : "編集"}モード**の主要ボタンが ${n} 件` +
+          `（1 件でなければならない）` +
+          `${n === 0 ? "。既定の操作が無い" : "。どれが『まずこれ』か分からなくなる"}`,
+      );
+    }
   }
 }
 if (primaryCounts.length === 0) {

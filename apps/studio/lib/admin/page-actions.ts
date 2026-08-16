@@ -72,6 +72,31 @@ export type PageActionDef = {
    *    2026-08-16 に実際に起こした）。
    */
   inMenu?: boolean;
+  /**
+   * その画面が**表示モード / 編集モードを持つ**とき、**どちらで出るか**。
+   *
+   * 規約: `knowledge/decisions/action-button-and-edit-mode.md`（堀池さん 2026-08-15・原文
+   * 「**全てにおいて基本は編集モードと表示を分ける**」）。
+   *
+   * ```
+   * "view" … 表示モードでだけ出る（例:「編集する」／▾ の中の削除）
+   * "edit" … 編集モードでだけ出る（例:「保存」「やめる」）
+   * 🚨 省略 … **どちらのモードでも出る**（モードを持たない画面も、ここに入る）
+   * ```
+   *
+   * 🚨 **省略の意味を「モードを持たない画面」にしない**（polish 2026-08-16 の指摘）。
+   *    そうすると、**その画面が後でモードを持った日に、省略の行が全部、
+   *    誰も書き換えていないのに意味を変えます**。「どちらでも出る」なら、その日も正しいまま。
+   *
+   * 🚨 **「この画面はモードを持つか」は表から導出できる**（どれかが `mode` を宣言しているか）ので、
+   *    宣言に持たせない。**導出できるものを宣言に持たせない。**
+   *
+   * 🚨 **`disabled` の条件（`!dirty` など）はここに持たせない。**
+   *    polish が `<PageAction … disabled={…}>` の**条件式そのもの**を実装から導出しており
+   *    （`!ready` / `!dirty` / `users.length === 0 || …` の 3 件）、
+   *    宣言で持つと**実装と食い違って腐る**ため。
+   */
+  mode?: "view" | "edit";
 };
 
 /**
@@ -224,9 +249,11 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
       labelKey: "common.action_edit",
       icon: "Pencil",
       role: "primary",
+      mode: "view",
     },
     // 🚨 削除は**本文から ▾ の中へ移した**（規約 §3「破壊的な操作は必ず ▾ の中」）。
     //    `submit` ではない。専用の form を持たず、押したときの処理を渡す形。
+    //    🚨 ▾ を出しているのは**表示モードの主ボタン**なので `mode: "view"`。
     {
       kind: "button",
       labelKey: "files.delete_button",
@@ -234,6 +261,22 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
       role: "secondary",
       destructive: true,
       inMenu: true,
+      mode: "view",
+    },
+    {
+      kind: "button",
+      labelKey: "common.action_cancel",
+      icon: "X",
+      role: "secondary",
+      mode: "edit",
+    },
+    {
+      kind: "submit",
+      labelKey: "common.action_save",
+      icon: "Check",
+      form: "file-detail-form",
+      role: "primary",
+      mode: "edit",
     },
   ],
 
@@ -262,30 +305,78 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
 
   // ── 設定 ──────────────────────────────────────────────────
   "/admin/settings/general": [
+    // 🚨 表示モード / 編集モードに分けてある（`settings-manager.tsx`・②の 1 枚目）。`mode` の意味は型の JSDoc。
+    {
+      kind: "button",
+      labelKey: "common.action_edit",
+      icon: "Pencil",
+      role: "primary",
+      mode: "view",
+    },
+    {
+      kind: "button",
+      labelKey: "common.action_cancel",
+      icon: "X",
+      role: "secondary",
+      mode: "edit",
+    },
     {
       kind: "submit",
-      labelKey: "settings.save_button",
+      labelKey: "common.action_save",
       icon: "Check",
       form: "settings-form",
       role: "primary",
+      mode: "edit",
     },
   ],
   "/admin/settings/storage": [
+    // 🚨 表示モード / 編集モードに分けてある（`storage-settings-manager.tsx`・②の 4 枚目）。`mode` の意味は型の JSDoc。
+    {
+      kind: "button",
+      labelKey: "common.action_edit",
+      icon: "Pencil",
+      role: "primary",
+      mode: "view",
+    },
+    {
+      kind: "button",
+      labelKey: "common.action_cancel",
+      icon: "X",
+      role: "secondary",
+      mode: "edit",
+    },
     {
       kind: "submit",
-      labelKey: "storage.save_button",
+      labelKey: "common.action_save",
       icon: "Check",
       form: "storage-settings-form",
       role: "primary",
+      mode: "edit",
     },
   ],
   "/admin/settings/sso": [
+    // 🚨 表示モード / 編集モードに分けてある（`saml-settings-manager.tsx`・②の 2 枚目）。`mode` の意味は型の JSDoc。
+    {
+      kind: "button",
+      labelKey: "common.action_edit",
+      icon: "Pencil",
+      role: "primary",
+      mode: "view",
+    },
+    {
+      kind: "button",
+      labelKey: "common.action_cancel",
+      icon: "X",
+      role: "secondary",
+      mode: "edit",
+    },
     {
       kind: "submit",
-      labelKey: "sso.save_button",
+      labelKey: "common.action_save",
       icon: "Check",
       form: "saml-settings-form",
       role: "primary",
+      mode: "edit",
     },
   ],
   "/admin/settings/roles": [
@@ -359,21 +450,35 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
   ],
   // ユーザーメニューから来る個人ページなので、ナビ項目の最後に置く。
   "/admin/profile": [
-    // 🚨 **この表にはモードの概念がありません。** 2026-08-15 に個人設定を
-    //    「表示モード / 編集モード」に分けた（規約 `decisions/action-button-and-edit-mode.md`）。
-    //    画面を開いた直後に出るのは **「編集する」だけ**なので、ここにはそれを書く。
-    //
-    // 🚨 **この表が見ていない範囲**（塞げないものは隠さず書く）:
-    //    ・**編集モードの「保存」「やめる」は、ここに宣言できない**
-    //      （表は 1 ルート＝1 組の宣言で、**状態で入れ替わるもの**を表せない）
-    //    ・＝ **その 2 つが壊れても、`check-page-actions` / `-rendered` は気づかない**
-    //    ・**モードを持つ画面が増えるなら、表に「いつ出るか」を持たせる必要がある**
-    //      （対象は 15 画面なので、次に誰かが当たる）
+    // 🚨 **2026-08-16 に解消**（この節は消さず、何が塞がったかを残す）:
+    //    2026-08-15 の時点では「**この表にはモードの概念がありません**」と書いてあり、
+    //    **編集モードの「保存」「やめる」を宣言できず**、壊れても検査が気づかなかった。
+    //    → 型に `mode` を足したので、**いまは 3 つとも宣言できている**。
+    // 🚨 **まだ見ていない範囲**（塞げないものは隠さず書く）:
+    //    ・`-rendered` は**表示モードで画面を開いて**照合するので、
+    //      **`mode: "edit"` の行は「描かれているか」を確かめていない**
+    //    ・言語切替は**編集モードの対象外**（即時に効く）ので、そもそもここに出ない
     {
       kind: "button",
       labelKey: "common.action_edit",
       icon: "Pencil",
       role: "primary",
+      mode: "view",
+    },
+    {
+      kind: "button",
+      labelKey: "common.action_cancel",
+      icon: "X",
+      role: "secondary",
+      mode: "edit",
+    },
+    {
+      kind: "submit",
+      labelKey: "common.action_save",
+      icon: "Check",
+      form: "profile-name-form",
+      role: "primary",
+      mode: "edit",
     },
   ],
 };

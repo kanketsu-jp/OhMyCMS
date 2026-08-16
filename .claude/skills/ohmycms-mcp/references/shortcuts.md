@@ -46,13 +46,15 @@
       "page:/admin/content/[collection]/[id]",
       "page:/admin/files/new",
       "page:/admin/files/new-folder",
+      "page:/admin/files/[id]",
       "page:/admin/settings/general",
       "page:/admin/settings/storage",
       "page:/admin/settings/sso",
       "page:/admin/settings/roles",
       "page:/admin/settings/policies",
       "page:/admin/settings/users",
-      "page:/admin/settings/agents"
+      "page:/admin/settings/agents",
+      "page:/admin/profile"
     ],
     "label_key": "common.shortcut_save",
     "editor": {
@@ -118,6 +120,24 @@
 「編集する」を押してから ⌘Enter → 送信 **1 件**（`settings-form`）。
 🚨 **元になっている表（`PAGE_ACTIONS`）がモードを表せない**ため、ここは導出できません。
 表にモードの欄が入り次第、この節は導出に置き換わります。
+
+## 🚨 さらに：**押せる状態でないと効かない**画面
+
+保存ボタンが `disabled` のとき、**⌘Enter も効きません**
+（`page-action.tsx` がショートカット側でも `disabled` を見ているため。
+「押せないボタンの働きを鍵から起こさない」）。
+🚨 **モードだけでなく「保存できる状態か」でも変わります。**
+
+🚨 **保存を止めている画面は 3 件**（0 件なら拾い方が壊れています。この生成器が落ちます）:
+
+- `/admin/settings/sso` … 押せない条件: `!ready`
+- `/admin/settings/storage` … 押せない条件: `!dirty`
+- `/admin/settings/users` … 押せない条件: `users.length === 0 || policies.length === 0`
+
+実測（2026-08-16）: `/admin/settings/storage` は編集モードでも**何も変えなければ** ⌘Enter で
+送信 **0 件**。値を 1 つ変えると送信 **1 件**（`storage-settings-form`）。
+🚨 **「効かない」ではなく「保存できる状態のときだけ効く」**です。
+🚨 こちらは**条件式ごと導出しています**（上のモードの節と違い、推測ではありません）。
 
 ## 🚨 本文エディタが押さえている組み合わせ（**割り当ててはいけない側**）
 
