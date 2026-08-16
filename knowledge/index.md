@@ -52,6 +52,7 @@ x_rag_okf:
 - [ORM は Knex（Prisma / Drizzle は不採用）](./decisions/orm-knex.md) — `decisions/orm-knex`
 - [検証用に見えるデータを、名乗りが無いという理由で消さない](./decisions/permanent-fixtures-are-not-junk.md) — `decisions/permanent-fixtures-are-not-junk`
 - [ポートは 31xx 帯に寄せ、よく使うポートを避ける](./decisions/port-allocation.md) — `decisions/port-allocation`
+- [台が作った利用者は、作った人が id で消す](./decisions/probes-clean-up-by-id.md) — `decisions/probes-clean-up-by-id`
 - [リレーションを辿るときも、相手側コレクションの権限を必ず通す](./decisions/relation-permission-boundary.md) — `decisions/relation-permission-boundary`
 - [秘密の置き場所は「復元可能性」で決める（ハッシュ化できるものだけ GUI 可）](./decisions/secrets-storage-by-recoverability.md) — `decisions/secrets-storage-by-recoverability`
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
