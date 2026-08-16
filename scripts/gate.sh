@@ -69,9 +69,9 @@ runroot(){ n=$1; shift; ( cd "$WT" && "$@" >"$LOGD/out.log" 2>&1 ); c=$?
 
 run tsc              ./node_modules/.bin/tsc --noEmit
 run lint             bun run lint
-run i18n:hardcoded   node scripts/check-i18n-hardcoded.mjs
-run i18n:keys        node scripts/check-i18n-keys.mjs
-run i18n:usage       node scripts/check-i18n-usage.mjs
+# 🚨 i18n の 3 本はここから外した（2026-08-16）。lefthook の `i18n` job は
+#    **4 本まとめ**（hardcoded / keys / usage ＋ **placeholders**）で、下の導出がそれを走らせる。
+#    ＝ ここに 3 本書いていたときは、**placeholders が門に無かった**。
 run aschild          node scripts/check-aschild-single-child.mjs
 run submit-once      node scripts/check-submit-once.mjs
 run user-label-leak  node scripts/check-user-label-leak.mjs
@@ -84,38 +84,48 @@ run user-label-leak  node scripts/check-user-label-leak.mjs
 #         🚨 **書き写した一覧は、その瞬間から腐る。**
 #    lefthook を丸ごと呼ぶ案は使えない（隔離した worktree では next/link・lucide-react・
 #    @tiptap/* がモジュール解決できず **偽の赤**が出る。実測）。名前だけ借りて個別に呼ぶ。
-CHECKS=$(grep -oE 'node scripts/check-[a-z0-9-]+\.mjs' "$WT/lefthook.yml" | sed 's|node scripts/||' | sort -u)
-N=$(printf '%s\n' "$CHECKS" | grep -c . || true)
-# 🚨 導出が空 / 極端に少ないときは「全部通った」ではなく **失敗**として扱う。
-#    空の期待は「照合していない」であって「違反が無い」ではない。
-if [ "$N" -lt 15 ]; then
-  log "🚨 lefthook からの導出が ${N} 本しかない（15 本未満）。**導出が壊れています**"; exit 1
-fi
-log "  lefthook から ${N} 本を導出"
-# 隔離した worktree では走らせられないもの（**理由つきで除外する。黙って外さない**）
-# 🚨 いまは 0 本。
-#    2026-08-16 に check-shortcuts を一度ここへ入れたが、**誤りだった**:
-#      落ちたのは `bun x lefthook run pre-commit --all-files` 経由のときだけで、
-#      **同じスクリプトを直接呼ぶと exit 0**（囮も対照も全部通る・実測）。
-#      🚨 **ある呼び出し方で落ちたことを、別の呼び出し方にも当てはめた。**
-#      除外を書くときは「どの呼び方で落ちたか」まで測ること。
-SKIP_IN_WORKTREE=""
-for f in $CHECKS; do
-  case " $SKIP_IN_WORKTREE " in *" $f "*) log "  ⏭ ${f%.mjs}（隔離ツリーでは解決不能・理由は上）"; continue;; esac
-  case "$f" in check-i18n-hardcoded.mjs|check-i18n-keys.mjs|check-i18n-usage.mjs|check-submit-once.mjs|check-user-label-leak.mjs) continue;; esac
-  n=${f%.mjs}; n=${n#check-}
-  # 🚨 warnonly は **いま 0 本**。
-  #    2026-08-16 に 2 本を入れ、同じ日に 2 本とも 0 になったので run へ戻した:
-  #      control-height-tokens … 操作部品 3 → **0**
-  #      no-api-message        … 違反 22 件 / 12 ファイル → **0**
-  #        （`raw-api-message` の基準線も 22/12 → **0/0**）
-  #    🚨 **止めずに件数を出し続けたから減った。** 赤にして止めていたら、
-  #       たぶん門ごと回避されて 1 件も減っていない。
-  #    🚨 次に warnonly を使うときの条件（**4 つ揃わなければ使わない**）:
-  #      ①既知 ②直す先が決まっている ③**持ち主が決まっている** ④外す条件が隣に書いてある
-  #      （③を確かめずに入れて、書いた 5 分後に自分で破った。二度目は無し）
-  run "$n" node "scripts/$f"
+# 🚨 **job 名で突き合わせる**（2026-08-16 に作り直した）。
+#    それまでの導出は `grep -oE 'node scripts/check-[a-z0-9-]+\.mjs'` で、
+#    🚨 **書き方が違う job を丸ごと落としていた**（base2 が実測して 7 本を名指し）:
+#      `node apps/studio/scripts/…`（7 本）／`cd apps/studio && node …`（3 本）
+#      `bun scripts/….ts`／`bun run …`／`bash .lefthook/*.sh`（4 本）／`bun x eslint`／`bun x tsc`
+#    ＝ **38 本のうち 26 本しか見ずに「🟢 全て緑」と出していた**。
+#    実害: CI が落ちた `shortcuts-manifest` は、**押す前の門で一度も走っていなかった**。
+# 🚨 **対応表は作らない。** 検査のファイル名と job 名は両側で違う
+#    （`breadcrumba11y` ↔ `check-breadcrumb-a11y.mjs` 等）が、**表は名前を変えた人が直さないと腐る**。
+#    → **その job の `run:` をそのまま実行する**。比べる対象を **job 名だけ**にする。
+JOBS=$(python3 "$WT/scripts/lib/lefthook-jobs.py" "$WT/lefthook.yml") || { log "🚨 lefthook の job を導出できませんでした"; exit 1; }
+NJOBS=$(printf '%s\n' "$JOBS" | grep -c . || true)
+# 🚨 空 / 極端に少ないときは「全部通った」ではなく **失敗**（空の期待は「照合していない」）。
+if [ "$NJOBS" -lt 30 ]; then log "🚨 lefthook の job が ${NJOBS} 本しか取れません（30 本未満）。**導出が壊れています**"; exit 1; fi
+
+# 🚨 **走らせないものは、必ず理由を隣に書く**（既存の決定。黙って外さない）。
+#    `|` 区切りで「job 名|理由」。**ここに無い job は必ず走る**。
+SKIP_JOBS="
+secrets|{staged_files} を lefthook が埋める形。門には staged が無い
+syntax|同上（{staged_files}）
+lint|同上。門は上で 'bun run lint' を走らせている
+typecheck|門は上で tsc --noEmit を走らせている（同じもの）
+packages-typecheck|門は下で build+typecheck を走らせている（順序が違うだけ）
+knowledge|rokf（外部コマンド）に依存。隔離ツリーでは PATH に無いことが在る
+"
+RAN=0; SKIPPED=0
+log "  lefthook の job ${NJOBS} 本を導出（job 名で突き合わせる）"
+printf '%s\n' "$JOBS" | while IFS="$(printf '\t')" read -r job root cmd; do
+  [ -z "$job" ] && continue
+  why=$(printf '%s\n' "$SKIP_JOBS" | grep -E "^${job}\|" | cut -d'|' -f2- || true)
+  if [ -n "$why" ]; then log "  ⏭ ${job}（${why}）"; continue; fi
+  dir="$WT"; [ -n "$root" ] && dir="$WT/$root"
+  ( cd "$dir" && bash -c "$cmd" >"$LOGD/out.log" 2>&1 ); c=$?
+  if [ "$c" -ne 0 ]; then log "  ❌ ${job} exit=$c"; sed -n '1,8p' "$LOGD/out.log" | sed 's/^/      /'; echo 1 >> "$LOGD/fail.flags"
+  else log "  ✅ ${job}"; fi
 done
+# 🚨 while はサブシェルなので、失敗はファイルで受ける（変数だと消える）
+[ -s "$LOGD/fail.flags" ] && FAIL=1
+# 🚨 **走らせた本数と除外の本数を出す**（「差 0」が「一致」か「比べていない」かを分ける）
+NSKIP=$(printf '%s\n' "$SKIP_JOBS" | grep -c '|' || true)
+log "  job ${NJOBS} 本 ＝ 走らせた $((NJOBS - NSKIP)) 本 ＋ 理由つきで除外 ${NSKIP} 本（**差 0**）"
+
 # 🚨 packages/* は 2026-08-16 まで範囲外だった（CI が初回で TS2307 を出して教えてくれた）。
 #    sdk は "types": "./dist/index.d.ts" なので **build しないと型が存在しない**。
 #    build を先に置く（CI の build ジョブは順序が逆で落ちた）。
