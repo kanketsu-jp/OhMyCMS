@@ -13,6 +13,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { FormDraft } from "@/components/admin/form-draft";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useLocale, useT } from "@/i18n/client";
 
@@ -210,17 +211,30 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
         </form>
       ) : (
         <form
+          id="onboarding-details-form"
           onSubmit={(event) => {
             event.preventDefault();
             void submit.run(true);
           }}
           className="flex flex-col gap-4"
         >
+          {/* 🚨 299 A「続きから」（堀池さん・2026-08-16）。**新しく作らず `FormDraft` に乗る**
+              （12 画面で既に使われている）。
+              🚨 **管理者コードは、ここには入りません**——`FormDraft` は
+              `SECRET_FIELD_PATTERN = /password|secret|token|key/i` で **name / id を見て弾く**ので、
+              `id="new-password"` が当たります。**それが 299 の案 A（秘密は残さない）**。
+              🚨🚨 **だから欄の `id` から `password` を外さないこと。**
+              298 は表示を「管理者コード」にせよと言っているが、**表示だけ**変える。
+              `id="admin-code"` にした瞬間、**除外の網から外れて localStorage に書かれます**
+              （実測: `/password|secret|token|key/i` は `admin-code` に当たらない）。
+              ＝ **規則が欄の名前に依存している**。名前を変えると、守りが**黙って**外れる。 */}
+          <FormDraft formId="onboarding-details-form" />
           <p className="text-xs text-muted-foreground">{t("step_details_progress")}</p>
           <div className="flex flex-col gap-2">
             <Label htmlFor="project-name">{t("project_name_label")}</Label>
             <Input
               id="project-name"
+              name="project-name"
               type="text"
               value={projectName}
               onChange={(event) => setProjectName(event.target.value)}
@@ -233,6 +247,7 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
             <Label htmlFor="tenant-name">{t("tenant_name_label")}</Label>
             <Input
               id="tenant-name"
+              name="tenant-name"
               type="text"
               value={tenantName}
               onChange={(event) => setTenantName(event.target.value)}
