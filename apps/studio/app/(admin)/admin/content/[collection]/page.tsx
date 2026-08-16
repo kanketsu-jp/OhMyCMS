@@ -7,11 +7,12 @@ import { isFileField } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
+import { RowOptions } from "@/components/admin/row-options";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getLocale, getT } from "@/i18n/server";
 import { fieldLabel } from "@/lib/schema/labels";
 import { DEFAULT_COLUMN_COUNT, DEFAULT_LIST_LIMIT, resolveColumns, resolveLimit } from "@/lib/admin/list-view";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import {
   Table,
@@ -177,20 +178,35 @@ export default async function ContentPage({ params, searchParams }: Props) {
                           </TableCell>
                         ))}
                         <TableCell>
-                          <div className="flex gap-2">
+                          {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
+                              （`knowledge/decisions/action-button-and-edit-mode.md`）。
+                              🚨 form は**残す**。`RowOptions` の `formId` が指す相手そのもので、
+                                 消すと削除が黙って効かなくなる（中身は隠し項目だけでよい）。 */}
+                          <div className="flex gap-1">
                             <Link
                               href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
                               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                             >
                               {t("edit_button")}
                             </Link>
-                            <form action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`} method="post">
+                            <form
+                              id={`item-delete-${id}`}
+                              action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`}
+                              method="post"
+                            >
                               <input type="hidden" name="_method" value="delete" />
-                              <Button type="submit" variant="destructive-ghost" size="sm" aria-label={t("delete_button")}>
-                                <Trash2 />
-                                <span className="hidden md:inline">{t("delete_button")}</span>
-                              </Button>
                             </form>
+                            <RowOptions
+                              label={t("row_options")}
+                              options={[
+                                {
+                                  label: t("delete_button"),
+                                  icon: <Trash2 />,
+                                  destructive: true,
+                                  formId: `item-delete-${id}`,
+                                },
+                              ]}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>

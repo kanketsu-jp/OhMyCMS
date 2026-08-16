@@ -10,6 +10,7 @@
   "collection_label": "Collection",
   "create_button": "Create",
   "delete_button": "Delete",
+  "row_options": "Row actions",
   "deleted": "Deleted",
   "description": "Manage policies that group permission rules.",
   "description_label": "Description",

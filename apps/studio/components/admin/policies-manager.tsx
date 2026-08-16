@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
+import { RowOptions } from "@/components/admin/row-options";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -123,24 +124,28 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
               <TableCell>{policy.app_access ? t("app_access_label") : null}</TableCell>
               <TableCell>{policy.admin_access ? t("admin_access_label") : null}</TableCell>
               <TableCell>
-                <div className="flex justify-end gap-2">
+                {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
+                    （`knowledge/decisions/action-button-and-edit-mode.md`。283 A を行へ延ばしたもの）。
+                    形はゴミ箱（`trash-manager.tsx`）に合わせている。新しい形を作らない。 */}
+                <div className="flex justify-end gap-1">
                   <Link
                     href={`/admin/settings/policies/${policy.id}`}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                   >
                     {t("edit_permissions_link")}
                   </Link>
-                  <Button
-                    type="button"
-                    variant="destructive-ghost"
-                    size="sm"
-                    aria-label={t("delete_button")}
-                    disabled={remove.isPending(policy.id)}
-                    onClick={() => void remove.run(policy.id)}
-                  >
-                    <Trash2 />
-                    <span className="hidden md:inline">{t("delete_button")}</span>
-                  </Button>
+                  <RowOptions
+                    label={t("row_options")}
+                    options={[
+                      {
+                        label: t("delete_button"),
+                        icon: <Trash2 />,
+                        destructive: true,
+                        disabled: remove.isPending(policy.id),
+                        onSelect: () => void remove.run(policy.id),
+                      },
+                    ]}
+                  />
                 </div>
               </TableCell>
             </TableRow>

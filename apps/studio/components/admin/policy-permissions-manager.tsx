@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
+import { RowOptions } from "@/components/admin/row-options";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Label } from "@/components/ui/label";
@@ -194,22 +195,25 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
                 <FilterBlock value={jsonText(row.permissions) || t("no_filter")} targetId={`policy-filter-${row.id}`} />
               </TableCell>
               <TableCell>
-                <div className="flex justify-end gap-2">
+                {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
+                    （`knowledge/decisions/action-button-and-edit-mode.md`。283 A を行へ延ばしたもの） */}
+                <div className="flex justify-end gap-1">
                   <Button type="button" variant="outline" size="sm" aria-label={t("edit_button")} onClick={() => startEdit(row)}>
                     <Pencil />
                     <span className="hidden md:inline">{t("edit_button")}</span>
                   </Button>
-                  <Button
-                    type="button"
-                    variant="destructive-ghost"
-                    size="sm"
-                    aria-label={t("delete_button")}
-                    disabled={remove.isPending(String(row.id))}
-                    onClick={() => void remove.run(row.id)}
-                  >
-                    <Trash2 />
-                    <span className="hidden md:inline">{t("delete_button")}</span>
-                  </Button>
+                  <RowOptions
+                    label={t("row_options")}
+                    options={[
+                      {
+                        label: t("delete_button"),
+                        icon: <Trash2 />,
+                        destructive: true,
+                        disabled: remove.isPending(String(row.id)),
+                        onSelect: () => void remove.run(row.id),
+                      },
+                    ]}
+                  />
                 </div>
               </TableCell>
             </TableRow>

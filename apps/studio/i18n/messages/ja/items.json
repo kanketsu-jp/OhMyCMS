@@ -3,6 +3,7 @@
   "back_to_list": "アイテム一覧へ",
   "create_button": "作成",
   "delete_button": "削除",
+  "row_options": "行の操作",
   "edit_button": "編集",
   "edit_item_title": "アイテム編集",
   "error_invalid_input": "入力が不正です",

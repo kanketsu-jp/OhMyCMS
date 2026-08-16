@@ -10,6 +10,7 @@
   "collection_label": "コレクション",
   "create_button": "作成",
   "delete_button": "削除",
+  "row_options": "行の操作",
   "deleted": "削除しました",
   "description": "権限ルールをまとめるポリシーを管理します。",
   "description_label": "説明",
