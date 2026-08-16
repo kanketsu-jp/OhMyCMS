@@ -105,7 +105,13 @@ services:
       #     DB の `'false'` が勝ち、**virtual-host 形式**で `ohmycms.minio` を引きに行って
       #     **502 STORAGE_ERROR (Error code=ENOTFOUND)**。
       #     🟢 対照 `minio` は引ける（172.28.0.4）ので、**台のせいに見えない**。
-      #   🚨 **終わったら `'false'` へ戻すこと**（共有 DB なので、次に使う人の前提が変わる）。
+      #   🚨 **終わっても `'false'` へ戻さないこと**（2026-08-17・司令塔の判断）。
+      #     `'false'` は「元の状態」ではなく **壊れた状態**——**誰かが選んだ値ではなく、
+      #     初期値が入ったまま**だった（env の `true` が DB に負けていた）。
+      #     この DB が向いている先は MinIO で、**MinIO は path-style が要る** ＝ `'true'` が正しい。
+      #     戻すのは後始末ではなく、**地雷を埋め直すこと**。
+      #   🚨 例外: BLOCKED の枝を測りたいときだけ **1 回戻して、測ったら必ず `'true'` へ直す**
+      #     （**前後を値で出す**。直し忘れると、次に走らせた人が数時間を失う）。
       #   詳しくは `knowledge/decisions/settings-db-beats-env.md`。
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_BUCKET: ${S3_BUCKET:-}
