@@ -144,6 +144,28 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
    */
   const [editing, setEditing] = React.useState(false);
   const nameInputRef = React.useRef<HTMLInputElement>(null);
+  /**
+   * 🚨 「やめる」で**入れた値を捨てる**ための鍵。増やすと `<form>` が作り直され、
+   * `defaultValue` が引き直される（欄は uncontrolled なので、これをしないと値が残る）。
+   *
+   * 2026-08-16 実測（3/3 再現）で分かった不具合の修正:
+   * ```
+   * 「編集する」→ 欄に入力 → 「やめる」
+   *   直っていなかったとき … 表示モードに戻っても **入れた値が画面に出たまま**
+   *                          （readOnly=true / 値="ZZ 破棄テスト"）
+   *   ＝ 🚨 **表示モードが、保存されていない値を「保存済みの値」として見せていた**
+   *   さらに「編集する」を押し直すと、捨てたはずの値が**生き返る**
+   * ```
+   * 🚨 これは「やめる」を置いた意味そのものを壊す（規約 §4「変更を捨てたい人」のため）。
+   * 🚨 同じ形は **uncontrolled な欄を持つ全画面**で起きる。C の 6 枚へ写す前にここで直した。
+   */
+  const [formKey, setFormKey] = React.useState(0);
+  /** 編集をやめて表示モードへ戻す。**入れた値は捨てる**（上記）。 */
+  const cancelEditing = React.useCallback(() => {
+    setNameError(null);
+    setEditing(false);
+    setFormKey((k) => k + 1);
+  }, []);
 
   const saveName = useSubmitOnce(async (form: HTMLFormElement) => {
     const formData = new FormData(form);
@@ -245,6 +267,8 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="profile-name-title">
         <SurfaceTitle id="profile-name-title">{t("profile_name_section")}</SurfaceTitle>
         <form
+          // 🚨 `key` を増やすと作り直され、`defaultValue` が引き直される（「やめる」の実体）
+          key={formKey}
           id="profile-name-form"
           onSubmit={handleNameSubmit}
           // 🚨 PC で横に伸びきらないよう上限を置く（2026-08-15 実測 736px → 違反）。
@@ -294,10 +318,7 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
                 role="secondary"
                 label={tCommon("action_cancel")}
                 icon={<X />}
-                onClick={() => {
-                  setNameError(null);
-                  setEditing(false);
-                }}
+                onClick={cancelEditing}
               />
               <PageAction
                 form="profile-name-form"
