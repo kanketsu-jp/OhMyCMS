@@ -116,8 +116,11 @@ printf '%s\n' "$JOBS" | while IFS="$(printf '\t')" read -r job root cmd; do
   why=$(printf '%s\n' "$SKIP_JOBS" | grep -E "^${job}\|" | cut -d'|' -f2- || true)
   if [ -n "$why" ]; then log "  ⏭ ${job}（${why}）"; continue; fi
   dir="$WT"; [ -n "$root" ] && dir="$WT/$root"
-  ( cd "$dir" && bash -c "$cmd" >"$LOGD/out.log" 2>&1 ); c=$?
-  if [ "$c" -ne 0 ]; then log "  ❌ ${job} exit=$c"; sed -n '1,8p' "$LOGD/out.log" | sed 's/^/      /'; echo 1 >> "$LOGD/fail.flags"
+  # 🚨 **job ごとに別のログへ出す**（1 本の out.log を使い回すと、
+  #    どの出力がどの job のものか分からなくなる。2026-08-16 に実際に読み違えた）
+  jlog="$LOGD/job-${job}.log"
+  ( cd "$dir" && bash -c "$cmd" >"$jlog" 2>&1 ); c=$?
+  if [ "$c" -ne 0 ]; then log "  ❌ ${job} exit=$c"; tail -n 8 "$jlog" | sed 's/^/      /'; echo 1 >> "$LOGD/fail.flags"
   else log "  ✅ ${job}"; fi
 done
 # 🚨 while はサブシェルなので、失敗はファイルで受ける（変数だと消える）
