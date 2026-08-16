@@ -83,5 +83,6 @@
   "clear_filter": "Clear filter",
   "labels_loading": "Loading…",
   "labels_load_failed": "Could not load labels",
-  "view_source": "View original"
+  "view_source": "View original",
+  "no_file_selected": "Not selected"
 }

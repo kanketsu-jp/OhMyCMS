@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ImageIcon, Upload, X } from "lucide-react";
 import { FileDropzone } from "@/components/admin/file-dropzone";
 import { Button } from "@/components/ui/button";
+import { FieldValue } from "@/components/ui/field-value";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,16 @@ type Props = {
   inputId: string;
   name: string;
   defaultValue?: string;
+  /**
+   * 選び直せないようにする。**既定は `false`（今までどおり）**。
+   *
+   * 🚨 `true` のとき、**選ぶ入口も解除も出さない**。出るのは**選ばれているファイルだけ**
+   * （規約 `knowledge/decisions/action-button-and-edit-mode.md` §2-1・design 案エ）。
+   * 🚨 **id は出さない**（人には読めない）。名前が要るので、`true` のときは**その 1 件だけを引く**
+   *   （一覧はダイアログを開いたときしか読み込まないため、そのままだと id にフォールバックする。
+   *    2026-08-16 に実装中に気づいた）。
+   */
+  readOnly?: boolean;
 };
 
 /**
@@ -60,7 +71,7 @@ function isImage(file: FileRow | null): boolean {
   return Boolean(file?.type?.startsWith("image/"));
 }
 
-export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
+export function FilePicker({ inputId, name, defaultValue = "", readOnly = false }: Props) {
   const t = useT("files");
   const tError = useT("errors");
   const errorMessage = (payload: unknown, fallback: string) => {
@@ -76,6 +87,22 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
     () => files.find((file) => file.id === value) ?? selected,
     [files, selected, value],
   );
+
+  // 🚨 読み取り専用のときだけ、**選ばれている 1 件**を引いて名前を出せるようにする。
+  //    一覧（`loadFiles`）はダイアログを開くまで走らないので、これが無いと **id が出る**。
+  useEffect(() => {
+    if (!readOnly || !value || selected?.id === value) return;
+    let 生きている = true;
+    void (async () => {
+      const response = await fetch(`/api/files/${encodeURIComponent(value)}`, { cache: "no-store" });
+      if (!response.ok) return; // 🚨 出せないときは**黙って id のまま**（画面を壊さない）
+      const payload = (await response.json().catch(() => null)) as { data?: FileRow } | null;
+      if (生きている && payload?.data) setSelected(payload.data);
+    })();
+    return () => {
+      生きている = false;
+    };
+  }, [readOnly, value, selected?.id]);
 
   async function loadFiles() {
     const response = await fetch("/api/files?limit=100", { cache: "no-store" });
@@ -112,6 +139,9 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
   return (
     <div className="space-y-2">
       <input id={inputId} type="hidden" name={name} value={value} />
+      {/* 🚨 読み取り専用では**選ぶ入口も解除も出さない**（design 案エ）。
+          出したままにすると「見える／押せる」が食い違う。 */}
+      {readOnly ? null : (
       <div className="flex flex-wrap items-center gap-2">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -215,6 +245,7 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
           </Button>
         ) : null}
       </div>
+      )}
       {value ? (
         <div className="flex items-center gap-3 py-2">
           <div className="flex size-16 items-center justify-center overflow-hidden rounded-md bg-muted">
@@ -233,9 +264,13 @@ export function FilePicker({ inputId, name, defaultValue = "" }: Props) {
           </div>
           <div className="min-w-0 text-sm">
             <p className="truncate font-medium">{selectedFromList?.title ?? selectedFromList?.filename_download ?? value}</p>
-            <p className="truncate text-xs text-muted-foreground">{value}</p>
+            {/* 🚨 読み取り専用では **id を出さない**（人には読めない。design 案オを採らなかった理由）。 */}
+            {readOnly ? null : <p className="truncate text-xs text-muted-foreground">{value}</p>}
           </div>
         </div>
+      ) : readOnly ? (
+        // 🚨 何も選ばれていないとき。**高さが潰れない**形で出す（`FieldValue` と同じ作法）。
+        <FieldValue>{t("no_file_selected")}</FieldValue>
       ) : null}
     </div>
   );

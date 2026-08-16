@@ -83,5 +83,6 @@
   "clear_filter": "絞り込みを解除",
   "labels_loading": "読み込んでいます…",
   "labels_load_failed": "ラベルを読み込めませんでした",
-  "view_source": "もとのファイルをみる"
+  "view_source": "もとのファイルをみる",
+  "no_file_selected": "選ばれていません"
 }

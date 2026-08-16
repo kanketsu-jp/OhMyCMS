@@ -12,7 +12,7 @@
  * 並びは使用頻度順 / 色・文字サイズ・下線は持たせない。
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import NextImage from "next/image";
 import { EditorContent, Extension, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -64,6 +64,15 @@ type Props = {
   name: string;
   defaultValue?: unknown;
   required?: boolean;
+  /**
+   * 書けるかどうか。**既定は `true`（今までどおり）**。
+   *
+   * 🚨 `false` にすると **Tiptap が `contenteditable="false"` を付け、ツールバーも出ない**。
+   * 表示モード用（規約 `knowledge/decisions/action-button-and-edit-mode.md` §2-1・design 案ア）。
+   * 🚨 **本文を別の経路で描き直さない**理由: 描画が 2 つになると、片方を直したとき
+   * もう片方が置いていかれ、**書式の出方が割れる**。
+   */
+  editable?: boolean;
 };
 
 type FileRow = {
@@ -121,7 +130,13 @@ function ToolbarButton({
   );
 }
 
-export function RichTextField({ inputId, name, defaultValue, required = false }: Props) {
+export function RichTextField({
+  inputId,
+  name,
+  defaultValue,
+  required = false,
+  editable = true,
+}: Props) {
   const t = useT("richtext");
   const hiddenRef = useRef<HTMLInputElement>(null);
   // 初期値は1回だけ作って固定する（useRef を描画中に読むと React 19 の規則に触れる）
@@ -138,6 +153,11 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
   const editor = useEditor({
     // 🚨 SSR で描かせない。Next の SSR と ProseMirror の DOM 生成が食い違う
     immediatelyRender: false,
+    // 🚨 表示モードでは**書けない**（規約 `action-button-and-edit-mode.md` §2-1・design 案ア）。
+    //    `editable: false` にすると、Tiptap が `contenteditable="false"` を付ける。
+    //    🚨 **本文を文字として出し直さない**（描画経路が 2 つになると、書式の出方がいつか割れる）。
+    //    🚨 **焦点は当たる**ので読み上げられる（`disabled` を採らなかったのと同じ理由）。
+    editable,
     extensions: [
       StarterKit.configure({
         // design の決定: 見出しは h2〜h4 だけ（h1 はページ側の見出し）
@@ -201,6 +221,18 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
    * `useEditorState` はセレクタの結果が変わったときだけ再描画するので、
    * 打鍵のたびの再描画（憲章 §5-5）を避けたまま状態を追える。
    */
+  /**
+   * 🚨 **`editable` は editor を作るときにしか読まれない。**
+   * モードを切り替えても、`useEditor` へ渡した値は**後から効かない**
+   * （2026-08-16 実測: 「編集する」を押しても本文は `contenteditable="false"` のままだった。
+   *  **ツールバーは出るのに本文だけ書けない**、という食い違いになる。
+   *  🚨 画面で測って初めて出た。**props を渡しただけでは確かめたことにならない**）。
+   * → **prop が変わったら、その場で editor へ入れ直す。**
+   */
+  useEffect(() => {
+    if (editor && editor.isEditable !== editable) editor.setEditable(editable);
+  }, [editor, editable]);
+
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
@@ -262,7 +294,14 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
     // 例外を**コードに書いて見えるようにする**（検査側に例外リストを隠さない）。
     <div
       data-surface-exempt
-      className="rounded-lg bg-muted/60 focus-within:ring-3 focus-within:ring-ring/50"
+      className={cn(
+        "rounded-lg",
+        // 🚨 表示モードは**罫線・背景・左余白を落とす**（§2-1 の目標「値が文字として見える」）。
+        //    `editable: false` にしても**枠はそのまま残る**ので、ここで落とす（実測 2026-08-16）。
+        editable
+          ? "bg-muted/60 focus-within:ring-3 focus-within:ring-ring/50"
+          : "bg-transparent",
+      )}
     >
       <input
         ref={hiddenRef}
@@ -283,6 +322,9 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
         監査は「面と判定された祖先」の背景としか比べないので、外側の箱を例外にすると
         ここが Surface の色と比較されて面2段目に見える。**入れ物ではない**ので例外を明示する。
       */}
+      {/* 🚨 表示モードではツールバーを**出さない**（design 2026-08-16）。
+          出したままにすると**押せないボタンが並ぶ**——「見える／押せる」が食い違う。 */}
+      {editable ? (
       <ScrollFade
         data-surface-exempt
         direction="horizontal"
@@ -375,8 +417,14 @@ export function RichTextField({ inputId, name, defaultValue, required = false }:
           </ToolbarButton>
         </div>
       </ScrollFade>
+      ) : null}
 
-      <EditorContent editor={editor} aria-label={t("editor_label")} className="tiptap-body text-sm" />
+      <EditorContent
+        editor={editor}
+        aria-label={t("editor_label")}
+        // 🚨 表示モードは左右の余白も落とす（§2-1「値が文字として見える」）
+        className={cn("tiptap-body text-sm", !editable && "[&_.tiptap]:px-0")}
+      />
 
       <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
         <DialogContent className="sm:max-w-md">
