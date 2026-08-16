@@ -36,10 +36,21 @@ TMP="${TMPDIR:-/tmp}"
 
 psql() { docker exec ohmycms-db psql -U cms -d cms -t -A "$@"; }
 show() { psql -F' | ' -c "select email, provider, coalesce(external_identifier,'(null)') from directus_users where id='$1';"; }
+# 🚨 `probe-adoption.sh` の `trip()` と同じ理由（2026-08-16 実測）。
+#    パイプの向こうで受けると、往復の失敗が **grep の 0 行**に化ける。
+#    ここは表示を 4xx/5xx に絞っているので、**通常運転でも 0 行になりうる**。
+#    ＝ 🚨 **「0 行」で判断できない。だから `status:` の有無を別に見る。**
 trip() {
   rm -f "${TMP}/overwrite.txt.session"
-  STUDIO="${STUDIO}" python3 "${REPO}/acceptance/saml/roundtrip.py" "${TMP}/overwrite.txt" 2>&1 \
-    | grep -E "^(   status: 4|   status: 5|✅|🚨 IdP)" | sed 's/^/      /'
+  local log="${TMP}/overwrite.log"
+  STUDIO="${STUDIO}" python3 "${REPO}/acceptance/saml/roundtrip.py" "${TMP}/overwrite.txt" > "${log}" 2>&1
+  local rc=$?
+  grep -E "^(   status: 4|   status: 5|✅|🚨 IdP)" "${log}" | sed 's/^/      /'
+  echo "      往復の終了コード: ${rc}"
+  if [ "$(grep -cE '^   status:' "${log}")" = "0" ]; then
+    echo "      🚨 **サーバに届いていません。以降の DB の値は「通した結果」ではありません**"
+    tail -3 "${log}" | sed 's/^/         /'
+  fi
 }
 
 echo "════ 0. 元の状態を控える ════"

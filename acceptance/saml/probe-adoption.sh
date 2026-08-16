@@ -76,10 +76,25 @@ if [ "${DRY:-0}" = "1" ]; then
   exit 0
 fi
 
+# 🚨 パイプの向こうで受けると、往復の失敗が **grep の 0 行**に化ける（2026-08-16 実測）。
+#    届かない台を指すと 表示 0 行・python は exit 1 で、台はそのまま次へ進み、
+#    DB の値を「通した結果」として印字していた。
+#
+# 🚨 ただし **exit が非 0 なら止める、にはできない**。
+#    停止中の枝では **往復は失敗するのが正しい**（ACS が 403 → roundtrip.py は exit 1）。
+#    ＝ **403 は「届いた失敗」／接続拒否は「届かない失敗」**。同じ非 0 でも意味が違う。
+# ✅ だから `status:` の行が 1 本も無いとき（＝ サーバに届いてすらいない）だけ警告する。
 trip() {
   rm -f "${TMP}/adoption.txt.session"
-  STUDIO="${STUDIO}" python3 "${REPO}/acceptance/saml/roundtrip.py" "${TMP}/adoption.txt" 2>&1 \
-    | grep -E "^(   status:|✅|🚨)" | sed 's/^/      /'
+  local log="${TMP}/adoption.log"
+  STUDIO="${STUDIO}" python3 "${REPO}/acceptance/saml/roundtrip.py" "${TMP}/adoption.txt" > "${log}" 2>&1
+  local rc=$?
+  grep -E "^(   status:|✅|🚨)" "${log}" | sed 's/^/      /'
+  echo "      往復の終了コード: ${rc}"
+  if [ "$(grep -cE '^   status:' "${log}")" = "0" ]; then
+    echo "      🚨 **サーバに届いていません。以降の DB の値は「通した結果」ではありません**"
+    tail -3 "${log}" | sed 's/^/         /'
+  fi
 }
 
 echo
