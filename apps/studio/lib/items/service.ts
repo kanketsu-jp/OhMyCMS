@@ -999,6 +999,29 @@ function assertPayloadColumns(
  * 🚨 **毎回引く**（キャッシュしない）。フィールドの meta は GUI から実行時に変わるので、
  * 覚えると「readonly にしたのに書ける」時間ができる。
  */
+function assertPrimaryKeyNotChanged(payload: Item, columns: ColumnInfo[]): void {
+  // 🚨 **主キーを更新で書き換えさせない**（2026-08-16・security の指摘で実測して見つけた）。
+  //    実測: `PATCH /api/items/<表>/<id>` に `{"id": "<別の uuid>"}` を渡すと **HTTP 200**。
+  //    ＝ **行の同一性を、外から変えられた**。他の行を指していた参照・監査ログ・ゴミ箱の
+  //    復元先が、すべてずれる。
+  //
+  // 🚨 **なぜここが空いていたか**（根）: 書き込みの拒否は `directus_fields.readonly` を
+  //    引いて判定していたが、**`id` は物理列なのに `directus_fields` に登録が無い**
+  //    （実測: 利用者の 15 表・34 列のうち、未登録は **`id` の 5 個だけ**）。
+  //    登録が無い列は拒否クエリが**空を返して素通り**する ＝ **allow-by-default** だった。
+  //
+  // 🚨 **名前で書かない**（`"id"` と書かない）。主キーの列名は表ごとに違いうるので、
+  //    **スキーマの `is_primary_key`** で判定する。
+  //
+  // 🚨 **作成では断らない**。`POST` に `id` を渡すのは正しい使い方
+  //    （利用者側で uuid を作って渡す。実測で 201）。禁じるのは**あとから変えること**。
+  const 主キー = columns.filter((c) => c.is_primary_key).map((c) => c.name);
+  const 当たり = Object.keys(payload).filter((k) => 主キー.includes(k));
+  if (当たり.length > 0) {
+    throw new ApiError(400, "INVALID_FIELD", `主キーは変更できません: ${当たり.join(", ")}`);
+  }
+}
+
 async function assertPayloadWritable(payload: Item, collection: string): Promise<void> {
   const keys = Object.keys(payload);
   if (keys.length === 0) return;
@@ -1164,10 +1187,11 @@ export async function updateItem(
   }
 
   const schemaOverview = await getSchemaOverview();
-  assertUserCollection(collection, schemaOverview);
+  const columns = assertUserCollection(collection, schemaOverview);
   const permission = await permissionForAction(actor, collection, "update");
   assertPayloadColumns(body, collection, schemaOverview);
   assertPayloadAllowed(body, permission.allowedFields);
+  assertPrimaryKeyNotChanged(body, columns);
   await assertPayloadWritable(body, collection);
   const primaryKey = getPrimaryKey(schemaOverview, collection);
   const relations = permission.rowFilter ? await relationRows() : [];
