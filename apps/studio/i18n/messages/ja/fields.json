@@ -15,6 +15,8 @@
   "interface_json": "JSON（そのまま）",
   "interface_label": "編集のしかた",
   "interface_richtext": "本文（リッチテキスト）",
+  "internal_fields_note": "この CMS が自動で足した項目です。消すと、本文の検索やゴミ箱からの復元が動かなくなります。",
+  "internal_fields_title": "内部で使う項目（自動） {count} 件",
   "kind_boolean": "はい / いいえ",
   "kind_date": "日付",
   "kind_datetime": "日時",

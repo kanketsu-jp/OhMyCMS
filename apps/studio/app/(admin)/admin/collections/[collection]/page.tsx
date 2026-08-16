@@ -12,6 +12,12 @@ import { getLocale, getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Table,
   TableBody,
   TableCell,
@@ -85,6 +91,15 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
     apiFetch<RelationResult[]>("/api/relations"),
     apiFetch<CollectionResult[]>("/api/collections"),
   ]);
+  // 🚨 **内部で使う項目は、既定で出さない**（設問286 A ②・design と合意した案 A）。
+  //    利用者が作った項目ではなく、**消すと本体が壊れる**（本文の検索用の相方・論理削除の日時）。
+  //    見せると「消してよいもの」に見える。
+  // 🚨 **ただし無かったことにはしない**。件数を常に出して、開けば中身が見られる形にする
+  //    （**見えないものは、在ることに気づけない**）。
+  // 🚨 判定は **`meta.hidden` 1 本**。名前で除かない（`field === "deleted_at"` 等を書かない）——
+  //    判定の道が 2 本あると、次に内部項目を足す人がどちらに従うか分からなくなる。
+  const 見せる項目 = fieldsResult.ok ? fieldsResult.data.filter((f) => !f.meta?.hidden) : [];
+  const 内部項目 = fieldsResult.ok ? fieldsResult.data.filter((f) => Boolean(f.meta?.hidden)) : [];
   const collectionRelations = relationsResult.ok
     ? relationRows(relationsResult.data, collection)
     : [];
@@ -152,7 +167,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               </TableRow>
             </TableHeader>
             <TableBody>
-              {fieldsResult.data.map((field) => (
+              {見せる項目.map((field) => (
                 <TableRow key={field.field}>
                   <TableCell className="font-medium">
                     {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
@@ -168,6 +183,37 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               ))}
             </TableBody>
           </Table>
+        ) : null}
+        {/* 🚨 面は増やさない（`no-nested-surfaces`）。表と同じ面の中に置く。 */}
+        {内部項目.length > 0 ? (
+          <Accordion className="mt-4">
+            <AccordionItem value="internal-fields">
+              <AccordionTrigger>
+                {tFields("internal_fields_title", { count: 内部項目.length })}
+              </AccordionTrigger>
+              <AccordionContent>
+                <p className="mb-2 text-sm text-muted-foreground">{tFields("internal_fields_note")}</p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{tFields("field_header")}</TableHead>
+                      <TableHead>{tFields("type_label")}</TableHead>
+                      <TableHead>{tFields("db_type_header")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {内部項目.map((field) => (
+                      <TableRow key={field.field}>
+                        <TableCell className="font-medium">{fieldLabel(field, locale)}</TableCell>
+                        <TableCell>{field.type}</TableCell>
+                        <TableCell>{field.schema?.data_type ?? ""}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         ) : null}
         <div className="mt-4">
           <Link
