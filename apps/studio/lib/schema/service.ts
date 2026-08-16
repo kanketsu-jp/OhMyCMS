@@ -44,6 +44,23 @@ const COLLECTION_META_COLUMNS = new Set([
  */
 export const DELETED_AT_COLUMN = "deleted_at";
 
+/**
+ * **この CMS が自分で足す列**（利用者の列ではない）。書き込みは常に断る。
+ *
+ * 🚨 **なぜデータでなくコードに置くか**（toast の指摘・2026-08-16）。
+ * 判定を `directus_fields.readonly` だけに頼ると、**守りの基準が守りの対象と同じ場所**に在る。
+ * ＝ その行を書き換えられるようになった日に、**印を消せば書けるようになる**。
+ * いま `directus_fields` は items API から触れない（`isSystemTableName` が 403）ので
+ * **すぐには悪用できない**が、**構造として弱い**。
+ *
+ * 🚨 **登録（`hidden`/`readonly` を入れる側）と拒否（書き込みを断る側）が、
+ * ここを両方読む**。片方だけ直す事故が構造的に起きないようにするため。
+ *
+ * 🚨 `meta.readonly` も併せて断る（利用者が自分で readonly にした列も書けない）。
+ * こちらは**データなので変えられる**——だから**内部列はコード側にも置く**。
+ */
+export const INTERNAL_COLUMNS: ReadonlySet<string> = new Set([DELETED_AT_COLUMN]);
+
 const FIELD_META_COLUMNS = new Set([
   "special",
   "interface",

@@ -11,7 +11,7 @@ import { ApiError, rethrowAsConflict } from "@/lib/schema/errors";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { ColumnInfo, RelationMeta } from "@/lib/schema/models";
 import { assertSafeIdentifier, isSystemTableName } from "@/lib/schema/validate";
-import { DELETED_AT_COLUMN } from "@/lib/schema/service";
+import { DELETED_AT_COLUMN, INTERNAL_COLUMNS } from "@/lib/schema/service";
 import { applyFilter, type FilterObject } from "./filter";
 import { sanitizeRichTextFields } from "./richtext";
 import {
@@ -1002,15 +1002,20 @@ function assertPayloadColumns(
 async function assertPayloadWritable(payload: Item, collection: string): Promise<void> {
   const keys = Object.keys(payload);
   if (keys.length === 0) return;
-  const readonly = await db("directus_fields")
+  // 🚨 **コード側の一覧が正本**（`INTERNAL_COLUMNS`）。データを書き換えても外れない。
+  const 内部 = keys.filter((k) => INTERNAL_COLUMNS.has(k));
+  // 🚨 **併せて `meta.readonly` も断る**（利用者が自分で readonly にした列）。
+  //    こちらはデータなので、**印を消されたら外れる**——だから内部列はコード側にも置く。
+  const 印 = await db("directus_fields")
     .where({ collection, readonly: true })
     .whereIn("field", keys)
-    .pluck("field");
-  if (readonly.length > 0) {
+    .pluck<string[]>("field");
+  const 断る = [...new Set([...内部, ...印])].sort();
+  if (断る.length > 0) {
     throw new ApiError(
       400,
       "INVALID_FIELD",
-      `変更できないフィールドです: ${readonly.join(", ")}`,
+      `変更できないフィールドです: ${断る.join(", ")}`,
     );
   }
 }

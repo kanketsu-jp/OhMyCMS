@@ -108,6 +108,27 @@ if (入口の定義 !== 1) {
 }
 console.log(`根拠: itemsTable の定義 ${入口の定義} 件（＝読めている）`);
 
+// 🚨 **内部列の正本が 1 箇所であること**を、ここで確かめる（toast の指摘・2026-08-16）。
+//    判定を `directus_fields.readonly` だけに置くと、**守りの基準が守りの対象と同じ場所**に在る
+//    ＝ その行を書き換えられるようになった日に、**印を消せば書ける**。
+//    だから正本は `lib/schema/service.ts` の `INTERNAL_COLUMNS`（コード側）に置く。
+//    🚨 **登録する側（table.ts）と断る側（items/service.ts）が、そこを両方読む**——
+//    片方だけ直す事故が構造的に起きないように、**両方が読んでいること**を毎回見る。
+const 正本 = readFileSync(join(ITEMS, "../schema/service.ts"), "utf8");
+const 断る側 = readFileSync(join(ITEMS, "service.ts"), "utf8");
+const 登録側 = readFileSync(join(ITEMS, "table.ts"), "utf8");
+const 不足 = [];
+if (!/export const INTERNAL_COLUMNS/.test(正本)) 不足.push("lib/schema/service.ts に INTERNAL_COLUMNS の定義が無い");
+if (!/INTERNAL_COLUMNS\.has\(/.test(断る側)) 不足.push("lib/items/service.ts が INTERNAL_COLUMNS を見ていない（書き込みを断る側）");
+if (!/DELETED_AT_COLUMN/.test(登録側)) 不足.push("lib/items/table.ts が DELETED_AT_COLUMN を見ていない（登録する側）");
+if (!/INTERNAL_COLUMNS[^=]*=\s*new Set\(\[DELETED_AT_COLUMN/.test(正本)) 不足.push("INTERNAL_COLUMNS が DELETED_AT_COLUMN を含んでいない");
+if (不足.length > 0) {
+  console.error(`✖ 内部列の正本が繋がっていません（${不足.length} 件）`);
+  for (const v of 不足) console.error(`   🚨 ${v}`);
+  process.exit(1);
+}
+console.log(`根拠: 内部列の正本 INTERNAL_COLUMNS を、断る側と登録側の両方が読んでいる`);
+
 if (違反.length > 0) {
   console.error(`✖ 入口を通らずに利用者の表を開いています（${違反.length} 件）`);
   for (const v of 違反) console.error(`   ${v}`);
