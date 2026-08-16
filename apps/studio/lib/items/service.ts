@@ -980,6 +980,42 @@ function assertPayloadColumns(
 }
 
 /**
+ * **書き換えてはいけない列を、サーバ側で断る**（2026-08-16）。
+ *
+ * 🚨 **実測で開いていた穴**: `PATCH /api/items/<表>/<id>` に `{"deleted_at": …}` を渡すと
+ * **HTTP 200 で通っていた**。＝ 利用者が**任意の行を消せ、戻せ、日付を偽れる**状態だった。
+ * `directus_fields` の `readonly: true` は**画面の印**でしかなく、サーバは見ていなかった。
+ * `AGENTS.md §3.5`「**権限はフィルタで隠すのでなく、サーバ側で拒否する**」そのもの。
+ *
+ * 🚨 **画面から隠すと、かえって見つけにくくなる**（画面には出ないが API は通る）。
+ * だから**隠す変更と同じ日に**、ここを塞ぐ。
+ *
+ * 🚨 **黙って落とさない。400 で断る。** 黙って捨てると「消したのに消えない」が起き、
+ * 利用者には理由が見えない（storage の files/folders も同じ判断で 400 を返している）。
+ *
+ * 🚨 **名前で書かない**（`deleted_at` を直接書かない）。判定は `meta.readonly` 1 本。
+ * 名前で書くと、次に内部列を足した人がここを直し忘れる。
+ *
+ * 🚨 **毎回引く**（キャッシュしない）。フィールドの meta は GUI から実行時に変わるので、
+ * 覚えると「readonly にしたのに書ける」時間ができる。
+ */
+async function assertPayloadWritable(payload: Item, collection: string): Promise<void> {
+  const keys = Object.keys(payload);
+  if (keys.length === 0) return;
+  const readonly = await db("directus_fields")
+    .where({ collection, readonly: true })
+    .whereIn("field", keys)
+    .pluck("field");
+  if (readonly.length > 0) {
+    throw new ApiError(
+      400,
+      "INVALID_FIELD",
+      `変更できないフィールドです: ${readonly.join(", ")}`,
+    );
+  }
+}
+
+/**
  * json / jsonb の列に入れる値を、**そのまま渡さず文字列にする**。
  *
  * 🚨 なぜ要るか: **pg は JS の配列を PostgreSQL の配列リテラルとして扱う**（`text[]` 等のため）。
@@ -1070,6 +1106,7 @@ export async function createItems(
     normalizeCreatePayload(body).map(async (payload) => {
       assertPayloadColumns(payload, collection, schemaOverview);
       assertPayloadAllowed(payload, permission.allowedFields);
+      await assertPayloadWritable(payload, collection);
       // 🚨 本文は保存前にサーバ側でも落とす（クライアントの検証を当てにしない）
       const safe = await sanitizeRichTextFields(collection, payload);
       return withJsonColumnsSerialized(
@@ -1126,6 +1163,7 @@ export async function updateItem(
   const permission = await permissionForAction(actor, collection, "update");
   assertPayloadColumns(body, collection, schemaOverview);
   assertPayloadAllowed(body, permission.allowedFields);
+  await assertPayloadWritable(body, collection);
   const primaryKey = getPrimaryKey(schemaOverview, collection);
   const relations = permission.rowFilter ? await relationRows() : [];
   // 🚨 本文は保存前にサーバ側でも落とす（クライアントの検証を当てにしない）
