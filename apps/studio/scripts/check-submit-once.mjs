@@ -465,12 +465,14 @@ const formActions = { total: 0, unguarded: [] };
 //    実測 2026-08-16: **30 本**。ここに実測値をそのまま書き、下回ったら落とす。
 //    🚨 **自動導出しない**——導出すると、減った日に下限も一緒に下がって何も言わなくなる。
 const MIN_SCANNED = 30;
-// 🚨 読めた量の下限。**実測 2026-08-16: 620,138 文字**（133 ファイル）。その **7 割**を下限にする
-//    （ファイルの増減で上下するので、ぴったりの値にすると毎回鳴る）。
-//    🚨 最初ここに「1,234,000 前後」と**推測で**書いて、走らせたら exit 1 になった。
-//    **実測値をそのまま書く**——この検査の MAX_PENDING / MIN_SCANNED と同じ規律を、
-//    自分で破っていた（走らせたので気づけたが、走らせなければ他人の門を止めていた）。
-const MIN_BYTES = 434_000;
+// 🚨 **1 ファイルあたりの平均文字数**の下限（2026-08-16・shell の形）。
+//    最初は**合計**の下限（434,000）を置いたが、🚨 **合計は repo が育つと腐る**——
+//    ファイルが増えれば合計も増え、下限は毎年ゆるくなる。**平均は育たない。**
+//    そして「本数は 133 のまま、中身だけ痩せた」を捕まえられるのは平均のほう。
+//    🚨 **比率（走査 ÷ 候補）は使えない**: この検査は**間引きが無い**（全ファイルを走査する）ので、
+//    その比は常に 1.0 で動かない。**間引きが在る検査でしか比率は効かない**（司令塔の訂正）。
+//    実測 2026-08-16: 620,138 ÷ 133 ＝ **4,662 文字/ファイル**。その半分を下限にする。
+const MIN_AVG_BYTES = 2_300;
 let scannedWithHits = 0;
 // 🚨 **読めた量**（2026-08-16・司令塔の指示）。件数のガードは「読み込みが死んだ」を捕まえられない。
 //    ファイル数が 133 のままでも、中身が空なら「判定 0 本」になり、0 ガードは鳴るが
@@ -912,13 +914,15 @@ const BLIND_SPOTS = [
 const blindBase = findMutationLines(BASELINE).length;
 let blindDrift = false;
 console.log(
-  `\n■ 走査の実数  候補 ${files.length} 本 / 🚨 **判定が働いた（method: を含む）のは ${scannedWithHits} 本** / 読めた文字数 ${bytesRead.toLocaleString("en-US")}（下限 ${MIN_BYTES.toLocaleString("en-US")}）`,
+  `\n■ 走査の実数  候補 ${files.length} 本 / 🚨 **判定が働いた（method: を含む）のは ${scannedWithHits} 本** / 読めた文字数 ${bytesRead.toLocaleString("en-US")}（平均 ${Math.round(bytesRead / files.length).toLocaleString("en-US")} 文字/ファイル・下限 ${MIN_AVG_BYTES.toLocaleString("en-US")}）`,
 );
 // 🚨 **順序が意味を持つ**（2026-08-16）。読み込みが死ぬと判定も 0 になるので、
 //    先に「判定 0」を見ると **どちらが止めたのか区別できない**（司令塔の指摘）。
 //    **読み込みの死を先に疑う**——「違反 0 件」より先に「読めているか」を言う。
-if (bytesRead < MIN_BYTES) {
-  console.error(`🚨 読めた文字数が下限を下回りました（${bytesRead} < ${MIN_BYTES}）。`);
+if (Math.round(bytesRead / files.length) < MIN_AVG_BYTES) {
+  console.error(
+    `🚨 1 ファイルあたりの平均文字数が下限を下回りました（${Math.round(bytesRead / files.length)} < ${MIN_AVG_BYTES}）。`,
+  );
   console.error("  🚨 **違反の件数より先に、読み込みか走査の範囲が壊れていることを疑ってください。**");
   console.error("  （このとき「判定 0 本」も一緒に出ますが、原因は**読めていないこと**です）");
 } else if (scannedWithHits === 0) {
@@ -961,7 +965,7 @@ process.exit(
     !pendingExceeded &&
     !blindDrift &&
     scannedWithHits >= MIN_SCANNED &&
-    bytesRead >= MIN_BYTES
+    Math.round(bytesRead / files.length) >= MIN_AVG_BYTES
     ? 0
     : 1,
 );
