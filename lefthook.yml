@@ -248,12 +248,35 @@ pre-commit:
     # MCP のツール目録（packages/mcp/src/catalog.ts）と、Studio 側の写しが一致すること。
     # 🚨 **写しがあるのは、Studio から正を import できないから**（依存も exports も zod も無い。
     #    理由は check-mcp-catalog.mjs の冒頭に実測つきで書いてある）。写しは手で直さず `--write` で作る。
-    # 🚨 **lefthook は `apps/studio` しか見ていない**ので、`packages/mcp` 側だけを変えた人は
-    #    どの検査にも引っかからない。**この検査が、その唯一の橋**（正が変われば写しがずれて落ちる）。
+    # 🚨 **`packages/mcp` 側だけを変えた人は、どの検査にも引っかからない。**
+    #    **この検査が、その唯一の橋**（正が変われば写しがずれて落ちる）。
     #    実際、`packages/mcp` が対象外だったせいで `/api/health` の変更が MCP を1日壊していた（2026-08-15）。
+    #
+    # 🚨 2026-08-16 に「**誰が落ちるか**」を測って直した。`shortcuts-manifest` と**鏡写し**だった:
+    #    こちらは **正が root の外**（`packages/mcp/src/`）で**写しが中**なので、直す前の実測は
+    #      ④' 正（packages/mcp）だけを変えた本人 …… 🚨 **skip（落ちない）**
+    #      ①' 無関係な apps/studio を触った人 ……… 🔴 **exit=1（落ちる）**
+    #    ＝ **変更した人と落ちる人が違う**のは、こちらに当てはまっていた。
+    #    → glob を **正 + 写し + 検査自身**へ向けた。直したあとの実測（🎯 は狙い）:
+    #      ④'🎯落ちる → 🔴 exit=1 ／ ①'🎯落ちない → 🟢 skip ／ ⑤' 写しを手で書き換えた人 🎯落ちる → 🔴 exit=1
+    #      🟢 対照⑦' 壊さず無関係 → exit=0 ／ 🟢 対照⑧' CI 相当（--all-files） → exit=0
+    #
+    # 🚨 glob の書き方の罠（測って切り分けた。**書いたのに効かない**形）:
+    #    ❌ `packages/mcp/src/**/*.ts` … **当たらない**（`**/` が **0 階層に一致しない**ので
+    #       `src/catalog.ts` を拾わない）
+    #    🟢 `packages/mcp/src/**` ／ `packages/mcp/src/*.ts` ／ `packages/mcp/**/*.ts` ／ `*.ts` … 当たる
+    #    （`root:` があると root の外は staged_files から落ちるので、root は外して `run` 側で cd する）
+    #
+    # 🟢 **この glob には見ていない範囲が無い**（`shortcuts-manifest` の 292 本とはここが違う）:
+    #    【測った】この検査が実際に読むファイルは **8 本**（fs を横取りして数えた）——
+    #    `packages/mcp/src/{catalog,index,result,schemas,server,shortcuts-snapshot}.ts`
+    #    ＋ `apps/studio/lib/mcp/tool-catalog.json` ＋ 検査自身。**下の 3 本が 8 本すべてを覆う。**
     mcp-catalog:
-      root: "apps/studio"
-      run: node scripts/check-mcp-catalog.mjs
+      glob:
+        - "packages/mcp/src/**"                        # 正（ツール目録の実体）
+        - "apps/studio/lib/mcp/tool-catalog.json"      # 写し
+        - "apps/studio/scripts/check-mcp-catalog.mjs"  # 検査自身
+      run: cd apps/studio && node scripts/check-mcp-catalog.mjs
 
     # ナビに出した画面を横断検索へ入れ忘れないための検査。
     # ルート一覧ではなくナビの行き先と比べる（個人設定など、検索へ入れると権限が壊れる画面がある）。
