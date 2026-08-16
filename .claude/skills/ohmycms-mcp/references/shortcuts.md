@@ -96,3 +96,33 @@
   }
 ]
 ```
+
+## 🚨 本文エディタが押さえている組み合わせ（**割り当ててはいけない側**）
+
+本文（Tiptap）の中では、下の組み合わせは**エディタの働き**になります。
+🚨 **新しいショートカットを割り当てるときは、ここと被らせないでください。**
+被らせると「入力欄の外では効いて、中では効かない」という**説明できない挙動**になります。
+
+出どころは `apps/studio/scripts/tiptap-combos.mjs`（`node_modules` の Tiptap から抽出）。
+🚨 **動的に決まるものが 1 件、読めなかったパッケージが 1 件あります**（＝ **この一覧は下限です**）。
+
+| 組み合わせ | どの働きか（パッケージ） |
+| --- | --- |
+| `alt+mod+0` | @tiptap/extension-paragraph |
+| `alt+mod+c` | @tiptap/extension-code-block |
+| `mod+\u044f` | @tiptap/extensions |
+| `mod+a` | @tiptap/core |
+| `mod+b` | @tiptap/extension-bold |
+| `mod+backspace` | @tiptap/extension-table / @tiptap/core / @tiptap/extension-list |
+| `mod+delete` | @tiptap/extension-table / @tiptap/core / @tiptap/extension-list |
+| `mod+e` | @tiptap/extension-code |
+| `mod+enter` | @tiptap/core / @tiptap/extension-hard-break |
+| `mod+i` | @tiptap/extension-italic |
+| `mod+shift+7` | @tiptap/extension-list |
+| `mod+shift+8` | @tiptap/extension-list |
+| `mod+shift+9` | @tiptap/extension-list |
+| `mod+shift+b` | @tiptap/extension-blockquote |
+| `mod+shift+s` | @tiptap/extension-strike |
+| `mod+u` | @tiptap/extension-underline |
+| `mod+y` | @tiptap/extensions |
+| `mod+z` | @tiptap/extensions |

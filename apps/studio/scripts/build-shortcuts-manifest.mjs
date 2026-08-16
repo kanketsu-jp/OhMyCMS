@@ -324,6 +324,23 @@ for (const m of manifest) {
     JSON.stringify(body, null, 2),
     "```",
     "",
+    "## 🚨 本文エディタが押さえている組み合わせ（**割り当ててはいけない側**）",
+    "",
+    "本文（Tiptap）の中では、下の組み合わせは**エディタの働き**になります。",
+    "🚨 **新しいショートカットを割り当てるときは、ここと被らせないでください。**",
+    "被らせると「入力欄の外では効いて、中では効かない」という**説明できない挙動**になります。",
+    "",
+    "出どころは `apps/studio/scripts/tiptap-combos.mjs`（`node_modules` の Tiptap から抽出）。",
+    `🚨 **動的に決まるものが ${tiptap.dynamic?.length ?? 0} 件、読めなかったパッケージが ${tiptap.skipped?.length ?? 0} 件あります**` +
+      "（＝ **この一覧は下限です**）。",
+    "",
+    "| 組み合わせ | どの働きか（パッケージ） |",
+    "| --- | --- |",
+    ...[...tiptap.combos].sort().map((c) => {
+      const owners = [...new Set((tiptap.sources.get(c) ?? []).map((x) => x.pkgName))];
+      return `| \`${c}\` | ${owners.join(" / ") || "（出所不明）"} |`;
+    }),
+    "",
   ].join("\n");
 
   if (AS_WRITE) {
