@@ -445,6 +445,11 @@ const serverText = SERVER_FILES.filter((f) => isTracked(f))
       } else {
         writeFileSync(snapPath, next);
         console.log(`✅ ショートカットの写しを作り直しました: ${live.length} 件 → ${snapPath}`);
+        // 🚨 **ここを書かないと「直したのに直らない」で止まります**（2026-08-16 実測）。
+        //    照合は**索引**から読む（生成器と同じ側に揃えるため）ので、
+        //    作業ツリーへ書いただけでは**この検査は赤いまま**です。
+        console.log("   🚨 **`git add` するまで、この検査は赤いままです**（照合は索引から読むため）。");
+        console.log("      git add packages/mcp/src/shortcuts-snapshot.ts");
       }
     } else {
     const saved = JSON.parse(m[1]);
@@ -506,7 +511,8 @@ const serverText = SERVER_FILES.filter((f) => isTracked(f))
           }
         }
       }
-      console.error("   直すには: node scripts/check-mcp-catalog.mjs --write（1 コマンドで直ります）");
+      console.error("   直すには: node scripts/check-mcp-catalog.mjs --write");
+      console.error("             🚨 そのあと **git add** が要ります（照合は索引から読むため）。");
       process.exit(1);
     }
     // 🚨 **数だけ出さない。実物を 1 本添える**（抽出が正気かをその場で確かめられるように）。
