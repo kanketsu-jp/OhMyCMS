@@ -107,6 +107,14 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
 
   "/admin/profile": { titleKey: "nav.profile" },
 
+  // 🚨 ここが無いと、`buildTrail` は**生の URL 区間**を名前にする（＝ パンくずに `trash` と英字で出る）。
+  //    2026-08-17 に実測して気づいた（`<h1>` を足したら、その中身が「ゴミ箱」ではなく `trash` だった）。
+  //    ＝ **AGENTS.md §3.8 の「UI に文言を直接書かない」の、書かなかったほうの穴**
+  //      （辞書を通していないのではなく、**辞書へ辿り着けていない**）。
+  //    🚨 未登録は黙って通る（`pageMeta` が null を返し、区間名で代用される）ので、
+  //      **新しい画面を足したら、ここにも 1 行足すこと**。
+  "/admin/trash": { titleKey: "trash.title", descriptionKey: "trash.description" },
+
   "/admin/settings/general": { titleKey: "settings.title", descriptionKey: "settings.description" },
   "/admin/settings/agents": { titleKey: "agents.title", descriptionKey: "agents.description" },
   "/admin/settings/mcp": { titleKey: "mcp.title", descriptionKey: "mcp.description" },
