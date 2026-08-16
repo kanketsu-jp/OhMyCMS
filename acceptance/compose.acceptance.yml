@@ -96,23 +96,14 @@ services:
       # 🚨 コンテナ内からは `localhost:3106` ではなく **`minio:9000`**（compose のホスト名）。
       #   ネットワークは compose.minio.yml が ohmycms_default へ相乗りしている（storage の実測）。
       #
-      # 🚨 **env だけでは足りない。DB も見ること**（2026-08-17・storage の実測）。
-      #   設定は **DB が正で、env は初期値**（`lib/settings/service.ts` の `fromEnvironment`）。
-      #   **DB に値が入っていると env は無視される**ので、下を必ず打つ:
+      # 🚨 **env だけでは足りない。DB も 1 回打つこと**（2026-08-17・storage の実測）:
       #     docker exec ohmycms-db psql -U cms -d cms -c \
       #       "update ohmycms_settings set s3_force_path_style='true'"
-      #   🚨 打たないとどうなるか（実測）: `S3_FORCE_PATH_STYLE=true` を渡していても
-      #     DB の `'false'` が勝ち、**virtual-host 形式**で `ohmycms.minio` を引きに行って
-      #     **502 STORAGE_ERROR (Error code=ENOTFOUND)**。
-      #     🟢 対照 `minio` は引ける（172.28.0.4）ので、**台のせいに見えない**。
-      #   🚨 **終わっても `'false'` へ戻さないこと**（2026-08-17・司令塔の判断）。
-      #     `'false'` は「元の状態」ではなく **壊れた状態**——**誰かが選んだ値ではなく、
-      #     初期値が入ったまま**だった（env の `true` が DB に負けていた）。
-      #     この DB が向いている先は MinIO で、**MinIO は path-style が要る** ＝ `'true'` が正しい。
-      #     戻すのは後始末ではなく、**地雷を埋め直すこと**。
-      #   🚨 例外: BLOCKED の枝を測りたいときだけ **1 回戻して、測ったら必ず `'true'` へ直す**
-      #     （**前後を値で出す**。直し忘れると、次に走らせた人が数時間を失う）。
-      #   詳しくは `knowledge/decisions/settings-db-beats-env.md`。
+      #   🚨 **打たないと 502 STORAGE_ERROR になり、台のせいに見える。**
+      #   🚨 **終わっても戻さない**（`'true'` がこの DB の正しい値）。
+      #   🚨 **理由と実測の正本は [設定は DB が正。env は初期値でしかない]**
+      #     `knowledge/decisions/settings-db-beats-env.md`
+      #     （**ここに理由を書き写さない。2 箇所に在ると片方だけ腐る**）
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
