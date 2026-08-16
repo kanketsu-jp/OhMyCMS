@@ -85,6 +85,17 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-breadcrumb-a11y.mjs
 
+    # 🚨 効かない `readOnly`（checkbox / radio / select に付いているもの）。
+    #    2026-08-16 に本物のキーとクリックを送って測った: checkbox と radio は
+    #    属性が付いて el.readOnly が true になるのに実クリックで変わる。select は
+    #    そもそも readOnly という性質を持たない（'readOnly' in el が false ＝ div と同じ）。
+    # 🚨 付いているのに効かないと、画面は止まっているように見えて実際は変えられる。
+    #    権限で出し分けている画面なら AGENTS.md §3.5 の形に化ける。
+    # 🚨 対象が 0 ファイルのときも落とす（「探せていない 0」を緑にしないため）。
+    readonly-misuse:
+      root: "apps/studio"
+      run: node scripts/check-readonly-misuse.mjs
+
     # 「名前空間つきの完全な辞書キー」を、名前空間を付ける翻訳関数へ渡していないか。
     # 一度これで画面に "panel.reports.create_title" というキー文字列が出る状態になった（2026-08-15）。
     # 🚨 **辞書の突き合わせ（i18n の3本）では捕まらない**。キーは実在していて、引き方が違うだけなので
