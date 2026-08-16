@@ -53,6 +53,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { stripComments } from "./strip-comments.mjs";
+import { tiptapCombos } from "./tiptap-combos.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const AS_JSON = process.argv.includes("--json");
@@ -146,6 +147,21 @@ for (const m of actionsTable.matchAll(/^ {2}"(\/admin[^"]*)": \[([\s\S]*?)^ {2}\
   }
 }
 
+// ── ④b エディタの中で意味が変わるか（**Tiptap の抽出は shell の持ち物を import**） ──
+// 🚨 **写さない。** 抽出を repo に 2 つ持つと、片方だけ直る（今日それを 1 本潰したばかり）。
+// 🚨 **受け取る側でも確かめる**（守りを 1 点に置かない）。shell の守りは「入力の生表記」を
+//    見ていて、**正規化が壊れると null 混じりの 18 件が渡る**ことが実測で分かっている。
+const tiptap = tiptapCombos(); // 🚨 壊れていれば throw する。**握り潰さない**（⑤）
+{
+  const bad = [...tiptap.combos].filter((c) => typeof c !== "string" || c.trim() === "");
+  if (bad.length > 0) {
+    throw new Error(`tiptapCombos() が壊れた値を返しました（空/非文字列 ${bad.length} 件）`); // ①
+  }
+  if (tiptap.combos.size === 0) throw new Error("tiptapCombos() が 0 件です（衝突が無いのではなく、見ていない）"); // ④
+  if (!tiptap.combos.has("mod+i")) throw new Error("tiptapCombos() に mod+i がありません（extension-italic 由来。取れないのは見ていない合図）"); // ②
+  if (tiptap.combos.has("mod+shift+f13")) throw new Error("tiptapCombos() に在るはずのない組み合わせが入っています"); // ③ 対照(-)
+}
+
 // ── ⑤ 辞書キー ───────────────────────────────────────────────────────
 const snake = (id) => id.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 const dict = {};
@@ -176,6 +192,15 @@ const manifest = combos.map(({ id, key }) => {
       }
     }
   }
+  // 🚨 **`scope` に "editor" を入れなかった理由**（司令塔の指示に対する差分。**判断を仰ぎます**）:
+  //    `mod+b` は **global（サイドバー開閉）でもあり、エディタの中では太字**。
+  //    `scope: "editor"` にすると「**エディタの中でしか効かない**」と読めて、**外での動きが消える**。
+  //    → `scope` は導出のまま、**`editor` を別の欄**にして「中では何が起きるか」を出す。
+  //    🚨 **エディタ専用のものが出てきたら、そのときは scope に "editor" を入れるべき**（いまは 0 件）。
+  const inEditor = tiptap.combos.has(key);
+  const editorSources = inEditor
+    ? [...new Set((tiptap.sources.get(key) ?? []).map((x) => x.pkgName))]
+    : [];
   const labelKey = `common.shortcut_${snake(id)}`;
   const key2 = `shortcut_${snake(id)}`;
   return {
@@ -183,6 +208,7 @@ const manifest = combos.map(({ id, key }) => {
     action: id,
     scope,
     label_key: labelKey,
+    editor: inEditor ? { conflicts: true, owner: editorSources } : { conflicts: false },
     _why: scopeWhy,
     _label_exists: { ja: key2 in dict.ja, en: key2 in dict.en },
     _registrar: registrars.map((f) => f.replace(`${root}/`, "")),
@@ -252,6 +278,9 @@ for (const m of manifest) {
   log(`  ${m.action.padEnd(20)} ${m.key.padEnd(18)} ${String(scopeText).padEnd(12)} ${m._why}`);
   // 🚨 **拾った実物（どの部品が登録しているか）を必ず出す**（司令塔 2026-08-16）。
   //    これが無いと、"global" が何を根拠に出た値か、読んだ人が確かめられない。
+  if (m.editor.conflicts) {
+    log(`      🚨 エディタの中では別の働き: ${m.editor.owner.join(" / ")}（本文の入力中は、そちらが先）`);
+  }
   log(`      登録元 ${m._registrar.length > 0 ? m._registrar.join(" / ") : "（見つからない）"}`
     + (m._registrar.length > 1 ? "  🚨 **2 つ以上ある**（どちらが描かれているかで効き方が変わる）" : ""));
   if (Array.isArray(m.scope)) for (const s of m.scope.slice(0, 3)) log(`      例 ${s}`);
