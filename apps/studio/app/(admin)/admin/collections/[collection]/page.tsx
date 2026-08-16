@@ -7,7 +7,8 @@ import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RelationForm } from "@/components/admin/relation-form";
 import { errorKeyFromQuery } from "@/i18n/error";
-import { getT } from "@/i18n/server";
+import { fieldLabel } from "@/lib/schema/labels";
+import { getLocale, getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
@@ -74,6 +75,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
   const tCollections = await getT("collections");
   const tFields = await getT("fields");
   const tItems = await getT("items");
+  const locale = await getLocale();
   const tRelations = await getT("relations");
   const { collection } = await params;
   const encoded = encodeURIComponent(collection);
@@ -152,7 +154,12 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             <TableBody>
               {fieldsResult.data.map((field) => (
                 <TableRow key={field.field}>
-                  <TableCell className="font-medium">{field.field}</TableCell>
+                  <TableCell className="font-medium">
+                    {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
+                        辞書が空なら `fieldLabel` が識別子を返すので、
+                        名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
+                    {fieldLabel(field, locale)}
+                  </TableCell>
                   <TableCell>{field.type}</TableCell>
                   <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
                   <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
