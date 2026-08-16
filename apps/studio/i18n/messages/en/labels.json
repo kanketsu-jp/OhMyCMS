@@ -33,7 +33,7 @@
   "save_failed": "Could not save",
   "delete_failed": "Could not delete",
   "error_duplicate": "A label with that name already exists",
-  "error_duplicate_trashed": "A label with that name is in the trash. Restore it, or delete it permanently from the trash.",
+  "error_duplicate_trashed": "A label with that name is in Trash. Restore it, or delete it permanently from Trash.",
   "error_forbidden": "You do not have permission to do this",
   "error_not_found": "That label no longer exists. It may have been deleted elsewhere.",
   "error_invalid": "That input is not valid",
