@@ -187,7 +187,9 @@ export async function check(context) {
       );
 
       // 🚨 **ここは以前「nosniff が無ければ note を出す」だった。いまその条件は成立しない。**
-      //   `next.config.ts` の `headers()` が **`/:path*`＝全経路**に nosniff を入れるようになったので、
+      //   `next.config.ts` の `headers()` が nosniff を入れるようになったので（source は `/:path*`。
+      //   🚨 **「だから全経路」とは書かない**——**設定は結果ではない**。
+      //   【storage が測った・design は再現していない】**500 の応答には届かない**）、
       //   **この if は二度と真にならない**（＝ **出ない note を、出る顔で置いていた**）。
       //   🟢 実測（2026-08-17・design）: 未ログインの `/api/assets/<uuid>` は
       //     **401 でも nosniff が 1 行**返る（＝ route を通らなくても付く）。
