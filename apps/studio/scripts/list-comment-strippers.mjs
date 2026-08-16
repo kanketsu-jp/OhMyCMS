@@ -76,7 +76,12 @@ for (const rel of files) {
   const alias = importLine?.[0].match(/stripComments\s+as\s+([A-Za-z_$][\w$]*)/)?.[1] ?? null;
   const localDef = /^\s*(?:function|const)\s+stripComments\b/m.test(src);
   const calls = (src.match(new RegExp(`\\b(?:${alias ?? "stripComments"})\\(`, "g")) ?? []).length;
-  const own = (src.match(/\b(isComment|commentMask)\b/g) ?? []).length;
+  // 🚨 **英語の名前だけを探していた**（2026-08-16・schema の指摘で直した）。
+  //    `check-build-info-guards.mjs` は **`コメントを落とす`** という名前で `#` コメントを落としており、
+  //    **名前でも形でも拾えていなかった**。＝ **一覧に出ない＝持っていない、と読める形**だった。
+  //    → 名前は **`comment` を含む識別子**と**日本語の「コメント」を含む識別子**まで広げる。
+  const own = (src.match(/\b(isComment|commentMask)\b/g) ?? []).length
+    + (src.match(/^\s*(?:function|const)\s+[^\s(=]*(?:[Cc]omment|コメント)[^\s(=]*\s*[=(]/gm) ?? []).length;
   if (!importLine && !localDef && own === 0) continue;
   rows.push({
     name: rel.replace("scripts/", "").replace(".mjs", ""),
@@ -93,7 +98,8 @@ for (const r of rows.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.local
 }
 // ── 🚨 形でも探す（名前で拾えなかったものを出す） ────────────────────────
 {
-  const SHAPE = /startsWith\(\s*["']\/\/|startsWith\(\s*["']\*|\\\/\\\/\.\*|\/\\\*\[\\s\\S\]/;
+  // 🚨 `//` の形だけを見ていた（同上）。**`#` のコメント**（Dockerfile / YAML を読む検査）も足す。
+  const SHAPE = /startsWith\(\s*["']\/\/|startsWith\(\s*["']\*|\\\/\\\/\.\*|\/\\\*\[\\s\\S\]|split\(\s*["']#["']\)|startsWith\(\s*["']#|===\s*["']#["']/;
   const named = new Set(rows.map((r) => "scripts/" + r.name + ".mjs"));
   const extra = [];
   let controlHit = false;
