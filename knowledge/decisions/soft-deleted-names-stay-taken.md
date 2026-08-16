@@ -1,7 +1,7 @@
 ---
 type: decision
 title: ゴミ箱に在るものの名前は、空けない
-description: ソフトデリートした行の一意な名前は押さえたままにする。名前を空けると、あとで戻したときに衝突して戻せなくなり「戻すと全部戻る」が破れる。代わりに「ゴミ箱に在るので使えません」と言い分ける。
+description: ソフトデリートした行の一意な名前は押さえたままにする。名前を空けると、あとで戻したときに衝突して戻せなくなり「戻すと全部戻る」が破れる。代わりに「ゴミ箱に在るので使えません」と言い分ける。🚨 いま言い分けているのはラベル（LABEL_EXISTS_TRASHED）と items（ITEM_EXISTS_TRASHED）の 2 つだけで、ファイル / フォルダ / 利用者が作った表は未測定。
 tags: [files, schema, i18n, permissions]
 status: active
 generated:
