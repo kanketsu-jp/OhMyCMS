@@ -1,4 +1,5 @@
 import type { Knex } from "knex";
+import type { LastPurgeRun } from "./types";
 
 /**
  * ゴミ箱の 90 日掃除 — **TypeScript 側は「呼ぶだけ」の薄い口**（2026-08-16・司令塔の判断 (a)）。
@@ -60,14 +61,10 @@ export async function runPurge(conn: Knex, now?: Date): Promise<PurgeResult> {
   return r.rows[0].result;
 }
 
-/** 直近の掃除の走行。**まだ 1 度も走っていなければ `null`。** */
-export type LastPurgeRun = {
-  started_at: string;
-  finished_at: string | null;
-  deleted_total: number;
-  /** 落ちたときだけ入る */
-  error: string | null;
-};
+// 🚨 形は `lib/trash/types.ts`（型だけの module）に置いてある。
+//    ここは knex を掴むので client component から import できない——
+//    **同じ形を 2 箇所に持たないため**、あちらを正本にして再輸出する。
+export type { LastPurgeRun } from "./types";
 
 /**
  * 直近の掃除の走行を 1 件返す。
