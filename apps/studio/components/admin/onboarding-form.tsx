@@ -47,7 +47,7 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
   //    書いてあったが、**2026-08-15 の実測で成立しなかった**。
   //    下の `submit` は早期 return があり、呼び出し側に finally が無い経路だが、
   //    **3 回押して 3 回とも走った**（門は残らない）。
-  //    inFlight を開けているのは**フックの側**（hooks/use-submit-once.ts:68-75 の try/finally）で、
+  //    inFlight を開けているのは**フックの側**（`hooks/use-submit-once.ts` の `run()` の中の try/finally。🚨 **行番号で指さない**——他人が上を触るとずれる）で、
   //    呼び出し側が何をしても通る。＝ **inFlight の守り手は、ここではなくフックにある。**
   //
   //    この finally が守っているのは `logoUploading` のほう。戻し損ねると
@@ -197,11 +197,11 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
           <p className="text-xs text-muted-foreground">{t("step_password_progress")}</p>
           <div className="flex flex-col gap-2">
             <Label htmlFor="new-password">{t("new_password_label")}</Label>
-            {/* 入口サイズ（--control-h-entry）を使う段。規約は globals.css:96-97
+            {/* 入口サイズ（--control-h-entry）を使う段。規約は `globals.css` の `--control-h-entry` の宣言（とその直前のコメント）
                 （「入口の画面＝操作が1つだけの画面」専用）。
-                🚨 以前ここは globals.css:100 を指していたが、**100 行目は別の話**
+                🚨 以前ここは `globals.css` の**別の行**を指していたが、そこは別の話
                 （--control-h-xs＝言語切替 24px の例外）。2026-08-15 の実測で判明。
-                🚨 **未決**: 規約の語が割れている。globals.css:96 と input.tsx:17 は「操作が1つ」、
+                🚨 **未決**: 規約の語が割れている。`globals.css` の `--control-h-entry` と `components/ui/input.tsx` の 56px の説明は「操作が1つ」、
                 ここは "one operation" と "one control" を同じ文で使っていた。
                 この段を実測すると form 内の操作できる要素は **3 個**
                 （パスワード欄 / 表示切替 / 次へ）。「操作」なら1、「control」なら3。
