@@ -166,9 +166,10 @@ const TIPTAP_CONFLICT_EXCEPTIONS = {
       "編集体験の判断が未了。(a) このまま記録として残す（エディタの中では Tiptap が勝ち、外ではアプリが勝つ）/ " +
       "(b) 割り当てを変える（mod+b は太字が世界標準なので、奪うと書いている人が驚く）——のどちらかを決める",
     reason:
-      "左サイドバーの開閉。Tiptap の Mod-b（太字）と当たるが、`left-sidebar.tsx:66` の " +
-      "`useShortcut` は `whileTyping` を立てていないので、`isTyping()` が " +
-      "`isContentEditable` を見て弾く（`use-shortcut.ts:17`）。**編集中は発火しない**ので、" +
+      "左サイドバーの開閉。Tiptap の Mod-b（太字）と当たるが、`left-sidebar.tsx` の " +
+      "`useShortcut(SHORTCUTS.toggleLeftSidebar, …)` は `whileTyping` を立てていないので、" +
+      "`use-shortcut.ts` の `isTyping()` が " +
+      "`isContentEditable` を見て弾く。**編集中は発火しない**ので、" +
       "太字と同時に動くことはない。残るのは「編集中だけ効かない」という説明のしにくさで、" +
       "これは `mod+j` を選んだのと同じ理由（`toggleRightSidebar` の申し送り）。" +
       "動かすなら堀池の合意が要るので、いまは衝突を認めたうえで据え置く。",
@@ -180,7 +181,8 @@ const TIPTAP_CONFLICT_EXCEPTIONS = {
     openQuestion:
       "🚨 **未測定の中身が変わった（2026-08-16 に読み直して判明）。** 当初ここには" +
       "「Tiptap の Mod-Enter と同時に動くかが未測定」と書いていたが、**それは既に測られていて、直っている**——" +
-      "`rich-text-field.tsx:154-170` が `Mod-Enter: () => true`（priority 1000）で Tiptap 側を止めており、" +
+      "`rich-text-field.tsx` の `richTextReservedKeys` 拡張が `Mod-Enter: () => true`" +
+      "（priority 1000）で Tiptap 側を止めており、" +
       "同ファイルに実測が残っている（原文「外す前は **保存されると同時に改行も入り**、" +
       "保存された doc JSON の末尾に hardBreak が 1 つ混ざっていた」）。" +
       "🚨 **いま未測定なのは逆側**——**上書きを入れた後も「保存」が動いているか**。" +
@@ -192,7 +194,10 @@ const TIPTAP_CONFLICT_EXCEPTIONS = {
     reason:
       "保存。堀池の原文が「保存（⌘エンター）」と指定しているので、この検査の都合で動かさない。" +
       "🚨 ただし `mod+b` と違い、保存は `whileTyping: true` で登録されている" +
-      "（`page-action.tsx:118` / `bug-report-composer.tsx:135` / `report-thread.tsx:87`）ため、" +
+      "（`page-action.tsx` の `useShortcut(SHORTCUTS.save, …)`。**2026-08-16 訂正: ここには " +
+      "`bug-report-composer.tsx` / `report-thread.tsx` も並べていたが、その 2 本が登録しているのは " +
+      "`SHORTCUTS.submit` ＝ `mod+shift+enter` で、**別の鍵**。`mod+enter` を登録しているのは " +
+      "`page-action.tsx` **1 本だけ**）ため、" +
       "**Tiptap の編集中でも発火する**。Tiptap 側の Mod-Enter は `exitCode`（@tiptap/core）と " +
       "`setHardBreak`（@tiptap/extension-hard-break）。**同時に動くかどうかは未測定**で、" +
       "WYSIWYG を実際に置いた画面での実測が要る。ここで承認しているのは「鍵を動かさない」ことだけで、" +

@@ -65,11 +65,17 @@ x_rag_okf:
 - アプリ側が `addKeyboardShortcuts()` で既定を上書きできるため、`components/**` `app/**` も
   走査して「上書きあり」を追記で報告する（**判定＝衝突の有無は変えない**）。実測（2026-08-15）:
   `save`(`mod+enter`) は `components/admin/rich-text-field.tsx` で上書きされている。
-- `save` は `whileTyping: true` で登録されている（`page-action.tsx:118` /
-  `bug-report-composer.tsx:135` / `report-thread.tsx:87`）ため Tiptap の編集中でも発火しうる。
+- `save`(`mod+enter`) は `whileTyping: true` で登録されている（`page-action.tsx` の
+  `useShortcut(SHORTCUTS.save, …)`）ため Tiptap の編集中でも発火しうる。
+  🚨 **2026-08-16 訂正**: ここには `bug-report-composer.tsx` / `report-thread.tsx` も並べていたが、
+  その 2 本が登録しているのは `SHORTCUTS.submit` ＝ **`mod+shift+enter`（別の鍵）**。
+  `mod+enter` を登録しているのは **`page-action.tsx` 1 本だけ**。
+  🚨 併せて**行番号での指し方をやめた**（半日で 2 行ずれた実測が別担当から出ている。
+  関数名・定数名のような**動かないもの**で指す）。
   🚨 **2026-08-16 追記: ここに書いていた「未測定」は、中身が入れ替わっていた。**
   当初は「Tiptap の `Mod-Enter` と同時に動くかが未測定」と書いていたが、**それは既に測られ、
-  直っている**——`rich-text-field.tsx:154-170` が `Mod-Enter: () => true`（priority 1000）で
+  直っている**——`rich-text-field.tsx` の `richTextReservedKeys` 拡張が
+  `Mod-Enter: () => true`（priority 1000）で
   Tiptap 側を止めており、同ファイルに実測が残っている（原文「外す前は **保存されると同時に
   改行も入り**、保存された doc JSON の末尾に `hardBreak` が 1 つ混ざっていた」）。
   🚨 **いま未測定なのは逆側——上書きを入れた後も「保存」が動いているか。**
