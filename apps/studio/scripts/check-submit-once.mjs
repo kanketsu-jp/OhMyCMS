@@ -905,14 +905,19 @@ if (selfTestFailed) {
 //    root を実物へ固定すると結局その実物を読む。**作れないので、理由を書いて残す。**
 //
 // 🚨 3 つ目の欄は「**いまこのコードに在る形か**」（2026-08-16 実測）。
+//    🚨 **「無い（実装に 0 件）」の数え方**: `app/` `components/` `lib/` の実装を見た数。
+//    **この検査ファイル自身は含めない**——上の BLIND_SPOTS に `axios.post` と書いた時点で、
+//    `git grep axios` は **2 件**を返すようになった（**自分が書いた文字列**）。
+//    🚨 別の探し方 2 つ（package.json の依存 / import 文）でも **0** なので、判定は「無い」で正しい。
+//    🟢 対照 knex は 3 つの探し方すべてで出る（語 318 / 依存 1 / import 53）＝ 探し方は動いている。
 //    司令塔の指摘: **見逃す入力は、規約を知っている人が作らないと「在りえない形」ばかりになる。**
 //    在りえない形だけで固めると、**見逃しの実害が 0 でも同じ緑**になり、何も言わない検査になる。
 const BLIND_SPOTS = [
   ["<form action={fn}> で送る", '<form action={save}><button>x</button></form>', true, () => `在る（${formActions.total} 件・うち ${formActions.unguarded.length} 件が未防御）｜ 🚨 毎回数えている`],
   ["Server Action を直に呼ぶ", "await setLocaleAction(formData);", true, "在る（profile-settings.tsx:229）"],
-  ["axios で送る", 'await axios.post("/api/x", body);', true, "無い（0 件）"],
-  ["sendBeacon で送る", 'navigator.sendBeacon("/api/x", body);', true, "無い（0 件）"],
-  ["XMLHttpRequest で送る", 'const x = new XMLHttpRequest(); x.open("POST", "/api/x"); x.send(body);', true, "無い（0 件）"],
+  ["axios で送る", 'await axios.post("/api/x", body);', true, "無い（実装に 0 件）"],
+  ["sendBeacon で送る", 'navigator.sendBeacon("/api/x", body);', true, "無い（実装に 0 件）"],
+  ["XMLHttpRequest で送る", 'const x = new XMLHttpRequest(); x.open("POST", "/api/x"); x.send(body);', true, "無い（実装に 0 件）"],
   // 🚨 これは「見ていないもの」に**書いていない**形。拾えることを毎回示す（記述が広すぎないことの担保）
   ["同一ファイルの変数経由", 'const opts = { method: "POST" }; await fetch("/api/x", opts);', false, "在る"],
   ["🟢 対照: fetch + method", 'await fetch("/api/x", { method: "POST" });', false, "在る"],
