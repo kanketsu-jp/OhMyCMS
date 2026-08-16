@@ -174,14 +174,39 @@ export async function check(context) {
         `HTTP ${pngAsset?.status ?? "-"} / ${pngType || "(型なし)"}`, "200 かつ image/*"),
     );
 
+    // ── 🚨 アップロード自体が失敗したのか、行けたが行き先が違うのか ──
+    //   ここを分けずに 1 つの BLOCKED にまとめていたせいで、**502 でアップロードできていない**のに
+    //   「S3 の設定が入っていないか、ローカルへフォールバックしています」と出ていた（2026-08-17・design）。
+    //   どちらも `pngId` が null → `where` が null → **storage=不明** という同じ顔になる。
+    //   🚨 描画側（lib/report.mjs）は BLOCKED のとき `details` しか出さないので、
+    //      上で積んだ assertion（`HTTP 502`）は読み手に一切届かない。**details に自分で書く。**
+    if (!pngId) {
+      const code = png.json?.error?.code ?? "(コードなし)";
+      const message = png.json?.error?.message ?? "(本文なし)";
+      details.push(
+        `🚨 **アップロードそのものが失敗しています**（HTTP ${png.status} / 期待 201）。`,
+        `   応答: ${code} — ${message}`,
+        "   ＝ **S3 の設定が無いのでも、ローカルへ落ちたのでもありません**（行は 1 つも作られていない）。",
+        "   🚨 この 2 つは別物です。混同すると、台（MinIO）を疑って時間を使います:",
+        "     ・アップロードが失敗（いまここ）… 応答コードと、その括弧の中の名前を読む",
+        "     ・行けたが行き先が local  ……… S3 の設定が無いか、フォールバックしている",
+      );
+      return result({
+        id: 10, title: "V1-B ストレージ（S3 互換）", status: STATUS.BLOCKED,
+        reason: `アップロードが HTTP ${png.status} で失敗しました（${code}）`,
+        details, ms: Date.now() - started,
+      });
+    }
+
     // ── 🚨 本当に S3 へ行ったのか（フォールバックしていないか）──
     //   これが無いと、S3 が死んでいてローカルへ落ちても 200 が返って PASS になる。
-    const where = pngId
-      ? await queryScalar(`select storage from directus_files where id = ${lit(pngId)};`)
-      : null;
+    const where = await queryScalar(
+      `select storage from directus_files where id = ${lit(pngId)};`,
+    );
     if (where !== "s3") {
       details.push(
         `🚨 このファイルは **${where ?? "不明"}** へ保存されています（s3 ではありません）。`,
+        `   （アップロード自体は成功しています: HTTP ${png.status}）`,
         "   S3 の設定が入っていないか、**ローカルへフォールバックしています**。",
         "   ローカルでの往復は v0.9 の基準9 で既に見ているので、ここでは合格にしません。",
         "   MinIO を混ぜて起動する: docker compose -f compose.yml -f compose.minio.yml up -d",
