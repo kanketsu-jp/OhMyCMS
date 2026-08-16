@@ -356,7 +356,29 @@ export async function check(context) {
     // ── 「はじめる」（詳細を送る）も通ることを、初回へ戻して測る ──
     // 🚨 「あとで」だけ測ると 2026-08-15 の穴を見逃す（あのとき 400 の理由が両者で違った）
     await psql("update ohmycms_settings set onboarding_completed_at=null, setup_password=null;");
-    await psql("delete from directus_users where email='local-admin@localhost';");
+
+    // 🚨 **利用者を「メールで名指し」して消さない**（2026-08-16 に 3 つ直した）。
+    //    直す前: `delete from directus_users where email='local-admin@localhost';`
+    //      ① 🚨 **その email は、これから識別子として使わなくなる値**
+    //         （`localAdminUserId()` が同じ引き方をしていて、**メールが変わるとログインが 401 になる**。
+    //           実測: 変える前 200 → 変えた後 401「パスワードが正しくありません」→ 戻して 200。
+    //           そして `upsertSamlUser` は **IdP のメールで既存利用者の email を上書きする**）
+    //      ② 🚨 **id ではなく email で撃っている**（削除は id か、範囲を限れる条件で撃つ）
+    //      ③ 🚨 **0 件消しても黙って進む** → **前の管理者が残ったまま「初回へ戻した」ことになる**
+    //
+    //    ここは**使い捨ての実体**で、この時点の利用者は初期設定が作った 1 人だけ。
+    //    「初回へ戻す」＝ **利用者が 0 人**なので、**識別子を一切使わずに全部消す**。
+    //    🚨 そして **消す前と後を数えて assert する**。「0 件消した」を緑にしない。
+    //    🚨 **「前後の総数が一致」は使わない**（打ち消し合いを見逃す。2026-08-16 に別の台で実際に起きた）。
+    const usersBefore = Number(await psql("select count(*) from directus_users;"));
+    await psql("delete from directus_users;");
+    const usersAfter = Number(await psql("select count(*) from directus_users;"));
+    assertions.push(assertion(
+      "positive", "初回へ戻すとき、利用者を実際に消せている（消す前 1 人以上 → 後 0 人）",
+      usersBefore >= 1 && usersAfter === 0,
+      `消す前 ${usersBefore} 人 → 後 ${usersAfter} 人`,
+      "消す前 1 人以上 → 後 0 人",
+    ));
     const s2 = await post("/api/auth/setup", { password: SETUP_PASSWORD });
     const start = await post(
       "/api/onboarding",
