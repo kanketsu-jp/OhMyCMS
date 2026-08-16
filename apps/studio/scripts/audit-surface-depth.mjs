@@ -38,6 +38,19 @@ import { createServer } from "node:net";
 
 // ── 引数 ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
+// 🚨 **`--foo=bar` は読めない。黙って既定値に落ちる。**
+//    由来: 2026-08-16 [w4A:p24 / base2]。`--base=http://localhost:3102` と渡され、
+//    BASE が既定の **:3103（受入）**のままになり、**別のサーバを測っていた**。
+//    🚨 これは今日ずっと配ってきた「**沈黙する失敗**」そのもの。
+//    読めない形が来たら、測る前に落とす（base2 の提案）。
+const 読めない引数 = argv.filter((a) => a.startsWith("--") && a.includes("="));
+if (読めない引数.length > 0) {
+  console.error(
+    `🚨 この道具は "--名前 値"（空白区切り）しか読みません。次の指定は無視され、` +
+      `**既定値のまま別のものを測る**ことになります: ${読めない引数.join(" ")}`,
+  );
+  process.exit(2);
+}
 const arg = (name, fallback) => {
   const i = argv.indexOf(`--${name}`);
   return i !== -1 && argv[i + 1] ? argv[i + 1] : fallback;
