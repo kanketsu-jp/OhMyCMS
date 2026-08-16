@@ -26,8 +26,8 @@
  *     const files = trackedGlob("{app,components}/**\/*.tsx", { cwd: root });
  */
 import { execFileSync } from "node:child_process";
-import { globSync, readFileSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { matchesGlob, relative, resolve } from "node:path";
 
 /** リポジトリの根（このファイルは apps/studio/scripts/lib/ に在る）。 */
 const REPO_ROOT = resolve(new URL(".", import.meta.url).pathname, "..", "..", "..", "..");
@@ -58,16 +58,29 @@ export function trackedFiles() {
 }
 
 /**
- * `globSync(pattern, { cwd })` と同じものを返し、**追跡していないファイルを落とす**。
- * 戻り値は `globSync` と同じく **cwd からの相対パス**。
+ * `globSync(pattern, { cwd })` と同じ形で、**索引にあるファイルだけ**を返す。
+ * 戻り値は `globSync` と同じく **cwd からの相対パス**（並びは安定させるため sort 済み）。
+ *
+ * 🚨 **一覧は索引そのものから採る。作業ツリーを glob して交差させない。**
+ *   2026-08-16、saml が測って見つけた穴:
+ *     旧実装は `globSync(作業ツリー) ∩ 追跡済み` だった
+ *     ＝ 🚨 **索引に在って作業ツリーに無いファイルが、黙って一覧から落ちる**
+ *        （他人が消している最中 / rename の途中 / stash した直後）
+ *     実測（saml・別の検査）: `result.ts` を作業ツリーから外すと **読んだ本数が 5 → 4 に減り**、
+ *     それでも「未追跡で飛ばした: 0 本」と出た ＝ **見ていないのに「全部見た」と読める**。
+ *   → 索引の一覧（`git ls-files`）を `path.matchesGlob` で絞る。
+ *     **他人の作業ツリー操作で、読む本数が変わらない。**
  */
 export function trackedGlob(pattern, options = {}) {
   const cwd = options.cwd ? resolve(options.cwd) : process.cwd();
-  const tracked = trackedFiles();
-  return globSync(pattern, options).filter((rel) => {
-    const fromRepo = relative(REPO_ROOT, resolve(cwd, rel)).split("\\").join("/");
-    return tracked.has(fromRepo);
-  });
+  const prefix = relative(REPO_ROOT, cwd).split("\\").join("/");
+  const out = [];
+  for (const fromRepo of trackedFiles()) {
+    if (prefix && !fromRepo.startsWith(`${prefix}/`)) continue;
+    const rel = prefix ? fromRepo.slice(prefix.length + 1) : fromRepo;
+    if (matchesGlob(rel, pattern)) out.push(rel);
+  }
+  return out.sort();
 }
 
 /** 追跡しているかを 1 本だけ問う（`readdirSync` で集めている検査のため）。 */
