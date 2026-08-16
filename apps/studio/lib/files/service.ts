@@ -711,8 +711,21 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
  *
  * 🚨 **保管先が設定されていないときは投げる**（`storageForRow` が 503）。
  *    「消せなかったのに消したことにする」のが、いちばん危ない。
+ *
+ * 🚨 **「消した」と「元から無かった」を分けて返す。**
+ *    どちらも例外にしない——**無いものを消せないのは失敗ではない**（目的は達成している）。
+ *    ここを失敗にすると、90 日の掃除が**同じ id で永久に落ち続ける**（司令塔・2026-08-17）。
+ *    ただし 🚨 **区別できる形で返す**（`missing` だけが並ぶなら、
+ *    **保管先を取り違えている**か、**誰かが手で消した**のどちらかで、どちらも知りたい）。
  */
-export async function deleteStoredObjects(fileId: string): Promise<void> {
+export type StoredObjectRemoval = {
+  /** 実際に在って、消したキー */
+  removed: string[];
+  /** 行は指しているのに、**保管先に無かった**キー */
+  missing: string[];
+};
+
+export async function deleteStoredObjects(fileId: string): Promise<StoredObjectRemoval> {
   // 🚨 ここは **ゴミ箱に在る行**（`deleted_at` が入っている）を消すための関数なので、
   //    `liveFiles()` を通さず素の `db(...)` を使う。**この理由をここに書いておくこと**
   //    （`lib/files/live.ts` が「素で書くな」と言っている、その例外）。
@@ -720,8 +733,10 @@ export async function deleteStoredObjects(fileId: string): Promise<void> {
   // 行が無ければ、どのキーを消せばよいか分からない（＝ 実体は孤児のまま残る）。
   // 🚨 ここで黙って戻るのは、**呼ぶ側が行を先に消してしまった**ときだけなので、
   //    上の「順番」を守る限り起きない。
-  if (!row) return;
+  if (!row) return { removed: [], missing: [] };
   const storage = await storageForRow(row);
+  const removed: string[] = [];
+  const missing: string[] = [];
   // 🚨 **知っているキーは、分岐に置かず必ず消す。** **列を増やしたらここも増やすこと。**
   //    最初は「`deletePrefix` が在ればそれだけ」にしていたが、
   //    🚨 **いまの 2 ドライバ（local / s3）は両方 `deletePrefix` を持つ**ので、
@@ -729,11 +744,19 @@ export async function deleteStoredObjects(fileId: string): Promise<void> {
   //    両方を毎回通せば、**測れない分岐が無くなる**（消す回数より、測れることを採る）。
   //    どちらの `delete` も**無いキーで落ちない**（local は `force: true` / S3 は 204）。
   for (const key of [row.filename_disk, row.compressed_key]) {
-    if (key) await storage.delete(key);
+    if (!key) continue;
+    // 🚨 **消す前に在るかを見る**。`delete` は無いキーでも落ちないので、
+    //    **消したのか、元から無かったのかを、後から言えない**（それを分けるのがここ）。
+    //    🚨 順番は **head → delete**。逆にすると必ず「無かった」になる。
+    const found = await storage.head(key);
+    await storage.delete(key);
+    (found ? removed : missing).push(key);
   }
   // 取りこぼし（`${id}/` の下に、行が知らない物が在る場合）と、local の空ディレクトリは
   // prefix ごと消せるドライバだけが拾える。🚨 `deletePrefix` は driver で**任意**（`?`）。
+  // 🚨 ここで消えた物は `removed` に入らない（**行が知らないので、名前を言えない**）。
   await storage.deletePrefix?.(`${row.id}/`);
+  return { removed, missing };
 }
 
 function parseDimension(value: string | null | undefined, field: string): number | undefined {

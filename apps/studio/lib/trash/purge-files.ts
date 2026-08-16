@@ -29,6 +29,15 @@ export type FilePurgeResult = {
   /** 実体と行の**両方**を消せた id */
   deleted: string[];
   /**
+   * 行は在ったが、**保管先に実体が 1 つも無かった** id（行は消してある）。
+   *
+   * 🚨 **これは失敗ではない**（消えている＝目的は達成。司令塔・2026-08-17）。
+   *    失敗にすると、**同じ id で永久に落ち続ける**。
+   * 🚨 **それでも 0 と区別して返す。** ここばかり並ぶなら、
+   *    **保管先を取り違えている**か、**誰かが手で消した**のどちらかで、どちらも知りたい。
+   */
+  missingObjects: string[];
+  /**
    * 消せなかった id と理由。**行は残してある**（次の回で拾える）。
    * 🚨 **ここが空でないのに「掃除した」と報告しないこと。**
    */
@@ -62,6 +71,7 @@ export async function purgeExpiredFiles(conn: Knex, now?: Date): Promise<FilePur
     .select("id");
 
   const deleted: string[] = [];
+  const missingObjects: string[] = [];
   const failed: { id: string; error: string }[] = [];
 
   for (const { id } of rows) {
@@ -69,9 +79,12 @@ export async function purgeExpiredFiles(conn: Knex, now?: Date): Promise<FilePur
       // 🚨 **順番はここが全て。** 実体 → 行。
       //    逆にすると、実体の削除に失敗したとき **key を持つ行がもう無い**ので、
       //    その実体には二度と辿り着けない（＝ 孤児）。
-      await deleteStoredObjects(id);
+      const removal = await deleteStoredObjects(id);
       await conn("directus_files").where({ id }).delete();
       deleted.push(id);
+      // 🚨 **「消した」と「元から無かった」を分ける。** どちらも行は消す（目的は達成）。
+      //    ここを失敗にすると、同じ id で永久に落ち続ける。
+      if (removal.removed.length === 0) missingObjects.push(id);
     } catch (error) {
       // 🚨 **行を消さない。** 実体が残っている可能性が在るので、
       //    行（＝ key の在り処）も残して、次の回で拾えるようにする。
@@ -84,6 +97,7 @@ export async function purgeExpiredFiles(conn: Knex, now?: Date): Promise<FilePur
     cutoff: cutoff.toISOString(),
     candidates: rows.length,
     deleted,
+    missingObjects,
     failed,
   };
 }
