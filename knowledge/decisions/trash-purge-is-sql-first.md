@@ -64,13 +64,14 @@ x_rag_okf:
 ## ファイルだけが例外（storage の指摘・2026-08-16）
 
 【測った】`deleted_at` を持つ表 **19 個**に `directus_files` が入っている。
-実体（バイト）の場所は **行の中**（`filename_disk` / `compressed_key`）にしか無いので、
-**行を消した瞬間に、その実体は二度と辿れない孤児**になる。
-🚨 **SQL からは storage（local FS / S3 / R2）に手が届かない。**
+**SQL からは storage（local FS / S3 / R2）に手が届かない**ので、
+`ohmycms_trash_purge_skip()` に**理由つきで**入れ、ファイルは `purgeExpiredFiles()`（TS）が消す。
 
-→ `ohmycms_trash_purge_skip()` に**理由つきで**入れ、ファイルは `purgeExpiredFiles()`（TS）が
-**実体 → 行**の順に消す。**「ファイルは掃除しない」ではなく「SQL では掃除できない」。**
+🚨 **順番と、その理由（なぜ行を先に消すと戻せなくなるか）は
+[[deleting-a-file-is-two-deletes]] に在る。ここには書き写さない**
+——**2 箇所に書くと、片方だけ直って腐る**（storage の指摘）。
 
+**「ファイルは掃除しない」ではなく「SQL では掃除できない」。**
 🚨 **除外の理由に「なぜ SQL では書けないか」を書く。** 書かないと、次の人が調べ直す。
 
 ## 落ちたときは、例外を再送出しない（意図した形）
@@ -100,7 +101,7 @@ TS 経由で測っても、**薄い口を測っているだけ**で cron の振�
 - **`ohmycms_label_assignments` を掃除してよいか**（対象候補 19 表のうちの 1 つ）。
   割り当ては「それ自体を消さない」設計なので、**toast の判断**。**まだ聞いていない**
 - **`purgeExpiredFiles()` を誰が定期的に呼ぶか**。TS 側なので `pg_cron` からは呼べない。
-  **いまは手で呼ぶ口が在るだけ**
+  🚨 **いまは口が在るだけで、1 度も通っていない**（storage の実測: 関数が DB に無いので呼べない）
 - **`cron.schedule` はまだ入れていない**（許可制）。`create extension pg_cron` も未実行で、
   **この postgres の image に pg_cron が在るかも確かめていない**
 
