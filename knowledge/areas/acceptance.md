@@ -14,8 +14,6 @@ sources:
   - resource: "repo://acceptance/checks/08-row-permission.mjs"
   - resource: "repo://acceptance/manual-3.md"
   - resource: "repo://acceptance/compose.acceptance.yml"
-  - resource: "repo://.temp/2026-08-13/specs/00-phase-plan-and-contract.md"
-  - resource: "repo://.temp/2026-08-13/specs/F6-design-system-x.md"
 stale_after: 2027-02-13
 x_rag_okf:
   id: areas/acceptance
@@ -25,8 +23,7 @@ x_rag_okf:
 
 # 受入ハーネス（acceptance）
 
-`acceptance/`（2,926行、2026-08-13時点）は、v0.9 MVP の完了条件（`.temp/2026-08-13/specs/00-phase-plan-and-contract.md`
-§5 の受入基準9項目）を **`pnpm acceptance` 一発で機械判定する**ハーネス。旧PJ izukurasan の `SPEC.md` の
+`acceptance/`（2,926行、2026-08-13時点）は、v0.9 MVP の完了条件（**受入基準 9 項目。下の §「受入基準」に中身が在る**）を **`pnpm acceptance` 一発で機械判定する**ハーネス。旧PJ izukurasan の `SPEC.md` の
 受入基準を下敷きにしている。
 
 ## 何をするものか
@@ -44,8 +41,23 @@ pnpm acceptance --red 8          # RED確認: その項目をわざと壊してF
 
 ## 受入基準（**基準は 9 項目・実装は 10 本**）
 
-`.temp/2026-08-13/specs/00-phase-plan-and-contract.md` §5 が正。
-🚨 **その正本は `.temp/` に在る**（`.gitignore` 対象・**clone した人は読めない**）。
+🚨 **2026-08-17 に、正本の中身をここへ移した**（design）。
+それまでは `.temp/2026-08-13/specs/00-phase-plan-and-contract.md` §5 を「正」として参照していたが、
+**`.temp/` は `.gitignore` の対象で、追跡ファイルは 0 本**（polish の実測）。
+＝ 🚨 **合格条件の正本が、clone した人には読めない場所に在った。**
+**受入が終わったかを、手元にツリーが在る人しか判定できない状態だった。**
+
+🚨 **移したのは「合格条件」だけ**（§5 は 72 行）。**移していない範囲を書く**:
+
+```
+🟢 移した … 下の 9 項目の表 ＋「**全部が実測で通って初めて完了**」
+           （出どころ: **idea.md §v0.9 と、旧 PJ izukurasan の SPEC.md の受入基準を統合**）
+🚨 移していない … 「検証コマンドの落とし穴（`find` の除外）」
+                「対象が、検証したいコミットのビルドか（**3 回目の同型事故**）」
+                「受入基準の穴を塞ぐ注意（否定形は肯定形とセット 等）」
+   理由 … 🚨 **これは「合格条件」ではなく「測り方の教訓」**で、
+          [[checks-must-declare-blind-spots]] と重なる。**2 箇所目を作らない**
+```
 
 🚨 **§5 の基準は 9 項目だが、ハーネスは 10 本走る。**
 **10 本目 `#10 MCP の全ツールを実プロトコルで叩く`**（`checks/10-mcp-verify.mjs`）は
@@ -64,6 +76,10 @@ pnpm acceptance --red 8          # RED確認: その項目をわざと壊してF
 | 7 | UI が日本語（英語にも切替）。ハードコードされた文言が無い | 辞書を切り替えて表示が変わることを実測 |
 | 8 | 他人の行に ID 直打ちしても 403/404（フィルタで隠すだけになっていない） | 別ユーザーのトークンで実測 |
 | 9 | SVG/HTML をアップして配信しても script が実行されない（attachment 強制） | 実測 |
+
+🚨 **この表は 9 項目。ハーネスは 10 本走る。**
+**`#10 MCP の全ツールを実プロトコルで叩く`（`checks/10-mcp-verify.mjs`・2026-08-15 追加）は
+この表に無い。** **合格条件に含めるかは未決**（**合格条件を変える判断は、堀池さんの領分**）。
 
 ## ディレクトリ構成
 
@@ -116,7 +132,7 @@ pnpm acceptance --red 8          # RED確認: その項目をわざと壊してF
 （`ohmycms_ohmycms-db-data`）を消す**ため、他ペイン・他トラックが検証用に作ったデータ
 （ユーザー・ポリシー・権限行・ファイル・エージェントトークン等）も巻き添えで消える。
 
-`.temp/2026-08-13/specs/00-phase-plan-and-contract.md` の運用ルール:
+運用ルール（🚨 **出どころは `.temp/` に在った文書。中身をここへ写した**）:
 
 - `--docker` を走らせてよいのは **F9（総合受入検証）のときだけ**
 - それまで受入基準1・2は **BLOCKED のままでよい**（未達ではなく「まだ判定していない」扱い）
@@ -162,6 +178,31 @@ INSERT し、そこから先はすべて API 経由で操作する（`00-phase-p
 **「5 本落ちている」ではなく「1 つの原因で 5 本が測れていない」**と読む。
 🚨 **掃除（90 日で消す）は 1 本も測られていない**——**受入に項目が無い**（v0.9 10 本 / V1 5 本のどちらにも）。
 
+### 🚨 V1（`--v1`）の結果 — **v0.9 とは別に測る**
+
+🚨 **`--v1` を付けないと V1 は 1 本も走らない**（`run.mjs`「v0.9 の記録と混ぜない」）。
+**既定の実行では V1 の出現が 0 件になる。** 「全部走らせた」と書く前に、**走った本数を数えること**。
+
+```
+2026-08-17 実測 … **3 PASS / 2 BLOCKED**   28 秒・木 `334dc87`・**5 本走った**
+🟢 V1-A SAML（SSO） …… PASS（往復＋セッション／改竄・リプレイを弾く）
+🟢 V1-C Tiptap ………… PASS
+🟢 V1-D メール OTP …… PASS
+🚨 V1-B ストレージ …… BLOCKED
+   ＝ 🚨 **「台が無い」ではない。台は在り、アプリが S3 へ置けない**
+     （`POST /api/files` → **502 `STORAGE_ERROR`** ／ バケットにアプリが置いた鍵 **0 件** ／
+      同じ SDK・同じ env で**直に PUT すると 200**。storage の実測）
+   🟢 別の計器でも裏取り … `directus_files` が **24 → 24**（**1 件も入っていない**）
+🚨 V1-E 初回起動 ……… BLOCKED（使い捨て側で `relation "ohmycms_settings" does not exist`）
+🟢 対照 V1-C / V1-D は**別の木（`752434a`）でも同じ PASS**（＝ 台が変わっても動かない）
+```
+
+🚨 **BLOCKED を「落ちた」と読まない。** ただし **V1-B は「まだ測っていない」でもない**——
+**測ろうとして、アプリ側で止まった。** **この 2 つを混ぜると、直す人が台を疑いに行く。**
+
+🚨 **V1 の状態を書く場所は、ここ 1 箇所だけ**（`areas/v1-scope.md` は 2026-08-17 に
+状態を持たない形へ直された。**2 箇所に書くと片方が腐る**）。
+
 ### 2026-08-13 実測（**古い。残すのは「達成済み」の出どころを辿るため**）
 
 2026-08-13 実測（`--docker` 無し）:
@@ -172,10 +213,10 @@ INSERT し、そこから先はすべて API 経由で操作する（`00-phase-p
 | 3 | **MANUAL** |
 | 4〜9 | **PASS** |
 
-`.temp/2026-08-13/specs/00-phase-plan-and-contract.md` の想定では、`--docker` を付けたF9相当の
+当時の想定では（🚨 **出どころは `.temp/` の文書で、clone した人は読めない**）、`--docker` を付けたF9相当の
 総合実行で基準1・2も PASS になり、**8 PASS / 1 MANUAL（基準3）** が完了状態になる。
 
-これは実際に達成済み: `.temp/2026-08-13/specs/F6-design-system-x.md` 冒頭（F6仕様の前提条件）に
+これは実際に達成済みとされていた（🚨 **根拠も `.temp/` に在り、clone した人は読めない**）: F6 仕様の前提条件に
 「MVP v0.9 の受入は 8 PASS / 1 MANUAL（`#3` は実ブラウザで通過済み）」と明記されている
 （F6はF2の後続フェーズなので、この時点までに `--docker` 込みの総合実行が行われている）。
 
@@ -202,4 +243,7 @@ INSERT し、そこから先はすべて API 経由で操作する（`00-phase-p
 - `acceptance/run.mjs`（全文）、`acceptance/lib/result.mjs`（全文）、`acceptance/checks/08-row-permission.mjs`（全文）
 - `acceptance/manual-3.md`（基準3の手動手順書）
 - `acceptance/compose.acceptance.yml`
-- `.temp/2026-08-13/specs/00-phase-plan-and-contract.md` §2（ポート割当・DBの使い捨て・dev-loginの制約）・§5（受入基準9項目）
+- 🚨 **`.temp/2026-08-13/specs/00-phase-plan-and-contract.md`**（§2 ポート割当・DB の使い捨て・
+  dev-login の制約／§5 受入基準 9 項目）… **`.gitignore` 対象。clone した人は読めない**
+  🚨 **§5 の中身は上へ移した**（2026-08-17）。**§2 はまだ移していない**——
+  ポート割当は [[port-allocation]] に在るが、**DB の使い捨てと dev-login の制約は移していない**
