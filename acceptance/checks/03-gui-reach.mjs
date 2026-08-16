@@ -35,7 +35,12 @@ const PREFIX = "acc_reach_";
 const REQUIRED_NAV = [
   ["/admin/collections", "コレクション"],
   ["/admin/files", "ファイル"],
-  ["/admin/folders", "フォルダ"],
+  // 🚨 `["/admin/folders", "フォルダ"]` は 2026-08-17 に外した。**実装が古いのではない。**
+  //   フォルダは `f143301`(08-14) で files へ統合済み。`/admin/folders` は **307 で転送するだけ**で、
+  //   ソースに `admin/folders` へのリンクは **0 件**（🟢 対照 `admin/files` は 11 ファイル）。
+  //   ＝ ナビに出ないのが正常なので、**ここに残すと永久に「欠け: フォルダ」で FAIL する**。
+  //   決定: `knowledge/decisions/folders-live-inside-files.md`
+  //   🚨 戻すなら、その決定を先に読むこと（ナビに戻す判断は design の持ち場）。
   ["/admin/settings/roles", "ロール"],
   ["/admin/settings/policies", "ポリシー（権限）"],
   ["/admin/settings/users", "ユーザー"],

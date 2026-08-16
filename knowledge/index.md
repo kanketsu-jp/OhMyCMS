@@ -37,6 +37,7 @@ x_rag_okf:
 - [ファイルの削除は 2 回消す。順番は「実体 → 行」](./decisions/deleting-a-file-is-two-deletes.md) — `knowledge/decisions/deleting-a-file-is-two-deletes.md`
 - [画面に置くものには理由が要る（枠・常設・背景・寸法）](./decisions/every-element-must-earn-its-place.md) — `decisions/every-element-must-earn-its-place`
 - [フォルダは「誰かの持ち物」にしない](./decisions/folders-are-not-owned.md) — `decisions/folders-are-not-owned`
+- [フォルダは独立した画面を持たない（ファイルの中に畳む）](./decisions/folders-live-inside-files.md) — `decisions/folders-live-inside-files`
 - [欄の名前で効く守りは、名前を変えた瞬間に黙って外れる](./decisions/guards-keyed-by-name-break-silently.md) — `decisions/guards-keyed-by-name-break-silently`
 - [通信路が HTTPS かどうかを NODE_ENV で決めない](./decisions/https-is-not-node-env.md) — `decisions/https-is-not-node-env`
 - [文言検査の範囲は「画面に届くか」で決める。lib/ を丸ごと足さない](./decisions/i18n-check-scope-is-what-reaches-the-screen.md) — `decisions/i18n-check-scope-is-what-reaches-the-screen`
