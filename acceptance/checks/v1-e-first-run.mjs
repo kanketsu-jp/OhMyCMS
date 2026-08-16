@@ -228,10 +228,28 @@ export async function check(context) {
         details: [up.stderr.slice(-400)], repro,
       });
     }
+    // 🚨 **諦めたことを、成功と同じ道で通さない**（2026-08-17・design が発見）。
+    //   直す前は「60 回とも駄目でも、そのまま先へ進む」形だった。
+    //   ＝「使えるようになった」と「60 秒諦めた」が**同じ道**を通っていた
+    //     （今日ずっと言っている「見ていない 0 と 異常が無い 0」の**待ち版**）。
+    //   🚨 これが今回の BLOCKED の犯人とは限らない（design の但し書き）。
+    //     それでも入れる理由は、**次に別の形で出たときに分かるから**。
+    let dbReady = false;
+    let lastReady = null;
     for (let i = 0; i < 60; i++) {
-      const ready = await run("docker", ["exec", createdId, "pg_isready", "-U", "cms"]);
-      if (ready.code === 0) break;
+      lastReady = await run("docker", ["exec", createdId, "pg_isready", "-U", "cms"]);
+      if (lastReady.code === 0) { dbReady = true; break; }
       await sleep(1000);
+    }
+    details.push(`使い捨て DB の応答: ${dbReady ? "OK" : "🚨 60 秒で応答せず"}（pg_isready exit=${lastReady?.code}）`);
+    if (!dbReady) {
+      await teardown(details);
+      return result({
+        id: ID, title: TITLE, status: STATUS.BLOCKED,
+        reason: `使い捨ての Postgres が 60 秒で応答しませんでした（pg_isready exit=${lastReady?.code}）`,
+        details: [...details, `最後の出力: ${String(lastReady?.stdout || lastReady?.stderr || "").slice(-200)}`],
+        repro,
+      });
     }
 
     // 🚨 **何を測ったかを、必ず報告に出す。**
@@ -266,6 +284,16 @@ export async function check(context) {
 
     const install = await run("bun", ["install", "--frozen-lockfile"], { cwd: WORKTREE });
     const migrate = await run("bun", ["run", "migrate"], { cwd: join(WORKTREE, "apps/studio") });
+    // 🚨 **成功したときも、何が起きたかを出す**（2026-08-17・design の案）。
+    //   直す前は **非 0 のときだけ** details に出していたので、
+    //   「exit 0 なのに表が無い」が出たとき、**migrate が何をしたのかを誰も見られなかった**。
+    //   読み方（これで 1 点が割れる）:
+    //     `Batch 1 run: 51 migrations` … 🟢 **通っている** ＝ 宛先（見に行く DB）が違う
+    //     `Already up to date` ……… 🚨 **別の DB を見ている**（既に流れている先へ繋いだ）
+    //   🚨 **壊れたときだけ出る形にしない。** 正常な走行でも 2 行増える（＝ 出力が増えたことを確認できる）。
+    const 末尾 = (r) => String(r.stdout || r.stderr || "").trim().split("\n").slice(-2).join(" / ").slice(-300);
+    details.push(`install exit=${install.code}: ${末尾(install)}`);
+    details.push(`migrate exit=${migrate.code}: ${末尾(migrate)}`);
     if (install.code !== 0 || migrate.code !== 0) {
       await teardown(details);
       return result({
