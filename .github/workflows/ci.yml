@@ -296,15 +296,49 @@ jobs:
         #    最初の 4 回の run はそれで **9〜13 秒 / results: [] / achieved: true / exit 0** だった
         #    ＝ 🚨 **何も走っていないのに緑**。私が緑の嘘を作っていた。
         #    （id が在ることは確かめたが、**そこへ届くか**を確かめていなかった）
+        # 🚨 **`shell: bash` が要る**（2026-08-16 実測）。GitHub の既定は **`bash -e`** で、
+        #    **`pipefail` が付かない**。`| tee` を挟むと **`tee` の終了コード（0）が返り**、
+        #    受入が **BLOCKED / FAIL で exit 1 を返しても、このステップは緑**になる。
+        #    `shell: bash` を書くと `bash --noprofile --norc -eo pipefail {0}` になる。
+        #    実測（手元で同じ shell の形を再現）:
+        #      bash -e         -c 'false | tee /dev/null' → **exit 0**  🚨 潰れる
+        #      bash -eo pipefail -c 'false | tee /dev/null' → exit 1
+        #      bash -e         -c 'false'                  → exit 1（＝ この比較は区別できている）
+        #    docker を PATH から外して BLOCKED を起こすと、
+        #      acceptance … results 1 件 / achieved false / exit 1
+        #      ステップ …… **exit 0**（＝ 🚨 **測れていないのに緑**）
+        shell: bash
         run: bun run acceptance --v1 --only 14 --json | tee /tmp/v1e.json
 
       # 🚨 **空の結果を緑にしない。** 上のような取り違えは必ずまた起きるので、
       #    「1 件も走らなかった」を**失敗として扱う**（空の期待は、どんな検査でも通る）。
-      - name: 本当に 1 件走ったか（空なら失敗）
+      # 🚨 **そして「走ったこと」と「通ったこと」も別**。件数だけを見ていると、
+      #    **BLOCKED（測れていない）を緑として数える**。上の pipefail と**二重に**守る
+      #    （守りを 1 点に置かない。次にパイプを外した人が同じ穴を開けるため）。
+      # 🚨 **BLOCKED は赤**（司令塔判断 2026-08-16）。「測れていない」は「異常が無い」ではない。
+      - name: 本当に 1 件走ったか・全部 PASS か（空でも BLOCKED でも失敗）
+        shell: bash
         run: |
-          n=$(python3 -c "import json,sys; print(len(json.load(open('/tmp/v1e.json')).get('results') or []))")
-          echo "走った検査 = $n 件"
-          [ "$n" -ge 1 ] || { echo "::error::受入が 1 件も走っていません（results が空です）"; exit 1; }
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('/tmp/v1e.json'))
+          results = d.get('results') or []
+          print(f"走った検査 = {len(results)} 件 / achieved = {d.get('achieved')}")
+          for r in results:
+              print(f"  #{r.get('id')} {r.get('status')} {r.get('title','')}")
+          if not results:
+              print("::error::受入が 1 件も走っていません（results が空です）")
+              sys.exit(1)
+          bad = [r for r in results if r.get('status') != 'PASS']
+          if bad:
+              for r in bad:
+                  print(f"::error::#{r.get('id')} が {r.get('status')} です（PASS ではありません）: {r.get('reason','')}")
+              # 🚨 この 1 行は BLOCKED が在るときだけ出す。FAIL のときに出すと、
+              #    その場に当てはまらない説明になる（読む人は説明のほうを疑う）。
+              if any(r.get('status') == 'BLOCKED' for r in bad):
+                  print("::error::BLOCKED は「測れていない」であって「異常が無い」ではありません")
+              sys.exit(1)
+          PY
 
   image:
     name: デプロイ用 amd64 イメージを焼く
