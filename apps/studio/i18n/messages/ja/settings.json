@@ -17,6 +17,7 @@
   "project_color_label": "アクセント色",
   "project_color_picker_label": "アクセント色を選ぶ",
   "project_logo_help": "画像をドラッグ＆ドロップするか、クリックして選びます。空にすると、環境変数のロゴか、文字だけの表示に戻ります。",
+  "project_logo_empty": "設定されていません",
   "project_logo_label": "ロゴ",
   "project_name_help": "ヘッダ・ログイン画面・ブラウザのタブに出ます。",
   "project_name_label": "サービス名",
