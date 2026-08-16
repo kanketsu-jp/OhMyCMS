@@ -493,6 +493,16 @@ export async function localAdminUserId(): Promise<string | null> {
   //        （SAML は結びつけるとき **必ず** この 2 つを書く。実測済み）
   //      ・**候補がちょうど 1 件のときだけ** … 曖昧なら埋めない
   //    どれか外れたら **null のまま**（安全側）。
+  //
+  // 🚨 **この判定の 2 つの枝は、状態が違う**（`checks-must-declare-blind-spots` と同じ考え方）:
+  //    ・**0 件** … 🟢 **到達する。実測済み**（2026-08-17 onboard: 対象行を `provider='saml'` に
+  //      した状態でログイン → **500 のまま**、かつ `local_admin_user_id` は **(null) のまま**
+  //      ＝ 通らないだけでなく**裏で書かれてもいない**）
+  //    ・**2 件以上** … 🚨 **いまのスキーマでは到達しない。だから測れていない**
+  //      （実測: `directus_users_email_unique: UNIQUE (email)`。同じ email の行は 2 つ作れない）
+  //      🚨 **「効いている」とは書けない**——**一意制約が外れた日のための保険**として残す。
+  //      onboard の申告（原文）:「**私は『0 件だから効いている』と書きません**
+  //      （そもそも 2 件を作れないので、条件に到達しません）」
   const candidates = await db("directus_users")
     .where({ email: LOCAL_ADMIN_EMAIL, provider: "local" })
     .whereNull("external_identifier")
