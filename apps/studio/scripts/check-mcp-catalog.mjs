@@ -55,7 +55,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { readTracked } from "./lib/tracked-files.mjs";
+import { readTracked, isTracked } from "./lib/tracked-files.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MCP_SRC = join(HERE, "..", "..", "..", "packages", "mcp", "src");
@@ -196,7 +196,19 @@ function readOrStop(path, what) {
   }
 }
 
-const source = readOrStop(SOURCE, "MCP の目録");
+// 🚨 **索引から読む**（polish の `3969dea` と同じ向き・`knowledge/decisions/
+//    checks-read-the-index-not-the-worktree.md`）。
+//    作業ツリーを読むと、**他人の書きかけを事実として扱う**。とくに `--write` は
+//    それを写しに**固めて**しまう（polish が実際に踏んだ形）。
+//    🚨 **未追跡は「まだ入っていない」として飛ばす。空文字にしない**
+//       （空にすると「中身の無いファイル」として数え、**見ていない 0** を作る）。
+function readIndexed(path, what) {
+  const fromIndex = readTracked(path);
+  if (fromIndex !== null) return fromIndex;
+  return readOrStop(path, what);
+}
+
+const source = readIndexed(SOURCE, "MCP の目録");
 
 // 🚨 **どのファイルを読んだかを出す。** 「登録 0 件」が「登録が無い」なのか
 //    「読む先を間違えた」なのかを、読んだ人が割れるようにするため。
@@ -204,7 +216,11 @@ if (SERVER_FILES.length === 0) {
   console.error(`🚨 ${MCP_SRC} に .ts がありません。**測れていません**`);
   process.exit(1);
 }
-const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.split("/").pop()}）`)).join("\n");
+// 🚨 **未追跡（まだ入っていない）ファイルは飛ばす。飛ばした件数は必ず出す**（0 件でも）。
+const skippedUntracked = SERVER_FILES.filter((f) => !isTracked(f)).map((f) => f.split("/").pop());
+const serverText = SERVER_FILES.filter((f) => isTracked(f))
+  .map((f) => readIndexed(f, `MCP の登録（${f.split("/").pop()}）`))
+  .join("\n");
 
 // 🚨 **候補と、実際に走査した数を分けて出す**（司令塔 2026-08-16 / polish の実測）。
 //    「対象 N 本」とだけ出すと、**門が死んで 1 本も見ていなくても大きな数が出る**。
@@ -219,7 +235,8 @@ const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.sp
     .filter((e) => e.isFile()).length;
   const registered = registeredNames(serverText).length;
   console.log(
-    `■ 走査 … 候補 ${candidates} 本 / 読んだ .ts ${SERVER_FILES.length} 本` +
+    `■ 走査 … 候補 ${candidates} 本 / 読んだ .ts ${SERVER_FILES.length - skippedUntracked.length} 本` +
+      `（未追跡で飛ばした: ${skippedUntracked.length} 本${skippedUntracked.length ? "＝" + skippedUntracked.join(", ") : ""}）` +
       `（読めた文字数 ${serverText.length}・正の catalog.ts は除く） / 見つけた登録 ${registered} 件`,
   );
 
@@ -669,7 +686,7 @@ if (!existsSync(COPY)) {
   process.exit(1);
 }
 
-const current = readOrStop(COPY, "Studio 側の写し");
+const current = readIndexed(COPY, "Studio 側の写し");
 if (current === rendered) {
   console.log(`ツール ${tools.length} 本 — 正（packages/mcp/src/catalog.ts）と写しが一致`);
   // 🚨 **数だけを出さない。拾った実物を 2 本添える。**（司令塔 2026-08-16）
