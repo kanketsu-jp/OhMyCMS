@@ -386,7 +386,50 @@ const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.sp
     }
     if (JSON.stringify(saved) !== JSON.stringify(live)) {
       console.error("🚨 ショートカットの写しが、正とずれています。");
-      console.error(`   正 ${live.length} 件 / 写し ${saved.length} 件`);
+      // 🚨 **件数だけを出さない。** 「正 6 件 / 写し 6 件」は**同じ数が 2 つ並ぶ**ので、
+      //    読んだ人は「合っている」と読む（司令塔 2026-08-16・onboard の指摘）。
+      //    🚨 **違うのは中身**なので、**どの項目がどう違うか**を出す。
+      //    出さないと、読んだ人は `--write` を打つ以外に手が無く、
+      //    **打つと写しが黙って書き換わる**（＝ 他人の書きかけを固める形の入口）。
+      const byKey = (list) => new Map(list.map((s) => [s.action ?? s.key, s]));
+      const L = byKey(live);
+      const S = byKey(saved);
+      const onlyLive = [...L.keys()].filter((k) => !S.has(k));
+      const onlySaved = [...S.keys()].filter((k) => !L.has(k));
+      const changed = [...L.keys()].filter(
+        (k) => S.has(k) && JSON.stringify(S.get(k)) !== JSON.stringify(L.get(k)),
+      );
+      const same = [...L.keys()].filter((k) => S.has(k) && JSON.stringify(S.get(k)) === JSON.stringify(L.get(k)));
+      console.error(`   正 ${live.length} 件 / 写し ${saved.length} 件 ／ 🚨 **同じもの ${same.length} 件・違うもの ${changed.length + onlyLive.length + onlySaved.length} 件**`);
+      for (const k of onlyLive) console.error(`   + ${k}（正にあるが写しに無い）`);
+      for (const k of onlySaved) console.error(`   - ${k}（写しにあるが正に無い）`);
+      for (const k of changed) {
+        // 🚨 **どの欄が違うかまで出す**（「違います」だけだと、打つ以外に手が無い）。
+        const a = S.get(k);
+        const b = L.get(k);
+        for (const field of ["key", "scope", "label_key", "editor"]) {
+          const x = JSON.stringify(a[field]);
+          const y = JSON.stringify(b[field]);
+          if (x !== y) {
+            // 🚨 **配列は「切って並べる」と、差が末尾に在るとき同じに見える**
+            //    （2026-08-16 実測。`save.scope` を 1 件ずらしたら、正と写しが**同じ行**に見えた）。
+            //    → **どの要素が増えた／減ったか**を出す。
+            if (Array.isArray(a[field]) && Array.isArray(b[field])) {
+              const added = b[field].filter((v) => !a[field].includes(v));
+              const removed = a[field].filter((v) => !b[field].includes(v));
+              console.error(`   ~ ${k}.${field}（正 ${b[field].length} 件 / 写し ${a[field].length} 件）`);
+              for (const v of added) console.error(`       + ${v}（正にあるが写しに無い）`);
+              for (const v of removed) console.error(`       - ${v}（写しにあるが正に無い）`);
+              if (added.length === 0 && removed.length === 0) {
+                console.error("       🚨 中身は同じで**並び順が違います**");
+              }
+            } else {
+              const shorten = (s) => (s && s.length > 70 ? `${s.slice(0, 67)}…` : s);
+              console.error(`   ~ ${k}.${field}\n       正   : ${shorten(y)}\n       写し : ${shorten(x)}`);
+            }
+          }
+        }
+      }
       console.error("   直すには: node scripts/check-mcp-catalog.mjs --write（1 コマンドで直ります）");
       process.exit(1);
     }
