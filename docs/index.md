@@ -13,7 +13,7 @@
 - [ライセンスキー — 発行 / 検証 / 失効の設計](./design/license-keys.md) — 発行・検証・失効の実装設計（課金/プラン/UIは対象外）
 - [右パネル ⑤ ログ・履歴 — 設計（範囲 B: ログを本物にする）](./design/panel-logs-history.md) — Codex/Sonnet へ渡す実装仕様（検証は security 担当・委譲不可）
 - [【未決】フィールド名を日本語で付けられるようにする（directus_fields.translations）](./design/pending-field-display-name.md) — 実装仕様は完成、堀池の承認待ち
-- [設計: リカバリーコード（最後の1人が締め出されたときの入口）](./design/recovery-code.md) — key-gen で作るリカバリーコードでログインする設計
+- [設計: リカバリーコード（最後の1人が締め出されたときの入口）](./design/recovery-code.md) — key-gen で作るリカバリーコードでログインする設計。🚨 §8 の 3 点が堀池さん回答待ち（key-gen の読み / sso_only の改名 / 251-B の担当）
 - [設計: SSO のみのログインへ切り替える（締め出しを起こさずに）](./design/sso-only-switchover.md) — 状態: 裁定待ち。初回 Admin の割当を SSO 移行時にどう扱うか
 - [設計: SSO で誰を入れるか（許可リストと「全員付与」）](./design/sso-user-provisioning.md) — 状態: 裁定待ち。メアド許可リストと役割一括付与の設計
 - [設計: 人を何で識別するか（メールを必須でなくす）](./design/user-identifier.md) — 環境変数での初回ログインとメール任意化の設計
