@@ -465,10 +465,24 @@ const formActions = { total: 0, unguarded: [] };
 //    実測 2026-08-16: **30 本**。ここに実測値をそのまま書き、下回ったら落とす。
 //    🚨 **自動導出しない**——導出すると、減った日に下限も一緒に下がって何も言わなくなる。
 const MIN_SCANNED = 30;
+// 🚨 読めた量の下限。**実測 2026-08-16: 620,138 文字**（133 ファイル）。その **7 割**を下限にする
+//    （ファイルの増減で上下するので、ぴったりの値にすると毎回鳴る）。
+//    🚨 最初ここに「1,234,000 前後」と**推測で**書いて、走らせたら exit 1 になった。
+//    **実測値をそのまま書く**——この検査の MAX_PENDING / MIN_SCANNED と同じ規律を、
+//    自分で破っていた（走らせたので気づけたが、走らせなければ他人の門を止めていた）。
+const MIN_BYTES = 434_000;
 let scannedWithHits = 0;
+// 🚨 **読めた量**（2026-08-16・司令塔の指示）。件数のガードは「読み込みが死んだ」を捕まえられない。
+//    ファイル数が 133 のままでも、中身が空なら「判定 0 本」になり、0 ガードは鳴るが
+//    **原因が「検出器が壊れた」なのか「1 文字も読めていない」なのか区別できない**。
+//    🚨 **比率（走査 ÷ 候補）は採らなかった**: polish の検査は 0.65 で「範囲が広がると 1.0 へ跳ねる」
+//    という意味を持つが、この検査の 30/133 ＝ 0.226 は「`method:` を持つ画面の割合」で、
+//    画面が増えれば自然に動く。**意味を持たない比率を基準線にすると、毎回鳴って無視される。**
+let bytesRead = 0;
 
 for (const file of files) {
   const source = readFileSync(resolve(root, file), "utf8");
+  bytesRead += source.length;
   if (findMutationLines(source).length > 0) scannedWithHits += 1;
   for (const m of source.matchAll(/<form[^>]{0,300}?action=\{([^}]{1,80})\}/g)) {
     formActions.total += 1;
@@ -898,10 +912,17 @@ const BLIND_SPOTS = [
 const blindBase = findMutationLines(BASELINE).length;
 let blindDrift = false;
 console.log(
-  `\n■ 走査の実数  候補 ${files.length} 本 / 🚨 **判定が働いた（method: を含む）のは ${scannedWithHits} 本**`,
+  `\n■ 走査の実数  候補 ${files.length} 本 / 🚨 **判定が働いた（method: を含む）のは ${scannedWithHits} 本** / 読めた文字数 ${bytesRead.toLocaleString("en-US")}（下限 ${MIN_BYTES.toLocaleString("en-US")}）`,
 );
-if (scannedWithHits === 0) {
-  console.error("🚨 判定が 1 本も働いていません。候補が何本あっても、この検査は何も見ていません。");
+// 🚨 **順序が意味を持つ**（2026-08-16）。読み込みが死ぬと判定も 0 になるので、
+//    先に「判定 0」を見ると **どちらが止めたのか区別できない**（司令塔の指摘）。
+//    **読み込みの死を先に疑う**——「違反 0 件」より先に「読めているか」を言う。
+if (bytesRead < MIN_BYTES) {
+  console.error(`🚨 読めた文字数が下限を下回りました（${bytesRead} < ${MIN_BYTES}）。`);
+  console.error("  🚨 **違反の件数より先に、読み込みか走査の範囲が壊れていることを疑ってください。**");
+  console.error("  （このとき「判定 0 本」も一緒に出ますが、原因は**読めていないこと**です）");
+} else if (scannedWithHits === 0) {
+  console.error("🚨 判定が 1 本も働いていません（🟢 読み込みは足りているので、読めていないせいではありません）。");
   console.error("  （検出器が壊れた／走査対象の形が変わった、のどちらか。**緑にしてはいけない状態です**）");
 } else if (scannedWithHits < MIN_SCANNED) {
   console.error(`🚨 判定が働いた本数が下限を下回りました（${scannedWithHits} 本 < 下限 ${MIN_SCANNED} 本）。`);
@@ -939,7 +960,8 @@ process.exit(
     unclassified.length === 0 &&
     !pendingExceeded &&
     !blindDrift &&
-    scannedWithHits >= MIN_SCANNED
+    scannedWithHits >= MIN_SCANNED &&
+    bytesRead >= MIN_BYTES
     ? 0
     : 1,
 );
