@@ -12,11 +12,10 @@
  *   node scripts/check-i18n-hardcoded.mjs
  */
 
-import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { globSync } from "node:fs";
-import { trackedGlob } from "./lib/tracked-files.mjs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -153,7 +152,13 @@ const japaneseHits = [];
 const englishHits = [];
 
 for (const file of files) {
-  const raw = readFileSync(resolve(root, file), "utf8");
+  // 🚨 **中身も索引から読む**（2026-08-16・toast）。`trackedGlob` は「**どのファイルを見るか**」
+  //    しか索引にしておらず、**中身は作業ツリー**のままだった。
+  //    実測: 追跡済みのファイルを **staged にせず**書き換えると exit=1
+  //    ＝ **他ペインの、まだ add していない編集で、全員のコミットが止まる**。
+  //    `readTracked` は索引と中身が同じファイルはディスクから読む（`git show` を起動しない）ので、
+  //    速度は変わらない。
+  const raw = readTracked(resolve(root, file)) ?? "";
   const source = stripComments(raw);
 
   for (const hit of findJsxText(source)) {

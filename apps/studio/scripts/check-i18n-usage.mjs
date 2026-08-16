@@ -12,12 +12,10 @@
  *   node scripts/check-i18n-usage.mjs
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { globSync } from "node:fs";
 import { resolve } from "node:path";
 import { ROOT as root, flatten, loadDictionary } from "./i18n-load.mjs";
 import { stripComments } from "./strip-comments.mjs";
-import { trackedGlob } from "./lib/tracked-files.mjs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
 
 // 辞書は名前空間ごとのファイル。組み立ては i18n-load.mjs に集約している。
 const defined = flatten(loadDictionary("ja"));
@@ -36,7 +34,13 @@ for (const file of files) {
   //      （実測: 未使用 20 → 19。**exit は 0 のまま**なので誰も気づけない）
   //    後者のほうが重い（前者はうるさいだけ、後者は黙って隠す）。
   //    行番号は保たれる（stripComments は空白へ潰すだけ）ので、報告の file:line は変わらない。
-  const source = stripComments(readFileSync(resolve(root, file), "utf8"));
+  // 🚨 **中身も索引から読む**（2026-08-16・toast）。`trackedGlob` は「**どのファイルを見るか**」
+  //    しか索引にしておらず、**中身は作業ツリー**のままだった。
+  //    実測: 追跡済みのファイルを **staged にせず**書き換えると exit=1
+  //    ＝ **他ペインの、まだ add していない編集で、全員のコミットが止まる**。
+  //    `readTracked` は索引と中身が同じファイルはディスクから読む（`git show` を起動しない）ので、
+  //    速度は変わらない。
+  const source = stripComments(readTracked(resolve(root, file)) ?? "");
 
   // 1) 名前空間の束縛を集める: const X = await getT("ns") / const X = useT("ns")
   //    名前空間なしの場合は "" を入れる。
@@ -92,9 +96,9 @@ const metaPath = resolve(root, "lib/admin/page-meta.ts");
 const actionsPath = resolve(root, "lib/admin/page-actions.ts");
 let metaKeys = new Set();
 const metaMissing = [];
-if (existsSync(metaPath)) {
-  const metaSrc = readFileSync(metaPath, "utf8");
-  const actionSrc = existsSync(actionsPath) ? readFileSync(actionsPath, "utf8") : "";
+if (readTracked(metaPath) !== null) {
+  const metaSrc = readTracked(metaPath) ?? "";
+  const actionSrc = readTracked(actionsPath) ?? "";
   metaKeys = new Set([
     ...[...metaSrc.matchAll(/(?:titleKey|descriptionKey):\s*"([^"]+)"/g)].map((m) => m[1]),
     ...[...metaSrc.matchAll(/sectionKeys:\s*\[([^\]]*)\]/g)]
@@ -107,8 +111,8 @@ if (existsSync(metaPath)) {
     const key = full.slice(i + 1);
     for (const locale of ["ja", "en"]) {
       const file = resolve(root, `i18n/messages/${locale}/${ns}.json`);
-      if (!existsSync(file)) { metaMissing.push(`${full} (${locale}: 名前空間が無い)`); continue; }
-      const dict = JSON.parse(readFileSync(file, "utf8"));
+      if (readTracked(file) === null) { metaMissing.push(`${full} (${locale}: 名前空間が無い)`); continue; }
+      const dict = JSON.parse(readTracked(file) ?? "{}");
       if (!(key in dict)) metaMissing.push(`${full} (${locale}: キーが無い)`);
     }
   }

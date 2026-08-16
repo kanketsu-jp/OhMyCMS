@@ -9,7 +9,7 @@
  *   node scripts/check-i18n-keys.mjs
  */
 
-import { assertLoaderInSync, flatten, loadDictionary, namespacesOnDisk } from "./i18n-load.mjs";
+import { assertLoaderInSync, flatten, loadDictionary, namespacesInIndex } from "./i18n-load.mjs";
 
 let failed = false;
 
@@ -24,8 +24,8 @@ if (sync.ok) {
 }
 
 // 2) ja / en で名前空間のファイル構成が同じか
-const jaNs = namespacesOnDisk("ja");
-const enNs = namespacesOnDisk("en");
+const jaNs = namespacesInIndex("ja");
+const enNs = namespacesInIndex("en");
 const nsOnlyJa = jaNs.filter((n) => !enNs.includes(n));
 const nsOnlyEn = enNs.filter((n) => !jaNs.includes(n));
 if (nsOnlyJa.length || nsOnlyEn.length) {

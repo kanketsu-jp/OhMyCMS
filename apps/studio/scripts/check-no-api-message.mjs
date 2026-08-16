@@ -18,10 +18,9 @@
  * 🚨 **コメントの中の言及は落とさない。** `forms.ts` の JSDoc に「かつてあった」経緯を
  *    残してあるので、そこを違反にすると経緯を消す圧力になる。
  */
-import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { trackedGlob } from "./lib/tracked-files.mjs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const NEEDLE = "apiMessage";
@@ -165,7 +164,13 @@ let selfTestFailed = false;
 // 🚨 **絶対値でなく比率**（絶対値は repo が育つと腐る）。
 //    実測 2026-08-16: 候補 394 → 列挙 214 ＝ **0.543** ／ 平均 **3,509 文字**
 //    上にも幅: **比率が 1.0 へ跳ねたら、範囲が広がって他人のファイルまで見ている**。
-const sources = files.map((f) => ({ file: f, text: readFileSync(resolve(root, f), "utf8") }));
+// 🚨 **中身も索引から読む**（2026-08-16・toast）。`trackedGlob` は「**どのファイルを見るか**」
+//    しか索引にしておらず、**中身は作業ツリー**のままだった。
+//    実測: 追跡済みのファイルを **staged にせず**書き換えると exit=1
+//    ＝ **他ペインの、まだ add していない編集で、全員のコミットが止まる**。
+//    `readTracked` は索引と中身が同じファイルはディスクから読む（`git show` を起動しない）ので、
+//    速度は変わらない。
+const sources = files.map((f) => ({ file: f, text: readTracked(resolve(root, f)) ?? "" }));
 const 比率の下限 = 0.3;
 const 比率の上限 = 0.8;
 const 平均文字数の下限 = 800;

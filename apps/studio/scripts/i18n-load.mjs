@@ -7,28 +7,52 @@
  * assertLoaderInSync() で必ず突き合わせる**（片方だけ更新される事故を防ぐ）。
  */
 
-import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(here, "..");
 export const MESSAGES_DIR = resolve(ROOT, "i18n/messages");
 export const LOCALES = ["ja", "en"];
 
-/** そのロケールのディレクトリにある名前空間名（ファイル名から）。 */
-export function namespacesOnDisk(locale) {
-  return readdirSync(resolve(MESSAGES_DIR, locale))
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => f.replace(/\.json$/, ""))
+/**
+ * そのロケールの**索引に在る**名前空間名（ファイル名から）。
+ *
+ * 🚨 **`readdirSync`（作業ツリー）から `trackedGlob`（索引）へ変えた**（2026-08-16・toast）。
+ *    辞書を読むのはコードと突き合わせる**照合型**の検査なので、
+ *    **両側を同じ側から読まないと、赤の向きが裏返るだけ**になる
+ *    （`decisions/checks-read-the-index-not-the-worktree.md`）。
+ *    作業ツリーのままだと、**他ペインが辞書を書きかけている間、全員のコミットが止まる**。
+ * 🚨 **名前を `OnDisk` から変えた**。中身が索引になったのに名前が「ディスク」だと、
+ *    次に読む人が**作業ツリーを見ていると思って**使う。
+ */
+export function namespacesInIndex(locale) {
+  return trackedGlob(`i18n/messages/${locale}/*.json`, { cwd: ROOT })
+    .map((f) => f.replace(/^.*\//, "").replace(/\.json$/, ""))
     .sort();
 }
 
-/** 名前空間ごとの JSON を1つの辞書に組み立てる。 */
+/**
+ * 名前空間ごとの JSON を1つの辞書に組み立てる（**索引から読む**）。
+ *
+ * 🚨 **手で叩いたときは、staged していない自分の変更が見えない。**
+ *    門（lefthook）は staged で走るので commit 時は見えるが、
+ *    **`node scripts/check-i18n-*.mjs` を素で叩くと、辞書の編集は `git add` するまで反映されない**。
+ *    「直したのに検査が古いことを言う」ときは、**まず `git add` を疑うこと**。
+ */
 export function loadDictionary(locale) {
   const dict = {};
-  for (const ns of namespacesOnDisk(locale)) {
-    dict[ns] = JSON.parse(readFileSync(resolve(MESSAGES_DIR, locale, `${ns}.json`), "utf8"));
+  for (const ns of namespacesInIndex(locale)) {
+    const source = readTracked(resolve(MESSAGES_DIR, locale, `${ns}.json`));
+    // 🚨 `trackedGlob` を通っているので null は来ないはず。来たら**黙って空にしない**
+    //    （空の辞書は「キーが 1 つも無い」＝**全部が未定義**という嘘になる）。
+    if (source === null) {
+      throw new Error(
+        `${locale}/${ns}.json を索引から読めませんでした。🚨 これは「空の辞書」ではありません`,
+      );
+    }
+    dict[ns] = JSON.parse(source);
   }
   return dict;
 }
@@ -54,7 +78,11 @@ export function flatten(value, prefix = "", out = new Set()) {
  * を機械的に検出するための守り。
  */
 export function assertLoaderInSync() {
-  const source = readFileSync(resolve(ROOT, "i18n/messages.ts"), "utf8");
+  // 🚨 ここも索引から読む（辞書側と同じ側で見ないと、片側だけ新しくなる）。
+  const source = readTracked(resolve(ROOT, "i18n/messages.ts"));
+  if (source === null) {
+    return { ok: false, reason: "i18n/messages.ts を索引から読めません（追跡されていますか）" };
+  }
 
   // NAMESPACES 配列に列挙されている名前
   const block = /export const NAMESPACES = \[([\s\S]*?)\] as const;/.exec(source);
@@ -65,7 +93,7 @@ export function assertLoaderInSync() {
 
   const problems = [];
   for (const locale of LOCALES) {
-    const disk = namespacesOnDisk(locale);
+    const disk = namespacesInIndex(locale);
     const missingInDeclared = disk.filter((ns) => !declared.includes(ns));
     const missingOnDisk = declared.filter((ns) => !disk.includes(ns));
     if (missingInDeclared.length) {
