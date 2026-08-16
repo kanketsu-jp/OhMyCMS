@@ -1147,6 +1147,36 @@ export async function createItems(
   // 🚨 DB が弾いた理由を、そのまま汎用の 500 にしない（④ の DDL と同じ手）。
   // 主キーが自動採番でないコレクションに id を省いて作る、型に合わない値を入れる——
   // どれも**利用者の入力の問題**なので 4xx で返す。
+  // 🚨 **ゴミ箱の中の行と主キーがぶつかったときは、別の文言にする**（2026-08-16）。
+  //    論理削除を入れたので、消した行も**主キーを押さえたまま**になる（それが正しい——
+  //    空けると、同じ id で新しい行が作られたあと**ゴミ箱から戻せなくなる**）。
+  //    ところが DB は同じ「重複キー」を投げるので、利用者には
+  //    🚨 **「もう作られています」と出るのに、画面のどこにも無い**——説明できない状態になる。
+  //    toast がラベルで `LABEL_EXISTS_TRASHED` として解いたのと同じ形。
+  //
+  // 🚨 **入れる前に引かない**（そのぶん問い合わせが増える）。**DB が弾いてから**、
+  //    その主キーの行が「消えているだけ」なのかを確かめて、文言を差し替える。
+  //    ＝ 競合しない（DB が既に「在る」と言っている）。
+  const 消えている行かを見る = async (error: unknown): Promise<never> => {
+    const 主キー値 = rows
+      .map((row) => (row as Item)[primaryKey])
+      .filter((v) => v !== undefined && v !== null);
+    if (主キー値.length > 0) {
+      const ぶつかった = await db(collection)
+        .whereIn(primaryKey, 主キー値 as (string | number)[])
+        .whereNotNull(DELETED_AT_COLUMN)
+        .first();
+      if (ぶつかった) {
+        throw new ApiError(
+          409,
+          "ITEM_EXISTS_TRASHED",
+          "同じ ID の項目がゴミ箱にあります。戻すか、完全に削除してください",
+        );
+      }
+    }
+    throw error;
+  };
+
   const inserted = (await runTranslatingDbErrors(() =>
     db.transaction(async (trx) => {
     if (rows.length === 0) return [];
@@ -1165,7 +1195,7 @@ export async function createItems(
       }
       return writtenRows;
     }),
-  )) as Item[];
+  ).catch(消えている行かを見る)) as Item[];
 
   const filtered = filterResultFields(inserted, permission.allowedFields) as Item[];
   return Array.isArray(body) ? filtered : filtered[0];
