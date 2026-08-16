@@ -31,7 +31,13 @@ import { fileURLToPath } from "node:url";
 const SCRIPTS = resolve(dirname(fileURLToPath(import.meta.url)));
 const REPO_ROOT = resolve(SCRIPTS, "..", "..", "..");
 
-const status = execFileSync("git", ["-C", REPO_ROOT, "status", "--porcelain", "-z", "--", "apps/studio/scripts", ".lefthook"], {
+// 🚨 **見る範囲**（2026-08-16・shell の指摘で広げた）。**狭く切って 1 回外している**:
+//    最初は `apps/studio/scripts` と `.lefthook` だけで、**`scripts/gate.sh`（門を呼ぶ側）と
+//    `lefthook.yml`（門の定義）が外**だった。実測: どちらを汚しても出力 0 件・git 側は 2 行。
+//    ＝ 🚨 **`gate.sh` が 17 時間ぶん索引と違っていても、この道具は何も言わなかった**。
+//    shell の一文: 「**`gate.sh` は検査の対象ではなく、検査を呼ぶ側**なので網の外だった」。
+const WATCHED = ["apps/studio/scripts", "scripts", ".lefthook", "lefthook.yml"];
+const status = execFileSync("git", ["-C", REPO_ROOT, "status", "--porcelain", "-z", "--", ...WATCHED], {
   encoding: "utf8",
   maxBuffer: 16 * 1024 * 1024,
 });
@@ -44,7 +50,8 @@ for (let i = 0; i < parts.length; i += 1) {
   const mark = entry.slice(0, 2);
   const path = entry.slice(3);
   if (mark.startsWith("R")) i += 1; // rename の元パスを読み飛ばす
-  if (!/\.(mjs|cjs|ts|sh)$/.test(path)) continue;
+  // 🚨 `lefthook.yml`（門の定義）も見る。**拡張子で切ると、これが落ちる**
+  if (!/\.(mjs|cjs|ts|sh|yml)$/.test(path)) continue;
   // 🚨 **staged 済みは窓ではない**（2026-08-16 実測: 自分が `git add` した新規検査を
   //    「編集中」と出してしまった）。危ないのは **作業ツリーが索引と違う**もの＝**書きかけ**。
   //    `git status --porcelain` の 2 文字目が作業ツリー側（` ` なら索引と同じ）。
@@ -59,7 +66,10 @@ if (dirty.length === 0) {
   process.exit(0);
 }
 
-console.log("🚨 いま**検査スクリプトが編集中**です（この検査は落としません。心当たりとして出しています）:");
+console.log(
+  "🚨 いま**門まわりが編集中**です（この検査は落としません。心当たりとして出しています）:" +
+    `\n   （見ている範囲: ${WATCHED.join(" / ")} の **.mjs .cjs .ts .sh .yml**。**それ以外は見ていません**）`,
+);
 for (const d of dirty) {
   let age = "";
   try {
