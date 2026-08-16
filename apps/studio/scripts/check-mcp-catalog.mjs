@@ -389,18 +389,22 @@ if (!WRITE) {
       const quiet = leaked.length === 0;
       // 🚨 **届いたことを確かめる。** 印だけ外した同じ文字列が拾われなければ、
       //    「拾わない」は**届いていないだけ**かもしれない。
-      const reached = findViolations(src, reachSrv).violations.some((v) => v.detail.includes(wantRule));
-      const ok = quiet && reached;
+      // 🚨 **届いたことは「✅」でなく、返ってきた実物で出す**（司令塔 2026-08-16 ⑦）。
+      //    判定は「通った / 落ちた」しか言わない。**実物は「そこまで来た」を言う。**
+      const reachHit = findViolations(src, reachSrv).violations.find((v) => v.detail.includes(wantRule));
+      const ok = quiet && Boolean(reachHit);
       console.log(
         `  ${ok ? "✅" : "🚨"} ${name}  → ` +
           (quiet ? "拾わない（過検出なし）" : `**拾ってしまう**: ${leaked.map((v) => v.detail).join(" / ")}`) +
-          ` ／ 判定に届いた: ${reached ? "✅" : "🚨 **届いていない（この囮は何も言っていません）**"}`,
+          ` ／ 印を外すと → ` +
+          (reachHit ? `[${reachHit.rule}] ${reachHit.detail}` : "🚨 **何も返らない（この囮は判定に届いていません）**"),
       );
       if (ok) alive++;
       continue;
     }
-    const hit = findViolations(src, srv).violations.some((v) => v.rule === wantRule);
-    console.log(`  ${hit ? "✅" : "🚨"} ${name}  → ${hit ? `検出（${wantRule}）` : "**検出できない**"}`);
+    // 🚨 ここも**返ってきた実物**を出す（規則名だけだと、何を捕まえたか読めない）。
+    const hit = findViolations(src, srv).violations.find((v) => v.rule === wantRule);
+    console.log(`  ${hit ? "✅" : "🚨"} ${name}  → ${hit ? `[${hit.rule}] ${hit.detail}` : "**検出できない**"}`);
     if (hit) alive++;
   }
   if (alive !== probes.length) {
