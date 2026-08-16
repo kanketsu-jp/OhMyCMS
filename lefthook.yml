@@ -19,6 +19,20 @@
 pre-commit:
   parallel: true
   commands:
+    # 🚨 **落とさない**（exit 0）。**検査スクリプトが編集中なら、その一覧を出すだけ**。
+    # 由来: 2026-08-16。今日みんなで塞いだのは「検査が**読むデータ**」（索引から読む）だったが、
+    #   🚨 **検査スクリプトそのものは作業ツリーの版が `node` で実行される**ので、
+    #   **他ペインが検査を編集している最中は、全員のコミットが止まる**。
+    #   実測: polish が 5 分で 2 回踏んだ（`check-i18n-hardcoded` の SyntaxError ／ `check-nav-parity`）。
+    #   申告: shell 16 回 / auth 22 回、今日この窓を開けていた（本人たちの実測）。
+    #   ＝ 「変更した人と、落ちる人が違う」の 5 回目で、**glob も索引化も効かない経路**。
+    # 🚨 **赤にしない**理由: 編集中を赤にすると、**検査を書くこと自体が門に阻まれる**
+    #   （＝ 誰も検査を直せなくなる）。ここは「いま窓が開いています」と出すだけで、判断は人がする。
+    # 🚨 glob も root も付けない（**どのコミットでも出す**。忘れても効くようにするため）。
+    #   緑のときは**何も出さない**（毎回 1 行出すと読まれなくなる。実測で 0 行）。
+    scripts-in-flight:
+      run: node apps/studio/scripts/check-scripts-in-flight.mjs
+
     # 秘密の混入。.gitignore を git add -f で越えてきた場合の最後の歯止め。
     secrets:
       run: bash .lefthook/no-secrets.sh {staged_files}
