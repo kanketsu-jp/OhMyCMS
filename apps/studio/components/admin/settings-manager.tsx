@@ -9,6 +9,7 @@ import { PageAction } from "@/components/admin/page-action";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FieldValue } from "@/components/ui/field-value";
 import { Label } from "@/components/ui/label";
 import { FileDropzone } from "@/components/admin/file-dropzone";
 import { NativeSelect, Textarea } from "@/components/ui/textarea";
@@ -197,14 +198,13 @@ export function SettingsManager({ settings }: { settings: Settings }) {
             defaultValue={settings.project_color}
           />
         ) : (
-          <p className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc-field)">
-            <span
-              aria-hidden="true"
-              className="size-4 shrink-0 rounded"
-              style={{ backgroundColor: settings.project_color }}
-            />
+          <FieldValue
+            adornment={
+              <span className="size-4 rounded" style={{ backgroundColor: settings.project_color }} />
+            }
+          >
             <span className="font-mono">{settings.project_color}</span>
-          </p>
+          </FieldValue>
         )}
         <p className="text-xs text-muted-foreground">
           {t("project_color_help")}
@@ -278,12 +278,9 @@ export function SettingsManager({ settings }: { settings: Settings }) {
             ))}
           </NativeSelect>
         ) : (
-          <p
-            id="settings-default_locale"
-            className="flex h-(--control-h) items-center text-sm md:h-(--control-h-pc-field)"
-          >
+          <FieldValue id="settings-default_locale">
             {tCommon(`locale_${settings.default_locale}`)}
-          </p>
+          </FieldValue>
         )}
         <p className="text-xs text-muted-foreground">
           {t("default_locale_help")}
