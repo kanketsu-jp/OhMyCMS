@@ -69,7 +69,13 @@ export type TrashItem = {
   deletedAt: string;
   daysRemaining: number;
   canRestore: boolean;
-  disabledReason: "missing_primary_key" | null;
+  /**
+   * 押せない理由。**画面はこの値から文言を引く**（理由を直書きしない）。
+   * 🚨 `system_table` … 許可リストに無いシステム表（`TRASH_SYSTEM_COLLECTIONS`）。
+   *    **一覧には出るが、復元も完全削除もできない**（サーバが 400 を返す）。
+   *    これを返さないと **`canRestore: true` のまま出て、押した瞬間にエラー**になる。
+   */
+  disabledReason: "missing_primary_key" | "system_table" | null;
 };
 
 export type TrashRestorePlan = {
@@ -156,6 +162,23 @@ const TRASH_SYSTEM_COLLECTIONS = new Set([
 function assertTrashCollection(collection: string): void {
   if (TRASH_SYSTEM_COLLECTIONS.has(collection)) return;
   assertSafeIdentifier(collection);
+}
+
+/**
+ * その表をゴミ箱の操作（復元・完全削除）に掛けられるか。
+ *
+ * 🚨 **判定を二重に持たない**ために、実際の検証をそのまま試す。
+ *    条件を書き写すと（「システム表かつ許可リストに無い」等）、
+ *    **許可リストを足したときに片方だけ古くなり、
+ *    「押せると言っておいて 400」または「押せないと言っておいて通る」**が起きる。
+ */
+function trashOperable(collection: string): boolean {
+  try {
+    assertTrashCollection(collection);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function permissionCollection(collection: string): string {
@@ -295,6 +318,7 @@ export async function listTrash(actor: Actor): Promise<TrashItem[]> {
         });
       }
       const deletedRows = await query.select("*").orderBy("deleted_at", "desc");
+      const operable = trashOperable(meta.collection);
       return deletedRows.map((row, index): TrashItem => {
         const deletedAt = deletedAtString(row.deleted_at);
         const primaryKey = meta.primaryKeys.length > 0 ? primaryKeyForRow(row, meta.primaryKeys) : null;
@@ -306,8 +330,13 @@ export async function listTrash(actor: Actor): Promise<TrashItem[]> {
           sourceLabel: meta.sourceLabel,
           deletedAt,
           daysRemaining: remainingDays(deletedAt, now, retentionDays),
-          canRestore: primaryKey !== null,
-          disabledReason: primaryKey === null ? "missing_primary_key" : null,
+          canRestore: primaryKey !== null && operable,
+          // 🚨 主キーが無いほうを先に出す（**そちらは復元先が特定できない**ので、より根本的）。
+          disabledReason: primaryKey === null
+            ? "missing_primary_key"
+            : operable
+              ? null
+              : "system_table",
         };
       });
     }),
