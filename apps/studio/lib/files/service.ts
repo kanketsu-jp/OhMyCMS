@@ -722,16 +722,18 @@ export async function deleteStoredObjects(fileId: string): Promise<void> {
   //    上の「順番」を守る限り起きない。
   if (!row) return;
   const storage = await storageForRow(row);
-  if (storage.deletePrefix) {
-    // `${id}/` の下に元と圧縮版が両方入っている（`compressedKey()` を参照）。
-    await storage.deletePrefix(`${row.id}/`);
-    return;
-  }
-  // 🚨 `deletePrefix` は driver で**任意**（`StorageDriver` の `?`）。
-  //    無いドライバでは 1 つずつ消す。**列を増やしたらここも増やすこと。**
+  // 🚨 **知っているキーは、分岐に置かず必ず消す。** **列を増やしたらここも増やすこと。**
+  //    最初は「`deletePrefix` が在ればそれだけ」にしていたが、
+  //    🚨 **いまの 2 ドライバ（local / s3）は両方 `deletePrefix` を持つ**ので、
+  //    1 つずつ消す側が**一度も通らない**＝ **測れない分岐**が残っていた。
+  //    両方を毎回通せば、**測れない分岐が無くなる**（消す回数より、測れることを採る）。
+  //    どちらの `delete` も**無いキーで落ちない**（local は `force: true` / S3 は 204）。
   for (const key of [row.filename_disk, row.compressed_key]) {
     if (key) await storage.delete(key);
   }
+  // 取りこぼし（`${id}/` の下に、行が知らない物が在る場合）と、local の空ディレクトリは
+  // prefix ごと消せるドライバだけが拾える。🚨 `deletePrefix` は driver で**任意**（`?`）。
+  await storage.deletePrefix?.(`${row.id}/`);
 }
 
 function parseDimension(value: string | null | undefined, field: string): number | undefined {
