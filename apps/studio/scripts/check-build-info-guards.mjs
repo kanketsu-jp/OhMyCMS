@@ -89,12 +89,33 @@ function read(relative) {
   }
 }
 
+/**
+ * 🚨 **「0 が正常値」の検査は、壊れても同じ顔で「問題なし」と言う**（2026-08-16・design の指摘）。
+ * この検査は違反 0 件が正常なので、**読み込みが痩せても出力は「違反 0 件」のまま**。
+ * 実測: `.dockerignore` を **1718 → 32 バイト**（0 バイトではない）に切り詰めても **exit 0** だった。
+ * → **読めた量に下限**を置く。0 バイトは `read()` が exit 2 で落とすが、**その手前が空いていた**。
+ *
+ * 🚨 **この下限は【書いただけ】**（自動では追随しません）。2026-08-16 時点の実測サイズの
+ * おおよそ半分。**増えたら上げてよい。下げるときは理由を書くこと。**
+ */
+const 読めた量の下限 = { ".dockerignore": 800, "docker/Dockerfile": 5000, ".github/workflows/ci.yml": 6000 };
+
 const dockerignore = read(".dockerignore");
 const dockerfile = read("docker/Dockerfile");
 // 🚨 **dirty に触るのに、この検査が読んでいなかったファイル**（2026-08-15・schema が「入口の抜け」を数えて発見）。
 //    検査は `.dockerignore` と `docker/Dockerfile` しか読んでおらず、
 //    **CI が `--build-arg GIT_DIRTY=0` で旗を宣言していた**のを一度も見ていなかった。
 const ci = read(".github/workflows/ci.yml");
+
+// 🚨 落ちるときは「違反 0 件」より先に、**読み込みの範囲**を疑わせる文言にする。
+for (const [名, 実物] of [[".dockerignore", dockerignore], ["docker/Dockerfile", dockerfile], [".github/workflows/ci.yml", ci]]) {
+  const 下限 = 読めた量の下限[名];
+  if (実物.bytes >= 下限) continue;
+  console.error(`✖ ${名} が ${実物.bytes} バイトしかありません（下限 ${下限}）`);
+  console.error("  🚨 **違反 0 件より先に、読み込みか走査の範囲が壊れていることを疑ってください。**");
+  console.error("  （この検査は違反 0 件が正常なので、痩せても『問題なし』と同じ顔になります）");
+  process.exit(2);
+}
 
 /**
  * 🚨 **コメントを実コードとして数えない。**
