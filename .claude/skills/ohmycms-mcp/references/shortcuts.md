@@ -107,8 +107,10 @@
 - 保存が編集モードにしか無い画面は、`save` の `scope` に**出ません**（効かないように見えます）
 - 逆に `scope` に出ていても、**開いた直後は効きません**（「編集する」を押すまで）
 
-🚨 **該当する画面は 5 件**（0 件なら探し方が壊れています。この生成器が落ちます）:
+🚨 **該当する画面は 7 件**（0 件なら探し方が壊れています。この生成器が落ちます）:
 
+- `/admin/content/[collection]/[id]`
+- `/admin/content/[collection]/new`
 - `/admin/files/[id]`
 - `/admin/profile`
 - `/admin/settings/general`
