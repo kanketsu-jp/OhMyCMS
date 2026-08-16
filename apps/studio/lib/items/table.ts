@@ -52,6 +52,25 @@ export async function ensureDeletedAtColumn(
       collection,
       DELETED_AT_COLUMN,
     ]);
+    // 🚨 **`directus_fields` にも行を入れる**（2026-08-16・286 A ② で見つけた副作用）。
+    //    列だけ足すと、**フィールド一覧に `deleted_at` が「利用者の作った列」として並ぶ**。
+    //    利用者から見れば **消してよさそうな列**に見えるが、消すとゴミ箱が壊れる。
+    //
+    // 🚨 **名前で除外しない**（`field === "deleted_at"` を画面側に書かない）。
+    //    それをやると **判定の道が 2 本**になり（`meta.hidden` と 名前）、
+    //    次に内部列を足す人がどちらに従うか分からなくなる。
+    //    **印は `hidden` 1 本**に揃える——`body_rich_plain` が既にそうしている。
+    await conn("directus_fields")
+      .insert({
+        collection,
+        field: DELETED_AT_COLUMN,
+        interface: "datetime",
+        hidden: true,
+        readonly: true,
+        note: "削除した日時（自動）。ゴミ箱から戻すときに使います",
+      })
+      .onConflict(["collection", "field"])
+      .ignore();
     確認済み.add(collection);
     列が在る.add(collection);
   } catch (error) {
@@ -72,9 +91,11 @@ export function itemsTable(
   //    列が無い表で `whereNull` を足すと、**その表の問い合わせが必ず落ちます**。
   //    ＝ **在るかどうかで分ける**のが、この配り方の必然です。
   //
-  // 🚨 いま `deleted_at` を非 null にするコードは 1 つも在りません
-  //    （`deleteFile` は物理削除のまま）。**観測できる振る舞いは、まだ変わりません**。
-  //    ＝ **「変わった」ではなく「変わる準備が済んだ」**。
+  // 🚨 **この注記は 2026-08-16 に反転した。** 以前はここに
+  //    「`deleted_at` を非 null にするコードは 1 つも無いので、振る舞いは変わらない」と
+  //    書いてあったが、**いまは変わる**——`deleteItem`（items）と `deleteFile` / `deleteFolder`
+  //    （storage）が論理削除になったので、**消した行はここで実際に隠れる**。
+  //    🚨 古い注記を残すと、読んだ人が「まだ効いていない」と誤解する。
   if (列が在る.has(collection)) return conn(collection).whereNull(DELETED_AT_COLUMN);
   return conn(collection);
 }
