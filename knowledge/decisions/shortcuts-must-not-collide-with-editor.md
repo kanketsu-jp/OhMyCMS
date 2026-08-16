@@ -1,7 +1,7 @@
 ---
 type: decision
 title: ショートカットはエディタのキーバインドと衝突しない
-description: 管理画面のショートカット（SHORTCUTS）は、うち同士だけでなく WYSIWYG（Tiptap）が実際に登録しているキーとも衝突しないことを検査対象にする。予約語は手で一覧化せず、node_modules の Tiptap 本体から抽出して Tiptap 自身を出典にする。
+description: 管理画面のショートカット（SHORTCUTS）は、うち同士だけでなく WYSIWYG（Tiptap）が実際に登録しているキーとも衝突しないことを検査対象にする。予約語は手で一覧化せず、node_modules の Tiptap 本体から抽出して Tiptap 自身を出典にする。🚨 いま衝突は 0 件ではない——save(mod+enter) と toggleLeftSidebar(mod+b) の 2 件が記録済みのまま残っており、検査は「未承認」の集計から除外しているだけで衝突自体は消えていない。
 tags: [ui, apps-studio, acceptance]
 status: stable
 generated:
