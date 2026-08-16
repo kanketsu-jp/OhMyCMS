@@ -31,6 +31,9 @@ import { ErrorBanner } from "@/components/admin/error-banner";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
+// 🚨 型だけを持つファイル（`lib/trash/types.ts` は import 0 行）。
+//    同じ形を 2 箇所に持たないため（schema が用意・ed9a421）。値は足さないこと。
+import type { LastPurgeRun } from "@/lib/trash/types";
 
 export type TrashItem = {
   key: string;
@@ -61,29 +64,10 @@ type RestorePlan = {
   relatedRestoreCount: number;
 };
 
-/**
- * 直近の自動削除の走行。**`null` は「まだ 1 度も走っていない」。**
- *
- * 🚨 **`null` と `deleted_total: 0` を同じ文言にしないこと。**
- *   `null` ……………… 動いていない（＝ 保持期間の約束が守られている保証が無い）
- *   `deleted_total: 0` … 動いたが、消すものが無かった（＝ 正常）
- *   同じ文言にすると、**「動いていない」と「正常」が同じ顔になる**（schema の申し送り・2026-08-17）。
- *
- * 🚨 型を `lib/trash/purge.ts` から import しない。あちらは knex を掴んでいて、
- *   ここは client component（`"use client"`）なので、**サーバ側の依存を持ち込む口を開けない**。
- */
-export type LastPurge = {
-  started_at: string;
-  finished_at: string | null;
-  deleted_total: number;
-  /** 落ちたときだけ入る */
-  error: string | null;
-};
-
 export type TrashListPayload = {
   data: TrashItem[];
   retention_days: number;
-  last_purge: LastPurge | null;
+  last_purge: LastPurgeRun | null;
 };
 
 function sourceLabel(t: ReturnType<typeof useT>, item: TrashItem): string {
@@ -132,7 +116,7 @@ export function TrashManager({
 }: {
   initial: TrashItem[];
   retentionDays: number;
-  lastPurge: LastPurge | null;
+  lastPurge: LastPurgeRun | null;
 }) {
   const t = useT("trash");
   const format = useFormat();
