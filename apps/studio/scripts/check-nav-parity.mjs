@@ -231,6 +231,13 @@ function extractTagProps(source, tagName) {
  * spread が見つかった場合は、その時点の props 集合が信用できないため（spread の
  * 中身が一切見えていない）、onlyLeft/onlyMobile の判定はせず早期に返す
  * （元の実装が spread 検出時に即 process.exit(1) していたのと同じ考え方）。
+ *
+ * 🚨 戻り値にはさらに `comparedPropsCount`（実際に比較した prop の延べ種類数。
+ * <LeftSidebar> / <MobileNav> の prop 名の和集合のサイズ）を含める。
+ * 由来: 2026-08-16 司令塔指摘。「置換 N 件」は差し込んだ文字列がソースに入ったことしか
+ * 示さず、この関数が実際にその prop まで**判定した**かは別。早期リターン（missing-file /
+ * parse-error / missing-tag / spread）では diffing 自体を行っていないので 0 を返す
+ * （「見ていない」を「0 件でした」と混同させないため）。
  */
 function judgeParity(sources) {
   const violations = [];
@@ -238,7 +245,7 @@ function judgeParity(sources) {
 
   if (source === undefined) {
     violations.push({ rule: "missing-file", detail: `${LAYOUT_FILE} が sources に無い` });
-    return { violations, leftProps: null, mobileProps: null };
+    return { violations, leftProps: null, mobileProps: null, comparedPropsCount: 0 };
   }
 
   let leftProps = null;
@@ -248,7 +255,7 @@ function judgeParity(sources) {
     mobileProps = extractTagProps(source, "MobileNav");
   } catch (e) {
     violations.push({ rule: "parse-error", detail: e.message });
-    return { violations, leftProps: null, mobileProps: null };
+    return { violations, leftProps: null, mobileProps: null, comparedPropsCount: 0 };
   }
 
   if (!leftProps) {
@@ -258,7 +265,7 @@ function judgeParity(sources) {
     violations.push({ rule: "missing-tag", detail: "<MobileNav …> が layout.tsx に見つからない" });
   }
   if (!leftProps || !mobileProps) {
-    return { violations, leftProps, mobileProps };
+    return { violations, leftProps, mobileProps, comparedPropsCount: 0 };
   }
 
   // 🚨 spread の中身はこの検査から見えないので、「片方にしか渡していない」を黙って隠せてしまう。
@@ -271,7 +278,7 @@ function judgeParity(sources) {
     for (const [tag, n] of spreads) {
       violations.push({ rule: "spread", detail: `<${tag}> に {...} が ${n} 件` });
     }
-    return { violations, leftProps, mobileProps };
+    return { violations, leftProps, mobileProps, comparedPropsCount: 0 };
   }
 
   // 🚨 対象を1件も拾えていないのに緑になる（EXCEPTIONS 差分だけで判定して素通りする）のを防ぐ。
@@ -302,7 +309,12 @@ function judgeParity(sources) {
     });
   }
 
-  return { violations, leftProps, mobileProps };
+  // 🚨 実際に比較した prop の延べ種類数（LeftSidebar / MobileNav の prop 名の和集合）。
+  //    抽出（extractTagProps）が壊れて両側とも 0 件になった場合も自然に 0 になる
+  //    （「見ていない」の実測値がここに素直に落ちる）。
+  const comparedPropsCount = new Set([...leftProps, ...mobileProps]).size;
+
+  return { violations, leftProps, mobileProps, comparedPropsCount };
 }
 
 function loadSources() {
@@ -467,21 +479,35 @@ function main() {
 
   const 見逃した = [];
   const 拾えた = [];
+  let 未到達あり = false;
   for (const [名, 壊す] of 見逃す入力) {
     const 壊れた = 壊す(original[LAYOUT_FILE]);
     if (壊れた === original[LAYOUT_FILE]) {
       // 🚨 置換が当たっていない ＝ **見逃したかどうかを測れていない**
+      //    （入口で当たらなかった。届いたかどうかの話とは別の失敗なので文面を分ける）
       見逃した.push(`${名}  🚨 （置換が当たらず、測れていません）`);
       continue;
     }
-    const { violations } = judgeParity({ ...original, [LAYOUT_FILE]: 壊れた });
+    const { violations, comparedPropsCount } = judgeParity({ ...original, [LAYOUT_FILE]: 壊れた });
+    // 🚨 「届いたか」は「置換が当たったか」とは別物。judgeParity が実際に比較した prop の
+    //    延べ種類数を見る（司令塔 2026-08-16 指摘: 各行は届いたことを示していない）。
+    //    🚨 これは「拾えた」側の行にも当てる（届かずにたまたま検出、を防ぐ）。
+    const reachedSuffix =
+      comparedPropsCount > 0
+        ? `／🟢 判定に届いた: prop ${comparedPropsCount} 件を比較`
+        : "／🚨 判定に届いていません（prop 0 件）。「見逃した」ではなく「測れていない」です";
+    if (comparedPropsCount === 0) {
+      見逃した.push(`${名}  ${reachedSuffix}`);
+      未到達あり = true;
+      continue;
+    }
     if (violations.length === 0) {
-      見逃した.push(名);
+      見逃した.push(`${名}${reachedSuffix}`);
     } else {
       // 🚨 **拾えた理由を必ず出す。** 別の理由（parse-error 等）で拾っていると、
       //    「この形は見ている」と誤読する（2026-08-16 に a11y 側で実際にやった）。
       const 理由 = [...new Set(violations.map((v) => v.rule))].join(",");
-      拾えた.push(`${名}  → rule: ${理由}`);
+      拾えた.push(`${名}  → rule: ${理由}${reachedSuffix}`);
     }
   }
   // 🟢 対照(+): 拾える入力（片側だけに prop）を 1 つ通す
@@ -500,6 +526,11 @@ function main() {
   if (拾えた.length > 0) {
     console.log(`■ 拾えた ${拾えた.length} 件（🚨 **理由を見ること**。狙いと違う理由なら死角のまま）`);
     for (const n of 拾えた) console.log(`  ・${n}`);
+  }
+  if (未到達あり) {
+    console.error(
+      "\n🚨 「見ていない形」の一覧に、判定へ届いていない行があった。「見逃した」ではなく「測れていない」ため失敗として扱う。",
+    );
   }
 
   console.log("■ 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）");
@@ -587,7 +618,7 @@ function main() {
   //    （最初は成功メッセージの隣に足そうとして置換を外し、**定義したのに一度も呼ばれない**状態を作った）
   reportUndecided();
 
-  process.exit(violations.length === 0 && !selfTestFailed && !greenTestFailed ? 0 : 1);
+  process.exit(violations.length === 0 && !selfTestFailed && !greenTestFailed && !未到達あり ? 0 : 1);
 }
 
 main();

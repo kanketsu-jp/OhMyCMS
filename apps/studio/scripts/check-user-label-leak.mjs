@@ -470,8 +470,14 @@ function checkUserMenuVisibility(sources) {
  *      あればその右辺まで追っているか（無ければこれまでどおり、呼び出し元が別ファイルに
  *      ある正当な素通しとして扱う）
  *
- * 戻り値は `{ violations, scannedFiles }`。`scannedFiles` は GUARD_FILE を除いて
- * 実際に規則 A/B/F を当てた本数（「候補」＝ Object.keys(sources).length とは別物）。
+ * 戻り値は `{ violations, scannedFiles, judgedExpressionsByFile }`。
+ * `scannedFiles` は GUARD_FILE を除いて実際に規則 A/B/F を当てた本数
+ * （「候補」＝ Object.keys(sources).length とは別物）。
+ * `judgedExpressionsByFile` は `{ ファイル名: 実際に checkLabelExpression() を呼んだ回数 }`
+ * （規則 A/B の JSX 属性・規則 F の object literal の両方を合算）。
+ * 🚨 由来: 2026-08-16 司令塔指摘。「置換 N 件」は差し込んだ文字列がソースに入ったことしか
+ * 示さず、findViolations がその式まで**判定した**かは別。ここで実際に判定した式の数を
+ * ファイル別に数えて返し、呼び出し側（「見逃す入力の実演」）が「届いた」ことを実測できるようにする。
  */
 function findViolations(sources) {
   const violations = [];
@@ -479,10 +485,12 @@ function findViolations(sources) {
   //    するので数えない。呼び出し側で `候補 - 1` のように計算しない（この関数の中に
   //    ふるいが増えた日に、外側の計算が嘘になるのを防ぐため。ここで実測する）。
   let scannedFiles = 0;
+  const judgedExpressionsByFile = {};
 
   for (const [file, source] of Object.entries(sources)) {
     if (file === GUARD_FILE) continue;
     scannedFiles += 1;
+    let judgedForFile = 0;
 
     // A/B: `userLabel={...}`（JSX 属性として直接渡している式）
     for (const m of source.matchAll(/userLabel=\{([^}]*)\}/g)) {
@@ -493,6 +501,7 @@ function findViolations(sources) {
         missingRule: "B",
         passThroughRule: "H",
       });
+      judgedForFile += 1;
     }
 
     // F: object literal の `userLabel:`（spread や変数化で隠れている式）
@@ -502,7 +511,10 @@ function findViolations(sources) {
         missingRule: "F",
         passThroughRule: "H",
       });
+      judgedForFile += 1;
     }
+
+    judgedExpressionsByFile[file] = judgedForFile;
   }
 
   const guard = sources[GUARD_FILE];
@@ -567,7 +579,7 @@ function findViolations(sources) {
   // G: UserMenu の呼び出し側から見える形で渡っているか
   violations.push(...checkUserMenuVisibility(sources));
 
-  return { violations, scannedFiles };
+  return { violations, scannedFiles, judgedExpressionsByFile };
 }
 
 /**
@@ -1045,16 +1057,37 @@ for (const probe of blindSpotProbes) {
     continue;
   }
 
-  const { violations: probeViolations } = findViolations(sources);
+  const { violations: probeViolations, judgedExpressionsByFile } = findViolations(sources);
+  // 🚨 「届いたか」は「置換 N 件」（差し込んだ文字列がソースに入ったか）とは別物。
+  //    findViolations が実際にこのファイルの userLabel 式を何件判定したかを見る
+  //    （司令塔 2026-08-16 指摘: 置換 1 件は「届いて見逃した」と「そもそも届かなかった」を
+  //    区別しない）。
+  const judgedCount = judgedExpressionsByFile[BLIND_SPOT_LAYOUT_FILE] ?? 0;
+  const reachedSuffix =
+    judgedCount > 0
+      ? `／🟢 判定に届いた: layout.tsx の userLabel 式 ${judgedCount} 件を判定`
+      : "／🚨 判定に届いていません（layout.tsx の userLabel 式 0 件）。「見逃した」ではなく「測れていない」です";
+
   const detected = probeViolations.length > 0;
   const detectedRules = [...new Set(probeViolations.map((v) => v.rule))].join(",") || "-";
+
+  if (judgedCount === 0) {
+    // 🚨 これは「拾える」側の行にも当てる（届かずにたまたま0件、を防ぐ）。
+    //    判定に届いていない以上、detected の true/false に意味が無いので、
+    //    以降の分岐（observe / true / false）へ進めずここで無条件に失敗として扱う。
+    console.error(
+      `  🚨 ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）${reachedSuffix}`,
+    );
+    blindSpotRegression = true;
+    continue;
+  }
 
   if (probe.mode === "observe") {
     // 🚨 期待値を決め打ちしない。実測した結果をそのまま「拾う／見逃す」で出す
     //    （どちらでも失敗にはしない。判断材料として出すだけ）。
     const mark = detected ? "✅ 拾う" : "⚠️ 見逃す（未対応。免除としては決めていない。実測しただけ）";
     console.log(
-      `  ${mark}  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）`,
+      `  ${mark}  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）${reachedSuffix}`,
     );
     continue;
   }
@@ -1071,21 +1104,21 @@ for (const probe of blindSpotProbes) {
         + "`left-sidebar.tsx` が親から受けた prop を素の識別子で渡すのは正当で、"
         + "塞ぐとその形まで違反になるため。**未決ではありません**）";
     console.log(
-      `  ${mark}  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）`,
+      `  ${mark}  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）${reachedSuffix}`,
     );
     continue;
   }
 
   if (expectDetected && !detected) {
     // 拾えている前提のプローブ（①③④🟢）が拾えなくなった。緑であることを保証する対象なので退行。
-    console.error(`  🚨 退行  ${probe.label}  置換 ${count} 件 → 検出 0 件`);
+    console.error(`  🚨 退行  ${probe.label}  置換 ${count} 件 → 検出 0 件${reachedSuffix}`);
     console.error("     ↑ これまで拾えていた経路が拾えなくなった（findViolations の変更を疑う）。");
     blindSpotRegression = true;
   } else {
     // ②が急に「拾える」に変わった。免除が効かなくなった＝left-sidebar.tsx の正当な
     // 素通し（規則H）まで違反にし始めた可能性がある。黙って変わらせず、必ず出力に出す。
     console.log(
-      `  ℹ️ 免除が効かなくなった  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）`,
+      `  ℹ️ 免除が効かなくなった  ${probe.label}  置換 ${count} 件 → 検出 ${probeViolations.length} 件（rule: ${detectedRules}）${reachedSuffix}`,
     );
     console.log("     ↑ left-sidebar.tsx の正当な素通し（規則H）まで違反にし始めていないか確認すること。");
   }
