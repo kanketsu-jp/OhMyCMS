@@ -11,6 +11,13 @@
  *   ＝ **数は配った瞬間から腐る。そして手で数えると、コメントを数える。**
  *   → **各自がその場で叩けるようにする。** 出力には必ず HEAD を添える。
  *
+ * ■ 🚨 名前で見つからないものを、**形でも探す**（design の提案・2026-08-16）
+ *   `isComment` / `commentMask` / `stripComments` という名前でなくても、
+ *   `startsWith("//")` のような**コメント判定の形**を持つ検査は在りうる。
+ *   → 名前で分類したあと、**形でもう一度走査**し、名前で拾えなかったものを出す。
+ *   🚨 **0 件のときも「形でも探した」と出す**（**見ていない 0 と、異常が無い 0 を分ける**）。
+ *   🟢 対照として、**既知の 1 本に形の判定が当たること**を毎回確かめる。
+ *
  * ■ 🚨 この道具が見ていない範囲
  *   ・**中身が正しいかは見ていない**（名前と呼び出しの数だけ）。壊れているかは各担当が 2 行で測ること:
  *       🔴 `const u = "https://example.com"; if (x === FOO) {}` → **FOO が残るか**（消えたら見逃し）
@@ -77,6 +84,30 @@ console.log(`${"検査".padEnd(32)}${"種類".padEnd(22)}${"呼出".padStart(5)}
 for (const r of rows.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name))) {
   console.log(`${r.name.padEnd(32)}${r.kind.padEnd(22)}${String(r.calls).padStart(5)}${String(r.own).padStart(7)}`);
 }
+// ── 🚨 形でも探す（名前で拾えなかったものを出す） ────────────────────────
+{
+  const SHAPE = /startsWith\(\s*["']\/\/|startsWith\(\s*["']\*|\\\/\\\/\.\*|\/\\\*\[\\s\\S\]/;
+  const named = new Set(rows.map((r) => "scripts/" + r.name + ".mjs"));
+  const extra = [];
+  let controlHit = false;
+  for (const rel of files) {
+    const src = stripComments(readTracked(resolve(SCRIPTS, "..", rel)) ?? "");
+    if (!SHAPE.test(src)) continue;
+    if (named.has(rel)) { controlHit = true; continue; }
+    extra.push(rel.replace("scripts/", "").replace(".mjs", ""));
+  }
+  // 🚨 名前で拾えた検査に 1 本も当たらないなら、**形の判定が死んでいる**（0 件は信用できない）
+  if (!controlHit) {
+    console.error("\n🚨 形の判定が、名前で拾えた検査に 1 本も当たりません。**下の 0 件は「見ていない 0」です**");
+    process.exit(1);
+  }
+  console.log(
+    extra.length === 0
+      ? "\n🟢 形でも探した（startsWith(\"//\") 等）… 名前で拾えなかったもの **0 本**（＝ 異常が無い 0。上の対照で計器は動いています）"
+      : "\n🚨 形でだけ見つかった検査: " + extra.length + " 本 → " + extra.join(" / ") + "（**名前が違うので分類から漏れていました**）",
+  );
+}
+
 const shared = rows.filter((r) => r.kind.startsWith("共有")).length;
 console.log(
   `\n共有を使う ${shared} 本 ／ 🚨 それ以外 ${rows.length - shared} 本` +
