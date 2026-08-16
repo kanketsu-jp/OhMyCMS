@@ -200,8 +200,19 @@ export async function updateRole(id: string, body: Record<string, unknown>): Pro
 }
 
 export async function deleteRole(id: string): Promise<void> {
-  const deleted = await db<RoleRow>("directus_roles").where({ id }).delete();
-  if (!deleted) throw new ApiError(404, "ROLE_NOT_FOUND", "ロールが見つかりません");
+  await db.transaction(async (trx) => {
+    // 🚨 誰かに紐づいているロールは消せない（300①）。**DB は止めてくれない**——
+    //    `directus_access.role → directus_roles` は **ON DELETE CASCADE**（実測 2026-08-16）なので、
+    //    消すと割り当てが黙って一緒に消える。`directus_users.role` だけが NO ACTION。
+    //    231 A と同じく、数えてから消すまでの間に増えないよう **ロックしてから**数える。
+    const access = await trx("directus_access").where({ role: id }).select("id").forUpdate();
+    const users = await trx("directus_users").where({ role: id }).select("id").forUpdate();
+    if (access.length > 0 || users.length > 0) {
+      throw new ApiError(409, "ROLE_IN_USE", "このロールを使っている利用者が居るため削除できません");
+    }
+    const deleted = await trx<RoleRow>("directus_roles").where({ id }).delete();
+    if (!deleted) throw new ApiError(404, "ROLE_NOT_FOUND", "ロールが見つかりません");
+  });
 }
 
 export async function listPolicies(range: ListRangeInput = {}): Promise<PolicyRow[]> {
@@ -244,8 +255,23 @@ export async function updatePolicy(id: string, body: Record<string, unknown>): P
 }
 
 export async function deletePolicy(id: string): Promise<void> {
-  const deleted = await db<PolicyRow>("directus_policies").where({ id }).delete();
-  if (!deleted) throw new ApiError(404, "POLICY_NOT_FOUND", "ポリシーが見つかりません");
+  await db.transaction(async (trx) => {
+    // 🚨 誰かに紐づいているポリシーは消せない（300①）。
+    //    `directus_access.policy → directus_policies` は **ON DELETE CASCADE**（実測）。
+    //    🚨 これが在るせいで、**管理者ポリシーを消すと割り当てが全部消え、管理者が 0 人になる**——
+    //    231 A（`deleteAccess` の拒否）を**別の入口から迂回できる**。ここで塞ぐ。
+    //    「誰か」は**利用者**の意味なので `user IS NOT NULL` で見る（ロール経由の行は数えない）。
+    const assigned = await trx("directus_access")
+      .where({ policy: id })
+      .whereNotNull("user")
+      .select("id")
+      .forUpdate();
+    if (assigned.length > 0) {
+      throw new ApiError(409, "POLICY_IN_USE", "このポリシーを使っている利用者が居るため削除できません");
+    }
+    const deleted = await trx<PolicyRow>("directus_policies").where({ id }).delete();
+    if (!deleted) throw new ApiError(404, "POLICY_NOT_FOUND", "ポリシーが見つかりません");
+  });
 }
 
 export async function listPermissions(

@@ -44,6 +44,10 @@ export const ERROR_KEYS = [
   //    conflict へ潰さない——「同名が在る」ではなく「**外すと誰も入れなくなる**」なので、
   //    利用者がとる行動が違う（**先に別の人へ管理者を渡す**）。
   "last_admin_cannot_be_removed",
+  // 🚨 誰かに紐づいている権限は消せない（300①・2026-08-16）。**鍵を 2 つに割る**——
+  //    ポリシーとロールで、利用者がとる行動が違う（**割り当てを外す** / **利用者のロールを変える**）。
+  "policy_in_use",
+  "role_in_use",
   // 取りこぼしの受け皿
   "unexpected",
 ] as const;
@@ -81,6 +85,8 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   INVALID_SCHEMA: "invalid_body",
   INVALID_FILTER: "invalid_body",
   LAST_ADMIN_CANNOT_BE_REMOVED: "last_admin_cannot_be_removed",
+  POLICY_IN_USE: "policy_in_use",
+  ROLE_IN_USE: "role_in_use",
   // conflict は同名重複の 409 用: COLLECTION_EXISTS / FIELD_EXISTS / RELATION_EXISTS / LABEL_EXISTS。
   // FOLDER_NOT_EMPTY は「配下があるため削除できない」で同名重複ではないため、意図的に含めない。
   // 🚨 2026-08-16: 一度 **専用の鍵 folder_not_empty** を足したが、**同じ日に取り消した**。

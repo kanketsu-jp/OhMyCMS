@@ -16,5 +16,7 @@
   "unauthenticated": "ログインし直してください。",
   "file_too_large": "ファイルが大きすぎます。50MB 以下にしてください。",
   "upload_unreadable": "アップロードの内容を読み取れませんでした。もう一度お試しください。",
-  "last_admin_cannot_be_removed": "管理者が居なくなるため外せません"
+  "last_admin_cannot_be_removed": "管理者が居なくなるため外せません",
+  "policy_in_use": "このポリシーを使っている利用者が居るため削除できません",
+  "role_in_use": "このロールを使っている利用者が居るため削除できません"
 }
