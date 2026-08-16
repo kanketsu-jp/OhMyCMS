@@ -37,6 +37,16 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+// 🚨 **自前のコメント除去を捨て、共通の `stripComments` へ寄せた**（2026-08-16）。
+//    自前のものは **文字列の中の `//` をコメントの始まりと読み**、
+//    **その行の残りを丸ごと落としていた**（polish の 2 行で実測）:
+//      `const u = "https://example.com"; if (x === FOO) {}` → **FOO が消える**
+//    ＝ 🚨 **URL を書いた行の、後ろにある実コードを見ていなかった**。
+//    共通の道具は両方通る（① FOO が残る ② コメントの FOO は拾わない）。
+//    🚨 **桁も行も保つ**ことを実測（長さ 20→20 / 35→35 / 行 4→4）ので、
+//    行番号の計算はそのままでよい。
+//    🚨 **判定を 2 箇所に持たない**——ここに書き戻さないこと。
+import { stripComments as withoutComments } from "./strip-comments.mjs";
 
 const MIGRATION = "lib/db/migrations/20260815010000_create_labels_and_folder_color.ts";
 const COMPONENT = "components/admin/label-display-name.ts";
@@ -61,11 +71,6 @@ console.log(`  見る範囲: ${MIGRATION} の system_key と、${COMPONENT} の�
  * どちらも 2026-08-15 に自分の計器で落として確認した。
  * 🚨 **行数は保つ**（潰さないと、報告した行番号が別の場所を指す）。
  */
-function withoutComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
-}
 
 // 🚨 **決め打ちした 1 本の外で種まきされたら、この検査は何も言わない**（2026-08-16）。
 //    見逃す入力を自分で作って通したときに気づいた: 別の migration に `system_key` を

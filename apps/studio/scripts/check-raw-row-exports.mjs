@@ -78,6 +78,16 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+// 🚨 **自前のコメント除去を捨て、共通の `stripComments` へ寄せた**（2026-08-16）。
+//    自前のものは **文字列の中の `//` をコメントの始まりと読み**、
+//    **その行の残りを丸ごと落としていた**（polish の 2 行で実測）:
+//      `const u = "https://example.com"; if (x === FOO) {}` → **FOO が消える**
+//    ＝ 🚨 **URL を書いた行の、後ろにある実コードを見ていなかった**。
+//    共通の道具は両方通る（① FOO が残る ② コメントの FOO は拾わない）。
+//    🚨 **桁も行も保つ**ことを実測（長さ 20→20 / 35→35 / 行 4→4）ので、
+//    行番号の計算はそのままでよい。
+//    🚨 **判定を 2 箇所に持たない**——ここに書き戻さないこと。
+import { stripComments as withoutComments } from "./strip-comments.mjs";
 
 const TARGETS = [
   { file: "lib/files/service.ts", raw: "FileRow", pub: "PublicFileRow" },
@@ -87,11 +97,6 @@ const TARGETS = [
 // 🚨 囮より前に置く（囮から呼ぶので、後ろだと初期化前になる）
 const GUARDED_TABLES = ["directus_files", "ohmycms_labels", "ohmycms_label_assignments"];
 
-function withoutComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
-}
 
 /**
  * 外向きの関数の宣言を拾い、返り値の型を取り出す。
