@@ -271,7 +271,11 @@ for (const m of manifest) {
 log(`ショートカット ${manifest.length} 件 / 入口: layout 1 + page ${pages.length} 本`);
 log(`  🟢 対照(+): search = ${JSON.stringify(search?.scope)}（global のはず）`);
 log(`  🟢 対照(+): save   = ${Array.isArray(save?.scope) ? `${save.scope.length} ルート` : JSON.stringify(save?.scope)}（全 ${pages.length} ルートより少ないはず）`);
-log(`  ${unknown.length > 0 ? "🚨" : "  "} 導出できなかったもの（unknown・**global に倒していない**）: ${unknown.length} 件`);
+// 🚨 **0 の顔を書く**（司令塔 2026-08-16。0 には ①異常が無い ②見ていない ③落ちた ④まだ出番が来ていない、の 4 つ）。
+//    ここの 0 は **①**: **6 件すべて導出できた**結果の 0 であって、「見ていない」ではない。
+//    （**導出できないものが 1 件でも在れば落とす**ので、緑の 0 は「全部導出できた」を意味する）
+log(`  ${unknown.length > 0 ? "🚨" : "  "} 導出できなかったもの（unknown・**global に倒していない**）: ${unknown.length} 件`
+  + (unknown.length === 0 ? `（**${manifest.length} 件すべて導出できた 0**。見ていない 0 ではない）` : ""));
 log("");
 for (const m of manifest) {
   const scopeText = Array.isArray(m.scope) ? `${m.scope.length} ルート` : m.scope;
