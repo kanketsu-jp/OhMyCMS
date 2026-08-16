@@ -1,4 +1,4 @@
-import { diagnoseLoginCodeRequest, requestLoginCode } from "@/lib/auth/otp";
+import { canDiagnoseSafely, diagnoseLoginCodeRequest, requestLoginCode } from "@/lib/auth/otp";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 import { isOnboardingCompleted } from "@/lib/settings/service";
@@ -13,20 +13,28 @@ export async function POST(request: Request) {
       throw new ApiError(400, "INVALID_BODY", "メールアドレスを指定してください");
     }
 
-    // 🚨 **初期設定が終わっていない間だけ、正直に理由を返す。**
+    // 🚨 **初期設定が終わっておらず、かつ利用者が 1 人も居ないときだけ、正直に理由を返す。**
     //
-    //    理由: そのとき**本物のアドレスを持つ利用者は 1 人も居ない**
-    //    （管理者は `LOCAL_ADMIN_EMAIL` という置き換え用の値）。
-    //    ＝ **列挙できる対象がゼロ**なので、隠すものが無い。
-    //    逆に黙ると、**記録すら作られないのに「送りました。届かないときはもう一度」と案内**して、
-    //    利用者を来ないメールの前で待たせる（2026-08-16 実測: code の行 0 / HTTP 200）。
+    //    なぜ正直にするか: 黙ると、**記録すら作られないのに「送りました。届かないときは
+    //    もう一度」と案内**して、利用者を来ないメールの前で待たせる
+    //    （2026-08-16 実測: HTTP 200 / `{"requested":true}` / code の行 0）。
+    //
+    // 🚨 **なぜ「利用者が 0 人」まで要るか（最初はこれが抜けていた）。**
+    //    当初は「初期設定が未完了なら利用者は居ない」としていた。**誤りだった。**
+    //    `google/callback` と `saml/acs` は `isOnboardingCompleted` を**見ていない**
+    //    （auth 実測・参照 0 件）。設定は環境変数からも入るので、
+    //    **初期設定を終えないまま SSO で利用者が生まれる**ことがありうる。
+    //    その状態を作って測ったら、**居る人と居ない人で応答が分かれた ＝ 列挙できた**:
+    //      居る人  → `{"diagnosis":"mail-not-configured"}` ／ 居ない人 → `{"diagnosis":"no-account"}`
+    //    🚨 **利用者が 0 人なら、正直な応答は `no-account` しか返らない**（実測）。
+    //    **返る値が 1 通りしか無いものは、区別に使えない。** それが安全の根拠。
     //
     // 🚨 **経路は「状態」で分ける。要求の中身（flag 等）で分けない。**
     //    呼び出し側が指定できる形にすると、**攻撃者がそれを立てて列挙器にできる**。
     //
-    // 🚨 初期設定が完了した瞬間、**自動で黙る側へ戻る**（下の分岐がそのまま切り替わる）。
+    // 🚨 利用者が 1 人でも生まれた瞬間、**自動で黙る側へ戻る**（下の分岐がそのまま切り替わる）。
     //    「同じ設計が、場面によって守りにも害にもなる」——ここを揃えに来ないこと。
-    if (!(await isOnboardingCompleted())) {
+    if (!(await isOnboardingCompleted()) && (await canDiagnoseSafely())) {
       const diagnosis = await diagnoseLoginCodeRequest(email);
       return ok({ data: { requested: diagnosis === "sent", diagnosis } });
     }

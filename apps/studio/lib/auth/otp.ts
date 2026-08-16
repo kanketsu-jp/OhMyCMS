@@ -162,6 +162,29 @@ export type LoginCodeDiagnosis =
   /** 上限（60 秒に 1 通 / 1 時間に 5 通）。🚨 いまは到達しない */
   | "rate-limited";
 
+/**
+ * 正直に返してよい状態か。**利用者が 1 人も居ないときだけ true。**
+ *
+ * 🚨 **由来（2026-08-16・auth の指摘 → 実測で窓を確認）。**
+ *    最初は「初期設定が未完了なら利用者は居ない」を前提にしていた。**誤りだった。**
+ *    `google/callback` と `saml/acs` は `isOnboardingCompleted` を**見ていない**（auth 実測・参照 0 件）。
+ *    設定は環境変数からも入る（`service.ts`: `google_client_id: pick("GOOGLE_CLIENT_ID")`）ので、
+ *    **初期設定を一度も終えないまま SSO で利用者が生まれる**ことがありうる。
+ *
+ *    実測（その状態を作って測った・使い捨ての実体）:
+ *      居る人  → `{"requested":false,"diagnosis":"mail-not-configured"}`
+ *      居ない人 → `{"requested":false,"diagnosis":"no-account"}`
+ *      🚨 **応答が違う ＝ 列挙できた。**
+ *
+ * 🚨 **利用者が 0 人なら、正直な応答は `no-account` しか返らない**（実測）。
+ *    **返る値が 1 通りしか無いものは、区別に使えない** ＝ 列挙の材料にならない。
+ *    これが「正直にしてよい」の本当の条件であって、「初期設定が未完了」ではなかった。
+ */
+export async function canDiagnoseSafely(): Promise<boolean> {
+  const row = await db("directus_users").count<{ n: string | number }>({ n: "*" }).first();
+  return Number(row?.n ?? 0) === 0;
+}
+
 export async function diagnoseLoginCodeRequest(email: string): Promise<LoginCodeDiagnosis> {
   const normalized = normalizeEmail(email);
   const now = new Date();
