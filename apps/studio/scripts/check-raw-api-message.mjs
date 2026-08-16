@@ -118,18 +118,25 @@ function scan(sources) {
   return { counts, 除外, 生の行 };
 }
 
+/** 🚨 候補（全 .ts/.tsx）も返す。**比率を出すのに要る**（絶対値は repo が育つと腐る）。 */
 function collect() {
   const out = [];
+  let 候補 = 0;
   (function walk(dir, rel) {
     for (const e of readdirSync(dir)) {
       if (e === "node_modules" || e.startsWith(".")) continue;
       const p = join(dir, e);
       const r = rel ? `${rel}/${e}` : e;
       if (statSync(p).isDirectory()) walk(p, r);
-      else if (/\.tsx?$/.test(e)) out.push({ file: r, text: readFileSync(p, "utf8") });
+      else if (/\.tsx?$/.test(e)) {
+        候補 += 1;
+        out.push({ file: r, text: readFileSync(p, "utf8") });
+      }
     }
   })(root, "");
-  return out.filter((s) => /^(app|components)\//.test(s.file));
+  const 列挙 = out.filter((s) => /^(app|components)\//.test(s.file));
+  列挙.候補 = 候補;
+  return 列挙;
 }
 
 // ── 自己検査 ─────────────────────────────────────────────────
@@ -140,24 +147,32 @@ let selfTestFailed = false;
 //    由来: 2026-08-16。自分で 0 ガードを入れたあと、その穴に気づいた。
 //    → **下限**を持つ。基準線（BASELINE）と同じ考え方を、走査数にも当てる。
 //    🚨 この数は 2026-08-16 の実測 214 の 7 割。**増えたら上げてよい。下げるときは理由を書く。**
-const 走査数の下限 = 150;
+// 🚨 **絶対値は repo が育つと腐る。比率は育たない。**
+//    由来: 司令塔 2026-08-16「絶対値は育つ。比率は育たない。育つものを基準線にすると必ず腐る」。
+//    実測 2026-08-16: 候補 395 / 列挙 214 ＝ **0.542** ／ 平均 **3,509 文字**
+//    🚨 上にも下にも幅を持たせる。**上へ跳ねたら「範囲が広がって他人のファイルまで見ている」**。
+const 比率の下限 = 0.3;
+const 比率の上限 = 0.8;
+const 平均文字数の下限 = 800;
 // 🚨 **ファイル数は「読めた」の証拠にならない。** 列挙だけできて中身が空でも同じ数が出る。
 //    🔴 実測 2026-08-16（台の上で読み込みを空にした）:
 //       「214 ファイル」✅ / 囮 1〜3 も全部 ✅ / 「問題なし」→ **exit 0**
 //       🚨 この検査は基準線が 0 なので、**0 件 / 0 ファイルが正常値と一致して、完全に気づけない**。
 //    → **読めた文字数**も見る。由来: 司令塔 2026-08-16（polish の「395 ファイル」の実例）。
 //    🚨 この数は 2026-08-16 の実測 750,997 の 3.5 割。**増えたら上げてよい。下げるなら理由を書く。**
-const 文字数の下限 = 262_000;
 const sources = collect();
 const 総文字数 = sources.reduce((a, s) => a + s.text.length, 0);
-const 足りている = sources.length >= 走査数の下限 && 総文字数 >= 文字数の下限;
+const 比率 = sources.候補 > 0 ? sources.length / sources.候補 : 0;
+const 平均 = sources.length === 0 ? 0 : Math.round(総文字数 / sources.length);
+const 足りている = 比率 >= 比率の下限 && 比率 <= 比率の上限 && 平均 >= 平均文字数の下限;
 console.log(
-  `  ${足りている ? "✅" : "❌"} 対象を拾えている  app/ components/ **列挙** ${sources.length} ファイル` +
-    `（下限 ${走査数の下限}） / **読めた文字数** ${総文字数.toLocaleString()}（下限 ${文字数の下限.toLocaleString()}）`,
+  `  ${足りている ? "✅" : "❌"} 対象を拾えている  **候補** ${sources.候補} → **列挙** ${sources.length}` +
+    `（比率 ${比率.toFixed(3)}。許容 ${比率の下限}〜${比率の上限}） / ` +
+    `**読めた** ${総文字数.toLocaleString()} 文字（**平均 ${平均.toLocaleString()}**。下限 ${平均文字数の下限}）`,
 );
 if (!足りている) {
   console.error(
-    `     🚨 ${sources.length < 走査数の下限 ? "列挙が足りない" : "読めた文字数が足りない"}。` +
+    `     🚨 ${平均 < 平均文字数の下限 ? "読めた量が足りない（読み込みが死んでいる可能性）" : 比率 > 比率の上限 ? "範囲が広がりすぎ（他人のファイルまで見ている可能性）" : "列挙が足りない"}。` +
       `**「違反 0 件」より先に、読み込みか走査の範囲が壊れていることを疑ってください。**`,
   );
   selfTestFailed = true;
