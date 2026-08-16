@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import type { Profile } from "@node-saml/node-saml/lib/types";
 import { db } from "@/lib/db/knex";
 import { ApiError } from "@/lib/schema/errors";
+import { REJECTED_NAME_ID_FORMAT } from "@/lib/auth/saml/metadata";
 import { createSamlClient, purgeExpiredSamlRecords, type SamlEndpoints } from "./client";
 import { ATTRIBUTE_DEFAULTS, isSamlUsable, type SamlConfig } from "./config";
 import { samlPlaceholderEmail } from "./placeholder-email";
@@ -53,6 +54,37 @@ function pickAttribute(profile: Profile, configured: string[], fallbacks: readon
     if (found.length > 0) return found;
   }
   return [];
+}
+
+/**
+ * 使えない NameID の形式を断る（設問 292 の回答 A・2026-08-16）。
+ *
+ * 🚨 **`transient` は毎回値が変わる。** この CMS は NameID を
+ * `directus_users.external_identifier` に保存して次回の照合に使うので、
+ * 毎回別人になるか、**メール一致の経路**へ落ちる。
+ * その経路には provider の絞り込みが無い（実測 0 件）ため、
+ * **別の方式で作られた利用者に結び付く**恐れがある。
+ *
+ * 🚨 **広告（`metadata.ts`）から外すだけでは足りない。** IdP は広告を無視して送れる。
+ *    **ここで断って初めて効く**（2 つで 1 組）。
+ *
+ * 🚨 **`unspecified` は通す。** 292 の回答は `transient` についてのみで、
+ *    `unspecified` の扱いは**決まっていない**。決まっていないものを、ここで決めない。
+ *    （`unspecified` は「IdP が形式を明示しない」だけで、値が変わるとは限らない）
+ *
+ * 🚨 **文言について**: ここは `lib/` なので画面を持たない。ACS は JSON を返すだけで、
+ *    いま **この失敗を表示する画面は無い**（ログイン画面に SAML の入口が 0 件・実測）。
+ *    そのため `i18n/error.ts` に鍵を**足していない**——同じファイルに
+ *    「**呼び手が無い鍵を足して、同じ日に取り消した**」記録が在る（2026-08-16）。
+ *    🚨 **入口ができたら（設問 303）、そのときに `SAML_NAMEID_FORMAT_REJECTED` の鍵を足すこと。**
+ */
+function assertUsableNameIdFormat(profile: Profile): void {
+  const format = profile.nameIDFormat;
+  if (typeof format === "string" && format === REJECTED_NAME_ID_FORMAT) {
+    // 原因はサーバのログにだけ出す（応答本文は含めない・`AGENTS.md §3.7`）。
+    console.warn("[saml] 受け入れない NameID 形式です:", format);
+    throw new ApiError(401, "SAML_NAMEID_FORMAT_REJECTED", "この SSO の設定では利用できません");
+  }
 }
 
 export function mapProfileToIdentity(profile: Profile, config: SamlConfig): SamlIdentity {
@@ -157,6 +189,8 @@ export async function verifySamlResponse(
   if (!profile) {
     throw new ApiError(401, "SAML_INVALID_RESPONSE", "認証応答を確認できませんでした");
   }
+
+  assertUsableNameIdFormat(profile);
 
   // 🚨 リプレイ防止。ID が無い応答は**照合できない**ので受け取らない。
   const id = assertionId(profile);

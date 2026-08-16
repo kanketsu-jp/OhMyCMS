@@ -33,9 +33,24 @@ export function escapeXml(value: string): string {
 const NAME_ID_FORMATS = [
   "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified",
   "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent",
-  "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
   "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
 ];
+
+/**
+ * 🚨 **`transient` は広告しない**（設問 292 の回答 A・2026-08-16）。
+ *
+ * `transient` は **ログインのたびに値が変わる**形式。この CMS は NameID を
+ * `directus_users.external_identifier` に保存して次回の照合に使うので、
+ * **毎回別人として扱われる**か、あるいは**メール一致の経路へ落ちる**。
+ * 🚨 メール一致の経路には provider の絞り込みが無い（実測 0 件）ため、
+ *    **別の認証方式で作られた利用者に結び付く**恐れがある。
+ *
+ * 広告から外すだけでは足りない（IdP は広告を無視して送れる）ので、
+ * **受け取り側でも断る**（`verify.ts` の `assertUsableNameIdFormat`）。
+ * 🚨 **この 2 つは対**。片方だけ消すと、もう片方は意味を失う。
+ */
+const REJECTED_NAME_ID_FORMAT = "urn:oasis:names:tc:SAML:2.0:nameid-format:transient";
+export { REJECTED_NAME_ID_FORMAT };
 
 export type SpMetadataInput = {
   /** SP の Entity ID。設定に無ければメタデータの URL を使う。 */
