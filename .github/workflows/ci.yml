@@ -222,6 +222,31 @@ jobs:
           echo "$out" | grep -qE '^\.env' && { echo "::error::イメージに .env 系が入っています"; exit 1; }
           echo "イメージに .env 系なし（OK）"
 
+      # 🚨 **落ちた理由を残す。** 2026-08-16、この job が `service "migrate" didn't complete
+      #    successfully: exit 1` で落ちたが、**migrate 自身の出力が 1 行も残らなかった**
+      #    （compose が失敗を返しただけ）。原因は今も特定できていない（`unverified`）。
+      #    次に同じことが起きたときに読めるよう、**down -v の前**にログを出す。
+      # 🚨 **置き場所が肝**: 後始末は `always()` なので、この step は**その前**に置く。
+      #    また `failure()` は「ここまでに失敗した step が在る」で発火するので、
+      #    **どの step で落ちても**ここへ来る（起動・health 待ち・sharp・非 root…）。
+      # 🚨 **「走ったのに何も出さない」を作らない。** `docker compose logs` は
+      #    **コンテナが 1 つも無くても exit 0 / 0 行**を返す（実測 2026-08-16。
+      #    🟢 対照: 実在するスタックでは 1633 行）。だから**行数を数えて、0 なら error にする**。
+      - name: 🚨 落ちたときだけ、compose のログを出す
+        if: failure()
+        run: |
+          echo "::group::docker compose ps -a"
+          docker compose ps -a || true
+          echo "::endgroup::"
+          out=$(docker compose logs migrate studio db --no-color 2>&1 || true)
+          lines=$(printf '%s' "$out" | grep -c . || true)
+          echo "::group::docker compose logs（${lines} 行）"
+          printf '%s\n' "$out"
+          echo "::endgroup::"
+          if [ "$lines" -eq 0 ]; then
+            echo "::error::ログが 1 行も取れませんでした。コンテナが作られていない可能性があります（compose がイメージのビルドか設定の解決で失敗した等）。上の ps -a を見てください"
+          fi
+
       - name: 後始末
         if: always()
         run: docker compose down -v
