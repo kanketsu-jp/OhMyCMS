@@ -415,6 +415,18 @@ if (baselineRules.length > 0) {
   console.log("     以下の囮・対照・見逃す入力は、**そこから増えたぶんだけ**を見ます。");
 }
 
+/**
+ * 🚨 **「判定に届かなかった」ことを表す規則**（2026-08-16・司令塔「囮が判定に届いたことを出力で確かめよ」）。
+ *
+ * この 2 つは「**対象を切り出せなかった**」という意味で、**規則が退行を捕まえたのではない**。
+ * 実測: 見逃す入力に「関数名を壊す」入力を混ぜたら、**`✅ 拾えた（not-found）`** と出た。
+ * ＝ 🚨 **判定に届いていないものを、検出の証拠として数えていた。**
+ * → 見逃す入力・対照(-) では、**この 2 つ「だけ」が出た場合を「届いていない」として別扱いする。**
+ *   （🚨 囮4 / 囮6 は**この規則が出ることを期待している**ので、そちらには当てない）
+ */
+const UNREACHED = new Set(["not-found", "validate-not-found"]);
+const onlyUnreached = (vs) => vs.length > 0 && vs.every((v) => UNREACHED.has(v.rule));
+
 let selfCheckFailed = false;
 for (const probe of probes) {
   if (probe.service === serviceSource && probe.form === formSource) {
@@ -442,6 +454,11 @@ for (const n of negatives) {
     continue;
   }
   const found = newViolations(inspect(n.service, n.form).violations);
+  if (onlyUnreached(found)) {
+    console.log(`  🚨 ${n.name}  → **判定に届いていません**（${found.map((v) => v.rule).join(",")} しか出ていない）`);
+    selfCheckFailed = true;
+    continue;
+  }
   const ok = found.length === 0;
   console.log(`  ${ok ? "✅" : "❌"} ${n.name}  → ${ok ? "検出 0 件（正しい）" : `🚨 **過検出** ${found.map((v) => v.rule).join(",")}`}`);
   if (!ok) selfCheckFailed = true;
@@ -525,7 +542,11 @@ for (const m of misses) {
     continue;
   }
   const found = newViolations(inspect(m.service, m.form).violations);
-  if (found.length > 0) {
+  if (onlyUnreached(found)) {
+    // 🚨 切り出せなかっただけ。**この入力は判定に届いていない**ので、拾えたとも見逃したとも数えない。
+    console.log(`  🚨 ${m.name}  → **判定に届いていません**（${found.map((v) => v.rule).join(",")} しか出ていない＝対象を切り出せていない）`);
+    selfCheckFailed = true;
+  } else if (found.length > 0) {
     console.log(`  ✅ ${m.name}  → 拾えた（${found.map((v) => v.rule).join(",")}）`);
     // 🚨 ヘッダに「見ていない」と書いてあるのに拾えるようになった ＝ **記述のほうが古い**
     if (m.declaredBlind) stale.push(`「${m.name}」は**拾えるようになりました**（ヘッダは「見ていない」のまま）`);
