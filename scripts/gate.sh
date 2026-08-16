@@ -107,7 +107,16 @@ syntax|同上（{staged_files}）
 lint|同上。門は上で 'bun run lint' を走らせている
 typecheck|門は上で tsc --noEmit を走らせている（同じもの）
 packages-typecheck|門は下で build+typecheck を走らせている（順序が違うだけ）
-knowledge|rokf（外部コマンド）に依存。隔離ツリーでは PATH に無いことが在る
+"
+# 🚨 **exit が常に 0 の job**（＝ 「✅」が「異常が無い」を意味しない）。**出力を必ず見る**。
+#    2026-08-16: `knowledge` を「rokf が PATH に無いことが在る」という理由で除外していたが、
+#    🚨 **実測すると PATH に在り、走る**（隔離ツリーでも同じシェルの PATH を継ぐ）。
+#    ＝ 除外の理由が**間違っていた**。ただし走らせるだけでは足りない:
+#    `.lefthook/rokf-doctor.sh` は **設計として常に exit 0**（索引の鮮度は後から直せるので止めない）。
+#    門は「失敗したときだけログを出す」ので、**走らせても警告が 1 文字も見えない**。
+#    → ここに挙げた job は、緑でも出力を見て、警告が在れば表に出す（**赤にはしない**）。
+ALWAYS_ZERO="
+knowledge|.lefthook/rokf-doctor.sh は設計として常に exit 0（索引の鮮度で作業を止めない）
 "
 RAN=0; SKIPPED=0
 log "  lefthook の job ${NJOBS} 本を導出（job 名で突き合わせる）"
@@ -124,7 +133,14 @@ printf '%s\n' "$JOBS" | while IFS="$(printf '\037')" read -r job root cmd; do
   jlog="$LOGD/job-${job}.log"
   ( cd "$dir" && bash -c "$cmd" >"$jlog" 2>&1 ); c=$?
   if [ "$c" -ne 0 ]; then log "  ❌ ${job} exit=$c"; tail -n 8 "$jlog" | sed 's/^/      /'; echo 1 >> "$LOGD/fail.flags"
-  else log "  ✅ ${job}"; fi
+  else
+    why0=$(printf '%s\n' "$ALWAYS_ZERO" | grep -E "^${job}\\|" | cut -d'|' -f2- || true)
+    if [ -n "$why0" ] && grep -qE '⚠|🚨|warn' "$jlog" 2>/dev/null; then
+      # 🚨 緑だが、この job は落ちない設計。**出力に警告が在る**ので出す。
+      log "  ✅ ${job} 🚨 ただし出力に警告があります（${why0}）"
+      grep -E '⚠|🚨|warn' "$jlog" | head -n 4 | sed 's/^/      /'
+    else log "  ✅ ${job}"; fi
+  fi
 done
 # 🚨 while はサブシェルなので、失敗はファイルで受ける（変数だと消える）
 [ -s "$LOGD/fail.flags" ] && FAIL=1
