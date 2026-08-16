@@ -861,8 +861,43 @@ function safeDeliveryHeaders(type: string | null, filename: string): {
   return { contentType, contentDisposition, contentTypeOptions: "nosniff" };
 }
 
+/**
+ * 🚨 **「行は在るが、実体が無い」を 404 にする。**
+ *
+ * 直す前は、ここで投げられた `ENOENT` がそのまま外へ出て
+ * **500（`[api] 未処理の例外`）**になっていた（2026-08-17 実測）。
+ * 利用者には「**サーバが壊れた**」に見えるが、実際は「**そのファイルが無い**」だけ。
+ *
+ * 🚨 **孤児は実在する**（`.storage` と `directus_files` の突き合わせで 25 件）ので、
+ *    この経路は例外ではなく、**普通に起きる**。
+ *
+ * 🚨 **新しい code を作らない。** 同じ意味の `FILE_NOT_STORED` が既に在る
+ *    （`ensureStoredFile`。**列が空**のとき）。**「行が実体を指しているのに無い」も同じ結論**なので、
+ *    同じ code に寄せる——**画面は 2 つの文言を出し分けられない**。
+ *
+ * 🚨 **どのドライバでも同じ結論にする**（local は `ENOENT`、S3 は `NoSuchKey` を投げる）。
+ *    ここで揃えないと、**保管先を替えた日に状態コードが変わる**。
+ */
+function isMissingObject(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: unknown; name?: unknown; $metadata?: { httpStatusCode?: unknown } };
+  if (e.code === "ENOENT") return true;
+  if (e.name === "NoSuchKey" || e.name === "NotFound") return true;
+  // 🚨 S3 の 404 は name が実装差で揺れるので、状態コードでも見る。
+  return e.$metadata?.httpStatusCode === 404;
+}
+
 async function bufferFromStorage(storage: StorageDriver, key: string): Promise<Buffer> {
-  const body = await storage.get(key);
+  let body;
+  try {
+    body = await storage.get(key);
+  } catch (error) {
+    if (isMissingObject(error)) {
+      throw new ApiError(404, "FILE_NOT_STORED", "ストレージ上のファイルが見つかりません");
+    }
+    // 🚨 それ以外は握り潰さない（**保管先が落ちている等は 404 ではない**）。
+    throw error;
+  }
   if (Buffer.isBuffer(body)) return body;
   return Buffer.from(await new Response(body).arrayBuffer());
 }
