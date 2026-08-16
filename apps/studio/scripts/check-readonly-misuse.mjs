@@ -26,6 +26,14 @@
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+// 🚨 **コメントを実装として数えない**（2026-08-16 実測。**この検査を作った当日に見つけた**）。
+//    `// <input type="checkbox" readOnly />` や `{/* <select readOnly={x} /> */}` を
+//    **違反として拾っていた**。この家では「❌ こう書かない」という**例をコメントに書く**ので、
+//    🚨 **戒めを書いた人が、身に覚えのない違反で落ちる**。
+//    🚨 囮に「コメントの中の readOnly」は入れてあったが、それは `className` の中の文字列を
+//    想定したもので、**タグ丸ごとをコメントに書く形**を入れていなかった（囮が 1 通りだった）。
+//    自前を作らず**共有へ寄せる**（polish が `8bfccf0` で正規表現リテラルの穴を直したもの）。
+import { stripComments } from "./strip-comments.mjs";
 
 /** 🔴 `readOnly` が効かない要素名（素の `select` と、それを包む部品）。 */
 const SELECTISH = new Set([
@@ -159,6 +167,16 @@ export function findInSource(src, path = "(直接渡された文字列)") {
   return found;
 }
 
+/**
+ * 🚨 **本番と同じ経路**（コメントを落としてから見る）。
+ *
+ * 2026-08-16: 囮は `findInSource` を**直接**呼んでおり、本番は `stripComments` を通していた。
+ * ＝ 🚨 **囮が本番と違う経路を測っていた**。コメントの囮を足した瞬間に、そこが露見した
+ * （囮 3 本が「拾ってしまう」と出たが、**本番では拾わない**）。
+ * → **囮も実物も、この 1 本を通す。**
+ */
+const scan = (src, path) => findInSource(stripComments(src), path);
+
 // ───────────────────────── 自己検査（囮。**本物の関数をそのまま呼ぶ**） ─────────────────────────
 
 const 囮 = [
@@ -184,13 +202,19 @@ const 囮 = [
     0,
   ],
   ['🚫 拾わない  readOnly が値の中にある', '<input type="checkbox" aria-label={t("readOnly")} />', 0],
+  // 🚨 2026-08-16 に**実際に拾ってしまった形**（この検査を作った当日に見つけた）。
+  //    囮は「コメントの中の readOnly」を 1 通りしか持っておらず、
+  //    **タグ丸ごとをコメントに書く**形は入っていなかった。
+  ['🚫 拾わない  🚨 タグ丸ごとが // コメントの中', '// <input type="checkbox" readOnly />', 0],
+  ['🚫 拾わない  🚨 タグ丸ごとが JSX コメントの中', '{/* <select readOnly={x} /> */}', 0],
+  ['🚫 拾わない  🚨 タグ丸ごとがブロックコメントの中', '/* <input type="radio" readOnly /> */', 0],
   ['🚫 拾わない  select だが readOnly が無い', '<select disabled={!editing}><option /></select>', 0],
 ];
 
 console.log("■ 自己検査（囮を本物の関数へ通す）");
 let 自己NG = 0;
 for (const [名, src, 期待] of 囮) {
-  const n = findInSource(src).length;
+  const n = scan(src).length;
   const ok = n === 期待;
   if (!ok) 自己NG += 1;
   console.log(`  ${ok ? "✅" : "🔴"} ${名}  → ${n} 件（期待 ${期待}）`);
@@ -210,10 +234,10 @@ const 見逃す = [
   ['🚨 見逃す  条件でタグを変える', 'const T = cond ? "select" : "div"; <T readOnly />'],
 ];
 for (const [名, src] of 見逃す) {
-  const n = findInSource(src).length;
+  const n = scan(src).length;
   console.log(`  ${名}  → ${n} 件  ${名.startsWith("🟢") ? (n ? "（検出器は動いている）" : "🔴 **対照が落ちた＝測れていない**") : ""}`);
 }
-if (findInSource('<input type="checkbox" readOnly />').length === 0) {
+if (scan('<input type="checkbox" readOnly />').length === 0) {
   console.error("\n🔴 対照が落ちました。**以下の結果は読まないでください**。");
   process.exit(1);
 }
@@ -243,7 +267,7 @@ if (files.length === 0 || 文字数 === 0) {
   process.exit(1);
 }
 
-const 違反 = files.flatMap((f) => findInSource(readFileSync(f, "utf8"), f));
+const 違反 = files.flatMap((f) => scan(readFileSync(f, "utf8"), f));
 for (const v of 違反) console.log(`  🔴 ${v.path}:${v.line}  <${v.tag}>  ${v.理由}`);
 
 // 🚨 文言を件数に追随させる。**違反 1 件なのに「異常が無い 0 です」と出ていた**（2026-08-16 の 台 で発見）。

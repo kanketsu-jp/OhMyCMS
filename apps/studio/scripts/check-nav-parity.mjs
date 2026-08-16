@@ -43,6 +43,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
 import { readTracked } from "./lib/tracked-files.mjs";
+// 🚨 **コメントを実装として数えない**（2026-08-16 実測）。
+//    タグの**中**（props の並び）に `{/* zzInsideTag={1} … */}` を書くと、
+//    **prop として数えていた**（実物の props 13 件に混ざった）。
+//    ＝ 🚨 **経緯を書いた人が、身に覚えのない違反で落ちる**。
+//    この家では「なぜ片側だけか」を props の隣に書くので、**普通に起きる**。
+//    🚨 自前を作らず**共有へ寄せる**（polish が `8bfccf0` で正規表現リテラルの穴を直したもの）。
+import { stripComments } from "./strip-comments.mjs";
 
 /** 判定対象の実物。壊すときもこの写しを差し替える。 */
 const LAYOUT_FILE = "app/(admin)/layout.tsx";
@@ -64,6 +71,7 @@ const LAYOUT_FILE = "app/(admin)/layout.tsx";
  */
 function read(file) {
   const src = readTracked(path.join(root, file));
+  // 🚨 落とすのは**読めたときだけ**。`null`（索引に無い）は下で落とす対象なので触らない。
   if (src === null) {
     console.error(
       `🚨 この検査を実行できませんでした（${file} が git の索引に在りません）。\n` +
@@ -72,7 +80,7 @@ function read(file) {
     );
     process.exit(1);
   }
-  return src;
+  return stripComments(src);
 }
 
 // 🚨 片方のコンポーネントにしか無くて正しい prop。
@@ -355,9 +363,17 @@ function countOccurrences(haystack, needle) {
 // 壊し方は3通り。片方向だけだと「たまたま落ちた」が混ざるので、
 // LeftSidebar 側／MobileNav 側の両方向と、spread の3本を試す。
 
-const LEFT_ANCHOR = "<LeftSidebar\n        brand={brand}";
-const MOBILE_ANCHOR =
-  "<MobileNav\n        // SP メニューボタンのバッジ専用。ナビの行き先データではないので PC サイドバーへは渡さない。\n        personalUnreadNotifications={personalUnreadNotifications}";
+// 🚨 **囮の目印に、実物のコメントや prop 名を含めない**（2026-08-16 実測）。
+//    以前の `MOBILE_ANCHOR` は **`//` コメントの 1 行**を含んでいた。
+//    コメントを落とす形（`stripComments`）へ寄せた瞬間、**目印が消えて置換 0 件**になり、
+//    🚨 **「壊せていないのに、壊し方 2 が失敗した」**と出た（＝ 囮が実物に結合していた）。
+//    → **タグ名だけ**を目印にする。**実物の中身が変わっても、囮は動く。**
+//    🚨 **改行まで含める。** `"<LeftSidebar"` だけだと `<LeftSidebarProvider` と
+//    `<LeftSidebarToggle` にも当たり、**置換 3 件・検出 12 件**になった（2026-08-16 実測）。
+//    ＝ **拾えたと、正しいものを拾えたは別**。**囮は 1 対 1 でなければ意味を持たない。**
+//    🚨 一意であることを毎回数える（`countOccurrences`）ので、重複したらその場で分かる。
+const LEFT_ANCHOR = "<LeftSidebar\n";
+const MOBILE_ANCHOR = "<MobileNav\n";
 
 const selfTests = [
   {
