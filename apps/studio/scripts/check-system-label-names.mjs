@@ -181,19 +181,62 @@ for (const d of DICTS) {
   }
 }
 
-let bad = 0;
-for (const key of seeded) {
-  if (!cases.includes(key)) {
-    console.error(`  🚨 [S1] ${key}: ${COMPONENT} に分岐がありません`);
-    console.error(`     → そのままだと **migration に書いた日本語が英語の画面にも出ます**`);
-    bad++;
-  }
-  for (const d of DICTS) {
-    if (!dictOf(d).includes(`system_${key}`)) {
-      console.error(`  🚨 [S2] ${key}: ${d} に system_${key} がありません`);
-      bad++;
+/**
+ * 不足を数える。**本体の判定はここだけ**（囮もここを呼ぶ。写しを書かない）。
+ *
+ * 🚨 2026-08-16 まで、この検査には**囮が 1 つも無かった**
+ *    （🟢 対照: もう 1 本の検査 check-raw-row-exports には 7 箇所ある）。
+ *    S1/S2 は**この検査の本体**なのに、**一度も鳴ることを確かめていなかった**。
+ *    台で測ったら鳴った（分岐を 1 つ消す → S1 / 辞書から 1 鍵消す → S2、どちらも exit 1）が、
+ *    🚨 **「いま鳴る」と「これからも鳴る」は別**なので、毎回その場で確かめる形にした。
+ *    由来: 司令塔「死んだ条件は、動く。構文でも exit でも気づけない」（design の実測）。
+ *
+ * @param dicts [{ name, keys }] … 辞書は**鍵の一覧**で受け取る（パスでなく値。囮から呼べるように）
+ */
+function 不足を数える(seeded, cases, dicts) {
+  const out = [];
+  for (const key of seeded) {
+    if (!cases.includes(key)) out.push({ rule: "S1", key });
+    for (const d of dicts) {
+      if (!d.keys.includes(`system_${key}`)) out.push({ rule: "S2", key, dict: d.name });
     }
   }
+  return out;
+}
+
+// ── 🚨 囮（本物の `不足を数える` を呼ぶ。写しを書かない）──────────
+{
+  const 例 = [
+    ["S1: 部品の分岐が無い", ["zz"], [], [{ name: "x", keys: ["system_zz"] }],
+      (r) => r.length === 1 && r[0].rule === "S1"],
+    ["S2: 辞書に鍵が無い", ["zz"], ["zz"], [{ name: "x", keys: [] }],
+      (r) => r.length === 1 && r[0].rule === "S2"],
+    ["🚨 誤検知しないこと: 両方そろっている", ["zz"], ["zz"], [{ name: "x", keys: ["system_zz"] }],
+      (r) => r.length === 0],
+  ];
+  let ok = true;
+  console.log("■ 自己検査（本体の判定を、その場で壊して確かめる）");
+  for (const [label, sd, cs, dc, want] of 例) {
+    const got = 不足を数える(sd, cs, dc);
+    const 合 = want(got);
+    console.log(`  ${合 ? "✅" : "❌"} ${label} → ${got.length} 件${got.length ? "（" + got.map((g) => g.rule).join(",") + "）" : ""}`);
+    if (!合) ok = false;
+  }
+  if (!ok) {
+    console.error("🚨 [S0] 自己検査が落ちました。**この検査は当てになりません**");
+    process.exit(2);
+  }
+}
+
+let bad = 0;
+for (const 件 of 不足を数える(seeded, cases, DICTS.map((d) => ({ name: d, keys: dictOf(d) })))) {
+  if (件.rule === "S1") {
+    console.error(`  🚨 [S1] ${件.key}: ${COMPONENT} に分岐がありません`);
+    console.error(`     → そのままだと **migration に書いた日本語が英語の画面にも出ます**`);
+  } else {
+    console.error(`  🚨 [S2] ${件.key}: ${件.dict} に system_${件.key} がありません`);
+  }
+  bad++;
 }
 if (bad > 0) {
   console.error(`\n🚨 不足 ${bad} 件`);
