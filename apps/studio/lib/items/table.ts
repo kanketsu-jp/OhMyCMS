@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
 import { db } from "@/lib/db/knex";
-import { DELETED_AT_COLUMN } from "@/lib/schema/service";
+import { DELETED_AT_COLUMN, INTERNAL_COLUMNS } from "@/lib/schema/service";
 
 // 利用者の表を開く**入口**（設問288 A）。
 // 🚨 **`lib/items/` の中から利用者の表を開くときは、必ずここを通す。**
@@ -60,17 +60,28 @@ export async function ensureDeletedAtColumn(
     //    それをやると **判定の道が 2 本**になり（`meta.hidden` と 名前）、
     //    次に内部列を足す人がどちらに従うか分からなくなる。
     //    **印は `hidden` 1 本**に揃える——`body_rich_plain` が既にそうしている。
-    await conn("directus_fields")
-      .insert({
-        collection,
-        field: DELETED_AT_COLUMN,
-        interface: "datetime",
-        hidden: true,
-        readonly: true,
-        note: "削除した日時（自動）。ゴミ箱から戻すときに使います",
-      })
-      .onConflict(["collection", "field"])
-      .ignore();
+    // 🚨 **正本（`INTERNAL_COLUMNS`）を回す。列名を直に書かない**（toast の指摘・2026-08-16）。
+    //    以前はここに `DELETED_AT_COLUMN` と書いていた。**集合が 1 個のうちは同じ結果**だが、
+    //    2 個目を足した日に **断る側は自動で断り、登録側は登録しない**——
+    //    ＝ **hidden も readonly も付かない列が画面に出る**。**増えた瞬間に穴が空く形**だった。
+    // 🚨 実際に在る列だけ登録する（集合に在っても、その表に列が無いことはある）。
+    const 実在 = await conn("information_schema.columns")
+      .where({ table_schema: "public", table_name: collection })
+      .whereIn("column_name", [...INTERNAL_COLUMNS])
+      .pluck<string[]>("column_name");
+    if (実在.length > 0) {
+      await conn("directus_fields")
+        .insert(実在.map((field) => ({
+          collection,
+          field,
+          interface: "datetime",
+          hidden: true,
+          readonly: true,
+          note: "この CMS が自動で足した項目です。消すとゴミ箱からの復元が動かなくなります",
+        })))
+        .onConflict(["collection", "field"])
+        .ignore();
+    }
     確認済み.add(collection);
     列が在る.add(collection);
   } catch (error) {

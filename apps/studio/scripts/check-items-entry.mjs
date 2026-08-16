@@ -114,13 +114,17 @@ console.log(`根拠: itemsTable の定義 ${入口の定義} 件（＝読めて�
 //    だから正本は `lib/schema/service.ts` の `INTERNAL_COLUMNS`（コード側）に置く。
 //    🚨 **登録する側（table.ts）と断る側（items/service.ts）が、そこを両方読む**——
 //    片方だけ直す事故が構造的に起きないように、**両方が読んでいること**を毎回見る。
-const 正本 = readFileSync(join(ITEMS, "../schema/service.ts"), "utf8");
-const 断る側 = readFileSync(join(ITEMS, "service.ts"), "utf8");
-const 登録側 = readFileSync(join(ITEMS, "table.ts"), "utf8");
+// 🚨 **索引から読む**（`readSrcOrEmpty`）。ここだけ `readFileSync` にしていたので、
+//    **同じ検査の中に読む口が 2 つ**在り、この 4 点だけ**他人の書きかけ**を見ていた（toast 指摘）。
+const 正本 = readSrcOrEmpty(join(ITEMS, "../schema/service.ts"), "utf8");
+const 断る側 = readSrcOrEmpty(join(ITEMS, "service.ts"), "utf8");
+const 登録側 = readSrcOrEmpty(join(ITEMS, "table.ts"), "utf8");
 const 不足 = [];
 if (!/export const INTERNAL_COLUMNS/.test(正本)) 不足.push("lib/schema/service.ts に INTERNAL_COLUMNS の定義が無い");
 if (!/INTERNAL_COLUMNS\.has\(/.test(断る側)) 不足.push("lib/items/service.ts が INTERNAL_COLUMNS を見ていない（書き込みを断る側）");
-if (!/DELETED_AT_COLUMN/.test(登録側)) 不足.push("lib/items/table.ts が DELETED_AT_COLUMN を見ていない（登録する側）");
+// 🚨 **集合そのものを読んでいること**を見る（`DELETED_AT_COLUMN` が在るかでは足りない）。
+//    定数 1 本だけを見ていると、**集合に 2 個目を足した日に、登録側だけ取り残される**。
+if (!/INTERNAL_COLUMNS/.test(登録側)) 不足.push("lib/items/table.ts が INTERNAL_COLUMNS を見ていない（登録する側）");
 if (!/INTERNAL_COLUMNS[^=]*=\s*new Set\(\[DELETED_AT_COLUMN/.test(正本)) 不足.push("INTERNAL_COLUMNS が DELETED_AT_COLUMN を含んでいない");
 if (不足.length > 0) {
   console.error(`✖ 内部列の正本が繋がっていません（${不足.length} 件）`);
