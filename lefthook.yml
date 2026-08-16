@@ -399,6 +399,21 @@ pre-commit:
     #      （別部品に `useShortcut(SHORTCUTS.toggleRightSidebar, …)` を足す／layout から
     #        global-search の行を消す）が、**「狭いらしい」までしか言えない。「狭い」とは言えない**。
     #   → **CI の `bun x lefthook run pre-commit --all-files` を最後の網として残す**（⑥⑧で確認済み）。
+    # 🚨 検査が「違反を集めたのに、誰も読んでいない」形になっていないか。
+    # 由来: 2026-08-16。`check-surface-nesting` は違反を `hits` へ集めていたが、
+    #   **`hits` を読む場所がどこにも無かった**（push の 1 箇所だけ）。
+    #   ＝ 面の入れ子を書いても落ちない。**緑だったが、守っていなかった。**
+    #   囮を 5 通り試しても分からず、分かれ目は「**実在の許容行から許容規則を外す**」という
+    #   **囮でない実験**だった（＝ 同じ種類の実験を繰り返しても分けられない）。
+    # 🚨 **いま 0 件。止めるためではなく、次に検査を足す人の手元で落とすために載せる**
+    #   （違反が出てから載せると、載せる作業と直す作業が同時に来る）。
+    # 🚨 glob を `scripts/*.mjs` に絞ってあるので、**検査を書く人しか当たらない**（toast の提案）。
+    #   毎回 2 つの対照を出す: 固定の見本 ＋ **`bd62c51^`（実在の事故）から `hits` を見つける**。
+    #   見ていない範囲は検査の冒頭に書いてある（配列以外は見ない／`exit(1)` の有無では見ない 等）。
+    collected-but-unread:
+      glob: "apps/studio/scripts/*.mjs"
+      run: cd apps/studio && node scripts/check-collected-but-unread.mjs
+
     shortcuts-manifest:
       glob:
         - "apps/studio/components/admin/shortcuts.ts"          # 鍵と項目の元
