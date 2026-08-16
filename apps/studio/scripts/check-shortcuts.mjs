@@ -56,7 +56,15 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { trackedGlob } from "./lib/tracked-files.mjs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
+// 🚨 **中身も索引から読む**（一覧を `trackedGlob` にしただけでは足りない・2026-08-16）。
+//    一覧だけ索引にすると「未追跡ファイル」の扉は閉まるが、
+//    🚨 **追跡済みファイルの「まだ add していない編集」はそのまま読む**ので、
+//    **他ペインの書きかけで、触っていない人のコミットが止まる**（toast が実測して見つけた）。
+//    未追跡は `null` → 空にせず**飛ばす**か、呼ぶ側で 0 の顔を書くこと。
+/** 索引から読む。未追跡は空（一覧は `trackedGlob` で絞ってあるので、通常は起きない）。 */
+const readIndexed = (f, _enc) => readTracked(f) ?? "";
+
 import {
   normalize,
   normalizeTiptapKey,
@@ -122,7 +130,7 @@ function collectAppOverrides(studioRoot) {
   const files = trackedGlob("{app,components}/**/*.{ts,tsx}", { cwd: studioRoot }).sort();
   const map = new Map(); // normalized -> [{ raw, file }]
   for (const file of files) {
-    const text = readFileSync(join(studioRoot, file), "utf8");
+    const text = readIndexed(join(studioRoot, file), "utf8");
     for (const body of extractFunctionBodies(text, "addKeyboardShortcuts")) {
       for (const b of extractModBindings(body)) {
         if (b.dynamic) continue; // 動的な値は比較対象外（Tiptap側の抽出と同じ扱い）
@@ -271,7 +279,7 @@ function checkEvasionPatterns() {
   return results;
 }
 
-const source = readFileSync(resolve(root, SOURCE), "utf8");
+const source = readIndexed(resolve(root, SOURCE), "utf8");
 const entries = parseShortcuts(source);
 
 assertTiptapExceptionsAreDesignDecisions();

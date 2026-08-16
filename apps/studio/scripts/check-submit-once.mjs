@@ -49,7 +49,15 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { trackedGlob } from "./lib/tracked-files.mjs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
+// 🚨 **中身も索引から読む**（一覧を `trackedGlob` にしただけでは足りない・2026-08-16）。
+//    一覧だけ索引にすると「未追跡ファイル」の扉は閉まるが、
+//    🚨 **追跡済みファイルの「まだ add していない編集」はそのまま読む**ので、
+//    **他ペインの書きかけで、触っていない人のコミットが止まる**（toast が実測して見つけた）。
+//    未追跡は `null` → 空にせず**飛ばす**か、呼ぶ側で 0 の顔を書くこと。
+/** 索引から読む。未追跡は空（一覧は `trackedGlob` で絞ってあるので、通常は起きない）。 */
+const readIndexed = (f, _enc) => readTracked(f) ?? "";
+
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -490,7 +498,7 @@ let scannedWithHits = 0;
 let bytesRead = 0;
 
 for (const file of files) {
-  const source = readFileSync(resolve(root, file), "utf8");
+  const source = readIndexed(resolve(root, file), "utf8");
   bytesRead += source.length;
   if (findMutationLines(source).length > 0) scannedWithHits += 1;
   for (const m of source.matchAll(/<form[^>]{0,300}?action=\{([^}]{1,80})\}/g)) {

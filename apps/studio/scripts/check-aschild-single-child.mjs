@@ -27,14 +27,22 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { trackedGlob } from "./lib/tracked-files.mjs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
+// 🚨 **中身も索引から読む**（一覧を `trackedGlob` にしただけでは足りない・2026-08-16）。
+//    一覧だけ索引にすると「未追跡ファイル」の扉は閉まるが、
+//    🚨 **追跡済みファイルの「まだ add していない編集」はそのまま読む**ので、
+//    **他ペインの書きかけで、触っていない人のコミットが止まる**（toast が実測して見つけた）。
+//    未追跡は `null` → 空にせず**飛ばす**か、呼ぶ側で 0 の顔を書くこと。
+/** 索引から読む。未追跡は空（一覧は `trackedGlob` で絞ってあるので、通常は起きない）。 */
+const readIndexed = (f, _enc) => readTracked(f) ?? "";
+
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bad = [];
 let checked = 0;
 
 for (const file of trackedGlob("{app,components}/**/*.tsx", { cwd: root })) {
-  const src = readFileSync(resolve(root, file), "utf8");
+  const src = readIndexed(resolve(root, file), "utf8");
   // `asChild` を含む開始タグを探し、その要素の中身を粗く取り出す
   const re = /<([A-Z][\w.]*)\b([^>]*\basChild\b[^>]*)>/g;
   let m;

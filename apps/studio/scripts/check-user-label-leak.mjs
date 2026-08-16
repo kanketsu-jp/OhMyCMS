@@ -52,7 +52,15 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { globSync } from "node:fs";
-import { trackedGlob } from "./lib/tracked-files.mjs";
+import { readTracked, trackedGlob } from "./lib/tracked-files.mjs";
+// 🚨 **中身も索引から読む**（一覧を `trackedGlob` にしただけでは足りない・2026-08-16）。
+//    一覧だけ索引にすると「未追跡ファイル」の扉は閉まるが、
+//    🚨 **追跡済みファイルの「まだ add していない編集」はそのまま読む**ので、
+//    **他ペインの書きかけで、触っていない人のコミットが止まる**（toast が実測して見つけた）。
+//    未追跡は `null` → 空にせず**飛ばす**か、呼ぶ側で 0 の顔を書くこと。
+/** 索引から読む。未追跡は空（一覧は `trackedGlob` で絞ってあるので、通常は起きない）。 */
+const readIndexed = (f, _enc) => readTracked(f) ?? "";
+
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -129,7 +137,7 @@ const AVG_CHARS_BASELINE = { at: "2026-08-16", avg: 3522 };
 const AVG_CHARS_MIN_THRESHOLD = Math.floor(AVG_CHARS_BASELINE.avg * 0.5); // 1761
 
 function read(file) {
-  return readFileSync(resolve(root, file), "utf8");
+  return readIndexed(resolve(root, file), "utf8");
 }
 
 /**
@@ -1236,7 +1244,7 @@ if (violations.length > 0) {
   const sourceOf = (file, line) => {
     if (!line || line < 1) return "（行番号なし。ファイル全体に対する指摘）";
     try {
-      const text = readFileSync(resolve(root, file), "utf8").split("\n")[line - 1];
+      const text = readIndexed(resolve(root, file), "utf8").split("\n")[line - 1];
       return text === undefined ? "🚨 その行が読めなかった" : text.trim();
     } catch {
       return "🚨 ファイルが読めなかった";
