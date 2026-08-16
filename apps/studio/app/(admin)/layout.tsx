@@ -26,7 +26,8 @@ import { isOnboardingCompleted } from "@/lib/settings/service";
 const navItems: { href: string; labelKey: string }[] = [];
 
 const bottomNavItems = [
-  { href: "/admin/notifications", labelKey: "notifications" },
+  { href: "/admin/notifications", labelKey: "nav.notifications" },
+  { href: "/admin/trash", labelKey: "trash.title" },
 ];
 
 // 「ファイルはアコーディオンにする。その中に「ストレージ」「ラベル」」（堀池・2026-08-15）
@@ -66,6 +67,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const t = await getT("nav");
+  const tKey = await getT();
   const tCommon = await getT("common");
   const brand = await projectName(tCommon("app_name"));
   const logo = await projectLogo();
@@ -194,7 +196,7 @@ export default async function AdminLayout({
         brand={brand}
         logo={logo}
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
-        bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+        bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: tKey(item.labelKey) }))}
         groups={navGroups}
         collections={
           collections?.ok
@@ -277,7 +279,7 @@ export default async function AdminLayout({
         personalUnreadNotifications={personalUnreadNotifications}
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
         groups={navGroups}
-        bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
+        bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: tKey(item.labelKey) }))}
         reports={reportsNav}
         collections={
           collections?.ok

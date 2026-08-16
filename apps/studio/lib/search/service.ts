@@ -112,6 +112,7 @@ const PAGE_ENTRIES: StaticEntry[] = [
   { labelKey: "page_reports", href: "/admin/reports" },
   { labelKey: "page_settings_general", href: "/admin/settings/general" },
   { labelKey: "page_settings_storage", href: "/admin/settings/storage" },
+  { labelKey: "page_trash", href: "/admin/trash" },
   { labelKey: "page_settings_sso", href: "/admin/settings/sso" },
   { labelKey: "page_settings_roles", href: "/admin/settings/roles" },
   { labelKey: "page_settings_policies", href: "/admin/settings/policies" },

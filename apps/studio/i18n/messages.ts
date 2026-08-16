@@ -42,6 +42,7 @@ import enSearch from "./messages/en/search.json";
 import enSettings from "./messages/en/settings.json";
 import enSso from "./messages/en/sso.json";
 import enStorage from "./messages/en/storage.json";
+import enTrash from "./messages/en/trash.json";
 import enUsers from "./messages/en/users.json";
 import enVersion from "./messages/en/version.json";
 
@@ -71,6 +72,7 @@ import jaSearch from "./messages/ja/search.json";
 import jaSettings from "./messages/ja/settings.json";
 import jaSso from "./messages/ja/sso.json";
 import jaStorage from "./messages/ja/storage.json";
+import jaTrash from "./messages/ja/trash.json";
 import jaUsers from "./messages/ja/users.json";
 import jaVersion from "./messages/ja/version.json";
 
@@ -102,6 +104,7 @@ export const NAMESPACES = [
   "settings",
   "sso",
   "storage",
+  "trash",
   "users",
   "version",
 ] as const;
@@ -134,6 +137,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     settings: jaSettings,
     sso: jaSso,
     storage: jaStorage,
+    trash: jaTrash,
     users: jaUsers,
     version: jaVersion,
   },
@@ -164,6 +168,7 @@ export const DICTIONARIES: Record<Locale, Messages> = {
     settings: enSettings,
     sso: enSso,
     storage: enStorage,
+    trash: enTrash,
     users: enUsers,
     version: enVersion,
   },

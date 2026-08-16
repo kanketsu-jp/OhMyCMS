@@ -163,6 +163,7 @@ const DEFAULT_PATHS = [
   "/admin/reports/manage",
   "/admin/settings/mcp",
   "/admin/settings/storage",
+  "/admin/trash",
   "/admin/notifications",
   "/admin/settings/general",
   "/admin/settings/policies",
