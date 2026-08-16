@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
+import { fieldLabel } from "@/lib/schema/labels";
 
 /**
  * 右サイドバー ③「表示・切り替え」の中身。
@@ -68,6 +69,7 @@ function fieldNames(fields: readonly FieldResult[]): string[] {
 }
 
 export function PanelDisplay() {
+  const locale = useLocale();
   const t = useT("panel");
   const pathname = usePathname();
   const collection = collectionFromPathname(pathname);
@@ -91,6 +93,7 @@ function PanelDisplayControls({
   collection: string;
   pathname: string;
 }) {
+  const locale = useLocale();
   const t = useT("panel");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -207,7 +210,8 @@ function PanelDisplayControls({
                       }}
                       className="size-4 shrink-0"
                     />
-                    <span className="min-w-0 truncate">{field.field}</span>
+                    {/* 🚨 見出しと同じ辞書を通す（一覧と列選択で名前が食い違わないように）。 */}
+                    <span className="min-w-0 truncate">{fieldLabel(field, locale)}</span>
                   </label>
                 );
               })}

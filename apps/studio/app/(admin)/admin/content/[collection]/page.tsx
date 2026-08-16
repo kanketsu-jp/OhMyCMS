@@ -8,7 +8,8 @@ import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { errorKeyFromQuery } from "@/i18n/error";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
+import { fieldLabel } from "@/lib/schema/labels";
 import { DEFAULT_COLUMN_COUNT, DEFAULT_LIST_LIMIT, resolveColumns, resolveLimit } from "@/lib/admin/list-view";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
@@ -65,6 +66,7 @@ function pageHref(
 }
 
 export default async function ContentPage({ params, searchParams }: Props) {
+  const locale = await getLocale();
   const t = await getT("items");
   const tFields = await getT("fields");
   const { collection } = await params;
@@ -155,8 +157,11 @@ export default async function ContentPage({ params, searchParams }: Props) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {/* 🚨 欄名は辞書を通す（設問286 A）。辞書が無ければ fieldLabel が
+                        生の識別子に落ちるので、名前を付けるまで表示は変わらない。
+                        各所で `?? field.field` と書くと必ず割れるので、必ずこの関数を通す。 */}
                     {columns.map((field) => (
-                      <TableHead key={field.field}>{field.field}</TableHead>
+                      <TableHead key={field.field}>{fieldLabel(field, locale)}</TableHead>
                     ))}
                     <TableHead className="w-44">{t("actions_header")}</TableHead>
                   </TableRow>
