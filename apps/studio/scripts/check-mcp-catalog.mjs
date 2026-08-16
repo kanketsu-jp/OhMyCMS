@@ -311,10 +311,17 @@ if (!WRITE) {
     //    0 件を要求すると、**本物の違反が 1 つ在るだけで囮のほうが落ち**、
     //    「自己検査に失敗」が本当の違反を覆い隠す（2026-08-16 実測）。
     //    ＝ 赤くなったことと、狙ったものを捕まえたことは別。
+    // 🚨 過検出の囮には **5 つ目**を付ける＝「**判定に届いたことの対照**」。
+    //    「拾わない」は **①届いて正しく無視した** とも **②そもそも届いていない** とも読める
+    //    （司令塔 2026-08-16。「違反なし」の意味が 2 通りある）。
+    //    対照は **コメントの印だけを外した同じ文字列**。これが拾われれば、
+    //    **本文は判定まで届いており、黙ったのはコメントだからだ**と言える。
     ["囮4: コメントに書いた使用例（拾ってはいけない）", source,
-      serverText + '\n// server.registerTool("ohmycms_zz_incomment", …) と書く\n', "ohmycms_zz_incomment"],
+      serverText + '\n// server.registerTool("ohmycms_zz_incomment", …) と書く\n', "ohmycms_zz_incomment",
+      serverText + '\nserver.registerTool("ohmycms_zz_incomment", {});\n'],
     ["囮5: JSDoc の使用例（拾ってはいけない）", source,
-      serverText + '\n/**\n * 例: server.registerTool("ohmycms_zz_injsdoc", {})\n */\n', "ohmycms_zz_injsdoc"],
+      serverText + '\n/**\n * 例: server.registerTool("ohmycms_zz_injsdoc", {})\n */\n', "ohmycms_zz_injsdoc",
+      serverText + '\nserver.registerTool("ohmycms_zz_injsdoc", {});\n'],
     // 🚨 **名前に数字が入る形**。2026-08-16 まで抽出が `[a-z_]` だったため、
     //    目録側と登録側の**両方から同時に消えて釣り合い、違反 0 件で緑**になっていた。
     //    ＝ 片側だけを見る囮では捕まらない（**両方を別々に囮にする**）。
@@ -374,14 +381,22 @@ if (!WRITE) {
   console.log("■ 自己検査（囮を仕込んで、検出できることをその場で確かめる）");
   // 🚨 ここから下の囮は **findViolations に文字列を直接渡している**＝入口を飛ばしている。
   //    入口は上の「入口の囮」で別に測る（迂回していることを、迂回している行に書く）。
-  for (const [name, src, srv, wantRule] of probes) {
+  for (const [name, src, srv, wantRule, reachSrv] of probes) {
     // `ohmycms_` で始まる wantRule は「**その名前が出ないこと**」が期待（過検出の囮）。
     if (wantRule.startsWith("ohmycms_")) {
       const violations = findViolations(src, srv).violations;
       const leaked = violations.filter((v) => v.detail.includes(wantRule));
       const quiet = leaked.length === 0;
-      console.log(`  ${quiet ? "✅" : "🚨"} ${name}  → ${quiet ? "拾わない（過検出なし）" : `**拾ってしまう**: ${leaked.map((v) => v.detail).join(" / ")}`}`);
-      if (quiet) alive++;
+      // 🚨 **届いたことを確かめる。** 印だけ外した同じ文字列が拾われなければ、
+      //    「拾わない」は**届いていないだけ**かもしれない。
+      const reached = findViolations(src, reachSrv).violations.some((v) => v.detail.includes(wantRule));
+      const ok = quiet && reached;
+      console.log(
+        `  ${ok ? "✅" : "🚨"} ${name}  → ` +
+          (quiet ? "拾わない（過検出なし）" : `**拾ってしまう**: ${leaked.map((v) => v.detail).join(" / ")}`) +
+          ` ／ 判定に届いた: ${reached ? "✅" : "🚨 **届いていない（この囮は何も言っていません）**"}`,
+      );
+      if (ok) alive++;
       continue;
     }
     const hit = findViolations(src, srv).violations.some((v) => v.rule === wantRule);
