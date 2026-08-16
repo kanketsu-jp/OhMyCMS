@@ -16,6 +16,9 @@
  * → 規則 F（object literal の `userLabel:`）/ G（UserMenu 呼び出し側から見えるか）/
  *   H（素通し識別子の同ファイル内解決）を足した。
  *
+ * 🚨 **この検査は違反 0 件が正常値。** 壊れたときも「0 件・問題なし」と同じ顔になるため、
+ *    読めた量（走査本数・文字数・平均）を必ず併記する。**0 件だけを見ないこと。**
+ *
  * 🚨 **この検査は、自分が本当に検出できることを毎回その場で証明する。**
  *    緑になっただけでは「異常が無い」のか「見ていない」のか区別が付かないため、
  *    実物を複数通りに壊して**両方で赤くなること**を確かめてから、本番の判定を出す。
@@ -94,6 +97,35 @@ const SCANNED_MIN_THRESHOLD = Math.floor(SCANNED_BASELINE.count * 0.7); // 149
  * 🚨 しきい値は**基準線の 130%**（減少側 70% と対称に取った）: `Math.ceil(214 * 1.3)` = 279。
  */
 const SCANNED_STALE_THRESHOLD = Math.ceil(SCANNED_BASELINE.count * 1.3); // 279
+
+/**
+ * 「読めた文字数」の**1 ファイルあたりの平均**の基準線。**実測値と実測日を書く**。
+ *
+ * 🚨 由来: 2026-08-16。「読めた文字数が 0 でなければ良い」という既存の門（下の
+ * `totalChars === 0` チェック）は、**合計** 753816 文字が 1000 文字に痩せても通ってしまう
+ * （走査 214 本・違反 0 件のまま。0 は塞げても「ほとんど読めていない」は塞げない）。
+ *
+ * 🚨 **合計文字数ではなく平均で持つ**: 合計は repo が育つと増え続けるので、絶対値の下限は
+ * 毎年腐って鳴らなくなる／逆に痩せた合計でも大きい repo では下限を超えたままになりうる
+ * （polish の指摘「絶対値は育つ。比率は育たない」を、この検査の文字数版に当てた）。
+ * **平均（読めた文字数 ÷ 走査本数）は、ファイルの増減があっても 1 ファイルあたりの
+ * 中身の濃さは大きく変わらない**ので、repo が育っても目減りしない。
+ *
+ * `node scripts/check-user-label-leak.mjs` を実行し、「■ 判定」の「平均」を
+ * 読んで更新すること（このファイルの実測で 753816 / 214 = 3522.50…→ 3522 を確認済み）。
+ */
+const AVG_CHARS_BASELINE = { at: "2026-08-16", avg: 3522 };
+
+/**
+ * 平均文字数（読めた文字数 ÷ 走査本数）がこれを下回ったら、基準線からの減少として落とす
+ * （既存の「読めた文字数が0なら落とす」門とは別物。こちらは「0 ではないが、
+ * ほとんど読めていない」を狙う）。
+ * 🚨 しきい値は**基準線の 50%**: `Math.floor(3522 * 0.5)` = 1761。
+ * しきい値が緩いのは、ファイルの入れ替わり（大きいファイルの削除・小さいファイルの追加等）
+ * だけで平均は普通に上下するから。ここが鳴るのは「読み込みが実質壊れている」ような、
+ * 通常のリファクタでは起こらない大きな落ち込みに限る。
+ */
+const AVG_CHARS_MIN_THRESHOLD = Math.floor(AVG_CHARS_BASELINE.avg * 0.5); // 1761
 
 function read(file) {
   return readFileSync(resolve(root, file), "utf8");
@@ -1073,8 +1105,12 @@ console.log(`\n■ 判定`);
 const candidateFiles = Object.keys(original).length;
 // scannedFiles: 上記のうち GUARD_FILE を除いて実際に規則 A/B/F を当てた本数（findViolations の実測値）
 // totalChars: 上記の候補ファイル（GUARD_FILE 込み）から実際に読めた文字数の合計（loadSources の実測値）
+// avgChars: totalChars ÷ scannedFiles（1 ファイルあたりの平均。AVG_CHARS_BASELINE のJSDoc参照）。
+//   scannedFiles は上の globFileCount/REQUIRED_FILES/totalChars の各門を通過済みなので、
+//   ここに来た時点で 0 になることは無い（念のため 0 除算だけ避ける）。
+const avgChars = scannedFiles > 0 ? Math.floor(totalChars / scannedFiles) : 0;
 console.log(
-  `  対象: 候補 ${candidateFiles} 本（app/**, components/** ＋ ${GUARD_FILE}）/ 走査 ${scannedFiles} 本（読めた文字数 ${totalChars}）`,
+  `  対象: 候補 ${candidateFiles} 本（app/**, components/** ＋ ${GUARD_FILE}）/ 走査 ${scannedFiles} 本（読めた文字数 ${totalChars}・平均 ${avgChars} / 下限 ${AVG_CHARS_MIN_THRESHOLD}）`,
 );
 console.log(`        （${GUARD_FILE} は規則 A/B/F/G の対象外。規則 C/D/E で別に見る）`);
 console.log(`  違反: ${violations.length} 件`);
@@ -1094,6 +1130,19 @@ if (scannedFiles < SCANNED_MIN_THRESHOLD) {
   console.log(
     `\nℹ️ 走査が基準線から大きく増えています（基準線 ${SCANNED_BASELINE.count} 本・${SCANNED_BASELINE.at} 実測 / いま ${scannedFiles} 本）。SCANNED_BASELINE の更新を検討してください（落としてはいません）。`,
   );
+}
+
+// 🚨 平均文字数の基準線チェック（既存の「読めた文字数が0なら落とす」門とは別物。0ではないが、
+//    ほとんど読めていない場合を狙う。AVG_CHARS_BASELINE のJSDoc参照）。
+let avgCharsFailed = false;
+if (avgChars < AVG_CHARS_MIN_THRESHOLD) {
+  avgCharsFailed = true;
+  console.error(
+    `\n🚨 読めた量が基準線から大きく減っています（平均 ${avgChars} 文字 / 下限 ${AVG_CHARS_MIN_THRESHOLD}・${AVG_CHARS_BASELINE.at} 実測 ${AVG_CHARS_BASELINE.avg}）。`,
+  );
+  console.error("   🚨 「違反 0 件」より先に、読み込みか走査の範囲が壊れていることを疑ってください。");
+  console.error("     ① ファイルの中身が実際に小さくなった → AVG_CHARS_BASELINE を更新してください");
+  console.error("     ② 読み込みが壊れた（一部しか読めていない）→ 直すまでこの検査の結果は意味を持ちません");
 }
 
 if (violations.length > 0 && (selfTestFailed || greenTestFailed)) {
@@ -1138,7 +1187,16 @@ if (greenTestFailed) {
 if (scannedBaselineFailed) {
   console.error("\n🚨 走査数が基準線を大きく下回った。**この検査の結果は信用できない**（緑でも意味を持たない）。");
 }
+if (avgCharsFailed) {
+  console.error("\n🚨 平均文字数が基準線を大きく下回った。**この検査の結果は信用できない**（緑でも意味を持たない）。");
+}
 
 process.exit(
-  violations.length === 0 && !selfTestFailed && !greenTestFailed && !scannedBaselineFailed ? 0 : 1,
+  violations.length === 0 &&
+    !selfTestFailed &&
+    !greenTestFailed &&
+    !scannedBaselineFailed &&
+    !avgCharsFailed
+    ? 0
+    : 1,
 );
