@@ -16,6 +16,7 @@ import { projectName } from "@/lib/settings/project-name";
 import { SETUP_COOKIE, parseCookies } from "@/lib/auth/cookies";
 import { isValidSetupSession } from "@/lib/auth/setup-session";
 import { isOnboardingCompleted } from "@/lib/settings/service";
+import { NotAllowedScreen } from "./not-allowed";
 
 // 🚨 上位と「設定」を分ける（design ⑥）。平らに 12 行並べると、同じ接頭辞の settings_* が
 // 7回続いて**上位5項目が埋もれる**。開閉に畳んで 12行 → 6行にする。
@@ -92,12 +93,26 @@ export default async function AdminLayout({
   if (!skipOnboardingGate && (await isOnboardingCompleted()) === false) {
     redirect("/onboarding");
   }
-
   // 🚨 サイドバーは名前しか描かない。全列のスキーマを引くと、
   // 管理画面のどのページを開いても information_schema の全走査が走る（?names=true で避ける）。
   const collections = me.ok
     ? await apiFetch<{ collection: string }[]>("/api/collections?names=true")
     : null;
+  // 🚨 **「管理画面に入れない」だけを拾う。403 で一括りにしない。**
+  //    【実測 2026-08-16】未許可の利用者は `/api/auth/me` が **200** を返す（`me` では分からない）。
+  //    分かるのは `/api/collections?names=true` の **403 `ADMIN_ACCESS_REQUIRED`**。
+  //    🚨 `status === 403` だけで見ると、**コレクションの read 権限が無いだけの人**まで
+  //    この画面へ送ってしまう（**その人は管理画面を使えるのに、締め出される**）。
+  //    → `code` で絞る（`apiFetch` は `code` を返す。`lib/admin/api.ts:14`）。
+  const notAllowed =
+    (!me.ok && me.status === 403 && me.code === "ADMIN_ACCESS_REQUIRED") ||
+    (collections != null &&
+      !collections.ok &&
+      collections.status === 403 &&
+      collections.code === "ADMIN_ACCESS_REQUIRED");
+  if (notAllowed) {
+    return <NotAllowedScreen brand={brand} logo={logo} />;
+  }
 
   // 🚨 **この取得が失敗したときの文言は、利用者が「コンテンツ」を開くまで見えません。**
   //    実測（2026-08-16・/admin/files・PC 1280・権限の無い利用者）:
