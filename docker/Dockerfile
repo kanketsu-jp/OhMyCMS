@@ -144,6 +144,46 @@ ENV DATABASE_URL=postgres://build:build@127.0.0.1:5432/build
 #    実体を apps/studio/node_modules 直下へ置いて、リンクを辿らせない。
 COPY --from=sharpdeps /sharp/node_modules/sharp ./apps/studio/node_modules/sharp
 COPY --from=sharpdeps /sharp/node_modules/@img ./apps/studio/node_modules/@img
+
+# 🚨 **amd64 のときだけ、bun を「非 baseline」の実体へ入れ替えてから build する。**
+#
+# 由来（2026-08-16・CI run 31927217233）: この `bun run build` が
+#   `panic: Segmentation fault` → `SIGILL` → `exit code: 132` で落ち、イメージが焼けなかった。
+#   🚨 **同じ run の native ジョブは、同じ v1.3.14 (0d9b296a) で build に成功している。**
+#   差はバイナリの build variant だった。**sha256 で突き合わせた実測**:
+#     公式 bun-linux-x64.zip（非 baseline） … 9fd36f87e4b90b07 / 92,752,752
+#     公式 bun-linux-x64-baseline.zip        … a8f9ebd1770ddc8e / 91,802,480
+#     🚨 `oven/bun:1-slim` / `:1` / `:1-debian` の amd64 … **すべて baseline と完全一致**
+#   ＝ **公式イメージの glibc 系は baseline を積んでいる。** 非 baseline のタグは無い。
+#
+# 🚨 **これは「baseline だから crash した」の証明ではない**（相関であって因果ではない）。
+#    直せるかどうかは CI で分かる。緑になれば baseline が効いていた強い証拠、
+#    赤のままなら baseline は原因ではなかった、と**どちらでも分かる**形にしてある。
+# 🚨 版は**イメージが積んでいる bun に合わせて取る**（固定で書くと、イメージ更新で食い違う）。
+# 🚨 arm64 には baseline という区分が無いので、**何もしない**（`TARGETARCH` で分岐）。
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+      set -eu; \
+      v="$(bun --version)"; \
+      before="$(sha256sum /usr/local/bin/bun | cut -d' ' -f1)"; \
+      export DEBIAN_FRONTEND=noninteractive; \
+      apt-get -qq update >/dev/null; \
+      # 🚨 ca-certificates を入れないと curl が `error setting certificate file` で落ちる
+      #    （slim には入っていない。**実測で見つけた**。2026-08-16）
+      apt-get -qq install -y --no-install-recommends ca-certificates curl unzip >/dev/null; \
+      curl -fsSL -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${v}/bun-linux-x64.zip"; \
+      unzip -qo /tmp/bun.zip -d /tmp/bunx64; \
+      install -m 0755 "$(find /tmp/bunx64 -type f -name bun | head -1)" /usr/local/bin/bun; \
+      after="$(sha256sum /usr/local/bin/bun | cut -d' ' -f1)"; \
+      echo "bun を入れ替えた: ${before} -> ${after}（v${v} / 非 baseline）"; \
+      # 🚨 入れ替わっていなければここで落とす。「走ったのに何も変わっていない」を作らない。
+      [ "$before" != "$after" ] || { echo "bun が入れ替わっていません"; exit 1; }; \
+      rm -rf /tmp/bun.zip /tmp/bunx64; \
+      apt-get -qq purge -y curl unzip >/dev/null; apt-get -qq autoremove -y >/dev/null; \
+      rm -rf /var/lib/apt/lists/*; \
+    else \
+      echo "TARGETARCH=${TARGETARCH:-unknown} なので bun は入れ替えない（baseline は x64 だけの区分）"; \
+    fi
 RUN cd apps/studio && bun run build
 
 # ---------------------------------------------------------------- devserver
