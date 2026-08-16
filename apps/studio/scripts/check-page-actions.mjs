@@ -141,13 +141,16 @@ function hasFormWithId(source, id) {
   }
 }
 
-// 🚨 **0 ガードは 0 しか見ない**（design の指摘・2026-08-16）。
-//    1437569 文字 → 100 文字でも「読めている」ことになる。**基準線**で半分未満を落とす。
-const CODE_BASELINE = 1437569; // 2026-08-16 実測（395 ファイル）
-if (code.length > 0 && code.length < Math.floor(CODE_BASELINE / 2)) {
-  console.error(`\n🚨 読めた文字数が ${code.length} しかありません（基準線 ${CODE_BASELINE} の半分未満）。`);
-  console.error("   **走査の範囲が狭くなっている**可能性があります。");
-  console.error(`   正当に減ったのなら、**CODE_BASELINE を ${code.length} へ直し、理由を書いてください**。`);
+// 🚨 **0 ガードは 0 しか見ない**／**絶対値は repo が育つと腐る**（司令塔 2026-08-16）。
+//    → **1 ファイルあたりの平均文字数**で見る。**repo が育っても平均は育たない。**
+//      読み込みが壊れれば平均は落ち、走査の範囲がおかしくなれば平均も動く。
+const AVG_CHARS_BASELINE = 3639; // 2026-08-16 実測（1437569 / 395）
+const avgChars = sources.length > 0 ? Math.round(code.length / sources.length) : 0;
+console.log(`  1 ファイルあたり ${avgChars} 文字（基準 ${AVG_CHARS_BASELINE} ／ 半分未満なら落とす）`);
+if (code.length > 0 && avgChars < Math.floor(AVG_CHARS_BASELINE / 2)) {
+  console.error(`\n🚨 1 ファイルあたり ${avgChars} 文字しか読めていません（基準 ${AVG_CHARS_BASELINE} の半分未満）。`);
+  console.error("   **読み込みか走査の範囲が壊れている**可能性があります。");
+  console.error(`   正当な変化なら、**AVG_CHARS_BASELINE を ${avgChars} へ直し、理由を書いてください**。`);
   process.exit(1);
 }
 

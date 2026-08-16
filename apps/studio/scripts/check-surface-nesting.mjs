@@ -277,15 +277,20 @@ for (const file of files) {
 //    ＝ **囮が実物と同じ入口から入っていない**（司令塔 2026-08-16）。
 //    数で塞ぐ: **門を通った本数が 0 なら落とす**（「異常が無い 0」ではなく「見ていない 0」）。
 console.log(`対象: 候補 ${files.length} 本 / **面の中で描かれると判定して走査したのは ${scannedFiles} 本**`);
-// 🚨 **0 ガードは 0 しか見ない**（design の指摘・2026-08-16）。
-//    86 → 1 に減っても通ってしまう＝「見ていない」ではなく「**ほとんど見ていない**」は塞げていない。
-//    → **基準線**を置く（`check-raw-api-message` と同じ考え方）。
-//    🚨 **半分を切ったら落とす。** 正当に減ったなら、**この数を直して理由を書く**のが仕事。
-const SCANNED_BASELINE = 86; // 2026-08-16 実測（候補 133 / 走査 86）
-if (scannedFiles > 0 && scannedFiles < Math.floor(SCANNED_BASELINE / 2)) {
-  console.error(`\n🚨 走査したのが ${scannedFiles} 本しかありません（基準線 ${SCANNED_BASELINE} 本の半分未満）。`);
-  console.error("   **走査の範囲か、`rendersInsideSurface` の判定が狭くなっている**可能性があります。");
-  console.error(`   正当に減ったのなら、**SCANNED_BASELINE を ${scannedFiles} へ直し、理由を書いてください**。`);
+// 🚨 **0 ガードは 0 しか見ない**（design の指摘・2026-08-16）。86 → 1 でも通ってしまう。
+// 🚨 **そして絶対値を基準線にすると、repo が育つたびに腐る**（司令塔 2026-08-16）:
+//    > **絶対値は育つ。比率は育たない**
+//    → **比率（走査 ÷ 候補）**で見る。いま 86/133 = **0.65**。
+//      **狭くなれば下がり、他人のファイルまで見はじめれば 1.0 へ跳ねる**——**両側が 1 つの数で見える。**
+const SCAN_RATIO_BASELINE = 0.65; // 2026-08-16 実測（86 / 133）
+const scanRatio = files.length > 0 ? scannedFiles / files.length : 0;
+console.log(`  走査の比率: ${scanRatio.toFixed(2)}（基準 ${SCAN_RATIO_BASELINE} ／ 0.30〜0.95 の外なら落とす）`);
+if (scannedFiles > 0 && (scanRatio < 0.30 || scanRatio > 0.95)) {
+  console.error(`\n🚨 走査の比率が ${scanRatio.toFixed(2)} です（候補 ${files.length} / 走査 ${scannedFiles}）。`);
+  console.error(scanRatio < 0.30
+    ? "   **走査の範囲か `rendersInsideSurface` の判定が狭くなっている**可能性があります。"
+    : "   🚨 **範囲が広がりすぎて、面の外のファイルまで見ている**可能性があります。");
+  console.error(`   正当な変化なら、**SCAN_RATIO_BASELINE と帯を直し、理由を書いてください**。`);
   process.exit(1);
 }
 if (scannedFiles === 0) {
