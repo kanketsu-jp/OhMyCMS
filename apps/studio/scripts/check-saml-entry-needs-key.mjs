@@ -27,9 +27,9 @@
  *    広げると「saml と書いたコメント」まで拾って、**関係のない人のコミットを止めます**。
  */
 
-import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { readTracked } from "./lib/tracked-files.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LOGIN_PAGE = join(HERE, "..", "app", "login", "page.tsx");
@@ -44,16 +44,25 @@ const API_CODE = "SAML_NAMEID_FORMAT_REJECTED";
 /**
  * 🚨 読めなかったら**自分の言葉で**落とす。
  *    素の例外だと「検査が壊れた」のか「対象が無い」のかが読み手に分からない。
+ *
+ * 🚨 **索引から読む**（作業ツリーを直読みしない）。
+ *    このリポジトリは 1 つの作業ツリーを多数のペインが共有しているので、直読みすると
+ *    **他人の書きかけ（未コミット）で、無関係な人のコミットが止まる**
+ *    （`knowledge/decisions/checks-read-the-index-not-the-worktree.md`）。
+ *    この検査は**照合**（ログイン画面 ↔ 文言の鍵）なので、**片側だけ索引に移すと
+ *    赤の向きが裏返る**。だから**読む 4 本とも**ここを通す。
+ * 🚨 `readTracked` は**追跡されていなければ `null`** を返す。それは「違反なし」ではなく
+ *    **「測れていません」**なので、落とす。
  */
 function readOrStop(path, what) {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (error) {
-    console.error(`🚨 ${what}を読めませんでした: ${path}`);
-    console.error(`   ${error.code === "ENOENT" ? "ファイルがありません（移動・改名された可能性）" : String(error.message)}`);
+  const source = readTracked(path);
+  if (source === null) {
+    console.error(`🚨 ${what}を索引から読めませんでした: ${path}`);
+    console.error("   git の索引に無いファイルです（未追跡・改名・削除のいずれか）。");
     console.error("   → **この検査は「違反なし」ではなく「測れていません」です。**");
     process.exit(1);
   }
+  return source;
 }
 
 /** コメントを落とす。**入口を数える前に必ず通す。**（`saml` と書いただけのコメントを入口と数えないため） */
@@ -85,11 +94,15 @@ function hasSamlEntry(pageSource) {
 function keyPresence() {
   const missing = [];
   for (const [locale, path] of DICTS) {
-    if (!existsSync(path)) {
-      missing.push(`${locale}（辞書が無い: ${path}）`);
+    // 🚨 ここは `readOrStop` で落とさず「足りない」に数える。
+    //    索引に辞書が無いなら、**新しく clone した人の手元にも無い**＝ 鍵は無い。
+    //    「測れていない」ではなく「リポジトリが持っていない」なので、赤の向きはこちらで正しい。
+    const raw = readTracked(path);
+    if (raw === null) {
+      missing.push(`${locale}（辞書が索引に無い: ${path}）`);
       continue;
     }
-    const dict = JSON.parse(readOrStop(path, `${locale} の辞書`));
+    const dict = JSON.parse(raw);
     if (typeof dict[KEY] !== "string" || dict[KEY].trim() === "") missing.push(locale);
   }
   const errorTs = readOrStop(ERROR_TS, "エラーの鍵の一覧");
