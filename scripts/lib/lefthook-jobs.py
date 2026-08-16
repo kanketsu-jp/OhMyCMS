@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 r"""
-`lefthook.yml` の pre-commit から **(job 名, root, run)** を取り出す（TAB 区切り）。
+`lefthook.yml` の pre-commit から **(job 名, root, run)** を取り出す（**\x1f 区切り**）。
 
 ■ なぜ要るか（2026-08-16）
   `scripts/gate.sh` は `grep -oE 'node scripts/check-[a-z0-9-]+\.mjs'` で検査を導出していた。
@@ -41,4 +41,6 @@ for line in body.split("\n"):
 if not out:
     sys.stderr.write("🚨 job を 1 本も取れませんでした。**導出が壊れています**\n")
     sys.exit(2)
-print("\n".join("\t".join(x) for x in out))
+# 🚨 区切りは TAB にしない。**TAB は空白なので、シェルの `read` が連続する区切りを 1 つに潰す**
+# （2026-08-16 実測: `root` が空の行で、`root` に `node`、`cmd` に残りが入り、`cd $WT/node` で落ちた）。
+print("\n".join("\x1f".join(x) for x in out))

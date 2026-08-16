@@ -111,7 +111,10 @@ knowledge|rokf（外部コマンド）に依存。隔離ツリーでは PATH に
 "
 RAN=0; SKIPPED=0
 log "  lefthook の job ${NJOBS} 本を導出（job 名で突き合わせる）"
-printf '%s\n' "$JOBS" | while IFS="$(printf '\t')" read -r job root cmd; do
+# 🚨 区切りは `\x1f`。**TAB を使うと、`root` が空の行で列がずれる**
+#    （TAB は空白なので `read` が連続区切りを潰す。2026-08-16 に実測で踏んだ:
+#     root 無しの 7 本が全部 `cd $WT/node` になって落ちた）
+printf '%s\n' "$JOBS" | while IFS="$(printf '\037')" read -r job root cmd; do
   [ -z "$job" ] && continue
   why=$(printf '%s\n' "$SKIP_JOBS" | grep -E "^${job}\|" | cut -d'|' -f2- || true)
   if [ -n "$why" ]; then log "  ⏭ ${job}（${why}）"; continue; fi
