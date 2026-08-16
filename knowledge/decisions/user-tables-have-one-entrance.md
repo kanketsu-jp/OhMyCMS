@@ -78,8 +78,13 @@ x_rag_okf:
 - **システム表は別経路**。`directus_files` / `directus_folders` は
   `lib/files/live.ts` の `liveRows` が隠し、書き込みは**許可リスト**で断っている
   （items は利用者の列を扱うので allow-list にできない。**原因の形が逆なので混ぜないこと**）
-- **リレーションは実データが 0 件**。関連経由の隠蔽は**コードで直しただけで、
-  実行時の証拠は取れていない**（測って 0 だったのではなく、**測る対象が無かった**）
+- **リレーション**は 2026-08-16 に使い捨ての台（`zz_rel_parent` / `zz_rel_child`・**m2o**）を
+  立てて 1 度だけ測った。**関連経由の分岐は動く**:
+  `requiresConfirmation: true` ／ `trashedReferences` 1 件 ／ `relatedRestoreCount` **1**（実件数と一致）／
+  「一緒に戻す」で `{"restored":2}`（**親子とも戻った**）。台は表ごと落とし、
+  `directus_relations` は **0 件**に戻してある（表の総数 48 → 46）。
+  🚨 **測ったのは m2o の 1 形・1 段だけ**。**m2m は画面から作れない**ので当面起きないが、
+  **作れるようになった日に初めて測る対象ができる**。**2 段以上（A→B→C）も測っていない**
 - `ITEM_EXISTS_TRASHED` は **API を直に叩く経路でだけ**返る。
   【測った】作成画面は主キーの欄を持たず、`__field` にも `id` は入らない
 - 検査（`check-items-entry.mjs`）は **`lib/items/` の中だけ**を見る。
