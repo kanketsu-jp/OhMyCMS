@@ -46,7 +46,6 @@
       "page:/admin/content/[collection]/[id]",
       "page:/admin/files/new",
       "page:/admin/files/new-folder",
-      "page:/admin/files/[id]",
       "page:/admin/settings/general",
       "page:/admin/settings/storage",
       "page:/admin/settings/sso",
