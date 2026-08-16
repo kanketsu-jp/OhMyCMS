@@ -327,7 +327,9 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
         🚨 表示モードでも操作できる。理由: 選んだ瞬間に反映され、保存前の状態を持たない
            （`handleLocaleChange` が値の変化でそのまま送る。上の氏名欄とは違い、
              「保存していない変更」が存在しない ＝ 編集モードに入れる意味が無い）。
-        規約: `knowledge/decisions/action-button-and-edit-mode.md` §7 の例外。
+        🚨 2026-08-16 追記: 設問287 が **B（例外なし）** に戻ったので、
+           「例外として認められている」という根拠は**いま消えています**。判断待ち。
+           規約と経緯: `knowledge/decisions/action-button-and-edit-mode.md` §7-1。
         🚨 この 1 行を消さないこと。消すと、棚卸しのたびに「直し忘れ」として拾われる
            （2026-08-16 に実際そう読まれかけた。`[role=combobox]` で探すと出てくる）。
       */}
