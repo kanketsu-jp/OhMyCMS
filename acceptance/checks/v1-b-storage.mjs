@@ -21,6 +21,7 @@ import { deflateSync } from "node:zlib";
 import { crc32 } from "node:zlib";
 
 import { bootstrapAvailable, lit, queryScalar } from "../lib/bootstrap.mjs";
+import { purgeUploadedFiles } from "../lib/fixture.mjs";
 import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions, STATUS } from "../lib/result.mjs";
 
@@ -416,9 +417,23 @@ export async function check(context) {
         "**F9 の総合受入で、compose の S3 設定を空にした対象に対して測ること。**",
     );
   } finally {
-    for (const id of uploaded) {
-      await admin.request(`/api/files/${id}`, { method: "DELETE" }).catch(() => {});
-    }
+    // 🚨 **`DELETE /api/files/<id>` は論理削除**（ゴミ箱へ入れるだけ）。ここで止めると、
+    //   走行のたびに行と実体が積み上がる（2026-08-17 実測: ゴミ箱 69 件・うち 49 件が V1-B）。
+    //   → **完全削除まで行い、消えた件数を出す**（`.catch(() => {})` で握り潰さない）。
+    const cleanup = await purgeUploadedFiles(admin, uploaded);
+    details.push(
+      `片付け: 上げた ${cleanup.tried} 件 / ゴミ箱へ ${cleanup.softDeleted} 件 / ` +
+        `完全削除 ${cleanup.purged} 件 / 🚨 残り ${cleanup.remaining} 件`,
+    );
+    for (const note of cleanup.notes) details.push(`  片付けの失敗: ${note}`);
+    // 🚨 **assertion にする**（details だけだと PASS のとき描画されない。
+    //   `lib/report.mjs:92-104` は FAIL/BLOCKED でしか details を出さない）。
+    //   ＝ **片付けが壊れたら、この検査が赤くなる**（`decisions/probes-clean-up-by-id`）。
+    //   🚨 ここは `finally` の中だが、`statusFromAssertions` はこの後（431 行）なので数に入る。
+    assertions.push(
+      assertion("negative", "片付け: 自分が上げたファイルがゴミ箱に残らない",
+        cleanup.remaining === 0, `残り ${cleanup.remaining} 件`, "残り 0 件"),
+    );
   }
 
   const verdict = statusFromAssertions(assertions);

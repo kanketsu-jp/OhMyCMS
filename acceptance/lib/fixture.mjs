@@ -54,3 +54,67 @@ export function looksLikeLeftover(name) {
   const text = String(name ?? "");
   return (text.startsWith("acc-") || text.startsWith("acc_")) && !isMine(text);
 }
+
+/**
+ * アップロードしたファイルを **本当に捨てる**（行も実体も）。
+ *
+ * 🚨 **なぜ要るか（2026-08-17 実測）。** `DELETE /api/files/<id>` は**論理削除**で、
+ *   ゴミ箱へ入れるだけ。**捨てたつもりで、行も実体も残る**。
+ *   ゴミ箱に **69 件**（実体つき 68 件）が溜まり、そのうち **49 件が V1-B の走行**だった。
+ *   後片付けが `.catch(() => {})` で握り潰していたので、**誰も気づけなかった**。
+ *   ＝ 🚨 **「打った」を報告する道具を、確かめずに使っていた形**。
+ *
+ * 🚨 **1cdf06d（storage）より前は、そもそも完全削除ができなかった**
+ *   （`400 SYSTEM_IDENTIFIER`）。だからこの 2 段目は、それ以降にしか書けない。
+ *
+ * 🚨 **握り潰さない。** 消えなかった件数を返すので、**呼び手は details に出すこと**。
+ *   「片付けた」ではなく「**何件が消えて、何件が残ったか**」を書く。
+ *
+ * @returns {Promise<{tried:number, softDeleted:number, purged:number, remaining:number, notes:string[]}>}
+ */
+export async function purgeUploadedFiles(session, ids) {
+  const tried = ids.length;
+  const notes = [];
+  let softDeleted = 0;
+  for (const id of ids) {
+    const r = await session.request(`/api/files/${id}`, { method: "DELETE" });
+    if (r.status === 204) softDeleted += 1;
+    else notes.push(`論理削除に失敗: ${id} → HTTP ${r.status}`);
+  }
+
+  // 🚨 key は**一覧が返す値をそのまま使う**（自分で組み立てない）。
+  //   ただし「どの行が自分の id か」は key を開かないと分からないので、そこだけ解く。
+  //   形の正本は `lib/trash/service.ts:85`（`Buffer.from(JSON.stringify(v)).toString("base64url")`）。
+  const idOf = (key) => {
+    try {
+      return JSON.parse(Buffer.from(String(key), "base64url").toString("utf8"))?.primaryKey?.id ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const wanted = new Set(ids);
+  const list = await session.get("/api/trash");
+  const rows = Array.isArray(list.json?.data) ? list.json.data : [];
+  if (list.status !== 200) notes.push(`ゴミ箱の一覧を読めません → HTTP ${list.status}`);
+
+  let purged = 0;
+  for (const row of rows) {
+    const id = idOf(row.key);
+    if (!id || !wanted.has(id)) continue;
+    const r = await session.request("/api/trash", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: row.key }),
+    });
+    if (r.status === 204) purged += 1;
+    else notes.push(`完全削除に失敗: ${id} → HTTP ${r.status} ${r.json?.error?.code ?? ""}`);
+  }
+
+  // 🚨 **総数では確かめない**（打ち消し合う）。**自分の id が残っていないか**で確かめる。
+  const after = await session.get("/api/trash");
+  const afterRows = Array.isArray(after.json?.data) ? after.json.data : [];
+  const remaining = afterRows.filter((row) => wanted.has(idOf(row.key))).length;
+
+  return { tried, softDeleted, purged, remaining, notes };
+}

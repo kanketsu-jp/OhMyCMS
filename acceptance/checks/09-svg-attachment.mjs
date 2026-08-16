@@ -11,7 +11,7 @@
  *   つまり **本体はちゃんと届いている（200 かつ中身がある）** が前提。
  */
 
-import { PREFIX } from "../lib/fixture.mjs";
+import { PREFIX, purgeUploadedFiles } from "../lib/fixture.mjs";
 import { Session } from "../lib/http.mjs";
 import { establishSession } from "../lib/session.mjs";
 import { assertion, result, statusFromAssertions } from "../lib/result.mjs";
@@ -239,9 +239,21 @@ export async function check(context) {
       ms: Date.now() - started,
     });
   } finally {
-    for (const id of uploaded) {
-      await admin.delete(`/api/files/${id}`).catch(() => {});
-    }
+    // 🚨 理由は `lib/fixture.mjs` の `purgeUploadedFiles` の冒頭。
+    //   論理削除で止めると、走行のたびにゴミ箱へ積み上がる（2026-08-17 実測）。
+    const cleanup = await purgeUploadedFiles(admin, uploaded);
+    details.push(
+      `片付け: 上げた ${cleanup.tried} 件 / ゴミ箱へ ${cleanup.softDeleted} 件 / ` +
+        `完全削除 ${cleanup.purged} 件 / 🚨 残り ${cleanup.remaining} 件`,
+    );
+    for (const note of cleanup.notes) details.push(`  片付けの失敗: ${note}`);
+    // 🚨 **見ていない範囲**: この行は **PASS のときは画面に出ない**
+    //   （`lib/report.mjs:92-104` は FAIL/BLOCKED でしか details を出さない）。
+    //   `v1-b-storage.mjs` は assertion に上げてあるが、**ここは上げられない**——
+    //   このファイルは `statusFromAssertions` を **`finally` より前（226 行）**で呼ぶので、
+    //   ここで push しても**数に入らない**。**入らない assertion は、在るのに効かない**ので置かない。
+    //   ＝ **片付けが壊れても、この検査は緑のまま**。確かめるなら DB を見ること:
+    //     select count(*) from directus_files where deleted_at is not null;
   }
 }
 
