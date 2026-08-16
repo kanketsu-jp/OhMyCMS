@@ -171,6 +171,11 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 🚨 **`knowledge/` に新しいファイルを足したら `knowledge/index.md` にも1行足す。**
 `rokf doctor` が `index-entries` として検出するが、**足すのは書いた人の仕事**。
 
+🚨 **`docs/` に新しいファイルを足したら `docs/index.md` にも1行足す**（`knowledge/` と同じ）。
+足し忘れ・消し忘れは **`check-docs-index`（門）が両方向で止める**。
+由来: 索引が無かったころ、**18 本のうち 9 本が docs/ の外から一度も参照されない**状態だった
+（**この索引を作った日に書かれたものも 1 本**）。
+
 ## 9. 参考
 
 | 目的 | 場所 |
@@ -183,14 +188,14 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 > Claude Code 固有の事柄は `CLAUDE.md` 側に書き、ここには**全エージェント共通のルールだけ**を置く。
 
 <!-- rag-okf:start -->
-[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-13|commit: 6ffa5c7|docs: 34
+[rag-okf knowledge v1|root: ./knowledge|generated: 2026-08-16|commit: 8dbaee7|docs: 53
 |STOP. このリポジトリ固有の事情はあなたの事前知識にない。下記に該当したら必ず該当ファイルを読む。
 |knowledge/ が最新かつ正。docs/wiki/ は完成したものの読み物（写し）。
 |acceptance,testing,permissions,ci→areas/acceptance.md
 |apps-studio,nextjs,rest-api,architecture→areas/apps-studio.md
 |design,ux,i18n,x-ui-rules→areas/design-system.md
 |permissions,security,auth,items,files→areas/permissions.md
-|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/agents-md-as-canonical.md,decisions/auth-methods.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/folders-are-not-owned.md,decisions/https-is-not-node-env.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/json-as-source-of-truth.md,decisions/migrations-are-shared.md,decisions/never-expose-dev-server.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/port-allocation.md,decisions/relation-permission-boundary.md,decisions/secrets-storage-by-recoverability.md,decisions/shared-resources-are-exclusive.md,decisions/single-nextjs-app-then-hono.md,decisions/stepwise-docs.md,decisions/storage-key-prefix-is-fixed.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md,decisions/verify-the-verifier.md}|glossary:{}|ops:{ops/hrdr-panes.md}
+|areas:{areas/acceptance.md,areas/apps-studio.md,areas/design-system.md,areas/permissions.md}|decisions:{decisions/action-button-and-edit-mode.md,decisions/agents-md-as-canonical.md,decisions/auth-methods.md,decisions/avatar-is-emoji-not-initials.md,decisions/checks-must-declare-blind-spots.md,decisions/checks-read-the-index-not-the-worktree.md,decisions/cli-mcp-over-rest.md,decisions/db-postgres.md,decisions/every-element-must-earn-its-place.md,decisions/folders-are-not-owned.md,decisions/guards-keyed-by-name-break-silently.md,decisions/https-is-not-node-env.md,decisions/i18n-check-scope-is-what-reaches-the-screen.md,decisions/i18n-own-implementation.md,decisions/i18n-required.md,decisions/intentional-deviations-from-idea-md.md,decisions/json-as-source-of-truth.md,decisions/migrations-are-shared.md,decisions/never-expose-dev-server.md,decisions/no-directus-fork.md,decisions/no-nested-surfaces.md,decisions/no-organization-table.md,decisions/orm-knex.md,decisions/permanent-fixtures-are-not-junk.md,decisions/port-allocation.md,decisions/relation-permission-boundary.md,decisions/secrets-storage-by-recoverability.md,decisions/shared-resources-are-exclusive.md,decisions/shortcuts-must-not-collide-with-editor.md,decisions/single-nextjs-app-then-hono.md,decisions/soft-deleted-names-stay-taken.md,decisions/stepwise-docs.md,decisions/storage-guard-uses-effective-config.md,decisions/storage-key-prefix-is-fixed.md,decisions/storage-local-root-is-fixed.md,decisions/synthetic-ids-are-not-contacts.md,decisions/tailwind-v4-transform-is-three-properties.md,decisions/toast-for-events-page-for-what-needs-fixing.md,decisions/trash-and-restore-ui.md,decisions/tree-connector-lines.md,decisions/two-tier-auth.md,decisions/ui-placement-by-frequency.md,decisions/upload-limits-are-two-not-one.md,decisions/use-proxy-not-middleware.md,decisions/v09-open-questions-answered.md,decisions/verify-the-verifier.md}|glossary:{}|ops:{ops/hrdr-panes.md}
 |検索(CLI): rag-okf search "<query>" --json
 |更新: rag-okf refresh]
 <!-- rag-okf:end -->
