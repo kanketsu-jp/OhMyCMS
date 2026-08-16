@@ -25,6 +25,7 @@ x_rag_okf:
 - [デザインの規約（design-system）](./areas/design-system.md) — `areas/design-system`
 - [権限と認可（permissions）](./areas/permissions.md) — `areas/permissions`
 - [SAML（SSO）の現状](./areas/auth-sso.md) — `areas/auth-sso`
+- [v1 として何を約束しているか（V1-A〜E）](./areas/v1-scope.md) — `areas/v1-scope`
 - [アクションボタンは1つ。表示モードと編集モードを分ける](./decisions/action-button-and-edit-mode.md) — `decisions/action-button-and-edit-mode`
 - [指示書は AGENTS.md を正本にする](./decisions/agents-md-as-canonical.md) — `decisions/agents-md-as-canonical`
 - [認証は SAML → メール OTP → パスワードの順に使う](./decisions/auth-methods.md) — `decisions/auth-methods`
