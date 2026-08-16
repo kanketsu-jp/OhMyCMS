@@ -319,11 +319,16 @@ if (!WRITE) {
   //    → **入口そのものを囮にする。** ここだけは本物のディレクトリを渡す。
   {
     // 🟢 対照(+) 本物の入口。ここが空なら、下の囮は何を測っても意味が無い。
-    const real = collectTs(MCP_SRC).map((p) => p.split("/").pop());
-    const realOk = real.length > 0 && real.includes("server.ts") && !real.includes("catalog.ts");
+    // 🚨 **フルパスで見ること。** 以前はファイル名だけで "catalog.ts" を探しており、
+    //    下の階層に**別の** catalog.ts が在るだけで「除外できていない」と嘘をついた
+    //    （2026-08-16 実測。除外の実装は `p !== SOURCE` ＝ フルパスなので、正しく効いている）。
+    //    ＝ **測っているものと、実装しているものが違っていた。**
+    const real = collectTs(MCP_SRC);
+    const realOk = real.length > 0 && real.some((p) => p.endsWith("/server.ts")) && !real.includes(SOURCE);
     console.log(`■ 入口の囮（どのファイルを読むか）`);
     console.log(`  ${realOk ? "✅" : "🚨"} 対照(+) 本物の ${MCP_SRC.split("/").slice(-2).join("/")} → ${real.length} 本` +
-      `（server.ts ${real.includes("server.ts") ? "在り" : "**無し**"} / catalog.ts は正なので除外 ${real.includes("catalog.ts") ? "**できていない**" : "済み"}）`);
+      `（server.ts ${real.some((p) => p.endsWith("/server.ts")) ? "在り" : "**無し**"}` +
+      ` / 正の ${SOURCE.split("/").pop()} は除外 ${real.includes(SOURCE) ? "**できていない**" : "済み"}）`);
 
     // 囮: 下の階層と拡張子。**実物と同じくディレクトリを渡す**（配列へ直接足さない）。
     const d = mkdtempSync(join(tmpdir(), "mcp-catalog-probe-"));
