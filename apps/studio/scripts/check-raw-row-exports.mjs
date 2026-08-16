@@ -322,7 +322,15 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
       ["class のメソッドとして出す",
         "export class ZzFiles { async get(id: string): Promise<FileRow> { return null as never; } }"],
     ];
-    console.log("  ── 🚨 この検査が見ていない形（**作って通した**。拾えたら ✅ に変わる）");
+    // 🚨 **囮が判定に「届いた」かどうかを、関門の有無で書き分ける**（司令塔 2026-08-16）。
+    //    【コードから数えた関門】`violationsIn` … **0 個**
+    //      （`exportsOf` を呼ぶだけで、コメント除去も範囲の絞り込みも通らない
+    //        ＝ **文字列を渡せば必ず判定される**）
+    //    → 🚨 だから、ここの「見逃す」は **「届かなかった」ではありえない**。
+    //      **もう 1 本の `directTableUsesIn` は `withoutComments` を通る**ので事情が違い、
+    //      そちらは「コメントで名前に触れるだけ → 0 件」の囮が**関門が効くこと**を示している。
+    //    🚨 **関門が 0 個であることを書いておかないと、「見逃す」が 2 通りに読める。**
+    console.log("  ── 🚨 この検査が見ていない形（**作って通した**。判定までの関門は 0 個なので、必ず届いています）");
     let 拾えるようになった = 0;
     for (const [label, probe] of cases) {
       const n = violationsIn(probe, "FileRow").length;
