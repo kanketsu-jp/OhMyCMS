@@ -89,7 +89,12 @@ x_rag_okf:
 
 - 他の人が `git add` した瞬間、そのファイルはこちらの門にも入る。
   **消えるのは「まだ add していない」1 種類だけ。**
-- `readdirSync` で集めている検査 6 本（`i18n-placeholders` / `items-entry` / `raw-api-message` /
-  `page-actions` / `mcp-catalog` / `i18n-load`）は未変換。
-  **読んでいる先が `packages/mcp` や `i18n/messages` なので「いまは」書きかけが混じっていないだけ。**
-  🚨 この「いまは」を消さないこと。
+- ~~`readdirSync` で集めている検査 6 本は未変換~~ → 🚨 **2026-08-16 中に 4 本を変換した**
+  （`raw-api-message` / `page-actions` / `i18n-placeholders` / `items-entry`）。
+  変換の理由は、実際に読む範囲を測ったから: **`page-actions` 427 本 / `raw-api-message` 407 本**
+  （lib・app・components・stories）＝ **他のペインの書きかけを読める広さだった**。
+  「いまは混じっていないだけ」を、その日のうちに閉じた。
+  - `mcp-catalog` … saml が自分で直すと宣言（**持ち主が直すほうが安全**）
+  - `i18n-load` … 読む先は `i18n/messages` だけ。**まだ変換していない**
+- 🚨 未追跡は **飛ばす**。空文字にしない（空は「中身が無いファイル」として数えられ、**見ていない 0** を作る）。
+  **飛ばした件数は 0 件でも出す。**
