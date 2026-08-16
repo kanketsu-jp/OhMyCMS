@@ -186,7 +186,7 @@ for (const d of DICTS) {
     const 惜しい = !当たり && got.length > 0;
     console.log(
       `     ${当たり ? "✅ 拾えた" : "🚨 見逃す"}  ${label}` +
-        `（判定へ届いた文字数 ${届いた文字数}）` +
+        `  → 判定へ届いた実物 "${withoutComments(probe).trim().replace(/\s+/g, " ").slice(0, 40)}"（${届いた文字数} 文字）` +
         (惜しい ? `（🚨 途中まで拾って "${got.join(",")}" になっています。**正しくは "${期待}"**）` : ""),
     );
     if (届いた文字数 === 0) {

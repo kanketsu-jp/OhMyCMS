@@ -334,7 +334,16 @@ console.log("■ 自己検査（実物をメモリ上で壊して、検出でき
     let 拾えるようになった = 0;
     for (const [label, probe] of cases) {
       const n = violationsIn(probe, "FileRow").length;
-      console.log(`     ${n > 0 ? "✅ 拾えた" : "🚨 見逃す"}  ${label}`);
+      // 🚨 **判定だけでなく、返ってきた実物を出す**（schema の形・2026-08-16）。
+      //    判定は「通った / 落ちた」しか言わない。**実物は「そこまで来た」を言う。**
+      //    例: 型に別名を付けた囮は `[]` ではなく
+      //    `zzLeak → Promise<ZzRow>` が返るので、**解析は届いていて、
+      //    規則が当たらなかっただけ**だと読む人に見える。
+      const 実物 = exportsOf(probe).map((f) => `${f.name} → ${f.returns ?? "(型なし)"}`);
+      console.log(
+        `     ${n > 0 ? "✅ 拾えた" : "🚨 見逃す"}  ${label}` +
+          `  → ${実物.length ? 実物.join(" / ") : "(解析が 1 本も拾わなかった)"}`,
+      );
       if (n > 0) 拾えるようになった += 1;
     }
     // 🚨 **「見ていない範囲」の記述が古くなったら、検査自身が言う**（design の形・2026-08-16）。
