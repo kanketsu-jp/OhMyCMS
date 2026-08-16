@@ -539,16 +539,29 @@ function findViolations(sources) {
 }
 
 /**
- * 実物を読み込む。glob が何本拾ったか（`globFileCount`）を呼び出し側へ返す
- * （0 本のとき「違反が無い」ではなく「見ていない」と区別して診断するため）。
+ * 実物を読み込む。glob が何本拾ったか（`globFileCount`）と、読み込んだ全ソースの
+ * 合計文字数（`totalChars`）を呼び出し側へ返す。
+ *
+ * 🚨 由来: 2026-08-16。列挙（glob）が生きていても、`read()` 自体が壊れて常に空文字列を
+ * 返す形では、`globFileCount` は正の値のまま・`REQUIRED_FILES` の存在チェックも
+ * （`sources[file]` が `""` で `undefined` ではないので）素通りする。
+ * 「列挙できたが 1 文字も読めていない」を「違反が無い」と区別するために、
+ * ここで実際に読めた文字数を数えて返す（0 なら呼び出し側が診断して打ち切る）。
  */
 function loadSources() {
   const globPattern = "{app,components}/**/*.{ts,tsx}";
   const files = globSync(globPattern, { cwd: root }).sort();
   const sources = {};
-  for (const file of files) sources[file] = read(file);
-  sources[GUARD_FILE] = read(GUARD_FILE);
-  return { sources, globPattern, globFileCount: files.length };
+  let totalChars = 0;
+  for (const file of files) {
+    const content = read(file);
+    sources[file] = content;
+    totalChars += content.length;
+  }
+  const guardContent = read(GUARD_FILE);
+  sources[GUARD_FILE] = guardContent;
+  totalChars += guardContent.length;
+  return { sources, globPattern, globFileCount: files.length, totalChars };
 }
 
 /**
@@ -733,7 +746,7 @@ function countOccurrences(haystack, needle) {
   return haystack.split(needle).length - 1;
 }
 
-const { sources: original, globPattern, globFileCount } = loadSources();
+const { sources: original, globPattern, globFileCount, totalChars } = loadSources();
 
 // 🚨 ここではまだ何も「違反」を判定しない。判定できる状態にあるかどうかだけを見る。
 //    列挙（glob）が 0 本、または自己検査・実演が使う実物（REQUIRED_FILES）が読み込めて
@@ -756,6 +769,21 @@ if (missingRequiredFiles.length > 0) {
     "  自己検査・実演が使う実物が見つかりませんでした。「違反が無い」ではなく「見ていない」です。",
   );
   console.error(`  見つからなかったファイル: ${missingRequiredFiles.join(", ")}`);
+  console.error(`  glob パターン: ${globPattern}`);
+  console.error(`  root: ${root}`);
+  process.exit(1);
+}
+
+// 🚨 列挙（glob）は生きていて、REQUIRED_FILES も見つかっているのに、`read()` 自体が
+//    壊れて常に空文字列を返す形は上の2つの門をすり抜ける（`sources[file]` が `""` で
+//    `undefined` ではないため）。「列挙 0 本」とは原因が違うので、文面を使い回さず
+//    別の診断として出す（司令塔 2026-08-16①への回答）。
+if (totalChars === 0) {
+  console.error("■ 読み込みの診断");
+  console.error(
+    "  ファイルの列挙はできていますが、1 文字も読み込めていません。「違反が無い」ではなく「見ていない」です。",
+  );
+  console.error(`  走査対象 ${globFileCount} 本 / 読めた文字数 0`);
   console.error(`  glob パターン: ${globPattern}`);
   console.error(`  root: ${root}`);
   process.exit(1);
@@ -1041,9 +1069,12 @@ if (blindSpotRegression) {
 const { violations, scannedFiles } = findViolations(original);
 
 console.log(`\n■ 判定`);
+// candidateFiles: glob が列挙し `original` に載った本数（＝候補。まだ何も読んだ／当てたことにはならない）
 const candidateFiles = Object.keys(original).length;
+// scannedFiles: 上記のうち GUARD_FILE を除いて実際に規則 A/B/F を当てた本数（findViolations の実測値）
+// totalChars: 上記の候補ファイル（GUARD_FILE 込み）から実際に読めた文字数の合計（loadSources の実測値）
 console.log(
-  `  対象: 候補 ${candidateFiles} 本（app/**, components/** ＋ ${GUARD_FILE}）/ 走査 ${scannedFiles} 本`,
+  `  対象: 候補 ${candidateFiles} 本（app/**, components/** ＋ ${GUARD_FILE}）/ 走査 ${scannedFiles} 本（読めた文字数 ${totalChars}）`,
 );
 console.log(`        （${GUARD_FILE} は規則 A/B/F/G の対象外。規則 C/D/E で別に見る）`);
 console.log(`  違反: ${violations.length} 件`);
@@ -1063,6 +1094,17 @@ if (scannedFiles < SCANNED_MIN_THRESHOLD) {
   console.log(
     `\nℹ️ 走査が基準線から大きく増えています（基準線 ${SCANNED_BASELINE.count} 本・${SCANNED_BASELINE.at} 実測 / いま ${scannedFiles} 本）。SCANNED_BASELINE の更新を検討してください（落としてはいません）。`,
   );
+}
+
+if (violations.length > 0 && (selfTestFailed || greenTestFailed)) {
+  // 🚨 自己検査・対照検査が失敗しているなら、これから並べる違反は「検査自身が壊れている結果」
+  //    かもしれない。違反の一覧は消さない（本物の違反が同時に在ったときに見えなくなるため）が、
+  //    その手前に必ずこの警告を出す（司令塔 2026-08-16②への回答）。
+  console.error(
+    "\n🚨 自己検査が失敗しています。下に並ぶ違反は、**検査自身が壊れている結果**かもしれません。",
+  );
+  console.error("   先に自己検査の失敗（置換 0 件・読み込み・列挙）を直してください。");
+  console.error("   直すまで、この一覧の件数は意味を持ちません。");
 }
 
 if (violations.length > 0) {
