@@ -155,9 +155,36 @@ console.log("■ 自己検査（囮を仕込んで、検出できることをそ
 let selfTestFailed = false;
 
 // (1) そもそも対象を拾えているか。0 件なら「違反が無い」ではなく「見ていない」。
-const scanned = files.length > 0;
-console.log(`  ${scanned ? "✅" : "❌"} 対象を拾えている  ${files.length} ファイル`);
-if (!scanned) selfTestFailed = true;
+// 🚨 **ファイル数は「読めた」の証拠にならない。** 列挙だけできて中身が空でも同じ数が出る。
+//    そしてこの検査は **違反 0 件が正常**なので、壊れたときの出力が**正常時と同じ顔**になる
+//    （司令塔 2026-08-16: 「0 が正常値の検査」11 本のうちの 1 本）。
+// 🚨 **判定に使う本文は、本番と同じ 1 回の読み込みから採る。**
+//    別に readFileSync すると、**本番側の読み込みが壊れても守りは気づかない**
+//    （今日の「囮は実物と同じ入口から入れる」と同じ形。最初そう書いて、書き直した）。
+// 🚨 **絶対値でなく比率**（絶対値は repo が育つと腐る）。
+//    実測 2026-08-16: 候補 394 → 列挙 214 ＝ **0.543** ／ 平均 **3,509 文字**
+//    上にも幅: **比率が 1.0 へ跳ねたら、範囲が広がって他人のファイルまで見ている**。
+const sources = files.map((f) => ({ file: f, text: readFileSync(resolve(root, f), "utf8") }));
+const 比率の下限 = 0.3;
+const 比率の上限 = 0.8;
+const 平均文字数の下限 = 800;
+const 候補 = globSync("**/*.{ts,tsx}", { cwd: root, exclude: ["node_modules/**"] }).length;
+const 総文字数 = sources.reduce((a, x) => a + x.text.length, 0);
+const 比率 = 候補 > 0 ? sources.length / 候補 : 0;
+const 平均 = sources.length > 0 ? Math.round(総文字数 / sources.length) : 0;
+const scanned = 比率 >= 比率の下限 && 比率 <= 比率の上限 && 平均 >= 平均文字数の下限;
+console.log(
+  `  ${scanned ? "✅" : "❌"} 対象を拾えている  **候補** ${候補} → **列挙** ${sources.length}` +
+    `（比率 ${比率.toFixed(3)}。許容 ${比率の下限}〜${比率の上限}） / ` +
+    `**読めた** ${総文字数.toLocaleString()} 文字（**平均 ${平均.toLocaleString()}**。下限 ${平均文字数の下限}）`,
+);
+if (!scanned) {
+  console.error(
+    `     🚨 ${平均 < 平均文字数の下限 ? "読めた量が足りない（読み込みが死んでいる可能性）" : 比率 > 比率の上限 ? "範囲が広がりすぎ（他人のファイルまで見ている可能性）" : "列挙が足りない"}。` +
+      `**「違反 0 件」より先に、読み込みか走査の範囲が壊れていることを疑ってください。**`,
+  );
+  selfTestFailed = true;
+}
 
 // 🚨 ここから下の囮は、**すべて本物の scan() を呼ぶ**（判定ロジックを書き写さない）。
 //    写しだと、scan() が壊れても囮は ✅ のまま通る（2026-08-15 に実測して確認した）。
@@ -207,7 +234,8 @@ if (selfTestFailed) {
 }
 
 // ── 判定 ─────────────────────────────────────────────────────
-const hits = scan(files.map((f) => ({ file: f, text: readFileSync(resolve(root, f), "utf8") })));
+// 🚨 上で作った sources をそのまま使う（**守りと本番が同じ読み込みを共有する**）。
+const hits = scan(sources);
 console.log(`\n■ 判定`);
 console.log(`  対象: ${files.length} ファイル（app/**, components/** の .ts/.tsx）`);
 console.log(`  違反: ${hits.length} 件`);
