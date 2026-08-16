@@ -48,7 +48,7 @@
  * ・🚨 **`useShortcut(` を名前で探している。** 別名で包まれたら見えなくなる（同日の実測より）。
  */
 
-import { readFileSync, globSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, globSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -57,6 +57,11 @@ import { tiptapCombos } from "./tiptap-combos.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const AS_JSON = process.argv.includes("--json");
+// 🚨 **生成物は、更新しないと腐る**（今日の⑤「古くなったら鳴る」）。
+//    → `--write` で書き、既定では**書いてあるものと突き合わせて、ずれていたら落とす**。
+//    先例: `check-mcp-catalog.mjs`（**写しを置き、ずれたら落ちる検査を付ける**）。
+const AS_WRITE = process.argv.includes("--write");
+const SKILL_REF = resolve(root, "../../.claude/skills/ohmycms-mcp/references/shortcuts.md");
 const log = (...a) => { if (!AS_JSON) console.log(...a); };
 
 /** `@/…` と相対の import を実ファイルへ解決する（外部パッケージは追わない）。 */
@@ -288,6 +293,57 @@ for (const m of manifest) {
   log(`      登録元 ${m._registrar.length > 0 ? m._registrar.join(" / ") : "（見つからない）"}`
     + (m._registrar.length > 1 ? "  🚨 **2 つ以上ある**（どちらが描かれているかで効き方が変わる）" : ""));
   if (Array.isArray(m.scope)) for (const s of m.scope.slice(0, 3)) log(`      例 ${s}`);
+}
+
+// ── ⑧ Skills へ渡す生成物（**ここが「Skills で伝わるように」の実体**） ──────────
+// 🚨 堀池さん 2026-08-15:「AI が Chrome 拡張などでサイトを操作する時、活用する。
+//    （**Skills・MCP で伝わるように**）」
+//    🚨 **操作するのは Chrome 拡張。ここは「押し方を教える」側**（押させない）。
+{
+  const body = manifest.map(({ _why, _label_exists, _registrar, ...rest }) => rest);
+  const doc = [
+    "# OhMyCMS のキーボードショートカット",
+    "",
+    "🚨 **このファイルは生成物です。手で直さないでください。**",
+    "元は `apps/studio/components/admin/shortcuts.ts` の `SHORTCUTS`。",
+    "作り直し: `cd apps/studio && node scripts/build-shortcuts-manifest.mjs --write`",
+    "（ずれていると同じスクリプトが `exit 1` で落ちます）",
+    "",
+    "## 読み方",
+    "",
+    "- `key` … **記号ではなく組み合わせ**（`mod` は macOS の ⌘ / それ以外は Ctrl）。",
+    "  🚨 記号は**プラットフォームで変わる**ので、受け取った側で決めてください。",
+    "- `scope` … `global`（管理画面のどこでも）／ `page:<ルート>`（その画面だけ）／ `unknown`。",
+    "  🚨 `global` は「**登録している部品が layout から辿れる**」の意味で、",
+    "  **「いつでも効く」ではありません**（例: `submit` は入力欄が開いている間だけ）。",
+    "- `editor` … 🚨 **本文エディタ（Tiptap）の中では別の働きをする**もの。",
+    "  `owner` がその働きを持つパッケージ。**本文の入力中は、そちらが先です。**",
+    "- `label_key` … 画面に出す名前の辞書キー（ja / en の両方に在ることを検査で確かめています）。",
+    "",
+    "```json",
+    JSON.stringify(body, null, 2),
+    "```",
+    "",
+  ].join("\n");
+
+  if (AS_WRITE) {
+    mkdirSync(dirname(SKILL_REF), { recursive: true });
+    writeFileSync(SKILL_REF, doc, "utf8");
+    log(`\n✍️ 書きました: ${SKILL_REF.replace(`${root}/../../`, "")}`);
+  } else if (!existsSync(SKILL_REF)) {
+    problems.push(
+      `Skills 側の生成物がありません（${SKILL_REF}）。` +
+        "🚨 **「Skills で伝わるように」の実体がこれです。** `--write` で作ってください",
+    );
+  } else if (readFileSync(SKILL_REF, "utf8") !== doc) {
+    problems.push(
+      "🚨 **Skills 側の生成物が、いまの SHORTCUTS とずれています**。" +
+        "`node scripts/build-shortcuts-manifest.mjs --write` で作り直してください" +
+        "（**手で直さない**。元は `components/admin/shortcuts.ts`）",
+    );
+  } else {
+    log(`  🟢 Skills 側の生成物と一致（${SKILL_REF.split("/.claude/")[1] ?? SKILL_REF}）`);
+  }
 }
 
 if (problems.length > 0) {

@@ -323,6 +323,16 @@ pre-commit:
     report-body-keys:
       run: node apps/studio/scripts/check-report-body-keys.mjs
 
+    # ショートカットの一覧が、Skills 側の生成物とずれていないか。
+    # 🚨 堀池さん 2026-08-15「AI が Chrome 拡張などでサイトを操作する時、活用する
+    #    （**Skills・MCP で伝わるように**）」の、**Skills 側の実体**。
+    # 🚨 生成物なので **更新しないと腐る**。ずれたら落ちる（`--write` で作り直す）。
+    # 🚨 この検査が見ていない範囲: **実際に押して効いたかは 1 件も見ていない**（静的な導出だけ）。
+    #    `useShortcut(` を**名前で探している**ので、別名で包まれたら見えない。
+    shortcuts-manifest:
+      root: "apps/studio"
+      run: node scripts/build-shortcuts-manifest.mjs
+
     # 本文（リッチテキスト）の保存側のガード。危険な URL / 許可外の節点 / 自作ブロックの属性、
     # そして **Mod-Enter を Tiptap へ返していないこと**（返すと保存に改行が混ざる）を見る。
     # 🚨 2026-08-15 まで **package.json には在るのに lefthook に載っておらず、一度も自動では走っていなかった**
