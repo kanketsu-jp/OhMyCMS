@@ -315,7 +315,15 @@ const serverText = SERVER_FILES.filter((f) => isTracked(f))
     //     出していた案内は**間違った場所を指していた**）。
     console.error("   読んだファイル:");
     for (const f of SERVER_FILES) {
-      console.error(`     ${f.split("/").pop()}  ${readFileSync(f, "utf8").length} 文字`);
+      // 🚨 **索引から読む。** `SERVER_FILES` は索引の一覧なので、
+      //    **作業ツリーに無いファイルが混ざりうる**（他人が消している最中）。
+      //    素の `readFileSync` だと、**エラー処理の中で例外を投げて落ちます**
+      //    ＝ 落ちた理由が「読み込みの問題」から「検査が壊れた」に化ける。
+      // 🚨【未実証】この経路が実際に落ちる形は**作れませんでした**
+      //    （索引に在って作業ツリーに無い ＋ 登録 0 件、が同時に要る）。
+      //    **防いだだけで、落ちるところは見ていません。**
+      const body = readTracked(f);
+      console.error(`     ${f.split("/").pop()}  ${body === null ? "🚨 索引から読めません" : `${body.length} 文字`}`);
     }
     if (SERVER_FILES.length === 0) console.error("     （なし）");
     console.error("   → **明らかに小さいファイルが在れば中身の問題**、");
