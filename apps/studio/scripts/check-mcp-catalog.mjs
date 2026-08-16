@@ -55,6 +55,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { readTracked } from "./lib/tracked-files.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MCP_SRC = join(HERE, "..", "..", "..", "packages", "mcp", "src");
@@ -293,7 +294,17 @@ const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.sp
   //    **私は写さない側に回り、あちらの出力を正として突き合わせる**。
   {
     const snapPath = join(MCP_SRC, "shortcuts-snapshot.ts");
-    const snap = readOrStop(snapPath, "ショートカットの写し");
+    // 🚨 **写しは索引から読む。生成器（polish の `3969dea`）が索引から読むようになったため。**
+    //    片方が作業ツリー・片方が索引だと、**他人の書きかけで赤の向きが裏返る**
+    //    （toast の指摘・`knowledge/decisions/checks-read-the-index-not-the-worktree.md`）。
+    //    🚨 **照合は両側を同じ側から。** ここは照合なので、生成器と同じ「索引」に揃える。
+    //    `--write` が書くのは**作業ツリー**（そちらは書き込みなので当然）。
+    const snapFromIndex = readTracked(snapPath);
+    // 未追跡（＝ まだ入っていない）なら照合できない。**空文字と同じに扱わない。**
+    const snap = snapFromIndex ?? readOrStop(snapPath, "ショートカットの写し");
+    if (snapFromIndex === null) {
+      console.log("  ⚠️ ショートカットの写しは**まだ索引に入っていません**（作業ツリーで照合します）。");
+    }
     const m = snap.match(/SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot\[\] = ([\s\S]*?) as const;/);
     if (!m) {
       console.error("🚨 ショートカットの写しから中身を取り出せませんでした。**測れていません**");
