@@ -562,6 +562,20 @@ const PROBE = String.raw`(() => {
   // 由来: 2026-08-14 堀池「**区切りが重複している**」（スクリーンショット付き）。
   // Surface が border-y（上下）を持つため、**隣り合うと下の線と上の線が並んで2本**になる。
   // 面の深さ・潰れ・寸法のどれでも見えない（1〜3辺の罫線は面に数えないため）。**新しい目が要る。**
+  // 🚨 **スクロールする領域の内と外は、別の層。** 比べてはいけない。
+  //    実例（2026-08-16・/admin/settings/agents）: 表が max-h-72 の ScrollFade の中に在り、
+  //    **切れた位置の行の下線（y=994）**と、**領域の外の div の上線（y=1006）**が 12px で並んだ。
+  //    🚨 これは固定的な二重線ではない。**スクロールすれば離れる**（＝ 直しても別の行が同じ位置に来る）。
+  //    既に在る「aria-hidden / inert の層は比べない」と同じ考え方。
+  const scrollBox = (el) => {
+    let n = el.parentElement;
+    while (n && n !== document.body) {
+      const s2 = getComputedStyle(n);
+      if (/(auto|scroll)/.test(s2.overflowY) || /(auto|scroll)/.test(s2.overflowX)) return n;
+      n = n.parentElement;
+    }
+    return null;
+  };
   const rules = [];
   for (const el of document.querySelectorAll("body *")) {
     if (!shown(el) || srOnly(el)) continue;
@@ -590,14 +604,14 @@ const PROBE = String.raw`(() => {
     for (const side of ["Top", "Bottom"]) {
       const w = px(cs["border" + side + "Width"]);
       if (w <= 0 || clear(cs["border" + side + "Color"])) continue;
-      rules.push({ y: side === "Top" ? r.top : r.bottom, x1: r.left, x2: r.right, sel: sel(el), side });
+      rules.push({ y: side === "Top" ? r.top : r.bottom, x1: r.left, x2: r.right, sel: sel(el), side, box: scrollBox(el) });
     }
   }
   // hr も数える（Divider の実体）
   for (const el of document.querySelectorAll("hr")) {
     if (!shown(el)) continue;
     const r = el.getBoundingClientRect();
-    if (r.width >= 40) rules.push({ y: r.top, x1: r.left, x2: r.right, sel: sel(el), side: "hr" });
+    if (r.width >= 40) rules.push({ y: r.top, x1: r.left, x2: r.right, sel: sel(el), side: "hr", box: scrollBox(el) });
   }
   // 🚨 「重複」の定義は「**2本の線の間に何も無い**」。
   //    最初 2px 以内で見たら検出できなかった。実際は間に余白（space-y-6 = 24px）があり、
@@ -631,6 +645,7 @@ const PROBE = String.raw`(() => {
     const gap = b2.y - a2.y;
     if (gap > 48) continue;                                              // 離れすぎ = 別の区切り
     if (Math.min(a2.x2, b2.x2) - Math.max(a2.x1, b2.x1) <= 40) continue; // 横が重なっていない
+    if (a2.box !== b2.box) continue;   // 🚨 スクロールする領域の内と外（＝別の層）は比べない   // 🚨 スクロールする領域の内と外（＝別の層）は比べない
     // 2本のあいだに文字を持つ箱があれば、それは「別々の区切り」なので重複ではない
     const hasContent = textBoxes.some(([t, b3]) => t >= a2.y - 1 && b3 <= b2.y + 1);
     if (!hasContent) {
