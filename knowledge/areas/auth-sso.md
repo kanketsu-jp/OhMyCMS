@@ -171,9 +171,32 @@ NameID が一致する状態（＝①の枝）にして、DB 側の email だけ
   :3103 が受け取る NameID … G-3b24f11a-d2b5-4676-a241-bc46af5e1200
 ```
 
-🚨 **SP の entityId（＝ URL）が変わると、既存の SAML 利用者は全員 NameID が変わる。**
+🚨 **SP の entityId が変わると、既存の SAML 利用者は全員 NameID が変わる。**
 ①が当たらなくなり、**②（メール一致）に落ちて全員がそこを通る**。
-`sp_entity_id` は**単一行・全環境共有**なので、**1 人が変えると全員に効く**。
+
+**なぜポートで変わるのか**（測り直して分かったこと。**最初に書いた含意は向きが逆だった**）:
+
+```
+【測った】ohmycms_saml_config.sp_entity_id … **空**
+コード  … entityId: config.spEntityId?.trim() || metadataUrl(request)
+        （app/api/settings/saml/route.ts:29 / 90）
+＝ 空だと **リクエストの host から entityId を組み立てる**
+```
+
+🚨 **＝ 不安定の原因は「変えること」ではなく「入れていないこと」。**
+**固定の値を入れておくほうが、NameID は安定する。**
+`sp_entity_id` は**単一行・全環境共有**なので、入れると全環境に効く。
+
+**`sp_entity_id` を変えられる口**（2026-08-16 実測。**変えていない。数えただけ**）:
+
+| 口 | 変えられるか |
+|---|---|
+| 画面 `admin/settings/sso` | ❌ **`readOnly` の表示だけ**（`saml-settings-manager.tsx:230`） |
+| **API `PATCH /api/settings/saml`** | ✅ `sp_entity_id` を受ける（`route.ts:57`）。鍵は `requireAdmin(actor,"settings:write")` ＝ `admin_access` を持つポリシーの保持者（agent は capability も要る） |
+| MCP | ❌ 0 件（🟢 対照 同じ走査で `shortcuts` は 8 行） |
+| 直 SQL | ✅ 共有 DB なので誰でも |
+
+実行時に書くのは `lib/auth/saml/config.ts` の `updateSamlConfig` **1 箇所**、その呼び手も **1 本**だけ。
 
 🚨 **権限が付いてくるかは、role を持つ利用者で測った**（上の表）。
 **実務の管理者アカウントでは測っていない**（台のポリシーは `dev-login` が付けた `dev-admin`）。
