@@ -55,6 +55,7 @@ x_rag_okf:
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
 - [ショートカットはエディタのキーバインドと衝突しない](./decisions/shortcuts-must-not-collide-with-editor.md) — `decisions/shortcuts-must-not-collide-with-editor`
 - [v0.9 は Next.js 単一アプリ、分離時は Hono](./decisions/single-nextjs-app-then-hono.md) — `decisions/single-nextjs-app-then-hono`
+- [利用者の表は 1 本の入口から開き、内部列はコード側で断る](./decisions/user-tables-have-one-entrance.md) — `decisions/user-tables-have-one-entrance`
 - [ゴミ箱に在るものの名前は、空けない](./decisions/soft-deleted-names-stay-taken.md) — `decisions/soft-deleted-names-stay-taken`
 - [手順ドキュメントはステップ式で書く。前提を独立させ、スクリーンショットを使わない](./decisions/stepwise-docs.md) — `decisions/stepwise-docs`
 - [保管先の安全装置は「実装が実際に使う値」で判定する](./decisions/storage-guard-uses-effective-config.md) — `knowledge/decisions/storage-guard-uses-effective-config.md`
