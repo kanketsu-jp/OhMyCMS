@@ -505,3 +505,17 @@ pre-commit:
     #    （写しだけ作り直す形）。0.1 秒程度なので毎回走らせる。
     save-shortcut-routes:
       run: node apps/studio/scripts/check-save-shortcut-routes.mjs
+
+    # API の返し方（素の配列 か `{ data: … }` か）と、呼ぶ側の受け方の食い違い。
+    # 🚨 由来（2026-08-17）: `ok(data)` は包まないので、包むかは route ごとに決まる。
+    #    実測 80 組中 58 組が `{ data: … }` で、**素の配列は 4 口だけ**
+    #    （GET /api/collections ・/api/fields ・/api/fields/:collection ・/api/relations）。
+    #    design がその 1 つを `j?.data ?? []` で受けて **常に 0 件**になり、
+    #    「データが無い 0」と誤読して要らない DDL を 1 回打った。
+    # 🚨 4 口を `{ data: … }` へ揃える案は取り消した。`packages/sdk/src/client.ts` が
+    #    `request<Field[]>` と**公開の型**で宣言しており、CLI・MCP・外部利用者まで壊れるため
+    #    （＝ **破壊的変更**）。いまのコードは 1 箇所も間違えていない。守るのは**これから書く人**。
+    # 🚨 母集合に `packages/*/src/**` を入れている。外すと SDK の型が守られない。
+    # 🚨 glob も root も付けない。route を 1 行変えるだけで、触っていない呼ぶ側が壊れるため。
+    api-envelope:
+      run: node apps/studio/scripts/check-api-envelope.mjs
