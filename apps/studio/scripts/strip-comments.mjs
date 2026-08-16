@@ -25,6 +25,21 @@
  * @param {string} source
  * @returns {string} コメントを空白に置き換えたソース（改行は保つ）
  */
+/**
+ * 直前の意味のある文字から、ここで**正規表現が始まりうるか**を決める。
+ * 🚨 識別子・`)`・`]`・数字の直後の `/` は**割り算**（`a / b`、`foo() / 2`、`arr[0] / n`）。
+ */
+function regexCanStart(before) {
+  const m = before.replace(/\s+$/, "");
+  if (m === "") return true;
+  const last = m[m.length - 1];
+  if (/[\w$)\]]/.test(last)) {
+    // `return /…/` `typeof /…/` のようにキーワードの直後は正規表現
+    return /\b(return|typeof|case|in|of|instanceof|new|delete|void|throw|do|else|yield|await)$/.test(m);
+  }
+  return true;
+}
+
 export function stripComments(source) {
   let out = "";
   let i = 0;
@@ -38,6 +53,30 @@ export function stripComments(source) {
       out += c; i += 1; continue;
     }
     if (c === '"' || c === "'" || c === "`") { quote = c; out += c; i += 1; continue; }
+    // 🚨 **正規表現リテラルを読み飛ばす**（2026-08-16・実際に 4 本の検査が壊れていた）。
+    //    これが無いと `/[^"]*/` の `"` を**文字列の開始**と読み、**そこから先が丸ごと「文字列の中」**に
+    //    なって、**コメントを 1 行も潰さなくなる**。実測: `check-surface-nesting` は
+    //    36 行目付近の `SURFACE_PATTERNS`（`[^"']*` を含む）以降、**139 行中 129 行が残っていた**。
+    //    ＝ **コメントに書いた語が、検査の対象に混ざる**（`check-i18n-usage` では
+    //    コメントの `t("…")` が「使われている」と数えられ、**死んだ鍵が掃除候補から消える**）。
+    // 🚨 割り算と見分ける: 直前の意味のある文字が **識別子・`)`・`]`・数値**なら**割り算**。
+    //    それ以外（`=` `(` `,` `:` `[` `!` `&` `|` `?` `{` `}` `;` `return` の後など）なら正規表現。
+    //    🚨 **見分けを間違えると、逆に「正規表現でないもの」を読み飛ばして壊す**ので、
+    //    受入では**割り算の次の行のコメントが潰れること**も必ず測る。
+    if (c === "/" && next !== "/" && next !== "*" && regexCanStart(out)) {
+      out += c; i += 1;
+      let inClass = false;
+      while (i < source.length) {
+        const r = source[i];
+        if (r === "\\") { out += source.slice(i, i + 2); i += 2; continue; }
+        if (r === "\n") break; // 正規表現は行を跨がない。跨いだら見分けを誤っている
+        out += r; i += 1;
+        if (r === "[") inClass = true;
+        else if (r === "]") inClass = false;
+        else if (r === "/" && !inClass) break;
+      }
+      continue;
+    }
     if (c === "/" && next === "/") {
       while (i < source.length && source[i] !== "\n") { out += " "; i += 1; }
       continue;
