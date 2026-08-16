@@ -25,6 +25,7 @@
   "deleted": "完全に削除しました。",
   "restored": "{count} 件を戻しました。",
   "missing_primary_key": "この表は主キーを持たないため、戻せません",
+  "system_table_not_restorable": "仕組みが使う表なので、ここからは戻せません",
   "restore_confirm_title": "復元の確認",
   "restore_with_related_description": "この項目はゴミ箱にある項目を指しています。関連する {count} 件を一緒に戻します。",
   "restore_missing_description": "この項目が指していた項目は、完全に削除されています。戻すと、その欄は空になります。",

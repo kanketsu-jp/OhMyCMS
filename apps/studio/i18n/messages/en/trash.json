@@ -25,6 +25,7 @@
   "deleted": "Deleted permanently.",
   "restored": "Restored {count} items.",
   "missing_primary_key": "This table has no primary key, so it cannot be restored",
+  "system_table_not_restorable": "This is a system table, so it cannot be restored here",
   "restore_confirm_title": "Confirm restore",
   "restore_with_related_description": "This item points to another item in trash. {count} related items will be restored with it.",
   "restore_missing_description": "The item this entry pointed to has been permanently deleted. Restoring will leave that field empty.",

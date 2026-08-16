@@ -44,7 +44,13 @@ export type TrashItem = {
   deletedAt: string;
   daysRemaining: number;
   canRestore: boolean;
-  disabledReason: "missing_primary_key" | null;
+  /**
+   * 🚨 **戻せない理由**。増える。**画面はここから文言を引くこと**（下の `disabledText`）。
+   *   `missing_primary_key` … 主キーが無いので行を特定できない
+   *   `system_table` ……… 仕組みが使う表なので、ゴミ箱からは触らせない
+   *     （2026-08-17。`directus_permissions` のように `deleted_at` は持つが許可しない表）
+   */
+  disabledReason: "missing_primary_key" | "system_table" | null;
 };
 
 type ReferenceIssue = {
@@ -90,6 +96,26 @@ function sourceLabel(t: ReturnType<typeof useT>, item: TrashItem): string {
 async function responseCode(response: Response): Promise<string | null> {
   const body = (await response.clone().json().catch(() => null)) as { error?: { code?: string } } | null;
   return body?.error?.code ?? null;
+}
+
+/**
+ * 戻せない理由の文言。
+ *
+ * 🚨 **以前ここは `t("missing_primary_key")` の直書きだった。**
+ *   理由が 1 種類しか無かったので動いていたが、**2 種類目が来た瞬間に嘘をつく**
+ *   （仕組みの表なのに「主キーがありません」と出る）。
+ *   ＝ **理由が 1 つしか無いうちは、直書きと「理由から引く」の区別が付かない。**
+ *   🚨 **null が来たら文言を出さない**（**理由が無いのに理由を書かない**）。
+ */
+function disabledText(t: ReturnType<typeof useT>, reason: TrashItem["disabledReason"]): string | null {
+  switch (reason) {
+    case "missing_primary_key":
+      return t("missing_primary_key");
+    case "system_table":
+      return t("system_table_not_restorable");
+    case null:
+      return null;
+  }
 }
 
 function errorMessage(t: ReturnType<typeof useT>, status: number, code: string | null): string {
@@ -266,7 +292,7 @@ export function TrashManager({
                     </div>
                   ) : (
                     <p className="text-left text-xs text-muted-foreground md:text-right">
-                      {t("missing_primary_key")}
+                      {disabledText(t, item.disabledReason)}
                     </p>
                   )}
                 </TableCell>
