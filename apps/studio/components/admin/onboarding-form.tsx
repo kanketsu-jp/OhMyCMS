@@ -13,7 +13,6 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
-import { FileDropzone } from "@/components/admin/file-dropzone";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useLocale, useT } from "@/i18n/client";
 
@@ -29,59 +28,24 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
   const t = useT("onboarding");
   const [step, setStep] = useState<"password" | "details">("password");
   const [projectName, setProjectName] = useState(defaultProjectName);
-  const [logoId, setLogoId] = useState<string | null>(null);
-  const [logoUploading, setLogoUploading] = useState(false);
-  const [logoError, setLogoError] = useState<string | null>(null);
+  // 🚨 298 の備考「**マイグレーションに必要なテナントなど**の設定をききます」。
+  //    2026-08-15 に `7b923d9` が**画面からだけ**外した項目（API は受け付けたまま＝ 400 の原因）。
+  //    外した理由は「テナント名が不要」ではなく「**1 画面に 5 つ並べても、区切り線は段の仕事をしない**」
+  //    だった（本人のコミット本文）。**段に分けたので、同じ理由では外れない。**
+  const [tenantName, setTenantName] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<"form" | "done">("form");
 
-  // 🚨 アップロードも「変更を送る」操作なので useSubmitOnce を通す。
-  //    `logoUploading`（useState）では防げない——**setState は非同期**で、
-  //    再レンダーが走る前に2回目が通る（憲章 §5b）。
-  //    守り手: scripts/check-submit-once.mjs（通していないと落ちる）
+  // 🚨 **ロゴのアップロードは、この画面から外した**（223 / 298・2026-08-16）。
+  //    ここに在った `uploadLogo` の知見のうち、**失われると困るもの**を残す:
+  //    ・inFlight を開けているのは**フックの側**（`hooks/use-submit-once.ts` の `run()` の try/finally）。
+  //      呼び出し側に finally が無くても通る（**3 回押して 3 回とも走った**・2026-08-15 実測）。
+  //    ・アップロード中は送信ボタンを塞いでいたが、**そこには守り手が無かった**
+  //      （戻し損ねると「はじめる」が二度と押せず、初期設定を終えられない形）。
+  //    🚨 **戻すときは、この 2 つを読んでから戻すこと。**
   //
-  // 🚨 **finally を外さないこと。ただし理由は inFlight ではない。**
-  //    以前ここには「早期 return があると inFlight が残り、二度とアップロードできなくなる」と
-  //    書いてあったが、**2026-08-15 の実測で成立しなかった**。
-  //    下の `submit` は早期 return があり、呼び出し側に finally が無い経路だが、
-  //    **3 回押して 3 回とも走った**（門は残らない）。
-  //    inFlight を開けているのは**フックの側**（`hooks/use-submit-once.ts` の `run()` の中の try/finally。🚨 **行番号で指さない**——他人が上を触るとずれる）で、
-  //    呼び出し側が何をしても通る。＝ **inFlight の守り手は、ここではなくフックにある。**
-  //
-  //    この finally が守っているのは `logoUploading` のほう。戻し損ねると
-  //    送信ボタン（「はじめる」）の `disabled={logoUploading}` が立ったままになり、
-  //    **アップロードが失敗したあと「はじめる」が二度と押せず、初期設定を終えられない**。
-  //    🚨 こちらには守り手が無い（検査で見ていない）。外すときは自分で確かめること。
-  const uploadLogo = useSubmitOnce(async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-
-    setLogoError(null);
-    setLogoUploading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/onboarding/logo", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        setLogoError(t("logo_failed"));
-        return;
-      }
-
-      const payload = (await response.json()) as { data: { id: string } };
-      setLogoId(payload.data.id);
-    } finally {
-      setLogoUploading(false);
-    }
-  });
-
   // 🚨 **`keyOf` は渡さない。渡すと壊れる。**
   //    `check-submit-once.mjs` の「行ごとの操作で keyOf を忘れている疑い」に**毎回出る**が、
   //    ここは**誤検出**（引数つきで呼んでいるだけで、行ごとの操作ではない）。
@@ -105,7 +69,7 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
         ...(includeDetails
           ? {
               project_name: projectName,
-              project_logo: logoId ?? "",
+              tenant_name: tenantName,
             }
           : {}),
       }),
@@ -265,28 +229,22 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
             />
             <p className="text-xs text-muted-foreground">{t("project_name_help")}</p>
           </div>
-          <hr className="border-0 border-t border-border" />
-          <div className="flex flex-col gap-4">
-            <p className="text-sm font-medium text-muted-foreground">{t("optional_heading")}</p>
-            <div className="flex flex-col gap-2">
-              <p id="onboarding-logo-label" className="text-sm font-medium">{t("logo_label")}</p>
-              {/* 選んだものの見せ方（サムネ・題名）は FileDropzone に任せる。
-                  ここで img を出すと Attachment と二重になる。 */}
-              {/* 受けるのはロゴ1枚なので、器もロゴの大きさに寄せる（原典 L94）。
-                  寸法は FileDropzone 側が持つ（min-h-20 / max-w-64）。ここで px を書かない。 */}
-              <FileDropzone
-                name="logo"
-                size="logo"
-                labelledBy="onboarding-logo-label"
-                onSelect={uploadLogo.run}
-              />
-              {logoUploading ? (
-                <p className="text-xs text-muted-foreground">{t("logo_uploading")}</p>
-              ) : null}
-              {logoError ? <p className="text-sm text-destructive">{logoError}</p> : null}
-              <p className="text-xs text-muted-foreground">{t("logo_help")}</p>
-            </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="tenant-name">{t("tenant_name_label")}</Label>
+            <Input
+              id="tenant-name"
+              type="text"
+              value={tenantName}
+              onChange={(event) => setTenantName(event.target.value)}
+              className="h-(--control-h) md:h-(--control-h-pc)"
+            />
+            <p className="text-xs text-muted-foreground">{t("tenant_name_help")}</p>
           </div>
+          {/* 🚨 ロゴはここに置かない（298・司令塔 2026-08-16）。
+              原文は「**マイグレーションに必要な**テナントなどの設定をききます」で、
+              **システムが要求するものだけ**を聞く形。ロゴは後から設定画面で決められる。
+              🚨 区切り線（<hr>）も一緒に外した。**段に分けたので、線で話題を割る必要が無い**
+              ——線が段の仕事をしていたのが `7b923d9` が 5 つを 1 つに減らした理由だった。 */}
           <hr className="border-0 border-t border-border" />
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <div className="flex flex-col gap-2">
@@ -294,7 +252,6 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
               type="submit"
               className="w-full"
               loading={submit.pending}
-              disabled={logoUploading}
             >
               {submit.pending ? t("submit_pending") : t("submit")}
             </Button>
