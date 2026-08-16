@@ -4,6 +4,7 @@ import { apiFetch, currentUser } from "@/lib/admin/api";
 import { localAdminUserId } from "@/lib/settings/service";
 import { displayUserAvatarEmoji, displayUserLabel, displayUserName, displayUserPicture } from "@/lib/admin/user-label";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
+import { PageHeading } from "@/components/admin/page-heading";
 import { BugReportNav } from "@/components/admin/bug-report-nav";
 import { GlobalSearchProvider } from "@/components/admin/global-search";
 import { HeaderBack } from "@/components/admin/header-back";
@@ -290,7 +291,12 @@ export default async function AdminLayout({
         />
         {/* 🚨 SP は下部の固定ナビに隠れるぶんの余白を本体側で持つ。
             ナビ側で持つと、safe-area の余白と二重になる。 */}
-        <main className="flex-1 px-4 pt-6 pb-24 md:px-8 md:pb-6">{children}</main>
+        {/* 🚨 `<h1>` はここで 1 回だけ出す（`sr-only`）。各ページに書かせない。
+            理由と「見える見出しが要るときの書き方」は page-heading.tsx の冒頭。 */}
+        <main className="flex-1 px-4 pt-6 pb-24 md:px-8 md:pb-6">
+          <PageHeading brand={brand} />
+          {children}
+        </main>
       </div>
       {/* 🚨 390px ではサイドバー（md:flex）が消えるので、これが唯一の移動手段になる。
           外すと SP から /admin/files などへ辿り着けなくなる（実測で確認済み）。

@@ -14,7 +14,6 @@ export default async function ProfilePage() {
   if (!user) {
     return (
       <div className="max-w-3xl">
-        <h1 className="sr-only">{t("profile")}</h1>
         <ErrorBanner message={t("profile_load_error")} />
       </div>
     );
@@ -22,7 +21,6 @@ export default async function ProfilePage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="sr-only">{t("profile")}</h1>
       <ProfileSettings
         avatarEmoji={user.avatarEmoji ?? AVATAR_EMOJIS[0]}
         firstName={user.firstName}
