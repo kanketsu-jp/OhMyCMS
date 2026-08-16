@@ -51,7 +51,17 @@ export function AvatarEmojiGrid({ current }: GridProps) {
   );
 
   return (
-    <div className="grid grid-cols-6 gap-2">
+    /*
+     * 🚨 **玉の大きさを固定する。列数で割らない。**
+     * かつて `grid grid-cols-6` だった。6 列を親の幅で割るので、**画面が広いほど玉が育つ**:
+     *   【実測 2026-08-16 / `/admin/profile`】
+     *     PC 1440 … 格子 768px → 玉 **121px 四方**（絵文字は 24px。**5 倍の箱**）
+     *     SP  390 … 格子 358px → 玉 **53px 四方**（こちらは妥当）
+     *   ＝ **同じ操作が、画面幅で 2 倍以上の大きさに変わっていた**（堀池さん指摘「余白がでかい」）
+     * → `flex flex-wrap` ＋ 玉を **44px 固定**（`size-11`）。
+     *   44px はこの案件のタップ最小寸法。**PC でも SP でも同じ大きさ**になる。
+     */
+    <div className="flex flex-wrap gap-2">
       {AVATAR_EMOJIS.map((emoji) => (
         <button
           key={emoji}
@@ -63,7 +73,7 @@ export function AvatarEmojiGrid({ current }: GridProps) {
           // （2026-08-15・hover: には必ず active: を対にする）に従ったもの。
           // 🚨 未検証: 実機でのタップ感触は誰も確認していない。確かめたのは生成後のCSSに
           // `:active` + `bg-accent` の組が存在すること（Tailwindに握りつぶされていないこと）だけ。
-          className="relative flex aspect-square items-center justify-center rounded-lg text-2xl hover:bg-accent active:bg-accent disabled:opacity-50"
+          className="relative flex size-11 shrink-0 items-center justify-center rounded-lg text-2xl hover:bg-accent active:bg-accent disabled:opacity-50"
         >
           {emoji}
           {/* 🚨 現在地は塗りでなく `✓`（憲章 §3b）。塗ると面が増える。 */}
