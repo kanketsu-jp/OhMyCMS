@@ -288,7 +288,9 @@ const formSource = readTarget(FORM);
  * → **件数を持たせて、失敗したときに一緒に出す。**
  */
 function countIn(source, pattern) {
-  if (pattern === null) return null;
+  // 🚨 ここに `if (pattern === null) return null;` が在ったが、**7 箇所の呼び出しのうち 0 箇所**しか
+  //    null を渡さない＝ **一度も通らない死んだ分岐**だった（2026-08-16・design の「死んだ条件」を
+  //    自分に当てて発見）。**通らない分岐は、壊れていても気づけない**ので消した。
   const re = typeof pattern === "string"
     ? new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")
     : new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
