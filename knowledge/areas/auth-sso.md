@@ -137,6 +137,17 @@ x_rag_okf:
 🚨 **1 つも違わない。** 「入れた」だけでなく「**使えた**」。
 セッションの持ち主 id も、被害者の id と一致することを `directus_sessions` で直接確かめた。
 
+🚨 **版の但し書き（測ったのは :3103＝08-14 のソースを dev で動かしている台）。**
+コンテナの中と HEAD をコメントを外して比べた:
+
+| 叩いた口 / 部品 | :3103 と HEAD |
+|---|---|
+| `app/api/collections/route.ts` | **同一**（33 行）→ ✅ **いまのコードでも同じと言える** |
+| `app/api/items/[collection]/route.ts` | **違う**（39 / 52・差分 17 行）→ 🚨 **「:3103 の版では 200」までしか言えない** |
+| `lib/permissions/resolve.ts` | 違うが、差は `PermissionAction` の union に `"log"` が増えただけ（**型なので実行時には消える**） |
+| `lib/permissions/variables.ts` | 同一（47 行） |
+| 🟢 対照 `lib/db/knex.ts` / `lib/auth/saml/metadata.ts` | 同一 / 違う（＝ **この比較は両方を出せる**） |
+
 🚨 **最初の当て先（`/api/items/directus_users`）は、権限の有無で 403/403 に潰れて区別できなかった**
 （system のコレクションのため）。**対照(-) を置いていなければ「403 だから安全」と読み違えていた。**
 
