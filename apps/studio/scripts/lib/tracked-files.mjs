@@ -26,7 +26,7 @@
  *     const files = trackedGlob("{app,components}/**\/*.tsx", { cwd: root });
  */
 import { execFileSync } from "node:child_process";
-import { globSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
 /** リポジトリの根（このファイルは apps/studio/scripts/lib/ に在る）。 */
@@ -91,9 +91,42 @@ export function isTracked(absPath) {
  * 🚨 `null`（未追跡）を「中身が空」と同じに扱わないこと。
  *   呼ぶ側で「まだ入っていない」として**照合の対象から外す**か、明示的に落とすかを決める。
  */
+/**
+ * 🚨 **作業ツリーと索引で中身が違うファイル**の集合（リポジトリ相対）。
+ *
+ * これが要る理由は速度。最初の版は **1 ファイルごとに `git show :path` を起動**していて、
+ * 292 ファイルを読む生成器が **40 秒でも終わらなくなった**（2026-08-16・saml が実測して報せた。
+ * 「落ちるのではなく待たされる」ので、他の人には遅いとしか見えない形だった）。
+ *
+ * 🚨 **中身が同じなら、どちらから読んでも同じ**。だから
+ *   ・違うファイル（ふつう数本）だけ `git show :path` を起動する
+ *   ・それ以外はディスクから読む（**索引と 1 バイトも違わないので、索引を読んだのと同じ**）
+ * とすると、起動回数が「全ファイル」から「変更中のファイル」に落ちる。
+ */
+let dirtyCache = null;
+function dirtyPaths() {
+  if (dirtyCache) return dirtyCache;
+  // `git diff --name-only`（索引 ↔ 作業ツリー）。staged 済みの変更はここに出ないが、
+  // その場合は**作業ツリー = 索引**なのでディスクから読んでよい。
+  const out = execFileSync("git", ["-C", REPO_ROOT, "diff", "--name-only", "-z"], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  dirtyCache = new Set(out.split("\0").filter(Boolean));
+  return dirtyCache;
+}
+
 export function readTracked(absPath) {
   const fromRepo = relative(REPO_ROOT, resolve(absPath)).split("\\").join("/");
   if (!trackedFiles().has(fromRepo)) return null;
+  if (!dirtyPaths().has(fromRepo)) {
+    // 索引と同じ中身なので、ディスクから読む（`git show` を起動しない）
+    try {
+      return readFileSync(resolve(REPO_ROOT, fromRepo), "utf8");
+    } catch {
+      // 追跡済みなのにディスクに無い（削除して未 staged）→ 索引から読む
+    }
+  }
   return execFileSync("git", ["-C", REPO_ROOT, "show", `:${fromRepo}`], {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
