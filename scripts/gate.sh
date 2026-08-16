@@ -101,12 +101,15 @@ if [ "$NJOBS" -lt 30 ]; then log "🚨 lefthook の job が ${NJOBS} 本しか�
 
 # 🚨 **走らせないものは、必ず理由を隣に書く**（既存の決定。黙って外さない）。
 #    `|` 区切りで「job 名|理由」。**ここに無い job は必ず走る**。
+# 🚨 理由は**実測を添えて書く**（2026-08-16）。`knowledge` を「PATH に無い」という
+#    **測っていない理由**で除外していたのを直したとき、残り 5 本も同じ目で見直した。
+#    🚨 司令塔の言葉:「**その理由を、書いた人が測っていないことを、読む人は見分けられない**」
 SKIP_JOBS="
-secrets|{staged_files} を lefthook が埋める形。門には staged が無い
-syntax|同上（{staged_files}）
-lint|同上。門は上で 'bun run lint' を走らせている
-typecheck|門は上で tsc --noEmit を走らせている（同じもの）
-packages-typecheck|門は下で build+typecheck を走らせている（順序が違うだけ）
+secrets|🚨 引数なしだと exit=0・出力 0 行（実測）＝ 走らせると「何も検査していない緑」になる
+syntax|走らせると exit=1「対象ファイルが 0 件で呼ばれました」（実測）＝ 門が偽の赤を出す
+lint|{staged_files} が要る。門は上で 'bun run lint'（全体）を走らせている＝上位互換
+typecheck|門は上で tsc --noEmit を走らせている（同じもの・cwd も apps/studio で一致）
+packages-typecheck|dist が無いと exit=1 で止まる作り（実測）。門は下で build してから typecheck＝上位互換
 "
 # 🚨 **exit が常に 0 の job**（＝ 「✅」が「異常が無い」を意味しない）。**出力を必ず見る**。
 #    2026-08-16: `knowledge` を「rokf が PATH に無いことが在る」という理由で除外していたが、
