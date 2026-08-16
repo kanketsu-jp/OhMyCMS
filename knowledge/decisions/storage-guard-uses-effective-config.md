@@ -32,7 +32,7 @@ sources:
 
 ```
 守り: process.env.S3_ENDPOINT を見て「ローカルだから安全」と判断
-実装: getSettings() 経由で **DB を優先**して解決（lib/settings/service.ts:229）
+実装: getSettings() 経由で **DB を優先**して解決（lib/settings/service.ts の getSettings() 内 resolve()）
 ```
 
 **共有設定に `s3_bucket = "xx"` が残っており、環境変数に勝っていた。**
@@ -59,7 +59,12 @@ sources:
 
 ## 知っておくこと
 
-🚨 **設定は DB が環境変数に勝つ**（`lib/settings/service.ts:229`。DB → env → 既定値）。
+🚨 **設定は DB が環境変数に勝つ**（`lib/settings/service.ts` の `getSettings()` の中の
+`resolve()`。**DB に文字列が在ればそれ、無ければ env、無ければ既定値**）。
+
+🚨 **行番号で指さない**（2026-08-16）。この文書は当初 `service.ts:229` と書いていたが、
+**同じ日のうちに 229 行は別のもの（`resolve` の宣言の途中）になっていた**。
+**関数名とコメントの原文で指す**（動かないもので指す）。
 **したがって、共有設定に残った値は全員に効く。**
 環境変数で検証しようとしても、**DB に値があれば無視される**。
 

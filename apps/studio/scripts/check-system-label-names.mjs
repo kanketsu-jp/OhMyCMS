@@ -112,7 +112,9 @@ function withoutComments(src) {
   const 外 = seeding.filter((f) => f !== MIGRATION);
   for (const f of 外) {
     console.error(`  🚨 [S3] ${f} でも system_key を種まきしています。**この検査は読んでいません**`);
-    console.error(`     → 27 行目の MIGRATION を配列にして、両方を読むようにしてください`);
+    // 🚨 **行番号で指さない**（司令塔 2026-08-16。toast の実測で、同じファイルの
+    //    行番号が**半日で 2 行ずれた**）。**動かないもの＝定数名で指す。**
+    console.error(`     → この検査の定数 MIGRATION を配列にして、両方を読むようにしてください`);
   }
   if (外.length > 0) process.exit(1);
 }
