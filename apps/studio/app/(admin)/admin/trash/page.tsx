@@ -20,7 +20,11 @@ export default async function TrashPage() {
         <p className="text-sm text-muted-foreground">{t("description")}</p>
       </div>
       {result.ok ? (
-        <TrashManager initial={result.data.data} retentionDays={result.data.retention_days} />
+        <TrashManager
+          initial={result.data.data}
+          retentionDays={result.data.retention_days}
+          lastPurge={result.data.last_purge}
+        />
       ) : (
         <ErrorBanner message={tError(result.messageKey)} />
       )}

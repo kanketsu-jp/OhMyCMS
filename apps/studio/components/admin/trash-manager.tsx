@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
@@ -60,9 +61,29 @@ type RestorePlan = {
   relatedRestoreCount: number;
 };
 
+/**
+ * 直近の自動削除の走行。**`null` は「まだ 1 度も走っていない」。**
+ *
+ * 🚨 **`null` と `deleted_total: 0` を同じ文言にしないこと。**
+ *   `null` ……………… 動いていない（＝ 保持期間の約束が守られている保証が無い）
+ *   `deleted_total: 0` … 動いたが、消すものが無かった（＝ 正常）
+ *   同じ文言にすると、**「動いていない」と「正常」が同じ顔になる**（schema の申し送り・2026-08-17）。
+ *
+ * 🚨 型を `lib/trash/purge.ts` から import しない。あちらは knex を掴んでいて、
+ *   ここは client component（`"use client"`）なので、**サーバ側の依存を持ち込む口を開けない**。
+ */
+export type LastPurge = {
+  started_at: string;
+  finished_at: string | null;
+  deleted_total: number;
+  /** 落ちたときだけ入る */
+  error: string | null;
+};
+
 export type TrashListPayload = {
   data: TrashItem[];
   retention_days: number;
+  last_purge: LastPurge | null;
 };
 
 function sourceLabel(t: ReturnType<typeof useT>, item: TrashItem): string {
@@ -107,9 +128,11 @@ function errorMessage(t: ReturnType<typeof useT>, status: number, code: string |
 export function TrashManager({
   initial,
   retentionDays,
+  lastPurge,
 }: {
   initial: TrashItem[];
   retentionDays: number;
+  lastPurge: LastPurge | null;
 }) {
   const t = useT("trash");
   const format = useFormat();
@@ -182,9 +205,31 @@ export function TrashManager({
 
   return (
     <>
+      {/* 🚨 **落ちたことは、記録に残るだけでは読まれない。** 自動削除は毎朝 cron から黙って走り、
+          落ちても `error` に記録されるだけ（`lib/trash/purge.ts`）。読まれなければ永久に落ち続ける。
+          → `decisions/toast-for-events-page-for-what-needs-fixing`「直すべきことは画面に出す」。
+          🚨 **成功したことは出さない**（`decisions/every-element-must-earn-its-place`）。
+          出すのは下の 1 行（いつ動いたか）だけで足りる。 */}
+      <ErrorBanner
+        message={
+          lastPurge?.error
+            ? t("purge_failed", { when: format.dateTime(lastPurge.started_at) })
+            : null
+        }
+      />
+
       <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
         <span>{t("count", { count: items.length })}</span>
-        <span>{t("retention", { days: retentionDays })}</span>
+        <span className="flex items-center gap-3">
+          {/* 🚨 **`null` と `deleted_total: 0` を同じ文言にしない**（型の宣言に理由を書いた）。
+              「まだ動いていない」と「動いたが消すものが無かった」は別のこと。 */}
+          <span>
+            {lastPurge
+              ? t("purge_last", { when: format.dateTime(lastPurge.started_at) })
+              : t("purge_never")}
+          </span>
+          <span>{t("retention", { days: retentionDays })}</span>
+        </span>
       </div>
 
       {items.length === 0 ? (
