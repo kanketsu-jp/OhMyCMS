@@ -78,10 +78,6 @@ export const SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot[] = [
       "page:/admin/settings/general",
       "page:/admin/settings/storage",
       "page:/admin/settings/sso",
-      "page:/admin/settings/roles",
-      "page:/admin/settings/policies",
-      "page:/admin/settings/users",
-      "page:/admin/settings/agents",
       "page:/admin/profile"
     ],
     "label_key": "common.shortcut_save",
