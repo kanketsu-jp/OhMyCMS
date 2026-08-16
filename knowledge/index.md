@@ -46,6 +46,7 @@ x_rag_okf:
 - [Directus をフォークしない](./decisions/no-directus-fork.md) — `decisions/no-directus-fork`
 - [面（Surface）は1段まで。入れ子を構造的に禁止する](./decisions/no-nested-surfaces.md) — `decisions/no-nested-surfaces`
 - [組織テーブルを作らない](./decisions/no-organization-table.md) — `decisions/no-organization-table`
+- [「まだ許可されていない」は、ログイン画面へ送らない](./decisions/not-yet-allowed-is-not-logged-out.md) — `decisions/not-yet-allowed-is-not-logged-out`
 - [ORM は Knex（Prisma / Drizzle は不採用）](./decisions/orm-knex.md) — `decisions/orm-knex`
 - [検証用に見えるデータを、名乗りが無いという理由で消さない](./decisions/permanent-fixtures-are-not-junk.md) — `decisions/permanent-fixtures-are-not-junk`
 - [ポートは 31xx 帯に寄せ、よく使うポートを避ける](./decisions/port-allocation.md) — `decisions/port-allocation`
