@@ -541,17 +541,24 @@ for (const m of misses) {
     selfCheckFailed = true;
     continue;
   }
-  const found = newViolations(inspect(m.service, m.form).violations);
+  // 🚨 ⑦ **判定に届いたことを、実物で出す**（2026-08-16・schema の形）。
+  //    「見逃した」は `violations.length === 0` なので、**出せる違反が無い**。
+  //    代わりに **`inspect()` が切り出した本体の文字数**を出す——これは
+  //    **判定がその入力を実際に読んだ**ときにしか 0 以外にならない。
+  //    ＝ 「見逃した」と「届かなかった」が、**出力で区別できる**。
+  const inspected = inspect(m.service, m.form);
+  const reached = `本体 ${inspected.bodyChars} 文字を判定`;
+  const found = newViolations(inspected.violations);
   if (onlyUnreached(found)) {
     // 🚨 切り出せなかっただけ。**この入力は判定に届いていない**ので、拾えたとも見逃したとも数えない。
     console.log(`  🚨 ${m.name}  → **判定に届いていません**（${found.map((v) => v.rule).join(",")} しか出ていない＝対象を切り出せていない）`);
     selfCheckFailed = true;
   } else if (found.length > 0) {
-    console.log(`  ✅ ${m.name}  → 拾えた（${found.map((v) => v.rule).join(",")}）`);
+    console.log(`  ✅ ${m.name}  → 拾えた（${found.map((v) => v.rule).join(",")}／${reached}）`);
     // 🚨 ヘッダに「見ていない」と書いてあるのに拾えるようになった ＝ **記述のほうが古い**
     if (m.declaredBlind) stale.push(`「${m.name}」は**拾えるようになりました**（ヘッダは「見ていない」のまま）`);
   } else {
-    console.log(`  🚨 ${m.name}  → **見ていません**（${m.why}）`);
+    console.log(`  🚨 ${m.name}  → **見ていません**（🟢 ${reached}＝**届いています**／${m.why}）`);
     missed += 1;
     // 🚨 逆向き。ヘッダに載せていない形を見逃している ＝ **記述が足りていない**
     if (!m.declaredBlind) stale.push(`「${m.name}」を**見逃しています**（ヘッダに載っていません）`);
