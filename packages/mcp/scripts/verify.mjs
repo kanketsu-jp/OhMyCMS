@@ -83,7 +83,10 @@ async function main() {
 
   console.log("【0】検証用のトークンとデータを用意する（REST 経由。MCP ではない）");
   const anon = createClient({ baseUrl });
-  const login = await anon.auth.devLogin(`mcp-verify-${stamp}@example.test`, { admin: true });
+  // 🚨 email に stamp を入れない。dev-login は email ごとに directus_users へ insert するので、
+  //   毎回違う email にすると走らせるたび利用者が 1 人増える（実測 2026-08-17: dev の利用者 308 人）。
+  //   固定なら upsertDevUser が既存行を再利用する（insert しない）。コレクション名の stamp は残す。
+  const login = await anon.auth.devLogin("mcp-verify@example.test", { admin: true });
   if (!login.sessionToken) throw new Error("dev-login が使えません（ALLOW_DEV_LOGIN を確認）");
   const session = createClient({ baseUrl, sessionToken: login.sessionToken });
 

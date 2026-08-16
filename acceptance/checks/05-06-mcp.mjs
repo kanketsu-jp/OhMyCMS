@@ -92,7 +92,10 @@ async function setup(baseUrl, stamp, { sabotage = false } = {}) {
   const forbidden = `${PREFIX}forbidden_${stamp}`;
 
   // 開発ビルドなら dev-login、本番ビルドなら .env の管理者でパスワードログイン
-  const auth = await establishSession(baseUrl, { label: `acc-mcp-${stamp}`, admin: true });
+  // 🚨 label に stamp を入れない（03-gui-reach.mjs と同じ理由）。dev-login は email ごとに
+  //   directus_users へ insert するので、毎回違う email にすると走らせるたび利用者が増える。
+  //   固定なら upsertDevUser が既存行を再利用する。トークン名の stamp は下でそのまま使う。
+  const auth = await establishSession(baseUrl, { label: "acc-mcp", admin: true });
   if (!auth.ok) {
     return { ok: false, reason: auth.reason, detail: auth.detail };
   }

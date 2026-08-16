@@ -88,7 +88,12 @@ export async function check(context) {
     : REQUIRED_NAV;
 
   // 開発ビルドなら dev-login、本番ビルドなら .env の管理者でパスワードログイン
-  const auth = await establishSession(baseUrl, { label: `reach-${stamp}`, admin: true });
+  // 🚨 label に stamp を入れない。dev-login は email ごとに directus_users の行を作るので、
+  //   毎回違う email にすると走らせるたびに利用者が 1 人増える（実測 2026-08-17: dev の利用者 308 人中
+  //   266 人が acc- 接頭辞＝受入の残骸だった）。同じ email なら upsertDevUser が既存行を再利用する
+  //   （insert しない・ensureDevAdminAccess も冪等）ので、固定にして「消すものを作らない」形にする。
+  //   コレクション名・トークン名の stamp は後始末が在るのでそのまま残す。
+  const auth = await establishSession(baseUrl, { label: "reach", admin: true });
   if (!auth.ok) {
     return blocked(auth.reason, auth.detail, [`bun run acceptance --only 3 --base-url ${baseUrl}`], started);
   }
