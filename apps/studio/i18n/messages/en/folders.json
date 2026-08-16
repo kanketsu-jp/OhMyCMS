@@ -5,7 +5,7 @@
   "delete_button": "Delete",
   "error_create_failed": "Failed to create folder",
   "error_delete_failed": "Failed to delete folder",
-  "error_folder_not_empty": "This folder contains files",
+  "error_folder_not_empty": "This folder is not empty",
   "error_forbidden": "You do not have permission",
   "name_label": "Folder name",
   "name_placeholder": "Folder name",

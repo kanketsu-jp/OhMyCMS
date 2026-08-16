@@ -5,7 +5,7 @@
   "delete_button": "削除",
   "error_create_failed": "作成できません",
   "error_delete_failed": "削除できません",
-  "error_folder_not_empty": "中にファイルがあります",
+  "error_folder_not_empty": "中にファイルかフォルダがあります",
   "error_forbidden": "権限がありません",
   "name_label": "フォルダ名",
   "name_placeholder": "フォルダ名",
