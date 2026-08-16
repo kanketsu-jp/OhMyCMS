@@ -316,6 +316,43 @@ const modeSplit = pageReach
   )
   .map((p) => p.route)
   .sort();
+// ── ⑦-c 🚨 **押せる状態でないと効かない画面**（`disabled` で止めている保存） ──────
+// 由来: 2026-08-16。私が「`/admin/settings/storage` は編集モードでも ⌘Enter が効かない」と
+//   base2 へ渡したところ、**不具合ではなかった**。`disabled={!dirty}` ＝ **変更が無ければ保存させない**。
+//   base2 の実測: 値を 1 つ変えてから ⌘Enter → submit 1 件 + `/api/settings PATCH`（横取りして停止）。
+//   🚨 **`page-action.tsx` は `disabled` をショートカット側でも見ている**
+//      （「押せないボタンの働きを鍵から起こさない」）ので、**ボタンが押せない＝⌘Enter も効かない**。
+// 🚨 ＝ この画面で効くかは **モードだけでは決まらない**（「変更が在るか」でも変わる）。
+//   `#editing` のような形を入れても、**これだけでは足りない**（base2 の指摘）。
+// 🚨 拾い方: 到達先の `<PageAction … />` のうち **`role="primary"` かつ `form=` を持つ**ものに
+//   `disabled=` が在るか。**`/>` は行頭のものだけを終端に使う**
+//   （`icon={<Check />}` の `/>` を終端にすると、その後ろの `disabled` を取りこぼす）。
+const gatedSave = pageReach
+  .map(({ route, reach }) => {
+    const conds = [];
+    for (const f of reach) {
+      if (f.endsWith("lib/admin/page-actions.ts")) continue;
+      for (const m of readFileSync(f, "utf8").matchAll(/<PageAction\b[\s\S]*?^\s*\/>/gm)) {
+        const b = m[0];
+        if (!/role="primary"/.test(b) || !/\bform=/.test(b)) continue;
+        const d = b.match(/\bdisabled=\{([^}]*)\}/);
+        if (d) conds.push(d[1].trim());
+      }
+    }
+    return { route, conds: [...new Set(conds)] };
+  })
+  .filter((x) => x.conds.length > 0)
+  .sort((a, b) => a.route.localeCompare(b.route));
+// 🚨 **0 の顔**: 0 なら「どこも止めていない」のか「拾い方が壊れた」のか区別できない。
+//   2026-08-16 時点で `disabled={!dirty}`（storage）/ `{!ready}`（sso）が実在するので **0 は失敗**。
+if (gatedSave.length === 0) {
+  problems.push(
+    "保存を `disabled` で止めている画面が **0 件**でした。🚨 2026-08-16 時点で実在する" +
+      "（`storage-settings-manager` の `disabled={!dirty}` / `saml-settings-manager` の `disabled={!ready}`）ので、" +
+      "**拾い方が壊れた合図**です。`<PageAction` の書き方が変わっていないか確かめてください",
+  );
+}
+
 // 🚨 **0 の顔**: ここが 0 なら「分割された画面がまだ無い」のか「探し方が壊れた」のか区別できない。
 //   分割は 2026-08-16 時点で実在する（4 枚を目視で確認済み）ので、**0 は失敗として扱う**。
 if (modeSplit.length === 0) {
@@ -373,6 +410,22 @@ if (modeSplit.length === 0) {
     "「編集する」を押してから ⌘Enter → 送信 **1 件**（`settings-form`）。",
     "🚨 **元になっている表（`PAGE_ACTIONS`）がモードを表せない**ため、ここは導出できません。",
     "表にモードの欄が入り次第、この節は導出に置き換わります。",
+    "",
+    "## 🚨 さらに：**押せる状態でないと効かない**画面",
+    "",
+    "保存ボタンが `disabled` のとき、**⌘Enter も効きません**",
+    "（`page-action.tsx` がショートカット側でも `disabled` を見ているため。",
+    "「押せないボタンの働きを鍵から起こさない」）。",
+    "🚨 **モードだけでなく「保存できる状態か」でも変わります。**",
+    "",
+    `🚨 **保存を止めている画面は ${gatedSave.length} 件**（0 件なら拾い方が壊れています。この生成器が落ちます）:`,
+    "",
+    ...gatedSave.map((g) => `- \`${g.route}\` … 押せない条件: ${g.conds.map((c) => `\`${c}\``).join(" / ")}`),
+    "",
+    "実測（2026-08-16）: `/admin/settings/storage` は編集モードでも**何も変えなければ** ⌘Enter で",
+    "送信 **0 件**。値を 1 つ変えると送信 **1 件**（`storage-settings-form`）。",
+    "🚨 **「効かない」ではなく「保存できる状態のときだけ効く」**です。",
+    "🚨 こちらは**条件式ごと導出しています**（上のモードの節と違い、推測ではありません）。",
     "",
     "## 🚨 本文エディタが押さえている組み合わせ（**割り当ててはいけない側**）",
     "",
