@@ -51,6 +51,18 @@ LOGD="$WT/.gate"; mkdir -p "$LOGD"
 run(){ n=$1; shift; ( cd "$S" && "$@" >"$LOGD/out.log" 2>&1 ); c=$?
   if [ "$c" -ne 0 ]; then log "  ❌ $n exit=$c"; sed -n '1,8p' "$LOGD/out.log" | sed 's/^/      /'; FAIL=1
   else log "  ✅ $n"; fi; }
+# 🚨 押すのは止めないが、**必ず件数を出す**枠。使うのは「既知で・直す先が決まっていて・
+#    止めると門ごと回避される」ものだけ。使ったら必ず**外す条件**を隣に書くこと。
+warnonly(){ n=$1; shift; ( cd "$S" && "$@" >"$LOGD/out.log" 2>&1 ); c=$?
+  if [ "$c" -ne 0 ]; then
+    # 🚨 件数は**検査自身が出している行**をそのまま見せる。自分で数え直すと、
+    #    出力の形が変わった瞬間に「違反 0」と出て、**警告が嘘になる**（実際に一度なった）。
+    v=$(grep -E '違反|件 /|箇所' "$LOGD/out.log" 2>/dev/null | grep -vE '囮|自己検査|✅|対象を拾えて' | head -2 | tr -s ' ' | tr '\n' ' ')
+    [ -z "$v" ] && v="🚨 件数を取り出せませんでした（出力の形が変わった可能性）"
+    # 🚨 `$c（` と書くと、全角の括弧まで変数名として読まれて "unbound variable" になる。
+    #    多バイト文字の直前では必ず ${} で閉じること（2026-08-16 実測で踏んだ）。
+    log "  🚨 $n exit=${c} — **押すのは止めない** ／ ${v}"
+  else log "  ✅ $n （🚨 0 になりました。gate.sh の warnonly を run へ戻してください）"; fi; }
 runroot(){ n=$1; shift; ( cd "$WT" && "$@" >"$LOGD/out.log" 2>&1 ); c=$?
   if [ "$c" -ne 0 ]; then log "  ❌ $n exit=$c"; sed -n '1,8p' "$LOGD/out.log" | sed 's/^/      /'; FAIL=1
   else log "  ✅ $n"; fi; }
@@ -63,6 +75,47 @@ run i18n:usage       node scripts/check-i18n-usage.mjs
 run aschild          node scripts/check-aschild-single-child.mjs
 run submit-once      node scripts/check-submit-once.mjs
 run user-label-leak  node scripts/check-user-label-leak.mjs
+# 🚨 ここから先は **lefthook.yml から実行のたびに導出**する。
+#    理由（2026-08-16 に 2 回踏んだ）:
+#      ① この門は当初 lefthook の 22 本のうち **5 本**しか見ておらず、
+#         「門が緑」と報告しながら 17 本は一度も走っていなかった
+#      ② 手で 17 本を書き足した直後に、design が lefthook 側で
+#         `no-api-message` → `raw-api-message` へ差し替えた。
+#         🚨 **書き写した一覧は、その瞬間から腐る。**
+#    lefthook を丸ごと呼ぶ案は使えない（隔離した worktree では next/link・lucide-react・
+#    @tiptap/* がモジュール解決できず **偽の赤**が出る。実測）。名前だけ借りて個別に呼ぶ。
+CHECKS=$(grep -oE 'node scripts/check-[a-z0-9-]+\.mjs' "$WT/lefthook.yml" | sed 's|node scripts/||' | sort -u)
+N=$(printf '%s\n' "$CHECKS" | grep -c . || true)
+# 🚨 導出が空 / 極端に少ないときは「全部通った」ではなく **失敗**として扱う。
+#    空の期待は「照合していない」であって「違反が無い」ではない。
+if [ "$N" -lt 15 ]; then
+  log "🚨 lefthook からの導出が ${N} 本しかない（15 本未満）。**導出が壊れています**"; exit 1
+fi
+log "  lefthook から ${N} 本を導出"
+# 隔離した worktree では走らせられないもの（**理由つきで除外する。黙って外さない**）
+# 🚨 いまは 0 本。
+#    2026-08-16 に check-shortcuts を一度ここへ入れたが、**誤りだった**:
+#      落ちたのは `bun x lefthook run pre-commit --all-files` 経由のときだけで、
+#      **同じスクリプトを直接呼ぶと exit 0**（囮も対照も全部通る・実測）。
+#      🚨 **ある呼び出し方で落ちたことを、別の呼び出し方にも当てはめた。**
+#      除外を書くときは「どの呼び方で落ちたか」まで測ること。
+SKIP_IN_WORKTREE=""
+for f in $CHECKS; do
+  case " $SKIP_IN_WORKTREE " in *" $f "*) log "  ⏭ ${f%.mjs}（隔離ツリーでは解決不能・理由は上）"; continue;; esac
+  case "$f" in check-i18n-hardcoded.mjs|check-i18n-keys.mjs|check-i18n-usage.mjs|check-submit-once.mjs|check-user-label-leak.mjs) continue;; esac
+  n=${f%.mjs}; n=${n#check-}
+  # 🚨 warnonly は **いま 0 本**。
+  #    2026-08-16 に 2 本を入れ、同じ日に 2 本とも 0 になったので run へ戻した:
+  #      control-height-tokens … 操作部品 3 → **0**
+  #      no-api-message        … 違反 22 件 / 12 ファイル → **0**
+  #        （`raw-api-message` の基準線も 22/12 → **0/0**）
+  #    🚨 **止めずに件数を出し続けたから減った。** 赤にして止めていたら、
+  #       たぶん門ごと回避されて 1 件も減っていない。
+  #    🚨 次に warnonly を使うときの条件（**4 つ揃わなければ使わない**）:
+  #      ①既知 ②直す先が決まっている ③**持ち主が決まっている** ④外す条件が隣に書いてある
+  #      （③を確かめずに入れて、書いた 5 分後に自分で破った。二度目は無し）
+  run "$n" node "scripts/$f"
+done
 # 🚨 packages/* は 2026-08-16 まで範囲外だった（CI が初回で TS2307 を出して教えてくれた）。
 #    sdk は "types": "./dist/index.d.ts" なので **build しないと型が存在しない**。
 #    build を先に置く（CI の build ジョブは順序が逆で落ちた）。
