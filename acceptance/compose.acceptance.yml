@@ -95,6 +95,18 @@ services:
       #   docker compose -f compose.yml -f acceptance/compose.acceptance.yml up -d studio-acc
       # 🚨 コンテナ内からは `localhost:3106` ではなく **`minio:9000`**（compose のホスト名）。
       #   ネットワークは compose.minio.yml が ohmycms_default へ相乗りしている（storage の実測）。
+      #
+      # 🚨 **env だけでは足りない。DB も見ること**（2026-08-17・storage の実測）。
+      #   設定は **DB が正で、env は初期値**（`lib/settings/service.ts` の `fromEnvironment`）。
+      #   **DB に値が入っていると env は無視される**ので、下を必ず打つ:
+      #     docker exec ohmycms-db psql -U cms -d cms -c \
+      #       "update ohmycms_settings set s3_force_path_style='true'"
+      #   🚨 打たないとどうなるか（実測）: `S3_FORCE_PATH_STYLE=true` を渡していても
+      #     DB の `'false'` が勝ち、**virtual-host 形式**で `ohmycms.minio` を引きに行って
+      #     **502 STORAGE_ERROR (Error code=ENOTFOUND)**。
+      #     🟢 対照 `minio` は引ける（172.28.0.4）ので、**台のせいに見えない**。
+      #   🚨 **終わったら `'false'` へ戻すこと**（共有 DB なので、次に使う人の前提が変わる）。
+      #   詳しくは `knowledge/decisions/settings-db-beats-env.md`。
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}

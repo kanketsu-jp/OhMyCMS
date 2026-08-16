@@ -57,6 +57,7 @@ x_rag_okf:
 - [台が作った利用者は、作った人が id で消す](./decisions/probes-clean-up-by-id.md) — `decisions/probes-clean-up-by-id`
 - [リレーションを辿るときも、相手側コレクションの権限を必ず通す](./decisions/relation-permission-boundary.md) — `decisions/relation-permission-boundary`
 - [秘密の置き場所は「復元可能性」で決める（ハッシュ化できるものだけ GUI 可）](./decisions/secrets-storage-by-recoverability.md) — `decisions/secrets-storage-by-recoverability`
+- [設定は DB が正。env は初期値でしかない](./decisions/settings-db-beats-env.md) — `decisions/settings-db-beats-env`
 - [共有ファイルは、窓に自分の行を置かない](./decisions/shared-files-are-not-left-in-the-window.md) — `decisions/shared-files-are-not-left-in-the-window`
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
 - [ショートカットはエディタのキーバインドと衝突しない](./decisions/shortcuts-must-not-collide-with-editor.md) — `decisions/shortcuts-must-not-collide-with-editor`
