@@ -7,6 +7,7 @@ import {
 } from "@ohmycms/sdk";
 import { TOOL_CATALOG } from "./catalog.js";
 import { run } from "./result.js";
+import { SHORTCUTS_SNAPSHOT, SHORTCUTS_UNKNOWN_SCOPE } from "./shortcuts-snapshot.js";
 
 export const SERVER_NAME = "ohmycms";
 export const SERVER_VERSION = "0.1.0";
@@ -419,6 +420,22 @@ export function createServer(client: OhMyCmsClient): McpServer {
       run(async () => ({
         settings: await client.settings.update(patch),
       })),
+  );
+
+  /* ------------------------------------------------------------------ *
+   * 画面の作り（読むだけ）
+   * ------------------------------------------------------------------ */
+
+  // 🚨 **API を叩かない。** 写し（生成物）をそのまま返す。
+  //    `packages/mcp` は `apps/studio` を import できないため（shortcuts-snapshot.ts の冒頭）。
+  //    🚨 **押させない。** 操作するのは Chrome 拡張などの側で、ここは「伝わる」側。
+  server.registerTool("ohmycms_shortcuts_list", TOOL_CATALOG.ohmycms_shortcuts_list, async () =>
+    run(async () => ({
+      shortcuts: [...SHORTCUTS_SNAPSHOT],
+      count: SHORTCUTS_SNAPSHOT.length,
+      // 🚨 0 でも返す（「見ていない 0」と区別できるように）。
+      unknown_scope: SHORTCUTS_UNKNOWN_SCOPE,
+    })),
   );
 
   return server;

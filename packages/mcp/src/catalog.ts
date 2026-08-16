@@ -188,6 +188,15 @@ export const TOOL_CATALOG = {
     outputSchema: S.SETTINGS_OUTPUT,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   },
+  ohmycms_shortcuts_list: {
+    title: "ショートカット一覧",
+    description:
+      "画面のキーボードショートカットを返す。認証は不要（画面の作りを説明するだけで、データには触れない）。scope は使われている場所から導出したもので、導出できないものは unknown（global に倒していない）。",
+    inputSchema: S.EMPTY_INPUT,
+    outputSchema: S.SHORTCUTS_LIST_OUTPUT,
+    // 🚨 押させない。読むだけ。外にも出ない（写しを返すので openWorldHint は付けない）。
+    annotations: { readOnlyHint: true },
+  },
 } as const satisfies Record<string, ToolSpec>;
 
 export type ToolName = keyof typeof TOOL_CATALOG;

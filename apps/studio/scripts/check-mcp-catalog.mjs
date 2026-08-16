@@ -51,6 +51,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -449,7 +450,7 @@ if (!WRITE) {
     //    「**写しがずれた**」＝ **この検査の存在理由そのもの**だった。
     //    🚨 これは【鳴る】。**数が合わなければ落ちる**（＝足したことに気づける）。
     //    通っていることまでは保証しない（**通したかは人が台で確かめる**）。
-    const EXIT_BRANCHES = 12;
+    const EXIT_BRANCHES = 16;
     const branches = (self.match(/process\.exit\(1\)/g) ?? []).length;
     if (branches !== EXIT_BRANCHES) {
       console.error(`🚨 落ちる分岐の数が変わりました（記録 ${EXIT_BRANCHES} → いま ${branches}）。`);
@@ -519,6 +520,53 @@ if (current === rendered) {
   //    文言を拾えていないのに「完全一致」と出しました（2026-08-15・このファイルの冒頭に記録）。
   //    読んだ人が「抽出が正気か」をその場で確かめられるように、生の値を出す。
   //    規律は覚えている間しか効かないが、出力なら覚えていなくても効く。
+  // ── ショートカットの写し（`packages/mcp/src/shortcuts-snapshot.ts`）─────────
+  //
+  // 🚨 **同じ「生成された写し」なので、同じ場所で守る。**
+  //    別の検査にすると `lefthook.yml`（**9 ペインが共有**）を触ることになり、
+  //    そちらのほうが事故が大きい（2026-08-16 の判断）。
+  //    🚨 **正は `apps/studio/components/admin/shortcuts.ts`**。
+  //    生成器（`build-shortcuts-manifest.mjs`）は polish の持ち物なので、
+  //    **私は写さない側に回り、あちらの出力を正として突き合わせる**。
+  {
+    const snapPath = join(MCP_SRC, "shortcuts-snapshot.ts");
+    const snap = readOrStop(snapPath, "ショートカットの写し");
+    const m = snap.match(/SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot\[\] = ([\s\S]*?) as const;/);
+    if (!m) {
+      console.error("🚨 ショートカットの写しから中身を取り出せませんでした。**測れていません**");
+      console.error("   → 生成物の形が変わった可能性。--json で作り直してください。");
+      process.exit(1);
+    }
+    let live;
+    try {
+      live = JSON.parse(
+        execFileSync("node", [join(HERE, "build-shortcuts-manifest.mjs"), "--json"], { encoding: "utf8" }),
+      );
+    } catch (error) {
+      console.error("🚨 ショートカットの生成器を動かせませんでした。**「ずれ無し」ではなく「測れていません」です。**");
+      console.error(`   ${String(error.message).split("\n")[0].slice(0, 160)}`);
+      process.exit(1);
+    }
+    // 🚨 **0 件は失敗**（空の一覧を「全部 global」と読ませない・司令塔 2026-08-16）。
+    if (!Array.isArray(live) || live.length === 0) {
+      console.error("🚨 ショートカットを 1 件も導出できませんでした。**「無い」ではなく「見ていない」です。**");
+      process.exit(1);
+    }
+    const saved = JSON.parse(m[1]);
+    const unknown = live.filter((s) => s.scope === "unknown").length;
+    if (JSON.stringify(saved) !== JSON.stringify(live)) {
+      console.error("🚨 ショートカットの写しが、正とずれています。");
+      console.error(`   正 ${live.length} 件 / 写し ${saved.length} 件`);
+      console.error("   直すには: node scripts/build-shortcuts-manifest.mjs --json で作り直して");
+      console.error("             packages/mcp/src/shortcuts-snapshot.ts の配列へ入れ直してください。");
+      process.exit(1);
+    }
+    // 🚨 **数だけ出さない。実物を 1 本添える**（抽出が正気かをその場で確かめられるように）。
+    const sample = live[0];
+    console.log(`  ショートカット ${live.length} 件 — 正と写しが一致 ／ scope を導出できなかったもの: ${unknown} 件`);
+    console.log(`     例 ${sample.key} → ${sample.action} / scope=${JSON.stringify(sample.scope).slice(0, 60)}`);
+  }
+
   const withText = tools.filter((t) => t.title && t.description).length;
   console.log(`  文言まで拾えたもの: ${withText} / ${tools.length}` +
     (withText === tools.length ? "" : "  🚨 **拾えていないものがあります**"));

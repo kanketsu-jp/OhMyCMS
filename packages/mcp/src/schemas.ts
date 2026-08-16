@@ -22,6 +22,40 @@ export const ERROR_OUTPUT = {
     .describe("API がエラーを返したときだけ入る"),
 };
 
+/* ---------------- shortcuts ---------------- */
+
+/**
+ * 画面のキーボードショートカット一覧。
+ *
+ * 🚨 **`scope` は宣言ではなく導出**（`useShortcut(` を呼ぶ場所から採る）。
+ *   文字列（"global" / "editor" / "unknown"）か、**画面ごとの配列**のどちらか。
+ *   🚨 `"unknown"` を `"global"` と読まないこと（**倒すと嘘になる**）。
+ */
+export const SHORTCUTS_LIST_OUTPUT = {
+  shortcuts: z
+    .array(
+      z.object({
+        key: z.string().describe("mod は macOS で Command、その他で Ctrl"),
+        action: z.string(),
+        scope: z
+          .union([z.string(), z.array(z.string())])
+          .describe('"global" / "editor" / "unknown" / ["page:…", …]'),
+        label_key: z.string().describe("表示名は辞書の鍵。画面の言語で変わる"),
+        editor: z
+          .object({
+            conflicts: z.boolean(),
+            // 🚨 衝突しているときだけ入る（誰が取っているか）。
+            owner: z.array(z.string()).optional(),
+          })
+          .describe("本文入力中は編集側が先に取るか"),
+      }),
+    )
+    .describe("画面で使えるショートカット"),
+  count: z.number().describe("件数。🚨 0 は「無い」ではなく異常"),
+  unknown_scope: z.number().describe("scope を導出できなかった件数。🚨 0 でも返す"),
+  ...ERROR_OUTPUT,
+};
+
 /* ---------------- health ---------------- */
 
 export const HEALTH_OUTPUT = {
