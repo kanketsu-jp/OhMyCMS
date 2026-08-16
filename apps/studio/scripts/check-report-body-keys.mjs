@@ -210,19 +210,26 @@ const extra = sent.filter((k) => !accepted.has(k));
     ["Object.assign で混ぜる", 'fetch(u, { body: JSON.stringify(Object.assign({}, base, { zzLeak: token })) });'],
     ["別名の関数で送る", 'postJson(u, { zzLeak: token });'],
   ];
-  const seen = (src) => {
+  // 🚨 **判定だけでなく、返ってきた実物を出す**（司令塔 2026-08-16 ⑦）。
+  //    「拾わない」は **「届いて 0 件」** とも **「そもそも解析対象が無い」** とも読める。
+  //    → **解析対象が見つかったか**と**返ってきた鍵**を、そのまま出す。
+  const probe = (src) => {
     const at = src.indexOf("JSON.stringify({");
     const body = at >= 0 ? balanced(src, src.indexOf("{", at)) : null;
-    return sentKeysOf(body, null).includes("zzLeak");
+    const keys = sentKeysOf(body, null);
+    return { found: body !== null, keys, caught: keys.includes("zzLeak") };
   };
+  const seen = (src) => probe(src).caught;
   // 🟢 対照(+): この検査が**拾う**形。これが false なら、下の「見逃し」は意味を持たない
   const control = seen('fetch(u, { body: JSON.stringify({ zzLeak: token }) });');
   const missed = misses.filter(([, src]) => !seen(src));
   console.log("■ 🚨 見逃す入力（**作って通した結果**。ここに出る形は、この検査では止まりません）");
   console.log(`  🟢 対照(+): JSON.stringify({ zzLeak }) → ${control ? "拾う（検出器は動いている）" : "🚨 拾わない"}`);
   for (const [why, src] of misses) {
-    const ok = seen(src);
-    console.log(`  ${ok ? "  拾う  " : "🚨 見逃す"} ${why.padEnd(24)} ${src.slice(0, 60)}`);
+    const { found, keys, caught } = probe(src);
+    // 🚨 **届いたか**（解析対象が在ったか）と、**返ってきた実物**を並べる
+    const arrived = found ? `解析対象あり → 返った鍵 [${keys.join(", ") || "（無し）"}]` : "🚨 **解析対象が無い**（届いていない）";
+    console.log(`  ${caught ? "  拾う  " : "🚨 見逃す"} ${why.padEnd(24)} ${arrived}`);
   }
   console.log(`  ＝ **${missed.length} / ${misses.length} 通りを見逃します**（この検査は JSON.stringify({…}) の 1 形だけを見ます）`);
   // 🚨 **「見ていない範囲」の記述が古くなったときに、検査自身が鳴る**（design の形・2026-08-16）。
