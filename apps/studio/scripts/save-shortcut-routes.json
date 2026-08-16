@@ -24,6 +24,7 @@
     "🚨 写しと台帳は同じコミットで動かす": "実測（saml・2026-08-16）: 写しだけ先に入れると『写しに在るのに台帳に無い 6 件』で赤。台帳の removed だけ先に消すと『台帳に在る・写しに無い・理由が無い』で赤。＝ どちらを先に入れても、その間だけ門が赤くなる。2 ファイルは 1 コミットで入れる。"
   },
   "routes": [
+    "/admin/collections/[collection]",
     "/admin/collections/[collection]/fields/new",
     "/admin/collections/new",
     "/admin/content/[collection]/[id]",

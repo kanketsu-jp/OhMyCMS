@@ -4,7 +4,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useT } from "@/i18n/client";
+
+/**
+ * 🚨 この form の id。`useFormSubmitShortcut` が `getElementById` で引く相手そのものなので、
+ * 変えるときは hook の呼び出しと**同時に**変える（片方だけ変えると ⌘Enter が黙って効かなくなる）。
+ */
+const FORM_ID = "relation-create-form";
 
 type RelationKind = "m2o" | "o2m";
 
@@ -19,8 +26,17 @@ export function RelationForm({ collection, collectionNames }: Props) {
   const isManyToOne = kind === "m2o";
   const encoded = encodeURIComponent(collection);
 
+  // 🚨 この画面の主アクション（`<PageAction>`）は**リンク**（項目の追加）なので、
+  //    `PAGE_ACTIONS` の道では ⌘Enter が付かない。フォーム側で受ける。
+  //    🚨 **保存するものが常に在る画面ではない**が、暴発しない根拠が 2 つある:
+  //      ① `requestSubmit()` は**ネイティブ検証を通す**ので、必須が空なら何も起きない
+  //      ② hook は「**別の form に focus が在るときは降りる**」
+  //    ＝ **入力を始めた人だけが発火させられる**。
+  useFormSubmitShortcut(FORM_ID);
+
   return (
     <form
+      id={FORM_ID}
       action={`/admin/actions/collections/${encoded}/relations`}
       method="post"
       className="grid gap-4 md:grid-cols-[140px_1fr_1fr_1fr_1fr_auto] md:items-end"
