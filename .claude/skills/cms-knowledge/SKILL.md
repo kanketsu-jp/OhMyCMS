@@ -1,6 +1,6 @@
 ---
 name: cms-knowledge
-description: cms 固有の事情（architecture, ops, permissions など）を調べるときに使う。このリポジトリのナレッジを検索し、関連を辿って該当ファイルを読む。
+description: cms 固有の事情（ops, architecture, permissions など）を調べるときに使う。このリポジトリのナレッジを検索し、関連を辿って該当ファイルを読む。
 ---
 
 <!-- rag-okf:start -->
@@ -10,7 +10,7 @@ description: cms 固有の事情（architecture, ops, permissions など）を�
 
 - ナレッジの場所: `knowledge/`
 - knowledge/ が最新かつ正。docs/wiki/ は完成したものの読み物（写し）。
-- この案内が作られた時点のコミット: `6ffa5c7`
+- この案内が作られた時点のコミット: `c513197`
 
 ## 調べる順番
 

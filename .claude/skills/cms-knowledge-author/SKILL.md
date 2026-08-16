@@ -1,6 +1,6 @@
 ---
 name: cms-knowledge-author
-description: cms のナレッジを書く・直すときに使う。未執筆や古くなった説明（architecture, ops, permissions など）を、根拠のある形で書き足す。
+description: cms のナレッジを書く・直すときに使う。未執筆や古くなった説明（ops, architecture, permissions など）を、根拠のある形で書き足す。
 ---
 
 <!-- rag-okf:start -->
@@ -8,7 +8,7 @@ description: cms のナレッジを書く・直すときに使う。未執筆や
 
 - ナレッジの場所: `knowledge/`
 - knowledge/ が最新かつ正。docs/wiki/ は完成したものの読み物（写し）。
-- この案内が作られた時点のコミット: `6ffa5c7`
+- この案内が作られた時点のコミット: `c513197`
 
 ## 書く順番
 
