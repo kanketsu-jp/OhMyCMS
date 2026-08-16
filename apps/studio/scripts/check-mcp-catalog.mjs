@@ -251,8 +251,17 @@ const serverText = SERVER_FILES.map((f) => readOrStop(f, `MCP の登録（${f.sp
   //    緑にはならない（必ず赤い）が、**読む人は囮を見に行く**。
   if (registered === 0) {
     console.error("🚨 登録を 1 件も見つけられませんでした。**「登録が無い」ではなく「見ていない」です。**");
-    console.error(`   読んだファイル: ${SERVER_FILES.map((f) => f.split("/").pop()).join(", ") || "（なし）"}`);
-    console.error("   → どのファイルを読むか（collectTs / MCP_SRC）を疑ってください。");
+    // 🚨 **ファイルごとの文字数まで出す。** 名前だけだと、読む人は
+    //    「選び方（collectTs）が悪い」としか読めない。実際には**中身が縮んだ**場合も在る
+    //    （2026-08-16 実測: server.ts を 1 行にしたら、選び方は正しいのにこの門が鳴り、
+    //     出していた案内は**間違った場所を指していた**）。
+    console.error("   読んだファイル:");
+    for (const f of SERVER_FILES) {
+      console.error(`     ${f.split("/").pop()}  ${readFileSync(f, "utf8").length} 文字`);
+    }
+    if (SERVER_FILES.length === 0) console.error("     （なし）");
+    console.error("   → **明らかに小さいファイルが在れば中身の問題**、");
+    console.error("     どれも普通の大きさなら **どのファイルを読むか（collectTs / MCP_SRC）** を疑ってください。");
     process.exit(1);
   }
 }
