@@ -853,6 +853,10 @@ function safeDeliveryHeaders(type: string | null, filename: string): {
   // SVG の中身を image/png として保存させて attachment を回避できる。
   // nosniff はブラウザの MIME 推測そのものを止めるので、その抜け道を塞ぐ。
   // 危険な MIME だけに付けると、まさにその「誤った MIME で保存された file」に付かない。
+  // 🚨 **`next.config.ts` の `headers()` が全応答に付けているのに、ここでも自前で付ける理由**:
+  //    既定を外した人が、この経路まで道連れにしないため（2026-08-17・toast の指摘）。
+  //    ＝ **既定が消えても、ファイル配信だけは自分で守れる**。二重にはならない（応答は 1 行）。
+  //    🚨 **なぜ nosniff が要るか**は AGENTS.md §3.4 が正本。**ここには書き写さない**。
   // AGENTS.md §3.4 / 受入基準 #9
   return { contentType, contentDisposition, contentTypeOptions: "nosniff" };
 }
