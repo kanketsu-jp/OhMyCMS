@@ -66,6 +66,7 @@
  *   `form-missing-key`      ⚠️ 先回り（送信の本文が空になる形は、まだ起きていない）
  */
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -580,6 +581,58 @@ console.log(
 // ```
 // **`not-found` / `form-missing-key` が既に落としているので、ここは「なぜそうなったか」だけを言う。**
 // 🚨 **「守りが在る」と読まれないよう、文面で言い切る。**
+/**
+ * 🚨 **HEAD の同じファイルと比べる（B 案・堀池さん判断 2026-08-16）。これも「診断」で、落としません。**
+ *
+ * **なぜ比率でも平均でもないか**（司令塔「比率は間引きが在る検査でしか効かない」を当てて分かったこと）:
+ * ```
+ * この検査が読むのは **2 ファイル固定**。候補と走査の差が**無い**（間引きが無い）
+ *   → 比率（走査 ÷ 候補） … 🚨 **常に 1.0。動かないので効かない**
+ *   → 平均文字数           … 🚨 2 ファイル固定なので、**合計と同じ情報**しか持たない
+ * ＝ shell の「差が 1 なのは構造で決まっている」の、**差が 0 で固定**の版。
+ * ```
+ * **HEAD と比べると、repo が育っても腐らない**（HEAD も一緒に育つので）。
+ *
+ * 🚨 **弱点を 2 つ、先に書いておく**（**守りではなく診断にした理由**）:
+ * ```
+ * ① **作業ツリーと HEAD が違うのは正常**（編集中なのだから）。
+ *    大きく削る正当な変更が、そのまま低い比になる → **落とすと止めてしまう**
+ * ② 🚨 **HEAD 自体が痩せていたら比は 1.0 のまま**（**両方が同時に減る**）。
+ *    shell が指摘した形が、ここにも在る。**この診断は、それを見ません**
+ * ```
+ * 台（`OHMYCMS_CHECK_ROOT`）でもそのまま比べる。**台が HEAD からどれだけ痩せたか**が出るので、
+ * **共有ツリーを壊さずに、この診断の RED を測れる**。
+ */
+function headRatio(relFromRepo, current) {
+  try {
+    const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+    const head = execFileSync("git", ["-C", repo, "show", `HEAD:${relFromRepo}`], {
+      encoding: "utf8",
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    if (head.length === 0) return null;
+    return { head: head.length, ratio: current.length / head.length };
+  } catch {
+    return null; // git が無い / まだコミットされていない → 比べない（黙って比を作らない）
+  }
+}
+for (const [rel, src] of [
+  [`apps/studio/${SERVICE}`, serviceSource],
+  [`apps/studio/${FORM}`, formSource],
+]) {
+  const r = headRatio(rel, src);
+  if (r === null) {
+    console.log(`  HEAD 比: ${rel} … 🚨 **比べられません**（git が無い／未コミット）`);
+  } else if (r.ratio < 0.5) {
+    console.log(
+      `  🚨 **【診断・これ自体は落としません】${rel} が HEAD より小さいです**` +
+        `（いま ${src.length} / HEAD ${r.head} ＝ **${r.ratio.toFixed(2)}**）。` +
+        " **大きく削る変更なら正常です。** そうでないなら、読んでいるファイルを間違えているかもしれません。",
+    );
+  } else {
+    console.log(`  HEAD 比: ${rel} … ${r.ratio.toFixed(2)}（いま ${src.length} / HEAD ${r.head}）`);
+  }
+}
 if (serviceSource.length === 0 || formSource.length === 0) {
   console.log(
     "  🚨 **【診断・これ自体は落としません】読み込みが 0 文字のファイルが在ります。**" +
