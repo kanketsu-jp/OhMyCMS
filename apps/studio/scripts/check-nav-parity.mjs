@@ -36,18 +36,43 @@
  * 一切書き換えない。
  */
 
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
+import { readTracked } from "./lib/tracked-files.mjs";
+
 /** 判定対象の実物。壊すときもこの写しを差し替える。 */
 const LAYOUT_FILE = "app/(admin)/layout.tsx";
 
+/**
+ * 🚨 **索引から読む**（作業ツリーではない）。
+ *
+ * 由来（2026-08-16・polish の実事故）: 生成器が**作業ツリー**を読んでいたため、
+ * `--write` を打った瞬間に**別のペインが編集中だったファイル**が写しへ入り、
+ * 🚨 **「保存を止めている画面 3 件」という、事実でない数**を出した（索引から読み直すと **2 件**）。
+ * ＝ **他人の書きかけを、こちらが事実として出してしまう。**
+ *
+ * この検査は 1 ファイルしか読まないが、**その 1 ファイルを誰かが編集中なら同じことが起きる**
+ * （`app/(admin)/layout.tsx` はナビを触る人が必ず通る）。
+ * 🚨 **照合の両側がこの 1 ファイルの中に在る**ので、索引へ寄せても
+ * 「片側だけ別の側から読む」（＝ 赤の向きが裏返る形）にはならない。
+ *
+ * 🚨 **読めないときは `null` を返さず落とす**（下）。「読めなかった」を「違反 0」にしない。
+ */
 function read(file) {
-  return readFileSync(path.join(root, file), "utf8");
+  const src = readTracked(path.join(root, file));
+  if (src === null) {
+    console.error(
+      `🚨 この検査を実行できませんでした（${file} が git の索引に在りません）。\n` +
+        "   まだ `git add` していない新規ファイルなら、add してから走らせてください。\n" +
+        "   **「読めなかった」は「違反が無い」ではありません。**",
+    );
+    process.exit(1);
+  }
+  return src;
 }
 
 // 🚨 片方のコンポーネントにしか無くて正しい prop。
@@ -420,7 +445,7 @@ const original = loadSources();
   //    **読めた文字数**も出す。0 なら数字が明らかにおかしいと分かる。
   //    🚨 名前の意味: 「読み込み」＝ **実際に readFileSync した数**（候補の数ではない）。
   const 文字数 = typeof original?.[LAYOUT_FILE] === "string" ? original[LAYOUT_FILE].length : 0;
-  console.log(`読み込み: ${読めた} ファイル / ${文字数} 文字（判定に要るのは ${LAYOUT_FILE}）`);
+  console.log(`読み込み: ${読めた} ファイル / ${文字数} 文字（**索引から**。判定に要るのは ${LAYOUT_FILE}）`);
   if (原本が無い(original)) {
     console.error(
       `🚨 ${LAYOUT_FILE} を読めていません（読み込み ${読めた} ファイル / ${文字数} 文字）。\n` +

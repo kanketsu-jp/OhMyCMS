@@ -37,15 +37,21 @@
  *    司令塔の「自分の検査は迂回できないか当ててみろ」に従って自分で試したら見つかった。
  *    **迂回できる形を残すと、検査は在るだけで守っていない。**
  */
-import { readFileSync } from "node:fs";
+import { readTracked } from "./lib/tracked-files.mjs";
 
 const FILE = "components/admin/breadcrumbs.tsx";
 const problems = [];
 const checked = [];
 
 let src;
+// 🚨 **索引から読む**（作業ツリーではない）。
+//    由来（2026-08-16・polish の実事故）: 作業ツリーを読む道具が、**他人の編集中のファイル**を
+//    拾い、**事実でない数**（「3 件」／索引では 2 件）を出した。
+//    この検査は 1 ファイルしか読まないが、**その 1 ファイルを誰かが編集中なら同じことが起きる**。
+//    🚨 走査型（突き合わせる相手が居ない）ので、索引に絞っても「片側だけ」にはならない。
 try {
-  src = readFileSync(FILE, "utf8");
+  src = readTracked(FILE);
+  if (src === null) throw new Error("索引に無い");
 } catch {
   // 🚨 **「読めなかった」を「守られていない」と書かない。**
   //    以前は「誰も守っていません」と出していたが、**それは確かめていないこと**。
