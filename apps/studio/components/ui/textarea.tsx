@@ -32,6 +32,15 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
           ? "bg-muted/60 disabled:bg-muted/40"
           // 面の外: 罫線で区別する
           : "border border-input focus-visible:border-ring disabled:bg-input/50 aria-invalid:border-destructive dark:bg-input/30",
+        // 🚨 **`input.tsx` と同じ扱いにする**（2026-08-16 に**欠けているのを実測で見つけた**）。
+        //    表示モードの目標は「**値が文字として見える**」（罫線なし・背景なし・左余白なし。
+        //    `knowledge/decisions/action-button-and-edit-mode.md` §2-1・design 案 2）。
+        //    実測: `/admin/settings/sso` の属性欄が、**表示モードと編集モードで見た目が同一**だった
+        //    （罫線 1px・左余白 10px がどちらも同じ）＝ **欄のままに見えていた**。
+        //    `<Input>` には既に在ったので、**同じ画面の中で作法が割れていた**。
+        // 🚨 `<textarea>` のままにするのは、**なぞって選択・コピーできる必要がある**ため（input と同じ理由）。
+        // 🚨 `disabled` とは別物。disabled は「いまは使えない」、readOnly は「そもそも変えられない」。
+        "read-only:border-transparent read-only:bg-transparent read-only:px-0 read-only:cursor-default read-only:focus-visible:ring-0",
         className
       )}
       {...props}
