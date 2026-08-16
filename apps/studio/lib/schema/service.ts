@@ -38,6 +38,12 @@ const COLLECTION_META_COLUMNS = new Set([
   "autosave_revision_interval",
 ]);
 
+/**
+ * 🚨 ソフトデリートの印の列名（設問288 A）。**ここ 1 箇所で持つ**——
+ * 各所で `"deleted_at"` と書くと、綴りが割れたときに**片方だけ消え残る**。
+ */
+export const DELETED_AT_COLUMN = "deleted_at";
+
 const FIELD_META_COLUMNS = new Set([
   "special",
   "interface",
@@ -348,6 +354,16 @@ async function createTableWithFields(
     definition = addDefaultClause(definition, bindings, spec.schema);
     columnSql.push(definition);
   }
+
+  // 🚨 **ソフトデリートの印**（設問288 A・2026-08-16）。
+  //    ご指示は「**全ての削除はソフトデリート**」で、**利用者が作った表も対象**と決まった。
+  //    表を作るのはここ 1 箇所なので、**新しく作る表には必ず付く**。
+  //    🚨 **既にある表には付かない**（実行時に作られた表なので migration では書けない。別の手で足す）。
+  //    🚨 **null 可・既定なし**。「消えていない」を null で表すので、既存行の意味が変わらない。
+  //    🚨 **読む側はまだ誰も見ていない**（＝この 1 手では振る舞いが変わらない）。
+  //    読む条件を 17 箇所に手で書かせないため、**入口を 1 本に寄せる作業が別に要る**。
+  columnSql.push("?? timestamptz");
+  bindings.push(DELETED_AT_COLUMN);
 
   await trx.raw(`CREATE TABLE ?? (${columnSql.join(", ")})`, bindings);
 }
