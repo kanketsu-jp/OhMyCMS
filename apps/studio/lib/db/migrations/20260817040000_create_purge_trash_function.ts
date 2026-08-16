@@ -24,8 +24,16 @@ export async function up(knex: Knex): Promise<void> {
   `);
 
   // ② 掃除しない表と、その理由。
-  // 🚨 **いまは空**（＝ `deleted_at` を持つ表は全部掃除する）。
-  //    空であること自体は、③の戻り値 `skipped` が毎回 `{}` として出すので黙らない。
+  // 🚨 **`directus_files` を除外する**（storage の指摘・2026-08-16）。
+  //    【測った】`deleted_at` を持つ表 19 個に `directus_files` が入っている。
+  //    実体（バイト）の場所は **行の中**（`filename_disk` / `compressed_key`）にしか無いので、
+  //    **行を消した瞬間に、その実体は二度と辿れない孤児**になる。
+  //    🚨 **SQL からは storage を消せない**（local FS も S3 も DB の外に在る）。
+  //    ＝ `decisions/deleting-a-file-is-two-deletes`（順番は「実体 → 行」）そのもの。
+  //
+  // 🚨 **これは「ファイルは掃除しない」ではなく「SQL では掃除できない」。**
+  //    **90 日を過ぎたファイルを誰が消すかは、まだ決まっていない**（TS 側に口が要る。
+  //    `lib/files/service.ts` の `deleteStoredObjects(fileId)` → 行、の順で消せる）。
   // 🚨 **足すときは 1 件ごとに理由を書く**（名前だけ並べない）。
   //    そして **その表が実際に `deleted_at` を持つ**ことを確かめてから足すこと——
   //    持っていない表を除外に書いても意味が無く、③が `rotten_skips` として報せる。
@@ -36,7 +44,8 @@ export async function up(knex: Knex): Promise<void> {
     returns table(table_name text, reason text)
     language sql immutable as $fn$
       select v.table_name, v.reason from (values
-        (null::text, null::text)
+        ('directus_files'::text,
+         '実体（バイト）を消す手が SQL に無い。行を消すと key ごと消えて、二度と辿れない孤児になる。ファイルは TS 側で「実体 → 行」の順に消す'::text)
       ) as v(table_name, reason)
       where v.table_name is not null
     $fn$;
