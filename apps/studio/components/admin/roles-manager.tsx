@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
-import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 
@@ -92,6 +92,46 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
           {error}
         </div>
       ) : null}
+      {/* 名前・説明・親ロール・操作の複数列を読む一覧なので table にする。 */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("name_label")}</TableHead>
+            <TableHead>{t("description_label")}</TableHead>
+            <TableHead>{t("parent_label")}</TableHead>
+            <TableHead className="text-right">
+              <span className="sr-only">{t("delete_button")}</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {roles.map((role) => (
+            <TableRow key={role.id}>
+              <TableCell className="font-medium">{role.name}</TableCell>
+              <TableCell className="text-muted-foreground">{role.description || t("no_description")}</TableCell>
+              <TableCell>
+                {t("parent_colon_label")}
+                {roles.find((item) => item.id === role.parent)?.name ?? t("none_option")}
+              </TableCell>
+              <TableCell>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="destructive-ghost"
+                    size="sm"
+                    aria-label={t("delete_button")}
+                    disabled={remove.isPending(role.id)}
+                    onClick={() => void remove.run(role.id)}
+                  >
+                    <Trash2 />
+                    <span className="hidden md:inline">{t("delete_button")}</span>
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
       <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
         <FormDraft formId="role-create-form" />
         <div className="space-y-1.5">
@@ -111,30 +151,11 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
             ))}
           </select>
         </div>
-        <PageAction
-          form="role-create-form"
-          role="primary"
-          pending={create.pending}
-          label={t("create_button")}
-          icon={<Plus />}
-        />
+        <Button type="submit" loading={create.pending}>
+          <Plus />
+          {t("create_button")}
+        </Button>
       </form>
-      <div className="divide-y border-t">
-        {roles.map((role) => (
-          <div key={role.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
-            <div className="min-w-0">
-              <p className="font-medium">{role.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {role.description || t("no_description")} / {t("parent_colon_label")}{roles.find((item) => item.id === role.parent)?.name ?? t("none_option")}
-              </p>
-            </div>
-            <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("delete_button")} disabled={remove.isPending(role.id)} onClick={() => void remove.run(role.id)}>
-              <Trash2 />
-              <span className="hidden md:inline">{t("delete_button")}</span>
-            </Button>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

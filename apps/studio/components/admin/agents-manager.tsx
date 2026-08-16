@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, Ban, Plus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
-import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Input } from "@/components/ui/input";
@@ -272,6 +271,55 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
           {error}
         </div>
       ) : null}
+      {/* 名前・代理ユーザー・期限・失効状態・操作の複数列を読む一覧なので table にする。 */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("name_label")}</TableHead>
+            <TableHead>on_behalf_of</TableHead>
+            <TableHead>expires_at</TableHead>
+            <TableHead>revoked_at</TableHead>
+            <TableHead className="text-right">
+              <span className="sr-only">{t("revoke_button")}</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {agents.map((agent) => (
+            <TableRow key={agent.id}>
+              <TableCell className="font-medium">
+                {agent.name}
+                {/* 🚨 塗った箱にしない。面の中なので、背景を持たせると深さ 2 になる
+                    （knowledge/decisions/no-nested-surfaces.md §2-1）。
+                    2026-08-15 実測: bg-muted の chip が 64x21px の面として検出された。
+                    失効は**取り消せない状態**なので、色ではなく赤い文字で示す。 */}
+                {agent.revoked_at ? <span className="ml-2 text-xs font-medium text-destructive">{t("revoked_badge")}</span> : null}
+              </TableCell>
+              <TableCell className="font-mono text-xs">{agent.on_behalf_of}</TableCell>
+              <TableCell className="font-mono text-xs">{agent.expires_at}</TableCell>
+              <TableCell className="font-mono text-xs">{agent.revoked_at ?? "-"}</TableCell>
+              <TableCell>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="destructive-ghost"
+                    size="sm"
+                    aria-label={t("revoke_button")}
+                    disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)}
+                    onClick={() => void revoke.run(agent.id)}
+                  >
+                    <Ban data-icon="inline-start" />
+                    <span className="hidden md:inline">{t("revoke_button")}</span>
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {agents.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+      ) : null}
       <form id="agent-issue-form" action={create.run} className="space-y-4">
         <FormDraft formId="agent-issue-form" />
         <div className="grid gap-4 md:grid-cols-2">
@@ -362,40 +410,11 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <Textarea id="tenant_scope" name="tenant_scope" className="min-h-28 font-mono" />
           </div>
         </div>
-        <PageAction
-          form="agent-issue-form"
-          role="primary"
-          pending={create.pending}
-          label={t("issue_button")}
-          icon={<Plus />}
-        />
+        <Button type="submit" loading={create.pending}>
+          <Plus />
+          {t("issue_button")}
+        </Button>
       </form>
-      <div className="divide-y border-t">
-        {agents.map((agent) => (
-          <div key={agent.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
-            <div>
-              <p className="font-medium">
-                {agent.name}
-                {/* 🚨 塗った箱にしない。面の中なので、背景を持たせると深さ 2 になる
-                    （knowledge/decisions/no-nested-surfaces.md §2-1）。
-                    2026-08-15 実測: bg-muted の chip が 64x21px の面として検出された。
-                    失効は**取り消せない状態**なので、色ではなく赤い文字で示す。 */}
-                {agent.revoked_at ? <span className="ml-2 text-xs font-medium text-destructive">{t("revoked_badge")}</span> : null}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                on_behalf_of: {agent.on_behalf_of} / expires_at: {agent.expires_at} / revoked_at: {agent.revoked_at ?? "-"}
-              </p>
-            </div>
-            <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("revoke_button")} disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)} onClick={() => void revoke.run(agent.id)}>
-              <Ban data-icon="inline-start" />
-              <span className="hidden md:inline">{t("revoke_button")}</span>
-            </Button>
-          </div>
-        ))}
-        {agents.length === 0 ? (
-          <p className="py-3 text-sm text-muted-foreground">{t("empty")}</p>
-        ) : null}
-      </div>
     </div>
   );
 }

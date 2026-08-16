@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, UserMinus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
-import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
@@ -112,6 +112,48 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           {error}
         </div>
       ) : null}
+      {/* ユーザーとポリシーを別列で照合する一覧なので table にする。 */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("user_label")}</TableHead>
+            <TableHead>{t("policy_label")}</TableHead>
+            <TableHead className="text-right">
+              <span className="sr-only">{t("remove_button")}</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {access.map((row) => (
+            <TableRow key={row.id}>
+              <TableCell className="font-medium">{row.user_email ?? row.role_name ?? row.user ?? row.role}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {t("policy_prefix", { policy: row.policy_name ?? row.policy })}
+              </TableCell>
+              <TableCell>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="destructive-ghost"
+                    size="sm"
+                    aria-label={t("remove_button")}
+                    disabled={remove.isPending(row.id)}
+                    onClick={() => void remove.run(row.id)}
+                  >
+                    {/* 🚨 ゴミ箱にしない。**割り当てを外す**操作で、ユーザーが消えるわけではない
+                        （ゴミ箱だと「ユーザーごと消える」と誤解される。design ⑬） */}
+                    <UserMinus />
+                    <span className="hidden md:inline">{t("remove_button")}</span>
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {access.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+      ) : null}
       <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <FormDraft formId="user-policy-assign-form" />
         <div className="space-y-1.5">
@@ -133,34 +175,11 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         {/* 🚨 選ぶものが無いなら押させない（憲章 §3c）。
             select が空だと送信しても中身が無く、サーバへ無意味な要求が飛ぶ。
             由来: `19e6f3c` でヘッダーへ移したとき、この判定を落としていた（saml が実測で検出）。 */}
-        <PageAction
-          form="user-policy-assign-form"
-          role="primary"
-          pending={assign.pending}
-          disabled={users.length === 0 || policies.length === 0}
-          label={t("assign_button")}
-          icon={<Plus />}
-        />
+        <Button type="submit" loading={assign.pending} disabled={users.length === 0 || policies.length === 0}>
+          <Plus />
+          {t("assign_button")}
+        </Button>
       </form>
-      <div className="divide-y border-t">
-        {access.map((row) => (
-          <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
-            <div>
-              <p className="font-medium">{row.user_email ?? row.role_name ?? row.user ?? row.role}</p>
-              <p className="text-sm text-muted-foreground">{t("policy_prefix", { policy: row.policy_name ?? row.policy })}</p>
-            </div>
-            <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("remove_button")} disabled={remove.isPending(row.id)} onClick={() => void remove.run(row.id)}>
-              {/* 🚨 ゴミ箱にしない。**割り当てを外す**操作で、ユーザーが消えるわけではない
-                  （ゴミ箱だと「ユーザーごと消える」と誤解される。design ⑬） */}
-              <UserMinus />
-              <span className="hidden md:inline">{t("remove_button")}</span>
-            </Button>
-          </div>
-        ))}
-        {access.length === 0 ? (
-          <p className="py-3 text-sm text-muted-foreground">{t("empty")}</p>
-        ) : null}
-      </div>
     </div>
   );
 }

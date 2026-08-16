@@ -379,55 +379,11 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
       mode: "edit",
     },
   ],
-  "/admin/settings/roles": [
-    {
-      kind: "submit",
-      labelKey: "roles.create_button",
-      icon: "Plus",
-      form: "role-create-form",
-      role: "primary",
-    },
-  ],
-  "/admin/settings/policies": [
-    {
-      kind: "submit",
-      labelKey: "policies.create_button",
-      icon: "Plus",
-      form: "policy-create-form",
-      role: "primary",
-    },
-  ],
   // 🚨 このページに `<form>` は無い（`policy-permissions-manager.tsx` は
   //    `type="button"` ＋ onClick で保存している）。form 属性では送れないので `button`。
   // 🚨 文字は**状態で変わる**。行を選んでいない間は「追加」、選んでいる間は「更新」
   //    （`policies.update_button`）。ここに書けるのは既定の側だけなので、
   //    実装が `update_button` も出すことをこの注記で残す。
-  "/admin/settings/policies/[id]": [
-    {
-      kind: "button",
-      labelKey: "policies.add_button",
-      icon: "Check",
-      role: "primary",
-    },
-  ],
-  "/admin/settings/users": [
-    {
-      kind: "submit",
-      labelKey: "users.assign_button",
-      icon: "Plus",
-      form: "user-policy-assign-form",
-      role: "primary",
-    },
-  ],
-  "/admin/settings/agents": [
-    {
-      kind: "submit",
-      labelKey: "agents.issue_button",
-      icon: "Plus",
-      form: "agent-issue-form",
-      role: "primary",
-    },
-  ],
   // 🚨 MCP のページは**設定を読むだけ**で、そこで作るものが無い。
   //    次にすることは「繋ぐためのトークンを発行する」なので、行き先はエージェント管理。
   //    （画面内の「コピー」は行ごとの操作なので、ページの主要アクションではない）

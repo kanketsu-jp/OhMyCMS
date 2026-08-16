@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
-import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
@@ -162,27 +162,66 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
 
   return (
     <div className="space-y-6">
-      {/* 🚨 このページの `<form>` は無い（ボタンの onClick で送っている）ので、
-          ヘッダーへは `form=` ではなく `onClick` で出す（`page-actions.ts` の kind: "button"）。
-          文字は状態で変わる: 行を選んでいなければ「追加」、選んでいれば「更新」。
-          🚨 コレクションが 1 つも無いときは **`disabled`**。**隠さない**。
-          （最初は出し分けで隠していた。`PageAction` に `disabled` が無かったため。
-            `4d0a18c` で saml が足したので、憲章 §3c どおり「押せないが見える」に直した。
-            隠すと「この画面で何ができるか」自体が見えなくなる。） */}
-      <PageAction
-        onClick={() => void save.run()}
-        pending={save.pending}
-        disabled={!collection}
-        label={editing ? t("update_button") : t("add_button")}
-        icon={<Save />}
-        role="primary"
-      />
       {error ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       ) : null}
-      <div className="space-y-4">
+      {/* collection・action・fields・行フィルタ・操作の複数列を読む一覧なので table にする。 */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("collection_label")}</TableHead>
+            <TableHead>{t("action_label")}</TableHead>
+            <TableHead>{t("fields_list_label")}</TableHead>
+            <TableHead>{t("filter_json_label")}</TableHead>
+            <TableHead className="text-right">
+              <span className="sr-only">{t("edit_button")}</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {permissions.map((row) => (
+            <TableRow key={row.id}>
+              <TableCell className="font-medium">{row.collection}</TableCell>
+              <TableCell>{row.action}</TableCell>
+              <TableCell className="text-muted-foreground">{row.fields || t("fields_unspecified")}</TableCell>
+              <TableCell className="min-w-80 whitespace-normal">
+                <FilterBlock value={jsonText(row.permissions) || t("no_filter")} targetId={`policy-filter-${row.id}`} />
+              </TableCell>
+              <TableCell>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" aria-label={t("edit_button")} onClick={() => startEdit(row)}>
+                    <Pencil />
+                    <span className="hidden md:inline">{t("edit_button")}</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive-ghost"
+                    size="sm"
+                    aria-label={t("delete_button")}
+                    disabled={remove.isPending(String(row.id))}
+                    onClick={() => void remove.run(row.id)}
+                  >
+                    <Trash2 />
+                    <span className="hidden md:inline">{t("delete_button")}</span>
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {permissions.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("no_permissions")}</p>
+      ) : null}
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save.run();
+        }}
+      >
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="collection">{t("collection_label")}</Label>
@@ -255,41 +294,18 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           <p className="text-xs leading-5 text-muted-foreground">{t("filter_json_help_variables")}</p>
           <p className="text-xs leading-5 text-muted-foreground">{t("filter_json_help_combination")}</p>
         </div>
-        {/* 追加・更新はヘッダー（`PageAction`）へ移した。ここに残すと入口が 2 つになる。
-            編集をやめる操作は「いま編集中である」という**この場の状態**を戻すものなので、
-            ヘッダーへは上げずにここへ残す。 */}
+        <div className="flex gap-2">
+          <Button type="submit" loading={save.pending} disabled={!collection}>
+            <Save />
+            {editing ? t("update_button") : t("add_button")}
+          </Button>
+        </div>
         {editing ? (
           <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={resetForm}>{t("cancel_edit_button")}</Button>
           </div>
         ) : null}
-      </div>
-      <div className="divide-y border-t">
-        {permissions.map((row) => (
-          <div key={row.id} className="space-y-3 p-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="font-medium">{row.collection} / {row.action}</p>
-                <p className="text-sm text-muted-foreground">fields: {row.fields || t("fields_unspecified")}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" aria-label={t("edit_button")} onClick={() => startEdit(row)}>
-                  <Pencil />
-                  <span className="hidden md:inline">{t("edit_button")}</span>
-                </Button>
-                <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("delete_button")} disabled={remove.isPending(String(row.id))} onClick={() => void remove.run(row.id)}>
-                  <Trash2 />
-                  <span className="hidden md:inline">{t("delete_button")}</span>
-                </Button>
-              </div>
-            </div>
-            <FilterBlock value={jsonText(row.permissions) || t("no_filter")} targetId={`policy-filter-${row.id}`} />
-          </div>
-        ))}
-        {permissions.length === 0 ? (
-          <p className="py-3 text-sm text-muted-foreground">{t("no_permissions")}</p>
-        ) : null}
-      </div>
+      </form>
     </div>
   );
 }

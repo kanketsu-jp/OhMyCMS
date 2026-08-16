@@ -5,10 +5,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
-import { PageAction } from "@/components/admin/page-action";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
@@ -96,6 +96,54 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           {error}
         </div>
       ) : null}
+      {/* 名前・説明・アクセス種別・操作の複数列を読む一覧なので table にする。 */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("name_label")}</TableHead>
+            <TableHead>{t("description_label")}</TableHead>
+            <TableHead>{t("app_access_label")}</TableHead>
+            <TableHead>{t("admin_access_label")}</TableHead>
+            <TableHead className="text-right">{t("action_label")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {policies.map((policy) => (
+            <TableRow key={policy.id}>
+              <TableCell className="font-medium">
+                <span className="flex items-center gap-2">
+                  {policy.name}
+                  {policy.admin_access ? <ShieldAlert className="size-4 text-destructive" /> : null}
+                </span>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{policy.description || t("no_description")}</TableCell>
+              <TableCell>{policy.app_access ? t("app_access_label") : null}</TableCell>
+              <TableCell>{policy.admin_access ? t("admin_access_label") : null}</TableCell>
+              <TableCell>
+                <div className="flex justify-end gap-2">
+                  <Link
+                    href={`/admin/settings/policies/${policy.id}`}
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                  >
+                    {t("edit_permissions_link")}
+                  </Link>
+                  <Button
+                    type="button"
+                    variant="destructive-ghost"
+                    size="sm"
+                    aria-label={t("delete_button")}
+                    disabled={remove.isPending(policy.id)}
+                    onClick={() => void remove.run(policy.id)}
+                  >
+                    <Trash2 />
+                    <span className="hidden md:inline">{t("delete_button")}</span>
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
       <form id="policy-create-form" action={create.run} className="space-y-4">
         <FormDraft formId="policy-create-form" />
         <div className="grid gap-4 md:grid-cols-2">
@@ -121,36 +169,11 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
             </span>
           </label>
         </div>
-        <PageAction
-          form="policy-create-form"
-          role="primary"
-          pending={create.pending}
-          label={t("create_button")}
-          icon={<Plus />}
-        />
+        <Button type="submit" loading={create.pending}>
+          <Plus />
+          {t("create_button")}
+        </Button>
       </form>
-      <div className="divide-y border-t">
-        {policies.map((policy) => (
-          <div key={policy.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
-            <div className="min-w-0">
-              <p className="flex items-center gap-2 font-medium">
-                {policy.name}
-                {policy.admin_access ? <ShieldAlert className="size-4 text-destructive" /> : null}
-              </p>
-              <p className="text-sm text-muted-foreground">{policy.description || t("no_description")}</p>
-            </div>
-            <div className="flex gap-2">
-              <Link href={`/admin/settings/policies/${policy.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                {t("edit_permissions_link")}
-              </Link>
-              <Button type="button" variant="destructive-ghost" size="sm" aria-label={t("delete_button")} disabled={remove.isPending(policy.id)} onClick={() => void remove.run(policy.id)}>
-                <Trash2 />
-                <span className="hidden md:inline">{t("delete_button")}</span>
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
