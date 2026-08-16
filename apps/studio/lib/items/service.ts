@@ -778,18 +778,22 @@ async function itemsWithRelations(
  * 🚨 **失敗を握りつぶさない**。ログに出し、**覚えない**（＝次に開いたときに再試行する）。
  * 🚨 `ADD COLUMN IF NOT EXISTS` なので、**二重に走っても安全**。
  */
-const 列を足した = new Set<string>();
+// 🚨 **2 つに分ける**。「もう確かめた」と「列が在る」は別。
+//    登録が無い表・主キーが無い表は**確かめ済みだが列は無い**ので、
+//    1 つの集合にすると**列が無い表にも条件を足してしまい、必ず落ちる**。
+const 確認済み = new Set<string>();
+const 列が在る = new Set<string>();
 
 export async function ensureDeletedAtColumn(
   conn: Knex | Knex.Transaction,
   collection: string,
 ): Promise<void> {
-  if (列を足した.has(collection)) return;
+  if (確認済み.has(collection)) return;
 
   const 登録 = await conn("directus_collections").where({ collection }).first();
   if (!登録) {
-    // 🚨 登録が無い表は対象外。**覚える**（毎回問い合わせない）。
-    列を足した.add(collection);
+    // 🚨 登録が無い表は対象外。**覚える**（毎回問い合わせない）。列は在りません。
+    確認済み.add(collection);
     return;
   }
 
@@ -808,7 +812,7 @@ export async function ensureDeletedAtColumn(
       `[softdelete] ${collection} は主キーが無いので deleted_at を足しません`
       + `（戻すときに行を特定できないため。ボード 307 待ち）`,
     );
-    列を足した.add(collection);
+    確認済み.add(collection);
     return;
   }
 
@@ -817,7 +821,8 @@ export async function ensureDeletedAtColumn(
       collection,
       DELETED_AT_COLUMN,
     ]);
-    列を足した.add(collection);
+    確認済み.add(collection);
+    列が在る.add(collection);
   } catch (error) {
     // 🚨 **覚えない**。次に開いたときにもう一度試す。
     console.error(
@@ -831,7 +836,15 @@ export function itemsTable(
   conn: Knex | Knex.Transaction,
   collection: string,
 ): Knex.QueryBuilder {
-  // 🚨 ここに将来 `.whereNull(DELETED_AT_COLUMN)` を足す（土台が揃ってから）。
+  // 🚨 **列が在る表だけ**に条件を足す（設問288 A・2026-08-16）。
+  //    列は「その表を初めて開いたとき」に付くので、**半分の表にだけ付いた状態が正常**。
+  //    列が無い表で `whereNull` を足すと、**その表の問い合わせが必ず落ちます**。
+  //    ＝ **在るかどうかで分ける**のが、この配り方の必然です。
+  //
+  // 🚨 いま `deleted_at` を非 null にするコードは 1 つも在りません
+  //    （`deleteFile` は物理削除のまま）。**観測できる振る舞いは、まだ変わりません**。
+  //    ＝ **「変わった」ではなく「変わる準備が済んだ」**。
+  if (列が在る.has(collection)) return conn(collection).whereNull(DELETED_AT_COLUMN);
   return conn(collection);
 }
 
