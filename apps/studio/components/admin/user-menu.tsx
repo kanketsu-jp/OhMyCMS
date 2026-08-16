@@ -56,7 +56,22 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
   //    名前が出せない例: エージェント／起動用の内部ユーザー（`lib/admin/user-label.ts`）。
   //    🚨 控えは辞書の固定文言であって、メールアドレス（`userLabel`）を代用しない
   //       （判断ボード 設問211。1行目＝名前・2行目＝メールという役割を保つ）。
-  const name = userName ?? t("account");
+  //
+  // 🚨 **控えを出すのは「メールも出せないとき」だけ**（2026-08-16・設問293）。
+  //    理由: 「アカウント」は**誰の画面でも同じ文字**なので、それ自体は何も伝えない。
+  //    メールが出ているなら、その行は 1 行ぶんの場所を取っているだけになる。
+  //    【実測 2026-08-16】利用者 270 人のうち **269 人が名前なし**
+  //    ＝ **控えが、実質的に既定の表示になっていた**。
+  //
+  //    🚨 **行ごと消してはいけない場合が在る。** `visibleHuman()` は
+  //    エージェント（機械）と起動用の内部ユーザーを弾くので、そのとき
+  //    **名前もメールも両方 null** になる。ここで行を消すと**アバターだけ**が残り、
+  //    「何の行か分からない」——**211 が避けたかった状態そのもの**に戻る。
+  //    → **メールが在るときだけ消す。両方無いなら控えを出す。**
+  //
+  //    🚨 これは**移行の間だけの形ではない**。302② で `username` を必須にしても、
+  //    **エージェントは人ではないので名前を持たない**。この分岐は残る。
+  const name = userName ?? (userLabel ? null : t("account"));
 
   return (
     <div className="shrink-0 border-t px-2 py-2">
@@ -76,9 +91,15 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
             {/* 2行構成（判断ボード 設問211）: 1行目＝表示名（固定文言の控え）/ 2行目＝メール（無ければ行ごと省略）。
                 どちらも `truncate` + 親の `min-w-0` で、長い値でも 16rem のサイドバーからはみ出さない。 */}
             <span className="flex min-w-0 flex-1 flex-col text-left">
-              <span className="truncate">{name}</span>
+              {name ? <span className="truncate">{name}</span> : null}
+              {/* 🚨 名前の行が消えたら、メールが**主行**になる（2026-08-16・設問293）。
+                  そのとき `text-xs text-muted-foreground` のままだと、
+                  **1 行しかないのに副次的な見た目**になり、誰の画面か読み取りにくい。
+                  → **名前が在るときだけ小さく**する。 */}
               {userLabel ? (
-                <span className="truncate text-xs text-muted-foreground">{userLabel}</span>
+                <span className={name ? "truncate text-xs text-muted-foreground" : "truncate"}>
+                  {userLabel}
+                </span>
               ) : null}
             </span>
             <ChevronsUpDown />
