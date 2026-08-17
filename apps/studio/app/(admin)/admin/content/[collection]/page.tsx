@@ -11,6 +11,7 @@ import { ColumnPicker } from "@/components/admin/column-picker";
 import { ClickableRow } from "@/components/admin/clickable-row";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { HeaderSearch } from "@/components/admin/header-search";
+import { ItemFilter, parseFilter } from "@/components/admin/item-filter";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
@@ -53,6 +54,7 @@ type Props = {
     notice?: string;
     cols?: string;
     q?: string;
+    filter?: string;
     limit?: string;
     layout?: string | string[];
     "cal.field"?: string | string[];
@@ -101,6 +103,7 @@ function itemsQuery(
   offset: number,
   searchableColumns: FieldResult[],
   query: string,
+  filter?: string,
 ): string {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -108,7 +111,9 @@ function itemsQuery(
     meta: "filter_count",
   });
 
-  if (query !== "" && searchableColumns.length > 0) {
+  if (filter) {
+    params.set("filter", filter);
+  } else if (query !== "" && searchableColumns.length > 0) {
     params.set(
       "filter",
       JSON.stringify({
@@ -130,10 +135,12 @@ function pageHref(
   limit: number,
   fields: FieldResult[],
   searchQuery: string,
+  filter?: string,
   calendar?: { field: string | null; month: { year: number; month: number } },
 ): string {
   const query = new URLSearchParams({ page: String(page) });
   if (searchQuery !== "") query.set("q", searchQuery);
+  if (filter) query.set("filter", filter);
   if (layout !== DEFAULT_LIST_LAYOUT) query.set("layout", layout);
   const defaultColumns = fields.slice(0, DEFAULT_COLUMN_COUNT).map((field) => field.field);
   const selectedColumns = columns.map((field) => field.field);
@@ -170,6 +177,7 @@ function columnToggleHref(
   limit: number,
   fields: FieldResult[],
   searchQuery: string,
+  filter: string | undefined,
   calendar?: { field: string | null; month: { year: number; month: number } },
 ): string | null {
   const on = columns.some((one) => one.field === field.field);
@@ -179,7 +187,7 @@ function columnToggleHref(
   const next = on
     ? columns.filter((one) => one.field !== field.field)
     : fields.filter((one) => one.field === field.field || columns.some((c) => c.field === one.field));
-  return pageHref(encoded, layout, 1, next, limit, fields, searchQuery, calendar);
+  return pageHref(encoded, layout, 1, next, limit, fields, searchQuery, filter, calendar);
 }
 
 export default async function ContentPage({ params, searchParams }: Props) {
@@ -199,6 +207,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const offset = (page - 1) * limit;
   const encoded = encodeURIComponent(collection);
   const searchQuery = (query.q ?? "").trim();
+  const filterState = parseFilter(query.filter);
   const fieldsResult = await apiFetch<FieldResult[]>(`/api/fields/${encoded}`);
   const clearQueryHref = (() => {
     const params = new URLSearchParams();
@@ -236,7 +245,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   //    門 `check-api-envelope` は `apiFetch<ItemsPayload>(...)` の形を囮の的にしていて、
   //    条件式へ畳むと **囮が届かなくなり、検査が「的が動いた」と言って止まる**（2026-08-17 実測）。
   //    絞り込めないときは「0 件を返す URL」を作って、**同じ 1 本を通す**。
-  const itemsSearch = itemsQuery(limit, offset, cannotFilter ? [] : searchableColumns, cannotFilter ? "" : searchQuery);
+  const itemsSearch = itemsQuery(limit, offset, cannotFilter ? [] : searchableColumns, cannotFilter ? "" : searchQuery, filterState.invalid ? undefined : query.filter);
   // 🚨 **この 1 行を折り返さない。** 門 `check-api-envelope` の囮が
   //    `apiFetch<ItemsPayload>(` の**直後の** `` `/api/items/ `` を的にしているので、
   //    改行を挟むと囮が届かず、検査が「的が動いた」と言って止まる（2026-08-17 実測）。
@@ -261,7 +270,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const columnChoices = fields.map((field) => ({
     key: field.field,
     label: fieldLabel(field, locale),
-    href: columnToggleHref(encoded, layout, field, columns, limit, fields, searchQuery, calendarState),
+    href: columnToggleHref(encoded, layout, field, columns, limit, fields, searchQuery, query.filter, calendarState),
     checked: columns.some((one) => one.field === field.field),
   }));
   const softDeletes = fieldsResult.ok
@@ -274,9 +283,10 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const paginationTo = total === 0 ? 0 : Math.min(offset + limit, total);
   const emptyMessage = cannotFilter
     ? t("filter_unavailable")
-    : searchQuery !== ""
+    : searchQuery !== "" || filterState.conditions.length > 0
       ? t("empty_filtered")
       : t("empty");
+  const filterFields = fields.map((field) => ({ field: field.field, label: fieldLabel(field, locale), type: field.type }));
 
   // 🚨 ファイル列に **UUID を出さない**ので、名前とサムネの元をここで**まとめて1回**引く。
   // 行ごとに引くと N+1 になる（knowledge/decisions/relation-permission-boundary.md）。
@@ -332,6 +342,9 @@ export default async function ContentPage({ params, searchParams }: Props) {
           }
         />
         <Surface id={sectionAnchorId("items.list_title")}>
+          <div className="mb-4 border-b border-border pb-4">
+            <ItemFilter fields={filterFields} initialConditions={filterState.conditions} invalidFilter={filterState.invalid} />
+          </div>
           {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
             見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
@@ -476,13 +489,13 @@ export default async function ContentPage({ params, searchParams }: Props) {
                 <span>{t("pagination_summary", { total, from: paginationFrom, to: paginationTo })}</span>
                 <div className="flex gap-2">
                   <Link
-                    href={pageHref(encoded, layout, Math.max(1, page - 1), columns, limit, fields, searchQuery, calendarState)}
+                    href={pageHref(encoded, layout, Math.max(1, page - 1), columns, limit, fields, searchQuery, query.filter, calendarState)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
                   >
                     {t("prev_page")}
                   </Link>
                   <Link
-                    href={pageHref(encoded, layout, Math.min(pageCount, page + 1), columns, limit, fields, searchQuery, calendarState)}
+                    href={pageHref(encoded, layout, Math.min(pageCount, page + 1), columns, limit, fields, searchQuery, query.filter, calendarState)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
                   >
                     {t("next_page")}
