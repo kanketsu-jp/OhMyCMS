@@ -62,12 +62,37 @@ apps/studio/node_modules/next/dist/client/link.d.ts:117
 🚨 探すときは apps/studio/node_modules を見る（根に next は無い。根で探すと 0 件に見える）
 ```
 
-**ページ送りは既に `<Link>`**（`page.tsx` の `prev_page` / `next_page`）なので、そのまま使える形。
-
 🚨 **ただし `useLinkStatus` は「その `<Link>` の子孫」でしか読めない。**
 ＝ **表の上に 1 本の細い線**は、これ単体では出せない（線を出す場所が Link の外にあるため）。
 - ✅ すぐ出せる … **押したボタン自身の中の印**
 - 💭 表の上の線にするなら … **pending を上へ持ち上げる形**が要る（**未測定**）
+
+## 🚨 ページ送りは 2 系統ある（**片方だけを見て決めない**）
+
+🚨 **この節は訂正。** 最初この決定には「**ページ送りは既に `<Link>` なので、そのまま使える形**」と
+書いたが、**1 画面だけを見て母集合を切っていた**。実際は 2 つある（引いた・HEAD `8fae4c0`）。
+
+| 系統 | 画面 | 何で描いているか | `useLinkStatus` |
+|---|---|---|---|
+| 🅰 | **`/admin/content/[collection]`** | `page.tsx:1` の `import Link from "next/link"` ＋ `:309-320` の `<Link>` ×2 | 🟢 **効きうる形**（未実測） |
+| 🅱 | `/admin/files`・`/admin/settings/{policies,roles,users}` の **4 画面** | `ListPagination` → `PaginationPrevious/Next` → `PaginationLink` → `pagination.tsx:90` の **素の `<a>`** | 🔴 **原理的に出ない** |
+
+```
+🟢 対照 ListPagination を使う画面 … 4 件（＋部品自身 1）／ ClickableRow … 2 件
+   （＝ この数え方は 0 以外も出せる）
+🚨 apps/studio の中から `-- apps/studio` で絞ると、対照ごと 0 件になる。根から数える
+```
+
+🚨 **2.2 秒の実測は 🅰 の画面で採られている**（その画面は `ListPagination` を **0 件**しか使わない）。
+＝ **「`PaginationLink` が `<a>` だから出ない」は 🅱 の説明であって、🅰 の説明ではない。**
+
+🚨 **`<a>` にしている理由はコメントに書いてある**（`pagination.tsx` の `PaginationLink`）——
+「**リロードでも共有でも同じページに戻る**」（憲章 §4）。
+🚨 ただし司令塔の実測では、**いまも Next がソフト遷移に横取りしている**（印が遷移後も残る）。
+＝ **その理由が今も成り立つかは、誰も確かめていない。**
+
+🚨 **未実測**: 🅰 で `useLinkStatus` が**実際に出るか**は、まだ誰も撃っていない
+（**形が合う**と言えるだけ。**出る/出ないを書く前に 1 回撃つこと**）。
 
 ## 🚫 まだ決めていないこと
 
