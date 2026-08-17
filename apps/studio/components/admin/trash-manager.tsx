@@ -138,6 +138,11 @@ function errorMessage(t: ReturnType<typeof useT>, status: number, code: string |
       return t("error_not_found");
     case "PRIMARY_KEY_NOT_FOUND":
       return t("missing_primary_key");
+    // 🚨 他の行から参照されている（pg の 23503）。
+    //   🚨 **共有の `i18n/error.ts` には足していない**——ゴミ箱はここに自分の写像を持っており、
+    //     同じ文言を 2 箇所に置くと片方が腐る（`i18n/error.ts` の FOLDER_NOT_EMPTY の経緯と同じ理由）。
+    case "ITEM_REFERENCED":
+      return t("error_referenced");
     default:
       break;
   }

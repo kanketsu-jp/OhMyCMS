@@ -37,6 +37,7 @@
   "cancel": "Cancel",
   "error_forbidden": "You do not have permission.",
   "error_not_found": "The item was not found.",
+  "error_referenced": "This item is referenced by another item, so it cannot be deleted. Delete the referring item first.",
   "error_unauthenticated": "Sign in to continue.",
   "error_failed": "The action could not be completed."
 }

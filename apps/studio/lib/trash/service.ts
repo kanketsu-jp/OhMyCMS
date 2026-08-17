@@ -578,10 +578,32 @@ export async function permanentlyDeleteTrashItem(actor: Actor, encodedKey: strin
     if (id) await deleteStoredObjects(id);
   }
 
-  await db.transaction(async (trx) => {
-    assertTrashCollection(key.collection);
-    const query = trx<Record<string, unknown>>(key.collection).whereNotNull("deleted_at");
-    applyPrimaryKey(query, primaryKey);
-    await query.delete();
-  });
+  try {
+    await db.transaction(async (trx) => {
+      assertTrashCollection(key.collection);
+      const query = trx<Record<string, unknown>>(key.collection).whereNotNull("deleted_at");
+      applyPrimaryKey(query, primaryKey);
+      await query.delete();
+    });
+  } catch (error) {
+    // 🚨 **他の行から参照されている行を完全削除すると、pg が `23503` を投げる。**
+    //   それがそのまま上がって **500 INTERNAL_ERROR** になっていた（2026-08-17・design が実測。
+    //   🟢 対照: 参照されていない行は 204／その子を先に消せば親も 204）。
+    //   利用者から見ると「**押したら壊れた**」で、次に何をすればよいか分からない。
+    //   ＝ **「まだ参照している行が在るので消せません」なら直せる情報**になる。
+    //
+    // 🚨 **共有の `PG_STATE_TO_API`（`lib/schema/errors.ts`）には足さない。**
+    //   あの表は `runTranslatingDbErrors` 経由で **insert の経路にも掛かる**（`lib/items/service.ts:1078`）。
+    //   `23503` は **insert なら「指し先が無い」／delete なら「指されている」**で、**意味が逆**。
+    //   1 つの表に入れると、**片方には必ず嘘の文言**になる
+    //   （`i18n/error.ts` が `FOLDER_NOT_EMPTY` で同じ理由の取り消しを記録している）。
+    if ((error as { code?: unknown } | null)?.code === "23503") {
+      throw new ApiError(
+        409,
+        "ITEM_REFERENCED",
+        "他の項目から参照されているため、完全に削除できません",
+      );
+    }
+    throw error;
+  }
 }

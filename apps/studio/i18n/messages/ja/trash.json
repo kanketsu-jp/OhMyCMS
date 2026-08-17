@@ -37,6 +37,7 @@
   "cancel": "やめる",
   "error_forbidden": "権限がありません。",
   "error_not_found": "対象が見つかりません。",
+  "error_referenced": "他の項目から参照されているため、完全に削除できません。先に参照している側を消してください。",
   "error_unauthenticated": "ログインしてください。",
   "error_failed": "操作できませんでした。"
 }
