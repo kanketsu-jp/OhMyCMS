@@ -53,10 +53,14 @@ function Input({
         // **prop を増やさず `read-only:` 修飾子で見た目を切り替える**（付け忘れが起きない）。
         // 🚨 `disabled` とは別物。disabled は「いまは使えない」、readOnly は「そもそも変えられない」。
         //    disabled の色分けはそのまま残す。
-        // 罫線・背景・左右の余白をすべて外し、**ラベルの下に置かれた文字**として見せる。
+        // 2026-08-15 時点では、罫線・背景・左右の余白をすべて外し、
+        // **ラベルの下に置かれた文字**として見せる方針だった。
+        // 🚨 2026-08-17 に堀池さんの指摘で反転:
+        // > 「フィールドの枠がないので、わからない。」
+        // 枠は出さず、薄い地の色と通常入力と同じ左右余白で、欄が在ることを示す。
         // 🚨 `<input>` のままにするのは、**ID をなぞって選択・コピーできる必要がある**ため
         //    （`<p>` にすると値だけを選びにくくなる）。
-        "read-only:border-transparent read-only:bg-transparent read-only:px-0 read-only:cursor-default read-only:focus-visible:ring-0",
+        "read-only:border-transparent read-only:bg-muted/40 read-only:px-3 read-only:cursor-default read-only:focus-visible:ring-0",
         className
       )}
       {...props}

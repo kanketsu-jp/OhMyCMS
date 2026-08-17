@@ -40,7 +40,13 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
         //    `<Input>` には既に在ったので、**同じ画面の中で作法が割れていた**。
         // 🚨 `<textarea>` のままにするのは、**なぞって選択・コピーできる必要がある**ため（input と同じ理由）。
         // 🚨 `disabled` とは別物。disabled は「いまは使えない」、readOnly は「そもそも変えられない」。
-        "read-only:border-transparent read-only:bg-transparent read-only:px-0 read-only:cursor-default read-only:focus-visible:ring-0",
+        // 🚨 2026-08-17 に堀池さんの指摘で反転（`input.tsx` と同じ）:
+        // > 「フィールドの枠がないので、わからない。」
+        //    枠は出さず、薄い地の色と通常入力と同じ左右余白で、欄が在ることを示す。
+        // 🚨 **`input.tsx` だけ直しても半分しか直らない**。実測（2026-08-17）:
+        //    `/admin/settings/sso` の読み取り専用 9 欄のうち **5 欄が textarea** で、
+        //    input だけ直した時点では **その 5 欄が透明のまま**だった。
+        "read-only:border-transparent read-only:bg-muted/40 read-only:px-3 read-only:cursor-default read-only:focus-visible:ring-0",
         className
       )}
       {...props}
