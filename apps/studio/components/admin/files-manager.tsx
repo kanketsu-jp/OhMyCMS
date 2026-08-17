@@ -6,6 +6,7 @@ import { Upload } from "lucide-react";
 import { FileDropzone } from "@/components/admin/file-dropzone";
 import { toast } from "@/components/ui/toast";
 import { PageAction } from "@/components/admin/page-action";
+import { Input } from "@/components/ui/input";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { errorKeyFromPayload } from "@/i18n/error";
@@ -69,6 +70,11 @@ export function FileUploadForm({
         {/* 🚨 `flat` … このフォームは /admin/files/new で `<Surface>` の中に置かれる。
             選んだ後に出る Attachment が器を持つと面が2段目になり、実測で**深さ3**まで行っていた。 */}
         <FileDropzone name="file" flat label={t("upload_title")} />
+        <Input
+          name="filename"
+          placeholder={t("filename_help")}
+          aria-label={t("filename_label")}
+        />
         <select name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={initialFolder === "root" ? "" : initialFolder ?? ""}>
           <option value="">{t("no_folder_option")}</option>
           {folders.map((folder) => (

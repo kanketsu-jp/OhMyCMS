@@ -88,9 +88,10 @@ export async function POST(request: Request) {
     if (value.size === 0) {
       throw new ApiError(400, "FILE_EMPTY", "中身のないファイルは送れません");
     }
+    const overrideName = formString(formData, "filename")?.trim();
     const body = Buffer.from(await value.arrayBuffer());
     const row = await uploadFile(actor, {
-      filename: value.name,
+      filename: overrideName && overrideName.length > 0 ? overrideName : value.name,
       contentType: value.type,
       body,
       title: formString(formData, "title"),

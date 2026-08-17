@@ -19,6 +19,8 @@
   "error_save_failed": "Failed to save file",
   "error_upload_failed": "Failed to upload file",
   "file_extension_fallback": "FILE",
+  "filename_label": "Name (optional)",
+  "filename_help": "Leave empty to use the selected file's name",
   "folder_label": "Folder",
   "id_label": "ID",
   "lightbox_carousel": "Carousel",

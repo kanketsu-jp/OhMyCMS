@@ -551,13 +551,45 @@ export async function uploadFile(actor: Actor | null, input: UploadFileInput): P
   const id = randomUUID();
   const filename = sanitizeFilename(input.filename);
   const key = `${id}/${filename}`;
+  // 🚨 効いている上限は「名前の長さ」ではなく **保存先の鍵の長さ**。
+  //    filename_disk は varchar(255) で、そこへ `${id}/${filename}` が入る（＝ uuid 36 + "/" 1 ぶん短くなる）。
+  //    【実測 2026-08-17】名前 255 文字＝鍵 292 → 500 ／ 名前 216 文字＝鍵 253 → 201
+  const MAX_KEY_CHARS = 255;
+  const MAX_FILENAME_CHARS = 255;
+  const MAX_FILENAME_BYTES = 255;
+  if (
+    key.length > MAX_KEY_CHARS ||
+    input.filename.length > MAX_FILENAME_CHARS ||
+    Buffer.byteLength(filename, "utf8") > MAX_FILENAME_BYTES
+  ) {
+    throw new ApiError(400, "FILE_NAME_TOO_LONG", "ファイル名が長すぎます（218文字まで）");
+  }
   const storage = await getStorage();
   const detected = await imageMetadata(input.body);
   const contentType = detected.type ?? inferContentType(filename, input.contentType);
   const userId = actorUserId(actor);
   const now = new Date().toISOString();
 
-  await storage.put(key, input.body, contentType);
+  try {
+    await storage.put(key, input.body, contentType);
+  } catch (error) {
+    // 🚨 入れ物ごと片づける（ローカルは <id>/ のディレクトリが残るため）。
+    //    🚨 握り潰さない。名前だけ残す（既存の巻き戻しと同じ形・同じ理由）。
+    try {
+      // 🚨 `deletePrefix` は driver で任意。無いドライバでも、せめて本体は消す。
+      if (storage.deletePrefix) {
+        await storage.deletePrefix(id);
+      } else {
+        await storage.delete(key);
+      }
+    } catch (cleanupError) {
+      console.error("[files] アップロードの巻き戻しに失敗しました（実体が残っている可能性があります）", {
+        key,
+        name: cleanupError instanceof Error ? cleanupError.name : "UnknownError",
+      });
+    }
+    throw error;
+  }
 
   // 🚨 配信用の圧縮版とぼかし画像。**失敗してもアップロードは落とさない**
   //    （飾りのために本体を壊さない）。元のファイルは上で保存済みなので、ここで何が起きても元は無傷。
@@ -612,7 +644,14 @@ export async function uploadFile(actor: Actor | null, input: UploadFileInput): P
     //    502 `STORAGE_ERROR (Error)` を返し、**SDK の例外名すら分からなくなった**）。
     //    ＝ 502 の括弧に出るのは「最後に投げた人の名前」で、原因の名前ではなかった。
     try {
-      await storage.delete(key);
+      // 🚨 key だけ消すと ①ディレクトリが空のまま残る ②圧縮版・ぼかしが残る。
+      //    【実測 2026-08-17】500 のあと .storage に空のディレクトリが 2 つ残っていた。
+      // 🚨 `deletePrefix` は driver で任意。無いドライバでも、せめて本体は消す。
+      if (storage.deletePrefix) {
+        await storage.deletePrefix(id);
+      } else {
+        await storage.delete(key);
+      }
     } catch (cleanupError) {
       // 🚨 **握り潰さない。** 黙ると「**消し残しが在るのに誰も知らない**」になる
       //    （＝ 孤児が増えるのに、増えたことが分からない）。

@@ -46,6 +46,7 @@ export const ERROR_KEYS = [
   "unauthenticated",
   // ファイル由来（storage・2026-08-16）
   "file_too_large",
+  "file_name_too_long",
   // 🚨 中身が 0 バイトのファイル（2026-08-17）。**`field_required` と分ける**——
   //    「選んでいない」ではなく「**選んだつもりのものが空**」なので、利用者がとる行動が違う
   //    （**選び直す**）。実測: 1 回目のアップロード成功後にもう一度押すと、
@@ -157,6 +158,7 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   REQUIRED_FIELD: "field_required",
   INVALID_VALUE: "invalid_field",
   FILE_TOO_LARGE: "file_too_large",
+  FILE_NAME_TOO_LONG: "file_name_too_long",
   UPLOAD_BODY_UNREADABLE: "upload_unreadable",
   ROLE_NOT_FOUND: "not_found",
   POLICY_NOT_FOUND: "not_found",

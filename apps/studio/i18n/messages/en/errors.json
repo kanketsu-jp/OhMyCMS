@@ -21,6 +21,7 @@
   "too_many_items": "Too many items at once. Please split the operation.",
   "file_required": "Please choose a file.",
   "file_too_large": "The file is too large. Use a file of 50 MB or less.",
+  "file_name_too_long": "The file name is too long. Use a name of 218 characters or less and upload again.",
   "upload_unreadable": "The upload could not be read. Please try again.",
   "last_admin_cannot_be_removed": "Cannot remove the last administrator",
   "policy_in_use": "Cannot delete: this policy is assigned to users",

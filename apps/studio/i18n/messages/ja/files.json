@@ -19,6 +19,8 @@
   "error_save_failed": "保存できません",
   "error_upload_failed": "アップロードできません",
   "file_extension_fallback": "ファイル",
+  "filename_label": "名前（変えたいとき）",
+  "filename_help": "空のままなら、選んだファイルの名前を使います",
   "folder_label": "フォルダ",
   "id_label": "ID",
   "lightbox_carousel": "カルーセル",
