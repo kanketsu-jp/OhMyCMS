@@ -243,6 +243,8 @@ function SidebarLink({ item }: { item: NavLink }) {
 
 function SidebarGroupNav({ group }: { group: NavGroup }) {
   const pathname = usePathname();
+  // 🚨 畳んでいるかを知るために要る（M1）。開く口も同じ hook が持つ。
+  const { state, setOpen } = useSidebar();
   const inside = matchesNavGroup(pathname, group.match);
 
   return (
@@ -250,7 +252,28 @@ function SidebarGroupNav({ group }: { group: NavGroup }) {
       <SidebarMenuItem>
         <AccordionPrimitive.Header className="flex">
           <SidebarMenuButton asChild isActive={inside} tooltip={group.label}>
-            <AccordionPrimitive.Trigger className="group/accordion-trigger">
+            <AccordionPrimitive.Trigger
+              className="group/accordion-trigger"
+              // 🚨 **畳んでいるときは、まずサイドバーを開く**（堀池・2026-08-17 M1 原文
+              //    「左サイドバーをとじたらクリックできない。アコーディオンはクリックしたら
+              //      左サイドバーを開くか、最初の一つのページに遷移するか、パネルを出すようにして。」）。
+              //    🚨 畳むと**子リンクが 0 件になる**ので、残るのは見出しだけで押す先が無い
+              //    （2026-08-17 実測: 押しても経路も状態も浮くものも変わらない）。
+              //
+              // 🚨 **3 択のうち 1（押したら開く）を選んだ。理由:**
+              //    ・2（最初の 1 つへ遷移）… 「最初の 1 つ」が組ごとに違い、コレクションは
+              //      実行時に変わる。0 件のときの行き先も決めることになり、4 組ぶん抱える
+              //    ・3（浮かせる）… いまのサイドバーに popover / hover-card は 0 件（実測）。
+              //      Directus は 3 に近いが、向こうは「畳んでも子を出す」作りで構造が違う
+              //    🚨 失うもの … 畳んだまま中身を見ることはできない（開いてしまう）。
+              onClick={(event) => {
+                if (state !== "collapsed") return;
+                // 🚨 開くだけにする。Accordion の開閉も走ると、開いた直後に組が畳まれて
+                //    「押したのに閉じている」に見える。
+                event.preventDefault();
+                setOpen(true);
+              }}
+            >
               <NavGroupIcon groupKey={group.key} />
               <span className="group-data-[collapsible=icon]:hidden">{group.label}</span>
               <ChevronDownIcon className="ml-auto transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/accordion-trigger:rotate-180" />
