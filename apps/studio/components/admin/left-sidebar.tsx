@@ -10,10 +10,15 @@ import {
   ChevronDownIcon,
   DatabaseIcon,
   FilesIcon,
+  FileIcon,
   FolderIcon,
+  KeyRound,
   SettingsIcon,
+  ShieldAlert,
   TableIcon,
+  Tag,
   Trash2Icon,
+  UsersIcon,
 } from "lucide-react";
 
 import { GlobalSearchButton } from "@/components/admin/global-search";
@@ -116,6 +121,20 @@ function NavItemIcon({ href }: { href: string }) {
   //    （`git grep -l Trash2 -- components app`）。**新しい絵を選ばないこと**——
   //    同じ意味に 2 つの絵が出る。
   if (href === "/admin/trash") return <Trash2Icon />;
+  // 🚨 **既定に落ちていたのは trash だけではなかった**（司令塔の実測・2026-08-17）。
+  //    組の子は下で `<TableIcon />` を**べた書き**していたので、
+  //    「すべてのファイル」「ラベル」「ユーザー」「ロール」「ポリシー」の **5 行**が表のアイコンだった。
+  //    ＝ 堀池さんが名指ししたのは「ゴミ箱」1 件だが、**原因は既定に落ちること**なので、
+  //      1 件だけ直すと残りは次に気づかれる。
+  // 🚨 **絵は、既にこのリポジトリで使っているものから採る**（同じ意味に 2 つの絵を作らない）。
+  //    Tag … 3 箇所／ShieldAlert … policies-manager／KeyRound … 2 箇所／FileIcon … 4 箇所
+  if (href === "/admin/files") return <FileIcon />;
+  if (href === "/admin/labels") return <Tag />;
+  if (href === "/admin/settings/policies") return <ShieldAlert />;
+  if (href === "/admin/settings/roles") return <KeyRound />;
+  // 🚨 **ここだけ、既存に無い絵を入れた。** 利用者を表す絵はこのリポジトリに 1 つも無く
+  //    （`UserMinus` は「利用者を外す」で別物）、**重複が起きない**ため。
+  if (href === "/admin/settings/users") return <UsersIcon />;
   return <TableIcon />;
 }
 
@@ -123,6 +142,9 @@ function NavGroupIcon({ groupKey }: { groupKey: string }) {
   if (groupKey === "content") return <DatabaseIcon />;
   if (groupKey === "files") return <FilesIcon />;
   if (groupKey === "settings") return <SettingsIcon />;
+  // 🚨 G2 で足された「ユーザー」の組が、既定の `<FolderIcon />`（フォルダ）に落ちていた。
+  //    人の集まりをフォルダの絵で表していたので、子の `/admin/settings/users` と揃える。
+  if (groupKey === "users") return <UsersIcon />;
   return <FolderIcon />;
 }
 
@@ -167,7 +189,12 @@ function SidebarGroupNav({ group }: { group: NavGroup }) {
                   <SidebarMenuSubItem key={item.href}>
                     <SidebarMenuSubButton asChild isActive={isCurrent(pathname, item.href)}>
                       <Link href={item.href} aria-current={isCurrent(pathname, item.href) ? "page" : undefined}>
-                        <TableIcon />
+                        {/* 🚨 **べた書きの `<TableIcon />` をやめた**（2026-08-17）。
+                            組の子が**全部 表のアイコン**になっていた原因がここ。
+                            トップ項目と**同じ関数**を通す（分岐を 2 箇所に持つと必ず割れる）。
+                            🚨 コレクションの行もここを通るので、**既定は `TableIcon` のまま残す**
+                            （表であることは正しい。K2 で 1 件ずつ持たせる話は別）。 */}
+                        <NavItemIcon href={item.href} />
                         <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                       </Link>
                     </SidebarMenuSubButton>
