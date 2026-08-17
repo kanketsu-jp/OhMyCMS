@@ -14,7 +14,13 @@ import { RowOptions } from "@/components/admin/row-options";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getLocale, getT } from "@/i18n/server";
 import { fieldLabel } from "@/lib/schema/labels";
-import { DEFAULT_COLUMN_COUNT, DEFAULT_LIST_LIMIT, resolveColumns, resolveLimit } from "@/lib/admin/list-view";
+import { resolveLayout } from "@/lib/admin/list-layouts";
+import {
+  DEFAULT_COLUMN_COUNT,
+  DEFAULT_LIST_LIMIT,
+  resolveColumns,
+  resolveLimit,
+} from "@/lib/admin/list-view";
 import { buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { WideTable } from "@/components/admin/wide-table";
@@ -35,7 +41,14 @@ type ItemsPayload = {
 
 type Props = {
   params: Promise<{ collection: string }>;
-  searchParams: Promise<{ page?: string; error?: string; notice?: string; cols?: string; limit?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    error?: string;
+    notice?: string;
+    cols?: string;
+    limit?: string;
+    layout?: string | string[];
+  }>;
 };
 
 /**
@@ -109,6 +122,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const errorKey = errorKeyFromQuery(query.error);
   const errorMessage = errorKey ? tError(errorKey) : null;
   const page = Math.max(1, Number(query.page ?? "1") || 1);
+  const layout = resolveLayout(query.layout);
   const limit = resolveLimit(query.limit);
   const offset = (page - 1) * limit;
   const encoded = encodeURIComponent(collection);
@@ -230,79 +244,81 @@ export default async function ContentPage({ params, searchParams }: Props) {
           ) : null}
           {itemsResult.ok ? (
             <>
-              <WideTable>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {/* 🚨 欄名は辞書を通す（設問286 A）。辞書が無ければ fieldLabel が
-                          生の識別子に落ちるので、名前を付けるまで表示は変わらない。
-                          各所で `?? field.field` と書くと必ず割れるので、必ずこの関数を通す。 */}
-                      {columns.map((field) => (
-                        <TableHead key={field.field}>{fieldLabel(field, locale)}</TableHead>
-                      ))}
-                      <TableHead className="w-44">{t("actions_header")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {itemsResult.data.data.map((item, index) => {
-                      const id = String(item[pk] ?? "");
-                      return (
-                        <ClickableRow key={id || index} href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}>
-                          {columns.map((field) => (
-                            <TableCell key={field.field} className="max-w-64 truncate">
-                              <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
-                            </TableCell>
-                          ))}
-                          <TableCell>
-                            {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
-                                （`knowledge/decisions/action-button-and-edit-mode.md`）。
-                                🚨 form は**残す**。`RowOptions` の `formId` が指す相手そのもので、
-                                   消すと削除が黙って効かなくなる（中身は隠し項目だけでよい）。 */}
-                            <div className="flex gap-1">
-                              <Link
-                                href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
-                                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                              >
-                                {t("edit_button")}
-                              </Link>
-                              <form
-                                id={`item-delete-${id}`}
-                                action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`}
-                                method="post"
-                              >
-                                <input type="hidden" name="_method" value="delete" />
-                              </form>
-                              <RowOptions
-                                label={t("row_options")}
-                                options={[
-                                  {
-                                    label: t("delete_button"),
-                                    icon: <Trash2 />,
-                                    destructive: true,
-                                    formId: `item-delete-${id}`,
-                                    // 🚨 **戻せるかが表によって違う**ので、文面も色も分ける
-                                    //    （`knowledge/decisions/confirm-by-reversibility-and-reach`）。
-                                    //    【測った 2026-08-17】15 コレクション中 14 本に `deleted_at` が在り、
-                                    //    **1 本（`zz_probe_dialog`）には無い** ＝ **同じボタンが物理削除に落ちる**。
-                                    confirm: {
-                                      title: t("delete_confirm_title"),
-                                      description: softDeletes
-                                        ? t("delete_confirm_soft")
-                                        : t("delete_confirm_hard"),
-                                      confirmLabel: t("delete_button"),
-                                      tone: softDeletes ? "default" : "danger",
+              <div data-list-layout={layout}>
+                <WideTable>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {/* 🚨 欄名は辞書を通す（設問286 A）。辞書が無ければ fieldLabel が
+                            生の識別子に落ちるので、名前を付けるまで表示は変わらない。
+                            各所で `?? field.field` と書くと必ず割れるので、必ずこの関数を通す。 */}
+                        {columns.map((field) => (
+                          <TableHead key={field.field}>{fieldLabel(field, locale)}</TableHead>
+                        ))}
+                        <TableHead className="w-44">{t("actions_header")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {itemsResult.data.data.map((item, index) => {
+                        const id = String(item[pk] ?? "");
+                        return (
+                          <ClickableRow key={id || index} href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}>
+                            {columns.map((field) => (
+                              <TableCell key={field.field} className="max-w-64 truncate">
+                                <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
+                              </TableCell>
+                            ))}
+                            <TableCell>
+                              {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
+                                  （`knowledge/decisions/action-button-and-edit-mode.md`）。
+                                  🚨 form は**残す**。`RowOptions` の `formId` が指す相手そのもので、
+                                     消すと削除が黙って効かなくなる（中身は隠し項目だけでよい）。 */}
+                              <div className="flex gap-1">
+                                <Link
+                                  href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
+                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                                >
+                                  {t("edit_button")}
+                                </Link>
+                                <form
+                                  id={`item-delete-${id}`}
+                                  action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`}
+                                  method="post"
+                                >
+                                  <input type="hidden" name="_method" value="delete" />
+                                </form>
+                                <RowOptions
+                                  label={t("row_options")}
+                                  options={[
+                                    {
+                                      label: t("delete_button"),
+                                      icon: <Trash2 />,
+                                      destructive: true,
+                                      formId: `item-delete-${id}`,
+                                      // 🚨 **戻せるかが表によって違う**ので、文面も色も分ける
+                                      //    （`knowledge/decisions/confirm-by-reversibility-and-reach`）。
+                                      //    【測った 2026-08-17】15 コレクション中 14 本に `deleted_at` が在り、
+                                      //    **1 本（`zz_probe_dialog`）には無い** ＝ **同じボタンが物理削除に落ちる**。
+                                      confirm: {
+                                        title: t("delete_confirm_title"),
+                                        description: softDeletes
+                                          ? t("delete_confirm_soft")
+                                          : t("delete_confirm_hard"),
+                                        confirmLabel: t("delete_button"),
+                                        tone: softDeletes ? "default" : "danger",
+                                      },
                                     },
-                                  },
-                                ]}
-                              />
-                            </div>
-                          </TableCell>
-                        </ClickableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </WideTable>
+                                  ]}
+                                />
+                              </div>
+                            </TableCell>
+                          </ClickableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </WideTable>
+              </div>
               {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
                   読み込めていないのか、まだ無いのかが分からない。 */}
               {itemsResult.data.data.length === 0 ? <ListEmpty>{t("empty")}</ListEmpty> : null}
