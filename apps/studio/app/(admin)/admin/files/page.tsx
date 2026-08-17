@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderPlus, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FilesDropUpload } from "@/components/admin/files-drop-upload";
 import { FilesLightboxGrid } from "@/components/admin/files-lightbox-grid";
@@ -223,17 +223,24 @@ export default async function FilesPage({ searchParams }: Props) {
       {/* 🚨 行き先は `newFileHref` / `newFolderHref`（既存の変数）を渡す。
           `page-actions.ts` の `/admin/files/new` は**ルートの形**であって行き先ではない。
           直書きすると `?folder=` が落ちて「フォルダの中で追加を押すと根に作られる」退行になる。 */}
+      {/* 🚨 **主操作は 1 本にする**（堀池・2026-08-17・C1）。原文:
+          「アクションボタンの使い方が間違っています。一つのアクションを固定するのではなく、
+            『ファイルを追加』をメインとし、そのオプションとして『フォルダを作る』が
+            選べるようなボタングループの形式にしてください。」
+
+          🚨 **新しい部品は要らない。** `PageAction` は `options` を渡すと `ButtonGroup`（主 + ▾）を
+          描く（`page-action.tsx` の `if (!options?.length) return 主;`）。
+          直す前に chevron が 0 件だったのは**渡していなかったから**で、部品が無いからではない。
+
+          🚨 **行き先は変数をそのまま渡す。** `page-actions.ts` の `/admin/files/new-folder` は
+          **ルートの形**であって行き先ではない。直書きすると `?parent=` が落ちて、
+          **フォルダの中で押すと根に作られる**退行になる（同ファイルの既存の申し送りと同じ罠）。 */}
       <PageAction
         href={newFileHref}
         role="primary"
         label={t("new_file_button")}
         icon={<Upload />}
-      />
-      <PageAction
-        href={newFolderHref}
-        role="secondary"
-        label={t("new_folder_button")}
-        icon={<FolderPlus />}
+        options={[{ label: t("new_folder_button"), href: newFolderHref }]}
       />
       <div className="flex max-w-7xl flex-col gap-6">
         <Breadcrumb aria-label={t("breadcrumb_label")}>

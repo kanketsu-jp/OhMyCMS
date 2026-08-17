@@ -212,6 +212,10 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
       icon: "FolderPlus",
       href: "/admin/files/new-folder",
       role: "secondary",
+      // 🚨 主操作は「ファイルを追加」1 本で、フォルダ作成は ▾ の中（堀池・2026-08-17・C1）。
+      //    🚨 **平らな 1 行で書く**（入れ子の `options` にしない）。`check-page-actions` は
+      //    ブロックを字下げ 2 で切るので、入れ子にすると次のルートを飲み込む。
+      inMenu: true,
     },
   ],
   "/admin/files/new": [
