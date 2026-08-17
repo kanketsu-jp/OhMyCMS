@@ -215,7 +215,16 @@ export async function resolvePermission(
     .select("permissions", "fields")
     .whereIn("policy", policyIds)
     .where("collection", collection)
-    .where("action", action);
+    .where("action", action)
+    // 🚨 論理削除された権限は、許可を出さない（2026-08-17・設問 300 の続き）。
+    //    `20260817020000` で `deleted_at` を足したが、**読み手はどこも見ていなかった**
+    //    （実測: `directus_permissions` を引く 10 本のうち 4 本が 0 箇所）。
+    // 🚨 **いま踏める人は居ない**。権限を論理削除する経路がコード上に無いため
+    //    （`deletePermission` は物理削除／`lib/trash/service.ts` は権限を扱わない／
+    //     `trash-manager` は `directus_permissions` を `system_table` として明示的に外している）。
+    //    ＝ **踏めないのは「入り口が無い」からで、守りが在るからではない。**
+    //    **入り口ができた瞬間に踏めるようになる**ので、入り口より先にここを塞ぐ。
+    .whereNull("deleted_at");
 
   if (rows.length === 0) return DENIED;
 
