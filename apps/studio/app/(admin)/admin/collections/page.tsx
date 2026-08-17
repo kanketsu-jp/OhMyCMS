@@ -3,6 +3,7 @@ import type { CollectionResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { HeaderSearch } from "@/components/admin/header-search";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { Plus } from "lucide-react";
@@ -21,7 +22,9 @@ import {
 import { cn } from "@/lib/utils";
 
 type Props = {
-  searchParams: Promise<{ error?: string }>;
+  // 🚨 `q` は**ヘッダーの絞り込み窓**が書く（`components/admin/header-search.tsx`）。
+  //    書くのは窓、絞るのはこの画面、という分担にしてある。
+  searchParams: Promise<{ error?: string; q?: string }>;
 };
 
 export default async function CollectionsPage({ searchParams }: Props) {
@@ -33,6 +36,19 @@ export default async function CollectionsPage({ searchParams }: Props) {
   const t = await getT("collections");
   const locale = await getLocale();
   const result = await apiFetch<CollectionResult[]>("/api/collections");
+  // 🚨 **この画面の中を絞る**（堀池・2026-08-17・L1「このページでの検索窓」）。
+  //    識別子と表示名の**両方**で見る——画面には 2 行（表示名 / 識別子）が出ているので、
+  //    見えている文字で絞れないと「打ったのに出ない」になる。
+  //    🚨 大文字小文字は無視する（識別子は小文字、表示名は日本語で混ざるため）。
+  const query = (params.q ?? "").trim().toLowerCase();
+  const rows = result.ok
+    ? result.data.filter(
+        (c) =>
+          query === "" ||
+          c.collection.toLowerCase().includes(query) ||
+          collectionLabel(c, locale).toLowerCase().includes(query),
+      )
+    : [];
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -49,6 +65,10 @@ export default async function CollectionsPage({ searchParams }: Props) {
       {/* 🚨 **囲まない。** `PageAction` は PC も SP も portal で外（ヘッダー / 下部ナビ）へ出る
           ので、ここに残る中身は無い。以前あった `<div className="flex justify-end">` は
           **何も入っていないのに縦の余白だけ取っていた**（shell 583cf84 の申し送り）。 */}
+      {/* 🚨 **この画面の中を絞る窓**をヘッダーへ差し込む（L1・2026-08-17）。
+          全体検索（⌘K）とは別物で、あちらは左サイドバーのまま。
+          🚨 これは header(L3) が入れた 1 行。**一覧の出し分け（§1-5 / §1-6）には触っていない。** */}
+      <HeaderSearch />
       <PageAction
         href="/admin/collections/new"
         label={t("new_button")}
@@ -72,7 +92,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
              `lib/admin/page-meta.ts` の `sectionKeys` に残してある。 */}
       <div id={sectionAnchorId("collections.list_title")}>
         {result.ok ? (
-          result.data.length > 0 ? (
+          rows.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -83,7 +103,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {result.data.map((collection) => {
+                {rows.map((collection) => {
                   const encoded = encodeURIComponent(collection.collection);
                   return (
                     <TableRow key={collection.collection}>
