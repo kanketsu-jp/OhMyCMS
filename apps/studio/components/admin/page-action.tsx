@@ -374,7 +374,16 @@ function renderAction({
             <ChevronDownIcon aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        {/* 🚨 **幅を引き金から切り離す**（堀池・2026-08-17・N1「このように文字が縦長になるのも最悪」）。
+            【測った 2026-08-17・PC 1280】主要 5 ルートの開くメニューを全部開いて数えた:
+              縦長 … **2 件**（どちらもここ。PC 用と SP 用の複製）幅 **32 / 8** ・項目が **7 行**
+              🟢 対照 … 他のメニューは幅 176〜239 で項目は 1 行（36px）＝ **ここだけ**
+            原因は共有部品 `ui/dropdown-menu.tsx` の `w-(--radix-dropdown-menu-trigger-width)`
+            ＝ **メニューが引き金の幅を継ぐ**。引き金が ▾（`icon-sm` = 32px）なので潰れる。
+            🚨 **共有部品側は直さない。** あれは「入力と同じ幅にしたい」選択肢のための書き方で、
+              変えると**全メニューの幅が一斉に変わる**（実測で他は正常に出ている）。
+              **狭い引き金を持つのはここだけ**なので、ここで上書きする。 */}
+        <DropdownMenuContent align="end" className="w-auto min-w-44">
           {options.map((o) =>
             o.href ? (
               // 🚨 行き先が在るなら**本物のリンク**にする（Cmd+クリックで新しいタブに開ける）。
