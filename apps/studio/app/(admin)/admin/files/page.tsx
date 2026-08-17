@@ -16,6 +16,7 @@ import {
   type CardColumns,
   type FileColumn,
 } from "@/lib/admin/files-view";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { ListPagination } from "@/components/admin/list-pagination";
 import { PageAction } from "@/components/admin/page-action";
 import {
@@ -281,9 +282,7 @@ export default async function FilesPage({ searchParams }: Props) {
               {/* 表示形式の外に置く。カードと表で伝わる情報が変わっていたため。
                   「元から空」と「絞り込んだ結果 0 件」では、次にする操作が違う。 */}
               {childFolders.length === 0 && files.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {activeLabel ? t("empty_filtered") : t("empty_folder")}
-                </p>
+                <ListEmpty>{activeLabel ? t("empty_filtered") : t("empty_folder")}</ListEmpty>
               ) : null}
               {view === "table" ? (
                 <FilesTable folders={childFolders} files={files} columns={columns} />
