@@ -5,6 +5,8 @@
   "create_button": "Create",
   "create_title": "Create New",
   "delete_button": "Delete Collection",
+  "delete_confirm": "\"{name}\" will be deleted, along with the items inside it. This cannot be undone.",
+  "delete_confirm_title": "Delete this collection?",
   "empty": "No collections yet.",
   "field_count_header": "Fields",
   "fields_link": "Fields",

@@ -123,6 +123,18 @@ export default async function ContentPage({ params, searchParams }: Props) {
     ? fieldsResult.data.filter((field) => Boolean(field.schema) && !field.meta?.hidden)
     : [];
   const columns = resolveColumns(query.cols, fields);
+  /**
+   * この表の削除が**論理削除になるか**。
+   *
+   * 🚨 `lib/items/service.ts` は **`deleted_at` の列が在る表だけ**論理削除にし、
+   *   **無い表は物理削除のまま**（列は「登録が在り、主キーが在る表」にしか付かない）。
+   *   ＝ **同じ「削除」ボタンが、表によって戻せたり戻せなかったりする**。
+   * 🚨 判定に使うのは **`fieldsResult.data`（未フィルタ）**。
+   *   上の `fields` は `meta.hidden` を落としており、**`deleted_at` は hidden なので入っていない**。
+   */
+  const softDeletes = fieldsResult.ok
+    ? fieldsResult.data.some((field) => field.field === "deleted_at")
+    : false;
   const pk = primaryKey(fields);
   const total = itemsResult.ok ? itemsResult.data.meta?.filter_count ?? itemsResult.data.data.length : 0;
   const pageCount = Math.max(1, Math.ceil(total / limit));
@@ -253,6 +265,18 @@ export default async function ContentPage({ params, searchParams }: Props) {
                                   icon: <Trash2 />,
                                   destructive: true,
                                   formId: `item-delete-${id}`,
+                                  // 🚨 **戻せるかが表によって違う**ので、文面も色も分ける
+                                  //    （`knowledge/decisions/confirm-by-reversibility-and-reach`）。
+                                  //    【測った 2026-08-17】15 コレクション中 14 本に `deleted_at` が在り、
+                                  //    **1 本（`zz_probe_dialog`）には無い** ＝ **同じボタンが物理削除に落ちる**。
+                                  confirm: {
+                                    title: t("delete_confirm_title"),
+                                    description: softDeletes
+                                      ? t("delete_confirm_soft")
+                                      : t("delete_confirm_hard"),
+                                    confirmLabel: t("delete_button"),
+                                    tone: softDeletes ? "default" : "danger",
+                                  },
                                 },
                               ]}
                             />

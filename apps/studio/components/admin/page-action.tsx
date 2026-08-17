@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { ChevronDownIcon } from "lucide-react";
-import { useSyncExternalStore, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal, useFormStatus } from "react-dom";
+
+import { ConfirmDialog, submitFormById, type ConfirmSpec } from "@/components/admin/confirm-dialog";
 
 import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
@@ -82,6 +84,14 @@ export type ActionOption = {
   formId?: string;
   /** 取り消せない操作。赤く出す（規約 §3「破壊的な操作は必ず ▾ の中」） */
   destructive?: boolean;
+  /**
+   * 渡すと、押したときに**確認を挟む**（`knowledge/decisions/confirm-by-reversibility-and-reach`）。
+   *
+   * 🚨 **既定は確認なし**（渡さなければ、いままでと 1 文字も変わらない）。
+   * 🚨 **「これは危ない」を部品が決めない**——**呼ぶ側が渡したときだけ**出す（司令塔の条件①）。
+   *   `destructive`（赤くする）とは**別**: 赤いから確認、ではない。
+   */
+  confirm?: ConfirmSpec;
 };
 
 /**
@@ -142,6 +152,18 @@ export function PageAction({
   const formStatus = useFormStatus();
   const busy = pending || formStatus.pending;
 
+  // 🚨 **確認待ちの項目は、メニューの外で持つ**（`confirm-dialog.tsx` の申し送り）。
+  //    🚨 そして **ダイアログは 1 つだけ描く**——`renderAction` は PC 用と SP 用で
+  //    **2 回呼ばれる**ので、あちらに置くと**同じダイアログが 2 つ開く**。
+  const [confirming, setConfirming] = useState<ActionOption | null>(null);
+  const runOption = (option: ActionOption) => {
+    if (option.formId) {
+      submitFormById(option.formId);
+      return;
+    }
+    option.onSelect?.();
+  };
+
   const variant = destructive ? "destructive" : role === "secondary" ? "outline" : "default";
   // 🚨 補助は**必ず主要の左**に出す。portal は mount の順に並ぶので、
   //    ページが補助を先に描くか後に描くかで左右が入れ替わってしまう。
@@ -192,16 +214,25 @@ export function PageAction({
     compact: false,
     options,
     optionsLabel: t("action_options"),
+    onConfirmRequest: setConfirming,
   });
   const sp = renderAction({
     href, form, onClick, label, icon, pending: busy, disabled, variant, order, compact: true,
-    options, optionsLabel: t("action_options"),
+    options, optionsLabel: t("action_options"), onConfirmRequest: setConfirming,
   });
 
   return (
     <>
       {headerSlot ? createPortal(pc, headerSlot) : null}
       {mobileSlot ? createPortal(sp, mobileSlot) : null}
+      {/* 🚨 portal の外に 1 つだけ。Radix が body へ出すので、置き場所は問わない。 */}
+      <ConfirmDialog
+        spec={confirming?.confirm ?? null}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => {
+          if (confirming) runOption(confirming);
+        }}
+      />
     </>
   );
 }
@@ -229,6 +260,7 @@ function renderAction({
   compact,
   options,
   optionsLabel,
+  onConfirmRequest,
 }: {
   href?: string;
   form?: string;
@@ -242,6 +274,8 @@ function renderAction({
   compact: boolean;
   options?: ActionOption[];
   optionsLabel: string;
+  /** 確認が要る項目を押したときに、呼び出し元へ知らせる（ダイアログは呼び出し元が 1 つだけ描く）。 */
+  onConfirmRequest: (option: ActionOption) => void;
 }) {
   const size = "sm";
   // 🚨 SP だけ 11px にする（PC のヘッダは触らない。同じ部品から出ているため）。
@@ -319,6 +353,17 @@ function renderAction({
               //    2026-08-15 にパンくずで同じ直しをしている。
               <DropdownMenuItem key={o.label} variant={o.destructive ? "destructive" : "default"} asChild>
                 <Link href={o.href}>{o.label}</Link>
+              </DropdownMenuItem>
+            ) : o.confirm ? (
+              // 🚨 確認が要る項目。**ここでは送らない**——呼び出し元へ知らせて、
+              //    メニューが閉じたあとにダイアログを出す（`confirm-dialog.tsx` の申し送り）。
+              //    🚨 `<button type="submit" form=…>` にしない: **押した瞬間に送ってしまう**。
+              <DropdownMenuItem
+                key={o.label}
+                variant={o.destructive ? "destructive" : "default"}
+                onSelect={() => onConfirmRequest(o)}
+              >
+                {o.label}
               </DropdownMenuItem>
             ) : o.formId ? (
               // 🚨 `type="submit"` を忘れると**押しても何も起きない**（既定は button）。

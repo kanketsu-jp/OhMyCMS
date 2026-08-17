@@ -1,19 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog, submitFormById, type ConfirmSpec } from "@/components/admin/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 
 /**
  * **サーバ側のフォームのまま**、確認を出してから送るボタン。
@@ -37,9 +27,9 @@ import { useState } from "react";
  * ```
  * 🚨 **`type="button"` にすると、JS が無い人は削除できなくなる。** そこが分かれ目。
  *
- * 🚨 **二重送信の門は `useSubmitOnce` に載せない。** ここは `requestSubmit()` を 1 回呼ぶだけで、
- *   その後の遷移はブラウザが持つ（**フックの `finally` を通る前に画面が変わる**）。
- *   代わりに **確認を閉じてから送る**ので、同じダイアログから 2 回送ることはできない。
+ * 🚨 **ダイアログの実体はここに書かない**（`confirm-dialog.tsx` に 1 本だけ）。
+ *   ▾ の項目（`PageAction` / `RowOptions`）にも同じものが要るので、
+ *   **3 つ書くと、次に文面の型を直す人が 1 つ落とす**。
  */
 export function ConfirmSubmit({
   formId,
@@ -52,15 +42,9 @@ export function ConfirmSubmit({
   size = "sm",
   ariaLabel,
   className,
-}: {
+}: ConfirmSpec & {
   /** 送りたい `<form>` の id。**このボタンはその中に在っても外に在ってもよい**。 */
   formId: string;
-  title: string;
-  description: string;
-  /** 進めるボタンの文言。🚨 **その操作の動詞にする**（「OK」にしない。決定 §4）。 */
-  confirmLabel: string;
-  /** 🚨 既定は `danger`。**この部品を使うのは「戻せない」ものだけ**なので（決定 §3）。 */
-  tone?: "default" | "danger";
   /** 引き金の中身（アイコン＋文言）。 */
   children: ReactNode;
   variant?: "destructive" | "destructive-ghost" | "outline" | "ghost";
@@ -87,30 +71,11 @@ export function ConfirmSubmit({
       >
         {children}
       </Button>
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{title}</AlertDialogTitle>
-            <AlertDialogDescription>{description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel />
-            <AlertDialogAction
-              tone={tone}
-              onClick={() => {
-                setOpen(false);
-                // 🚨 `submit()` ではなく `requestSubmit()`。
-                //    `submit()` は **`onsubmit` も HTML の検証も飛ばす**ので、
-                //    「押したときと違うことが起きる」ようになる。
-                const form = document.getElementById(formId);
-                if (form instanceof HTMLFormElement) form.requestSubmit();
-              }}
-            >
-              {confirmLabel}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        spec={open ? { title, description, confirmLabel, tone } : null}
+        onClose={() => setOpen(false)}
+        onConfirm={() => submitFormById(formId)}
+      />
     </>
   );
 }

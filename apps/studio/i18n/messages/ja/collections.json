@@ -5,6 +5,8 @@
   "create_button": "作成",
   "create_title": "新規作成",
   "delete_button": "コレクション削除",
+  "delete_confirm": "「{name}」を削除します。中の項目も一緒に消え、元に戻せません。",
+  "delete_confirm_title": "コレクションを削除しますか",
   "empty": "コレクションはまだありません。",
   "field_count_header": "フィールド数",
   "fields_link": "フィールド",

@@ -157,6 +157,14 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             label: tCollections("delete_button"),
             formId: "collection-delete-form",
             destructive: true,
+            // 🚨 **戻せない**（`lib/schema/service.ts` が表ごと落とす）。決定の①。
+            //    本文に**及ぶ範囲**を書く（決定 §4）——**中の項目も一緒に消える**。
+            confirm: {
+              title: tCollections("delete_confirm_title"),
+              description: tCollections("delete_confirm", { name: collection }),
+              confirmLabel: tCollections("delete_button"),
+              tone: "danger",
+            },
           },
         ]}
       />

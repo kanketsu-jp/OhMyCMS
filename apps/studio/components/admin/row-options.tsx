@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
+import { ConfirmDialog, submitFormById, type ConfirmSpec } from "@/components/admin/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,6 +21,13 @@ export type RowOption = {
   onSelect?: () => void;
   disabled?: boolean;
   destructive?: boolean;
+  /**
+   * 渡すと、押したときに**確認を挟む**（`knowledge/decisions/confirm-by-reversibility-and-reach`）。
+   *
+   * 🚨 **既定は確認なし**（渡さなければ、いままでと 1 文字も変わらない）。
+   * 🚨 **「これは危ない」を部品が決めない**——**呼ぶ側が渡したときだけ**出す（司令塔の条件①）。
+   */
+  confirm?: ConfirmSpec;
 };
 
 /**
@@ -40,9 +48,23 @@ export type RowOption = {
  *    `file-tile-menu.tsx` に同じ注記がある）。
  */
 export function RowOptions({ label, options }: { label: string; options: RowOption[] }) {
+  // 🚨 **どの項目が確認待ちか**を、メニューの外で持つ。
+  //    Radix の `DropdownMenu` は項目を選ぶと閉じるので、
+  //    ダイアログを項目の中に置くと**開く前に外れる**（`confirm-dialog.tsx` の申し送り）。
+  const [pending, setPending] = useState<RowOption | null>(null);
+
+  const run = (option: RowOption) => {
+    if (option.onSelect) {
+      option.onSelect();
+      return;
+    }
+    if (option.formId) submitFormById(option.formId);
+  };
+
   if (options.length === 0) return null;
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button size="icon-sm" variant="outline" aria-label={label}>
@@ -59,13 +81,12 @@ export function RowOptions({ label, options }: { label: string; options: RowOpti
             //    使わないのは、`DropdownMenuItem` が `<div role="menuitem">` を描くため
             //    （form 属性はボタンにしか効かない）。
             onSelect={() => {
-              if (option.onSelect) {
-                option.onSelect();
+              // 🚨 確認が要る項目は、ここでは実行しない（閉じたあとにダイアログを出す）。
+              if (option.confirm) {
+                setPending(option);
                 return;
               }
-              if (!option.formId) return;
-              const form = document.getElementById(option.formId);
-              if (form instanceof HTMLFormElement) form.requestSubmit();
+              run(option);
             }}
           >
             {option.icon}
@@ -74,5 +95,13 @@ export function RowOptions({ label, options }: { label: string; options: RowOpti
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+    <ConfirmDialog
+      spec={pending?.confirm ?? null}
+      onClose={() => setPending(null)}
+      onConfirm={() => {
+        if (pending) run(pending);
+      }}
+    />
+    </>
   );
 }
