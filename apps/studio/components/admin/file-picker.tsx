@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
-import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
+import { errorKeyFromPayload } from "@/i18n/error";
 
 type FileRow = {
   id: string;
@@ -45,28 +45,6 @@ type Props = {
   readOnly?: boolean;
 };
 
-/**
- * 🚨 **API の生文言を画面へ出さない。** code だけを見て辞書の鍵へ写す。
- *    生文言は `lib/` に直書きされた日本語なので、**英語で見ている人の画面にも日本語が出る**。
- *    表に無い code は `null` を返し、呼び出し側の具体的な文言を使う
- *    （`unexpected`「予期しないエラー」より、その場の文言のほうが正確なため）。
- */
-function errorKeyFrom(payload: unknown): ErrorKey | null {
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "error" in payload &&
-    payload.error &&
-    typeof payload.error === "object" &&
-    "code" in payload.error &&
-    typeof payload.error.code === "string"
-  ) {
-    const key = errorKeyFromApiCode(payload.error.code);
-    return key === FALLBACK_ERROR_KEY ? null : key;
-  }
-  return null;
-}
-
 function isImage(file: FileRow | null): boolean {
   return Boolean(file?.type?.startsWith("image/"));
 }
@@ -75,7 +53,7 @@ export function FilePicker({ inputId, name, defaultValue = "", readOnly = false 
   const t = useT("files");
   const tError = useT("errors");
   const errorMessage = (payload: unknown, fallback: string) => {
-    const key = errorKeyFrom(payload);
+    const key = errorKeyFromPayload(payload);
     return key ? tError(key) : fallback;
   };
   const [open, setOpen] = useState(false);
