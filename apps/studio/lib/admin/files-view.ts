@@ -89,3 +89,41 @@ export function cardGridClass(columns: CardColumns): string {
       return "grid-cols-1 sm:grid-cols-2 md:grid-cols-5";
   }
 }
+
+/**
+ * 列の幅（`?w=name:240,type:120`）。
+ *
+ * 🚨 **URL に持つ**（列の選択・1 行の数と同じ場所）。
+ *    Directus は**サーバの preset**に持つが、それは**あちらが preset の仕組みを持っている**から。
+ *    私たちは「見え方は URL」と決めており（`files-view-switch.tsx`）、
+ *    **幅だけ別の場所に置くと、共有した URL で幅だけ戻る**。
+ *
+ * 🚨 **最小 64px。** Directus は 32px だが、この表は**名前が長い**（ファイル名）ので、
+ *    32px まで詰められると**掴んで戻すこともできなくなる**（掴む所が消える）。
+ *
+ * 🚨 **上限は置かない。** 横に流れる表なので、広げても他を壊さない
+ *    （`overflow-x-auto` が受ける）。
+ */
+export const MIN_COLUMN_WIDTH = 64;
+
+/** `?w=name:240,type:120` を読む。🚨 知らない列・壊れた数は捨てる。 */
+export function readColumnWidths(raw: string | string[] | undefined): Partial<Record<FileColumn, number>> {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value === undefined || value === "") return {};
+  const out: Partial<Record<FileColumn, number>> = {};
+  for (const part of value.split(",")) {
+    const [key, width] = part.split(":");
+    const column = FILE_COLUMNS.find((one) => one === key);
+    const px = Number(width);
+    // 🚨 数でないもの・小さすぎるものは**黙って捨てる**（エラーにしない。URL は手で編集される）
+    if (column && Number.isFinite(px) && px >= MIN_COLUMN_WIDTH) out[column] = Math.round(px);
+  }
+  return out;
+}
+
+/** 幅の表を `?w=` の文字列へ戻す。🚨 並びは `FILE_COLUMNS` の順（同じ選択で同じ URL になる）。 */
+export function writeColumnWidths(widths: Partial<Record<FileColumn, number>>): string {
+  return FILE_COLUMNS.filter((column) => widths[column] !== undefined)
+    .map((column) => `${column}:${widths[column]}`)
+    .join(",");
+}

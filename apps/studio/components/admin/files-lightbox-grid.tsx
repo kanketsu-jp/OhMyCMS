@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FileIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
+import { FileThumbnail } from "@/components/admin/file-thumbnail";
 import { FileTileMenu } from "@/components/admin/file-tile-menu";
 import { ImageLightbox } from "@/components/admin/image-lightbox";
 import { useT } from "@/i18n/client";
@@ -92,18 +92,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
               className="min-w-0 rounded-md p-3 text-left transition-colors hover:bg-muted active:bg-muted/80"
               onClick={() => openImage(file)}
             >
-              <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
-                <Image
-                  src={`/api/assets/${file.id}?width=200&fit=cover`}
-                  alt={label}
-                  width={200}
-                  height={200}
-                  unoptimized
-                  // 🚨 これが無いと画像だけが単独でドラッグされ、こちらの荷物（ファイル ID）が載らない。
-                  draggable={false}
-                  className="h-full w-full object-cover"
-                />
-              </div>
+              <FileThumbnail id={file.id} alt={label} />
               <p className="mt-3 truncate text-sm font-medium">{label}</p>
               <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
             </button>
