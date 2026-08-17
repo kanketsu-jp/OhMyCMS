@@ -11,6 +11,7 @@ import { ImageLightbox } from "@/components/admin/image-lightbox";
 import { useT } from "@/i18n/client";
 import {
   clearSelection,
+  setPreviewableIds,
   setSelection,
   usePreviewRequest,
   useSelectedFiles,
@@ -71,6 +72,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   const previewRequest = usePreviewRequest();
   const lastClickedIdRef = useRef<string | null>(null);
   const imageFiles = useMemo(() => files.filter(isImage), [files]);
+  const imageIdsKey = useMemo(() => imageFiles.map((file) => file.id).join("\u0000"), [imageFiles]);
   const images = useMemo(
     () =>
       imageFiles.map((file) => ({
@@ -105,6 +107,17 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     closedPreviewNonce !== previewRequest.nonce;
   const lightboxIndex = previewOpen ? previewImageIndex : index;
   const lightboxOpen = previewOpen || open;
+
+  useEffect(() => {
+    setPreviewableIds(imageIdsKey ? imageIdsKey.split("\u0000") : []);
+  }, [imageIdsKey]);
+
+  useEffect(() => {
+    return () => {
+      clearSelection();
+      setPreviewableIds([]);
+    };
+  }, []);
 
   function openImage(file: FileRow) {
     const imageIndex = imageIndexById.get(file.id);

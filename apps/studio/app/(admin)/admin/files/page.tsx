@@ -56,12 +56,18 @@ type FileRow = {
   title: string | null;
   type: string | null;
   folder: string | null;
+  folder_name: string | null;
   filesize: string | number | null;
   uploaded_on: string;
+  modified_on: string | null;
+  duration: number | null;
+  description: string | null;
   /** 🚨 ライトボックスの拡大に要る（無いと拡大が黙って効かない）。 */
   width: number | null;
   height: number | null;
 };
+
+type ApiFileRow = Omit<FileRow, "folder_name">;
 
 type FolderRow = {
   id: string;
@@ -188,7 +194,7 @@ export default async function FilesPage({ searchParams }: Props) {
   // 🚨 ラベルで絞る。**フォルダの絞り込みと同時に効く**（この中の、このラベルが付いたもの）。
   if (query.label) params.set("label", query.label);
   const [filesResult, foldersResult, labelsResult] = await Promise.all([
-    apiFetch<{ data: FileRow[] }>(`/api/files?${params.toString()}`),
+    apiFetch<{ data: ApiFileRow[] }>(`/api/files?${params.toString()}`),
     apiFetch<{ data: FolderRow[] }>("/api/folders?limit=500"),
     // 🚨 絞り込み中の**名前を出すため**だけに引く。id をそのまま画面に出すと、
     //    利用者は何で絞っているのか分からない。
@@ -198,12 +204,17 @@ export default async function FilesPage({ searchParams }: Props) {
     ? labelsResult.data.data.find((label) => label.id === query.label) ?? null
     : null;
   const folders = foldersResult.ok ? foldersResult.data.data : [];
+  const folderNameById = new Map(folders.map((folder) => [folder.id, folder.name]));
   const childFolders = folders.filter((folder) => folder.parent === currentFolderId);
   const breadcrumbs = folderPath(folders, currentFolderId);
-  const { rows: files, hasNext } = splitPage(
+  const { rows: pagedFiles, hasNext } = splitPage(
     filesResult.ok ? filesResult.data.data : [],
     GRID_PAGE_SIZE,
   );
+  const files: FileRow[] = pagedFiles.map((file) => ({
+    ...file,
+    folder_name: file.folder ? folderNameById.get(file.folder) ?? null : null,
+  }));
   const newFolderHref = `/admin/files/new-folder?parent=${currentLocation}`;
   const newFileHref = `/admin/files/new?folder=${currentLocation}`;
 
