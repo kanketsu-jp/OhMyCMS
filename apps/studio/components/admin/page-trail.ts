@@ -14,14 +14,29 @@ import { pageMeta } from "@/lib/admin/page-meta";
  * 🚨 ページ名の出所は `lib/admin/page-meta.ts` ただ1つ。ここでは名前を持たない。
  */
 
-export type Crumb = { href: string; label: string };
+export type Crumb = {
+  href: string;
+  label: string;
+  /**
+   * 押せるか。**押せない区画も道筋には出す**（`/admin/content` / `/admin/settings`）。
+   * 🚨 既定は `true`。**`false` を無視して `<Link>` にすると 404 になる**。
+   */
+  navigable: boolean;
+};
 
 /**
  * パスから道筋を組み立てる。
  *
- * 🚨 **実在しない中間パスは出さない。** `/admin/settings` や `/admin/content` には
- *    ページが無い（`app/(admin)/` に `page.tsx` が無い）。出すと「押すと 404」になる。
- *    判定は `pageMeta()` に任せる（ここでルート表を持たない）。
+ * 🚨 **実在しない中間パスは「押させない」。ただし名前は出す**（2026-08-17 に反転）。
+ *    `/admin/settings` や `/admin/content` にはページが無い（`app/(admin)/` に `page.tsx` が無い）ので、
+ *    **リンクにすると「押すと 404」になる**。判定は `pageMeta()` の `navigable` に任せる。
+ *
+ *    🔴 **以前はここで名前ごと落としていた。それが誤りだった。**
+ *      実測 2026-08-17: `/admin/collections/<名前>` と `/admin/content/<名前>` が
+ *      **h1・パンくず・`<title>` の 3 つとも同一**になり、
+ *      **どちらの区画に居るか画面から分からなかった**。
+ *      ＝ 「**押せない**」と「**名前が無い**」を同じ扱いにしていた。
+ *      **次に触る人へ: `navigable: false` の区間を、また捨てないこと。**
  *    **守り手: `pageMeta()` が定義の無いパスに `null` を返すこと**。
  *    🚨 ただし `pageMeta()` は「`PAGE_META` に載っているか」しか見ていない。
  *    **載っているのにページが消えた**場合は素通りする（この約束は完全ではない）。
@@ -43,13 +58,13 @@ export function buildTrail(
 
     // 道筋の根はプロジェクト名。`/admin` は辞書ではなく**設定された名前**で呼ぶ。
     if (href === "/admin") {
-      crumbs.push({ href, label: brand });
+      crumbs.push({ href, label: brand, navigable: true });
       return;
     }
 
     const meta = pageMeta(href);
     if (!meta) {
-      if (isCurrent) crumbs.push({ href, label: segment });
+      if (isCurrent) crumbs.push({ href, label: segment, navigable: true });
       return;
     }
 
@@ -62,6 +77,8 @@ export function buildTrail(
     crumbs.push({
       href,
       label: meta.titleFromData ? segment : t(meta.fullTitleKey ?? meta.titleKey),
+      // 🚨 **名前は出すが、ページが無ければ押させない**（`page-meta.ts` の `navigable`）。
+      navigable: meta.navigable !== false,
     });
   });
 

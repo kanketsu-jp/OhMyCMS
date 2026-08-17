@@ -17,6 +17,7 @@
   "menu_open_unread_notifications": "{count} unread notifications. Open menu",
   "menu_title": "Menu",
   "notifications": "Notifications",
+  "page_title_with_context": "{name} ({context})",
   "profile": "Personal settings",
   "profile_icon_section": "Icon",
   "profile_language_section": "Language",

@@ -57,6 +57,19 @@ export type PageMeta = {
    * **ただし右サイドバーの項目一覧には『コレクション一覧』と表示する**。」
    */
   sectionKeys?: readonly string[];
+  /**
+   * 🚨 **名前は在るが、ページは無い区画**（`/admin/content` / `/admin/settings`）。
+   *
+   * 由来: 2026-08-17。`/admin/collections/<名前>` と `/admin/content/<名前>` を並べたら、
+   * **h1・パンくず・`<title>` の 3 つとも同一**で、**どちらの区画に居るか画面から分からなかった**。
+   * 根は `buildTrail` が「`PAGE_META` に無い区間を捨てる」ことで、
+   * `/admin/content` にはページが無いので載っておらず、**区画の名前ごと落ちていた**。
+   *
+   * 🚨 **載せるが、リンクにはしない。** 押すと 404 になるため
+   *   （`page-trail.ts` の「実在しない中間パスは出さない」は**リンクの話**であって、
+   *    **名前を落とせという話ではなかった**——そこを取り違えていた）。
+   */
+  navigable?: false;
 };
 
 /**
@@ -77,6 +90,8 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   },
   "/admin/collections/[collection]/fields/new": { titleKey: "fields.add_title" },
 
+  // 🚨 ページは無いが、**区画の名前**として道筋に出す（`navigable: false`）。
+  "/admin/content": { titleKey: "nav.content_heading", navigable: false },
   "/admin/content/[collection]": {
     titleKey: "items.title_for_collection",
     titleFromData: true,
@@ -115,6 +130,8 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   //      **新しい画面を足したら、ここにも 1 行足すこと**。
   "/admin/trash": { titleKey: "trash.title", descriptionKey: "trash.description" },
 
+  // 🚨 `/admin/content` と同じ理由。ページは無いが名前は道筋に出す。
+  "/admin/settings": { titleKey: "nav.settings", navigable: false },
   "/admin/settings/general": { titleKey: "settings.title", descriptionKey: "settings.description" },
   "/admin/settings/agents": { titleKey: "agents.title", descriptionKey: "agents.description" },
   "/admin/settings/mcp": { titleKey: "mcp.title", descriptionKey: "mcp.description" },

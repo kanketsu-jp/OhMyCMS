@@ -17,6 +17,7 @@
   "menu_open_unread_notifications": "未読 {count} 件の通知があります。メニューを開く",
   "menu_title": "メニュー",
   "notifications": "通知",
+  "page_title_with_context": "{name}（{context}）",
   "profile": "個人設定",
   "profile_icon_section": "アイコン",
   "profile_language_section": "言語",

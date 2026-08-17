@@ -103,18 +103,39 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                       🚨 `role="menuitem"` は Radix が `asChild` でも保つ（＝メニューの操作性は失わない）。
                       🚨 **このコメントを `map(... => (` の内側に置かないこと。**
                       返り値は 1 要素しか置けず、置いた瞬間に**構文エラーで全画面 500**になる（実際にやった）。 */}
-                  {parents.map((crumb, index) => (
-                    <DropdownMenuItem key={crumb.href} asChild>
-                      <Link href={crumb.href}>
-                        {/* 木の枝の記号。最後（＝ひとつ上の階層）だけ └ にする。
-                            記号なので辞書には載せない（文言ではない）。 */}
-                        <span className="truncate">
-                          {index === parents.length - 1 ? "└" : "├"}
-                          {crumb.label}
-                        </span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
+                  {/* 🚨 **ページが無い区画は押させない**（`/admin/content` / `/admin/settings`）。
+                      名前は道筋に出すが、`<Link>` にすると 404 になる（`page-trail.ts` の `navigable`）。
+                      押せないものを `DropdownMenuItem` にすると**押せそうに見えて何も起きない**ので、
+                      **項目にせず、見出しの行として置く**（`disabled` で薄くするのとは意味が違う——
+                      これは「いま使えない」ではなく「**もともと行き先が無い**」）。 */}
+                  {parents.map((crumb, index) => {
+                    // 木の枝の記号。最後（＝ひとつ上の階層）だけ └ にする。
+                    // 記号なので辞書には載せない（文言ではない）。
+                    const branch = index === parents.length - 1 ? "└" : "├";
+                    if (!crumb.navigable) {
+                      return (
+                        <div
+                          key={crumb.href}
+                          className="px-2 py-1.5 text-sm text-muted-foreground"
+                        >
+                          <span className="truncate">
+                            {branch}
+                            {crumb.label}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <DropdownMenuItem key={crumb.href} asChild>
+                        <Link href={crumb.href}>
+                          <span className="truncate">
+                            {branch}
+                            {crumb.label}
+                          </span>
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
