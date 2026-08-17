@@ -55,6 +55,7 @@
   "bulk_failed_permission": "No permission",
   "bulk_failed_not_found": "Not found",
   "bulk_failed_other": "Could not be moved",
+  "bulk_jump_to_row": "Jump to this row",
   "size_label": "Size",
   "tags_label": "Tags",
   "title": "Files",

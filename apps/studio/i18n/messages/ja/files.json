@@ -55,6 +55,7 @@
   "bulk_failed_permission": "権限がありません",
   "bulk_failed_not_found": "見つかりません",
   "bulk_failed_other": "入れられませんでした",
+  "bulk_jump_to_row": "この行へ移動",
   "size_label": "サイズ",
   "tags_label": "タグ",
   "title": "ファイル",

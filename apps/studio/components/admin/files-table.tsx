@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, FileIcon } from "lucide-react";
 
@@ -82,6 +82,23 @@ export function FilesTable({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [failures, setFailures] = useState<readonly { id: string; code: string }[]>([]);
   const [confirming, setConfirming] = useState(false);
+  /**
+   * 失敗の一覧から**その行へ飛ぶ**ため、行のチェック欄を覚えておく（base2・13 便目）。
+   *
+   * 🚨 **行そのものでなくチェック欄を覚える。** 焦点を当てられるのは操作できる要素だけで、
+   *   `<tr>` に飛ばしても**キーボードの人はどこに来たか分からない**（焦点の輪が出ない）。
+   *   チェック欄に焦点を当てれば、**輪が出る・自動で見える位置まで巻かれる・
+   *   そのまま選び直せる**の 3 つが同時に済む。
+   */
+  const rowChecks = useRef(new Map<string, HTMLInputElement>());
+
+  const jumpTo = (id: string) => {
+    const box = rowChecks.current.get(id);
+    if (!box) return;
+    // 🚨 焦点だけだと端に貼り付くので、行を真ん中へ寄せてから当てる。
+    box.closest("tr")?.scrollIntoView({ block: "center" });
+    box.focus();
+  };
   const selectedIds = files.filter((file) => selected.has(file.id)).map((file) => file.id);
   const allSelected = files.length > 0 && selectedIds.length === files.length;
 
@@ -156,13 +173,28 @@ export function FilesTable({
             })}
           />
           <ul className="text-xs text-muted-foreground">
-            {failures.map((failure) => (
-              <li key={failure.id}>
-                {files.find((file) => file.id === failure.id)?.filename_download ?? failure.id}
-                {" — "}
-                {failureText(failure.code)}
-              </li>
-            ))}
+            {failures.map((failure) => {
+              const row = files.find((file) => file.id === failure.id);
+              const label = `${row?.filename_download ?? failure.id} — ${failureText(failure.code)}`;
+              // 🚨 **その行が表に無いときは、押せる形にしない**（`base2`・13 便目）。
+              //    押しても何も起きないボタンは、**壊れているのと見分けが付かない**。
+              return (
+                <li key={failure.id}>
+                  {row ? (
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-foreground"
+                      title={t("bulk_jump_to_row")}
+                      onClick={() => jumpTo(failure.id)}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    label
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}
@@ -288,6 +320,10 @@ export function FilesTable({
                   type="checkbox"
                   className="size-4"
                   aria-label={t("bulk_select_row")}
+                  ref={(el) => {
+                    if (el) rowChecks.current.set(file.id, el);
+                    else rowChecks.current.delete(file.id);
+                  }}
                   checked={selected.has(file.id)}
                   onChange={() => toggle(file.id)}
                 />
