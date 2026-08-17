@@ -1,7 +1,11 @@
+import Link from "next/link";
+
 import { BugReportAction } from "@/components/admin/bug-report-action";
+import { BugReportTrigger } from "@/components/admin/bug-report-trigger";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { PageTabs } from "@/components/admin/page-tabs";
 import { ReportRooms } from "@/components/admin/report-rooms";
+import { buttonVariants } from "@/components/ui/button";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 import type { BugReport } from "@/lib/reports/service";
@@ -95,7 +99,22 @@ export default async function ReportsPage({ searchParams }: Props) {
           // 🚨 空の理由をタブごとに書き分ける。「未解決が無い」と「解決済みが無い」は
           //    利用者にとって意味が違う（前者は良い知らせ）。
           emptyLabel={status === "open" ? t("empty_open") : t("empty_resolved")}
-          emptyActionLabel={t("nav_create")}
+          // 🚨 **タブごとに行き先を変える**（`DESIGN.md` §1-10 ／ 実測 2026-08-17）。
+          //    解決済みのタブで「報告する」を出していたが、作った報告は `status: "open"` なので
+          //    **押しても今見ている一覧には出てこない**（＝ 何も起きなかったように見える）。
+          //    解決済みが空のときにできることは「未解決を見る」だけなので、そこへ送る。
+          emptyAction={
+            status === "open" ? (
+              <BugReportTrigger label={t("nav_create")} className={buttonVariants()} />
+            ) : (
+              <Link
+                href="/admin/reports?status=open"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                {t("empty_resolved_action")}
+              </Link>
+            )
+          }
           resolvedLabel={t("tab_resolved")}
           formatDateTime={(value) => format.dateTime(value)}
         />

@@ -1,10 +1,9 @@
 import { MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
-import { BugReportTrigger } from "@/components/admin/bug-report-trigger";
 import { ListEmpty } from "@/components/admin/list-empty";
 import type { BugReport } from "@/lib/reports/service";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -12,11 +11,19 @@ type Props = {
   /** 「まだ 1 件も無い」ときに出す文 */
   emptyLabel: string;
   /**
-   * 空のときに隣へ置く「次にできること」の文字（`DESIGN.md` §1-10）。
+   * 空のときに隣へ置く「次にできること」（`DESIGN.md` §1-10）。
+   *
    * 🚨 **省略できるようにしない。** 省略できると、次に使う画面が
    * 「無い」で終わる形へ簡単に戻る（16 本のうち 15 本がそうなっていた）。
+   *
+   * 🚨 **文字ではなく要素で受ける。** 文字だけ受けて中で「報告する」を組み立てていたら、
+   *    **解決済みのタブで「報告する」を出していた**——作った報告は `status: "open"` なので
+   *    （`lib/reports/service.ts:294`）、**押しても今見ている一覧には出てこない**。
+   *    ＝ §1-10 の「次にできること」が、**その画面では結果が見えない**行き先だった
+   *    （実測 2026-08-17: `?status=resolved` で「解決済みの報告はありません。」＋「報告する」）。
+   *    どの行き先が正しいかは**画面（いまの絞り込み）しか知らない**ので、呼ぶ側が決める。
    */
-  emptyActionLabel: string;
+  emptyAction: ReactNode;
   /** 解決済みの印に使う文 */
   resolvedLabel: string;
   /** 日時の整形。呼ぶ側（サーバ側）が `getFormat()` から渡す */
@@ -36,7 +43,7 @@ type Props = {
  * 🚨 **枠で囲まない**（堀池さん「ボーダー＋Padding はいらない…カードコンポーネントを
  *    多用するのはデザインスキルが低い」）。行の区切りは罫線 1 本だけにする。
  */
-export function ReportRooms({ reports, emptyLabel, emptyActionLabel, resolvedLabel, formatDateTime }: Props) {
+export function ReportRooms({ reports, emptyLabel, emptyAction, resolvedLabel, formatDateTime }: Props) {
   if (reports.length === 0) {
     // 🚨 `DESIGN.md` §1-10「空のときは『無い』と言うだけで終わらせない」。
     //    実測（2026-08-17・pages）: この画面は空の文だけで、**本文の中の操作が 0** だった。
@@ -46,7 +53,7 @@ export function ReportRooms({ reports, emptyLabel, emptyActionLabel, resolvedLab
     return (
       <div className="flex flex-col items-start gap-3">
         <ListEmpty>{emptyLabel}</ListEmpty>
-        <BugReportTrigger label={emptyActionLabel} className={buttonVariants()} />
+        {emptyAction}
       </div>
     );
   }

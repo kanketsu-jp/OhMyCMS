@@ -1,7 +1,11 @@
+import Link from "next/link";
+
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { NotificationsManager } from "@/components/admin/notifications-manager";
 import { PageTabs } from "@/components/admin/page-tabs";
+import { BugReportTrigger } from "@/components/admin/bug-report-trigger";
 import { ReportRooms } from "@/components/admin/report-rooms";
+import { buttonVariants } from "@/components/ui/button";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 import type { Notification } from "@/lib/notifications/service";
@@ -79,7 +83,20 @@ export default async function NotificationsPage({ searchParams }: Props) {
           <ReportRooms
             reports={result.data.data}
             emptyLabel={status === "open" ? tR("empty_open") : tR("empty_resolved")}
-          emptyActionLabel={tR("nav_create")}
+            // 🚨 行き先はタブで変える（理由は /admin/reports 側と同じ・§1-10）。
+            //    ここは「お知らせ」の中なので、戻り先も**この画面の未解決タブ**にする。
+            emptyAction={
+              status === "open" ? (
+                <BugReportTrigger label={tR("nav_create")} className={buttonVariants()} />
+              ) : (
+                <Link
+                  href="/admin/notifications?tab=reports&status=open"
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  {tR("empty_resolved_action")}
+                </Link>
+              )
+            }
             resolvedLabel={tR("tab_resolved")}
             formatDateTime={(value) => format.dateTime(value)}
           />
