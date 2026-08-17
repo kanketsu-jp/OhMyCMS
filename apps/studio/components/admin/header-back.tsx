@@ -48,7 +48,29 @@ export function HeaderBack() {
   // 🚨 サーバでは `history` が無いので、描くたびではなく**最初に押されたとき**に基準を採る。
   //    `useEffect` で採らないのは、効果の中の同期 setState を lint が拒むため（`page-action.tsx` と同じ理由）。
   const crumbs = usePageTrail("");
-  const parent = [...crumbs].slice(0, -1).reverse().find((c) => c.navigable);
+  /**
+   * 🚨 **転送するだけの区画は、行き先にしない**（司令塔の決定・2026-08-17・案 A）。
+   *
+   * 【測った】`/admin/content/zz_probe_actions` を新しいタブで直接開いて「もどる」を押すと、
+   * **`/admin/content/acc_748015_pl`（別のコレクション）** に着いた（schema の実測）。
+   * 私の側でも `/admin/content/<c>` で **URL が変わらない**ように見えていた
+   * （たまたま最初のコレクションを開いていたので、変化が見えなかっただけ）。
+   * ＝ 利用者からは「**見ていたコレクションが別のものに変わった**」と読める。
+   *
+   * 原因: `/admin/content` は**それ自体のページを持たず、最初のコレクションへ転送する**（K3）。
+   * ＝ §5-4 の「押せない区画を行き先にしない」と**同じ性質**なので、同じ扱いにする。
+   *
+   * 🚨 **転送そのものは直さない**（Directus と同じ形で、K3 で入れた意味が消えるため）。
+   *   **着地だけ**を変える。区画を跨いで `/admin/collections` 側へ出るのは、司令塔が認めた判断。
+   *
+   * 🚨 **ここに並ぶのは「転送するだけの区画」だけ**。ページを持つ区画（`/admin/files` など）を
+   *   足さないこと——足すと、一覧へ戻れずに根まで飛ぶ（実測で確かめた悪化の形）。
+   */
+  const REDIRECT_ONLY = ["/admin/content"];
+  const parent = [...crumbs]
+    .slice(0, -1)
+    .reverse()
+    .find((c) => c.navigable && !REDIRECT_ONLY.includes(c.href));
 
   const goBack = useCallback(() => {
     if (entryLength.current === null) entryLength.current = window.history.length;
