@@ -58,7 +58,11 @@ export type FilePurgeResult = {
  * @param conn 対象を引く接続。呼ぶ側が渡す（受入で使い捨ての DB を指せるように）。
  * @param now 「いま」を差し替えられる（**時刻を偽装した受入のため**）。
  */
-export async function purgeExpiredFiles(conn: Knex, now?: Date): Promise<FilePurgeResult> {
+export async function purgeExpiredFiles(
+  conn: Knex,
+  now?: Date,
+  options: { dryRun?: boolean } = {},
+): Promise<FilePurgeResult> {
   const retentionDays = await trashRetentionDays(conn);
   const base = now ?? new Date();
   const cutoff = new Date(base.getTime() - retentionDays * 24 * 60 * 60 * 1000);
@@ -69,6 +73,17 @@ export async function purgeExpiredFiles(conn: Knex, now?: Date): Promise<FilePur
     .whereNotNull("deleted_at")
     .where("deleted_at", "<", cutoff)
     .select("id");
+
+  if (options.dryRun) {
+    return {
+      retention_days: retentionDays,
+      cutoff: cutoff.toISOString(),
+      candidates: rows.length,
+      deleted: [],
+      missingObjects: [],
+      failed: [],
+    };
+  }
 
   const deleted: string[] = [];
   const missingObjects: string[] = [];
