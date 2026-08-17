@@ -102,6 +102,7 @@
   "labels_saved": "Labels updated",
   "labels_save_failed": "Could not update labels",
   "filtered_by_label": "Filtered by “{name}”",
+  "filtered_by_query": "Filtered by “{q}”",
   "clear_filter": "Clear filter",
   "labels_loading": "Loading…",
   "labels_load_failed": "Could not load labels",

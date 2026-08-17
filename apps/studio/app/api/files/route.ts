@@ -6,6 +6,8 @@ import { ApiError } from "@/lib/schema/errors";
 
 export const runtime = "nodejs";
 
+const MAX_QUERY_LENGTH = 100;
+
 function formString(formData: FormData, key: string): string | null | undefined {
   const value = formData.get(key);
   if (value === null) return undefined;
@@ -141,6 +143,7 @@ export async function GET(request: Request) {
         offset: url.searchParams.get("offset"),
         folder: url.searchParams.get("folder"),
         label: url.searchParams.get("label"),
+        q: url.searchParams.get("q")?.slice(0, MAX_QUERY_LENGTH) ?? null,
       }),
     });
   } catch (error) {

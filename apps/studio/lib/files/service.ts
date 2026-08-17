@@ -334,6 +334,7 @@ export type ListInput = {
   limit?: string | null;
   offset?: string | null;
   folder?: string | null;
+  q?: string | null;
   /**
    * このラベルが付いているものだけに絞る。
    * 🚨 **フォルダの絞り込みと同時に効く**（「このフォルダの中で、このラベルが付いたもの」）。
@@ -637,6 +638,13 @@ export async function listFiles(actor: Actor, input: ListInput): Promise<PublicF
         .select("target_id")
         .where({ target_type: "file", label_id: input.label }),
     );
+  }
+  const needle = (input.q ?? "").trim();
+  if (needle) {
+    const pattern = `%${needle}%`;
+    query.where((builder) => {
+      builder.whereILike("filename_download", pattern).orWhereILike("title", pattern);
+    });
   }
   applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
   return (await query).map(toPublicFile);

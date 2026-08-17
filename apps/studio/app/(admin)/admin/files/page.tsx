@@ -8,6 +8,7 @@ import { FilesTable } from "@/components/admin/files-table";
 import { FilesViewOptions } from "@/components/admin/files-view-options";
 import { FilesViewSwitch } from "@/components/admin/files-view-switch";
 import { FolderGrid } from "@/components/admin/folder-grid";
+import { HeaderSearch } from "@/components/admin/header-search";
 import {
   CARD_COLUMN_CHOICES,
   FILE_COLUMNS,
@@ -43,6 +44,7 @@ type Props = {
     page?: string;
     view?: string;
     label?: string;
+    q?: string;
     /** 表で出す項目（`type,size`）。🚨 空文字は「全部外した」で、無指定とは別。 */
     cols?: string;
     /** カードを 1 行に並べる数（1〜5）。 */
@@ -104,6 +106,8 @@ export default async function FilesPage({ searchParams }: Props) {
   const page = currentPage(query.page);
   const currentFolderId = query.folder && query.folder !== "root" ? query.folder : null;
   const currentLocation = currentFolderId ?? "root";
+  const activeQuery = (query.q ?? "").trim();
+  const activeQueryLower = activeQuery.toLowerCase();
   /**
    * 見え方は URL に持つ（`?view=table`）。
    * 🚨 **知らない値は既定へ落とす。エラーにしない。** クエリは手で編集されるし、
@@ -117,6 +121,17 @@ export default async function FilesPage({ searchParams }: Props) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
       if (key === "label" || value === undefined) continue;
+      for (const one of Array.isArray(value) ? value : [value]) {
+        if (one !== "") params.append(key, one);
+      }
+    }
+    const search = params.toString();
+    return search ? `/admin/files?${search}` : "/admin/files";
+  })();
+  const clearQueryHref = (() => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (key === "q" || value === undefined) continue;
       for (const one of Array.isArray(value) ? value : [value]) {
         if (one !== "") params.append(key, one);
       }
@@ -193,6 +208,7 @@ export default async function FilesPage({ searchParams }: Props) {
   });
   // 🚨 ラベルで絞る。**フォルダの絞り込みと同時に効く**（この中の、このラベルが付いたもの）。
   if (query.label) params.set("label", query.label);
+  if (activeQuery) params.set("q", activeQuery);
   const [filesResult, foldersResult, labelsResult] = await Promise.all([
     apiFetch<{ data: ApiFileRow[] }>(`/api/files?${params.toString()}`),
     apiFetch<{ data: FolderRow[] }>("/api/folders?limit=500"),
@@ -205,7 +221,11 @@ export default async function FilesPage({ searchParams }: Props) {
     : null;
   const folders = foldersResult.ok ? foldersResult.data.data : [];
   const folderNameById = new Map(folders.map((folder) => [folder.id, folder.name]));
-  const childFolders = folders.filter((folder) => folder.parent === currentFolderId);
+  const childFolders = folders.filter(
+    (folder) =>
+      folder.parent === currentFolderId &&
+      (activeQuery === "" || folder.name.toLowerCase().includes(activeQueryLower)),
+  );
   const breadcrumbs = folderPath(folders, currentFolderId);
   const { rows: pagedFiles, hasNext } = splitPage(
     filesResult.ok ? filesResult.data.data : [],
@@ -235,6 +255,7 @@ export default async function FilesPage({ searchParams }: Props) {
           🚨 **行き先は変数をそのまま渡す。** `page-actions.ts` の `/admin/files/new-folder` は
           **ルートの形**であって行き先ではない。直書きすると `?parent=` が落ちて、
           **フォルダの中で押すと根に作られる**退行になる（同ファイルの既存の申し送りと同じ罠）。 */}
+      <HeaderSearch />
       <PageAction
         href={newFileHref}
         role="primary"
@@ -317,12 +338,20 @@ export default async function FilesPage({ searchParams }: Props) {
               </Link>
             </p>
           ) : null}
+          {activeQuery ? (
+            <p className="text-sm text-muted-foreground">
+              {t("filtered_by_query", { q: activeQuery })}{" "}
+              <Link href={clearQueryHref} className="underline">
+                {t("clear_filter")}
+              </Link>
+            </p>
+          ) : null}
           {filesResult.ok || foldersResult.ok ? (
             <>
               {/* 表示形式の外に置く。カードと表で伝わる情報が変わっていたため。
                   「元から空」と「絞り込んだ結果 0 件」では、次にする操作が違う。 */}
               {childFolders.length === 0 && files.length === 0 ? (
-                <ListEmpty>{activeLabel ? t("empty_filtered") : t("empty_folder")}</ListEmpty>
+                <ListEmpty>{activeLabel || activeQuery ? t("empty_filtered") : t("empty_folder")}</ListEmpty>
               ) : null}
               {view === "table" ? (
                 <FilesTable folders={childFolders} files={files} columns={columns} />

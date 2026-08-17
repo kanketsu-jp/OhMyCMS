@@ -102,6 +102,7 @@
   "labels_saved": "ラベルを更新しました",
   "labels_save_failed": "ラベルを更新できませんでした",
   "filtered_by_label": "「{name}」で絞り込んでいます",
+  "filtered_by_query": "「{q}」で絞り込み中",
   "clear_filter": "絞り込みを解除",
   "labels_loading": "読み込んでいます…",
   "labels_load_failed": "ラベルを読み込めませんでした",
