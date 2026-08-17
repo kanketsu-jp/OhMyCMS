@@ -1,5 +1,9 @@
-import type { CollectionResult } from "./models";
 import { fieldLabel } from "./labels";
+
+type CollectionLabelSource = {
+  collection: string;
+  meta: { translations: Record<string, string> | null } | null;
+};
 
 /**
  * コレクションの表示名を、ロケードごとの辞書から解決する（設問318）。
@@ -16,7 +20,7 @@ import { fieldLabel } from "./labels";
  * 利用者が説明のつもりで書いた文が見出しになるのは、意図と違う。
  */
 export function collectionLabel(
-  collection: Pick<CollectionResult, "collection" | "meta">,
+  collection: CollectionLabelSource,
   locale: string,
   fallbackLocale = "ja",
 ): string {
@@ -24,5 +28,20 @@ export function collectionLabel(
     { field: collection.collection, meta: { translations: collection.meta?.translations ?? null } as never },
     locale,
     fallbackLocale,
+  );
+}
+
+export function collectionLabelMap(
+  items: { collection: string; translations: Record<string, string> | null }[],
+  locale: string,
+): Record<string, string> {
+  return Object.fromEntries(
+    items.map((item) => [
+      item.collection,
+      collectionLabel(
+        { collection: item.collection, meta: { translations: item.translations } },
+        locale,
+      ),
+    ]),
   );
 }

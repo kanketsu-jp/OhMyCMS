@@ -464,7 +464,7 @@ export async function listCollections(includeSystem: boolean): Promise<Collectio
  */
 export async function listCollectionNames(
   includeSystem: boolean,
-): Promise<{ collection: string }[]> {
+): Promise<{ collection: string; translations: Record<string, string> | null }[]> {
   const [tables, metaByCollection] = await Promise.all([
     getTables(),
     getCollectionMetaMap(),
@@ -475,7 +475,10 @@ export async function listCollectionNames(
   return Array.from(names)
     .filter((name) => includeSystem || !isSystemTableName(name))
     .sort()
-    .map((collection) => ({ collection }));
+    .map((collection) => ({
+      collection,
+      translations: metaByCollection.get(collection)?.translations ?? null,
+    }));
 }
 
 export async function getCollection(
