@@ -99,6 +99,15 @@ pre-commit:
       root: "apps/studio"
       run: node scripts/check-breadcrumb-a11y.mjs
 
+    # 🚨 左サイドバーの行が**既定のアイコンに落ちていないか**（DESIGN.md §3-1）。
+    #    由来: 2026-08-17、**同じ日に 2 回再発した**——直した直後に他レーンが行を
+    #    足す・動かすたびに戻った（AF1 で /admin/settings/ai 新設・AH1 で /admin/version へ移動）。
+    #    行を動かすのは他レーンの**正当な作業**なので、注意では止まらない。
+    #    🚨 コレクションの行は見ない（実行時に決まり、既定が正しい＝名前から散らす）。
+    navicon:
+      root: "apps/studio"
+      run: node scripts/check-nav-icon-fallback.mjs
+
     # 🚨 効かない `readOnly`（checkbox / radio / select に付いているもの）。
     #    2026-08-16 に本物のキーとクリックを送って測った: checkbox と radio は
     #    属性が付いて el.readOnly が true になるのに実クリックで変わる。select は
