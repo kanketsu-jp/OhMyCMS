@@ -306,10 +306,19 @@ export default async function AdminLayout({
             <Breadcrumbs brand={brand} />
           </div>
 
-          {/* 中央: いまは空。ページ固有のものが要るときにここへ入れる（TODO）。
-              器を先に置いておくのは、左右の塊が「中央が無いから寄っている」のか
-              「中央が空だから寄っている」のかを、後から見て区別できるようにするため。 */}
-          <div className="hidden min-w-0 shrink items-center md:flex" />
+          {/* 中央: **その画面の中を絞る検索窓**の置き場（堀池・2026-08-17・L1 の画像の注記
+              「このページでの検索窓は、横幅が十分にある時のみ表示」）。
+              🚨 **左サイドバーの全体検索とは別物**。2026-08-15 の「ここには戻さないこと」は
+                 **全体検索**のことで、これはそれに当たらない（司令塔が 2026-08-17 に切り分けた）。
+                 全体検索は左サイドバーのまま。**動かしていない。**
+              🚨 中身は各ページが `components/admin/header-search.tsx` から portal で差し込む
+                 （主操作・タブと同じ形。**新しい仕組みを作っていない**＝ DESIGN.md §0-1）。
+              🚨 **空でも消さないこと。** 差し込む先が無いと、ページ側が黙って何も出せなくなる。 */}
+          <div
+            id="header-search"
+            data-slot="header-search"
+            className="flex min-w-0 shrink items-stretch"
+          />
 
           {/* 右: そのページの主要アクション → info（右サイドバーの開閉）。 */}
           <div className="flex shrink-0 items-stretch divide-x border-l">

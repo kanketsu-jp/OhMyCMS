@@ -42,5 +42,6 @@
   "page_settings_users": "Users",
   "page_settings_ai": "AI",
   "page_settings_version": "Version",
-  "shortcut_hint": "⌘K"
+  "shortcut_hint": "⌘K",
+  "in_page_placeholder": "Filter this page"
 }
