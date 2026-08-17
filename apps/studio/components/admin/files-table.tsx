@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
+import { cn } from "@/lib/utils";
 import { useFormat, useT } from "@/i18n/client";
 import type { FileColumn } from "@/lib/admin/files-view";
 
@@ -91,6 +92,18 @@ export function FilesTable({
    *   そのまま選び直せる**の 3 つが同時に済む。
    */
   const rowChecks = useRef(new Map<string, HTMLInputElement>());
+
+  /**
+   * 失敗の理由を書いた行（上の一覧）の id。**行のチェック欄から `aria-describedby` で指す**。
+   *
+   * 🚨 **理由を行の中にもう一度書かない。** 同じ文言が 2 箇所に在ると、直すとき片方が腐る。
+   *   ここでは「**上の一覧が正本**、行はそこを指すだけ」にしてある。
+   *   読み上げは指された先を読むので、**行に焦点が来た時点で理由が伝わる**。
+   * 🚨 **色だけで伝えない。** 行に色を付けるのは目で見える人向けの補助で、
+   *   伝える本体は `aria-describedby` のほう（色が見えなくても届く）。
+   */
+  const failureTextId = (id: string) => `file-bulk-failed-${id}`;
+  const failedIds = new Set(failures.map((failure) => failure.id));
 
   const jumpTo = (id: string) => {
     const box = rowChecks.current.get(id);
@@ -179,7 +192,7 @@ export function FilesTable({
               // 🚨 **その行が表に無いときは、押せる形にしない**（`base2`・13 便目）。
               //    押しても何も起きないボタンは、**壊れているのと見分けが付かない**。
               return (
-                <li key={failure.id}>
+                <li key={failure.id} id={failureTextId(failure.id)}>
                   {row ? (
                     <button
                       type="button"
@@ -312,7 +325,12 @@ export function FilesTable({
                 if ((event.target as HTMLElement).closest("button, a, input")) return;
                 router.push(`/admin/files/${file.id}`);
               }}
-              className="cursor-pointer border-b last:border-0 hover:bg-muted active:bg-muted/80"
+              className={cn(
+                "cursor-pointer border-b last:border-0 hover:bg-muted active:bg-muted/80",
+                // 🚨 入らなかった行はその場で分かるようにする（base2・13 便目の②）。
+                //    **理由の文は書かない**——下の `aria-describedby` が上の一覧を指す。
+                failedIds.has(file.id) && "bg-destructive/10",
+              )}
             >
               {/* 🚨 ファイルだけ選べる。**まとめて入れる口はファイルの id しか受けない**。 */}
               <td className="w-8 py-2 pr-2">
@@ -320,6 +338,7 @@ export function FilesTable({
                   type="checkbox"
                   className="size-4"
                   aria-label={t("bulk_select_row")}
+                  aria-describedby={failedIds.has(file.id) ? failureTextId(file.id) : undefined}
                   ref={(el) => {
                     if (el) rowChecks.current.set(file.id, el);
                     else rowChecks.current.delete(file.id);
