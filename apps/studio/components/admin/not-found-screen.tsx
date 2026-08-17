@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { MarkPageMissing } from "@/components/admin/mark-page-missing";
 import { getT } from "@/i18n/server";
 
 /**
@@ -29,6 +30,11 @@ export async function NotFoundScreen() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center">
+      {/* 🚨 右サイドバーへ「この画面は無い」を知らせるだけ。何も描かない。
+          置かないと、**存在しないものの画面で、右パネルがその画面の機能を約束する**
+          （実測 2026-08-17: /admin/reports/<無い id> で「返信を書けます」が出ていた）。
+          理由と実測は lib/admin/page-missing.ts の冒頭。 */}
+      <MarkPageMissing />
       <h2 className="text-lg font-medium">{t("page_not_found_title")}</h2>
       <p className="text-sm text-muted-foreground">{t("page_not_found_body")}</p>
       <Link

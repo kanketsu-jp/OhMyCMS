@@ -7,6 +7,7 @@ import { Accordion } from "@/components/ui/accordion";
 import { PanelFileDetail } from "@/components/admin/panel-file-detail";
 import { PanelStorage } from "@/components/admin/panel-storage";
 import { useSelectedFiles } from "@/lib/admin/files-selection";
+import { usePageMissing } from "@/lib/admin/page-missing";
 import { PanelSection } from "@/components/admin/panel-section";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { PanelDisplay } from "@/components/admin/panel-display";
@@ -73,6 +74,7 @@ export function PageInfoPanel() {
   //    ③ D5 の「既定で開く」は**ページを開いたとき**の話で、選んだときまで固定していない
   //    🚨 失うもの … 選ぶと保管先を見ながら選べない。要ると分かったら 1 行で戻せる。
   const selectedCount = useSelectedFiles().length;
+  const pageMissing = usePageMissing();
   const [value, setValue] = useState<string[]>(["overview"]);
   // 🚨 **初回のマウント時も「選ばれている」ことが在る。**
   //    パネルは閉じているあいだ描かれないので、一覧が `open()` を呼んで初めてこの部品が生まれる。
@@ -91,7 +93,13 @@ export function PageInfoPanel() {
     <Accordion value={value} onValueChange={(v) => setValue(Array.isArray(v) ? v : [v])}>
       {/* ① 概要。🚨 説明が**無いページでは枠ごと出さない**。
           「準備中です」を出すと、説明が要らないページと、書き忘れたページの区別が付かない。 */}
-      {meta?.descriptionKey ? (
+      {/* 🚨 **「そのページは無い」を描いているときは、説明を出さない**（2026-08-17 実測）。
+          説明は経路だけで決まる（page-meta.ts）ので、**ページが失敗したことを知らない**。
+          そのままだと「そのコレクションはありません」の隣で
+          「このコレクションの項目を一覧・検索し、開いて編集できます」と約束していた。
+          🚨 `notFound()` を呼んでも直らない（`(admin)/not-found.tsx` は layout の中で描かれ、
+          経路も変わらないため）。だから**描いている側から知らせる**形にした。 */}
+      {meta?.descriptionKey && !pageMissing ? (
         <PanelSection value="overview" title={t("overview")} contentClassName="text-muted-foreground">
           {tKey(meta.descriptionKey)}
           {/* 🚨 いまの保管先（D5）。`/admin/files` 以外では null を返すので、他のページには出ない。 */}
