@@ -283,6 +283,16 @@ export default async function AdminLayout({
             **ここ（header）に閉じた入れ子セレクタ**で当てる。左サイドバーの開閉ボタンは L1、
             右パネルの開閉ボタンは L2 の持ち場なので、あちらの `size-*` は書き換えない
             （入れ子セレクタは詳細度 (0,2,0) で `.size-8` (0,1,0) に勝つので、上書きは効く）。
+            🚨 **アイコンだけのボタンは正方形にする**（堀池・2026-08-17・AP1／`DESIGN.md` §2-11。
+              原文:「縦長のボタンはやめて。**これはルールとして。**」）。
+              【測った 2026-08-17】主要 6 ルートで、**アイコンだけのボタン 16 件のうち 13 件が
+              32×55 の縦長**（メニューを開く／このページの説明／オプション）。
+              🚨 **これは私の C2・L1（高さをヘッダーいっぱいにする）の副作用**——
+                高さだけ伸ばしたので、幅 32 のまま縦長になった。
+                ＝ §2-11 は §2-6 と衝突する、と規約自身が書いている。**幅を高さに合わせる。**
+              🚨 「アイコンだけ」の見分け方: **見える文字を持たない**（`.sr-only` は文字に数えない）。
+                `:has()` で「`.sr-only` でない `span` を持たない」ボタンだけに当てる。
+                `kbd` を除いているのは、ショートカットの印を持つボタンは文字を持つため。
             🚨 **`h-full` が効くには、間の器も残らず伸びていること**が要る
               （器のどれか 1 つが `items-center` だと、そこで高さが auto に戻って 100% の基準が消える）。 */}
         <header
@@ -295,7 +305,7 @@ export default async function AdminLayout({
           //    左サイドバー開閉は L1、右パネル開閉は L2 の持ち場なので、あちらは触らない。
           // 🚨 隙間を 0 にすると**区画の境目が消える**ので、`divide-x` で 1px の仕切りを入れる
           //    （画像も区画の間に縦線が入っている）。
-          className="flex min-h-14 items-stretch justify-between border-b [&_[data-slot=button-group]]:h-full [&_a]:h-full [&_a]:rounded-none [&_button]:h-full [&_button]:rounded-none"
+          className="flex min-h-14 items-stretch justify-between border-b [&_[data-slot=button-group]]:h-full [&_a]:h-full [&_a]:rounded-none [&_button]:h-full [&_button]:rounded-none [&_button:has(>span>svg:only-child),&_button:has(>span>span.sr-only+svg:last-child)]:aspect-square [&_button:has(>span>svg:only-child),&_button:has(>span>span.sr-only+svg:last-child)]:w-auto"
         >
           {/* 左: 戻る → パンくず。
               🚨 メニュー開閉ボタン（一番左・常に固定）は**左サイドバーの開閉状態**を持つので、
