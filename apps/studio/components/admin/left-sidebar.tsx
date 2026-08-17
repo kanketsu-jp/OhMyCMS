@@ -8,16 +8,23 @@ import {
   BellIcon,
   BugIcon,
   ChevronDownIcon,
+  Cloud,
+  Columns3,
   DatabaseIcon,
   FilesIcon,
   FileIcon,
   FolderIcon,
   FolderTree,
   ImageIcon,
+  Info,
   KeyRound,
+  Link2,
   List,
+  Lock,
+  RefreshCw,
   SettingsIcon,
   ShieldAlert,
+  SquareCode,
   TableIcon,
   Tag,
   Trash2Icon,
@@ -144,6 +151,24 @@ function NavItemIcon({ href }: { href: string }) {
   // 🚨 **ここだけ、既存に無い絵を入れた。** 利用者を表す絵はこのリポジトリに 1 つも無く
   //    （`UserMinus` は「利用者を外す」で別物）、**重複が起きない**ため。
   if (href === "/admin/settings/users") return <UsersIcon />;
+  // 🚨 **設定の子も既定に落ちていた**（堀池・2026-08-17・S1「設定のアイコンもちゃんと個別に設定」）。
+  //    【測った】組を **2 周開いてから**数えると、行 38 のうち
+  //    設定側で `lucide-table` が **8 件**（コレクション / 一般 / ストレージ / SSO /
+  //    エージェント / MCP 接続 / バージョン / 報告管理）。
+  //    🚨 1 周だと取り切れない（開いた中にさらに閉じた組が在る）。司令塔も私も、
+  //      **閉じたまま数えて「直った」と誤報している**。
+  // 🚨 絵はすべて**既にこのリポジトリで使っているもの**（同じ意味に 2 つの絵を作らない）。
+  if (href === "/admin/collections") return <Columns3 />;
+  if (href === "/admin/settings/general") return <Info />;
+  if (href === "/admin/settings/storage") return <Cloud />;
+  if (href === "/admin/settings/sso") return <Lock />;
+  if (href === "/admin/settings/agents") return <SquareCode />;
+  if (href === "/admin/settings/mcp") return <Link2 />;
+  if (href === "/admin/settings/version") return <RefreshCw />;
+  // 🚨 クエリ付き（`?scope=all`）なので **前方一致**で見る。完全一致だと当たらない。
+  //    絵は左サイドバー下部の「不具合報告」と**同じ BugIcon**——**同じ意味だから同じ絵が正しい**
+  //    （禁じられているのは「同じ意味に 2 つの絵」）。
+  if (href.startsWith("/admin/reports")) return <BugIcon />;
   return <TableIcon />;
 }
 
