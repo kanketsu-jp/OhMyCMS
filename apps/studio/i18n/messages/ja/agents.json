@@ -28,5 +28,17 @@
   "tenant_scope_label": "tenant_scope（JSON）",
   "title": "エージェント",
   "token_heading": "発行された生トークン",
-  "token_warning": "この画面を閉じると二度と表示できません。"
+  "token_warning": "この画面を閉じると二度と表示できません。",
+  "back_to_list": "エージェントの一覧へ戻る",
+  "state_label": "いまの状態",
+  "state_active": "使えます",
+  "state_expired": "期限が切れています",
+  "state_revoked": "失効させました",
+  "created_at_label": "作った日時",
+  "expires_at_label": "期限",
+  "revoked_at_label": "失効させた日時",
+  "not_revoked": "失効させていません",
+  "origin_label": "発行元",
+  "no_origin": "（記録なし）",
+  "detail_no_token_note": "鍵そのものはここに出ません。発行したときの一度きりです。無くした場合は作り直してください。"
 }

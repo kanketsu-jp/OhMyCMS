@@ -28,5 +28,17 @@
   "tenant_scope_label": "tenant_scope (JSON)",
   "title": "Agents",
   "token_heading": "Issued raw token",
-  "token_warning": "You won't be able to see this again once you close this screen."
+  "token_warning": "You won't be able to see this again once you close this screen.",
+  "back_to_list": "Back to agents",
+  "state_label": "State",
+  "state_active": "Active",
+  "state_expired": "Expired",
+  "state_revoked": "Revoked",
+  "created_at_label": "Created",
+  "expires_at_label": "Expires",
+  "revoked_at_label": "Revoked at",
+  "not_revoked": "Not revoked",
+  "origin_label": "Origin",
+  "no_origin": "(not recorded)",
+  "detail_no_token_note": "The token itself is not shown here. It is displayed only once when issued. If lost, issue a new one."
 }

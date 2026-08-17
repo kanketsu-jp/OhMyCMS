@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { KeyRound, Ban, Plus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
@@ -291,7 +292,11 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
           {agents.map((agent) => (
             <TableRow key={agent.id}>
               <TableCell className="font-medium">
-                {agent.name}
+                {/* 🚨 名前から 1 件のページへ（`decisions/list-views-are-switchable-layouts` §3）。
+                    **失効しているものも開ける**——**いつ失効したかが、いちばん見たい情報**なので。 */}
+                <Link href={`/admin/settings/agents/${agent.id}`} className="hover:underline">
+                  {agent.name}
+                </Link>
                 {/* 🚨 塗った箱にしない。面の中なので、背景を持たせると深さ 2 になる
                     （knowledge/decisions/no-nested-surfaces.md §2-1）。
                     2026-08-15 実測: bg-muted の chip が 64x21px の面として検出された。
