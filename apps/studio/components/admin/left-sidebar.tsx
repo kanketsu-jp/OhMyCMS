@@ -390,7 +390,17 @@ export function LeftSidebar({
       </SidebarContent>
 
       <SidebarFooter className="gap-0 p-0">
-        <div className="border-t px-2 py-2">
+        {/*
+          🚨 **中身が 0 件のとき、器と線を残さない**（堀池・2026-08-17 R1 原文「謎のボーダーがあるので削除」／
+             DESIGN.md §1-4）。
+          🚨 **「0 件だから消す」ではなく「なぜ 0 件か」を先に測った**（2026-08-17）:
+             この中身（不具合報告）は `hidden group-data-[collapsible=icon]:flex` で、
+             **畳んだときだけ出る**。開いているときは I1 でユーザーメニューへ移したので、
+             ここは**元から空**になる。
+             ＝ 「入るはずのものが 0 件」ではなく「開いているときは要らない」が正しい。
+          ＝ 線と余白も**畳んだときだけ**出す。開いているときは器ごと消える。
+        */}
+        <div className="hidden border-t px-2 py-2 group-data-[collapsible=icon]:block">
           <SidebarMenu className="hidden group-data-[collapsible=icon]:flex">
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip={t("reports")}>
