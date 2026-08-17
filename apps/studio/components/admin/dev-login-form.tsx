@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/client";
-import { errorKeyFromApiCode, FALLBACK_ERROR_KEY } from "@/i18n/error";
+import { errorKeyFromPayload } from "@/i18n/error";
 import { FieldLabel } from "@/components/admin/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,11 +37,13 @@ export function DevLoginForm() {
       // 🚨 API の生文言を画面へ出さない。code を鍵へ写して辞書から出す。
       //    生文言は lib/ に直書きされた日本語なので、英語で見ている人の画面にも日本語が出る。
       //    表に無い code は「予期しないエラー」ではなく、この画面の具体的な文言へ落とす。
-      const key = errorKeyFromApiCode(payload?.error?.code);
+      // 🚨 取り出しは `i18n/error.ts` の 1 本に寄せてある（2026-08-17・files が作った寄せ先）。
+      //    ここで自前に組み直さない——**同じ処理が 10 箇所に散っていた**のを畳んだところ。
+      //    `null` は「表に無い code」で、以前の `FALLBACK_ERROR_KEY` と同じ意味
+      //    （寄せ先が「表に無ければ null」に畳んでいる。分岐は 1 文字も変えていない）。
+      const key = errorKeyFromPayload(payload);
       setError(
-        key === FALLBACK_ERROR_KEY
-          ? t("login_failed", { status: response.status })
-          : tError(key),
+        key === null ? t("login_failed", { status: response.status }) : tError(key),
       );
       setPending(false);
       return;
