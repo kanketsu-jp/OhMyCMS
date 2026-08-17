@@ -108,6 +108,21 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
     ? collectionsResult.data.map((item) => item.collection)
     : [];
 
+  // 対象が無いときは、中身を描かない。『無い』と『在るが空』を同じ場所で混ぜない。
+  // 『対象が無い』は『中身が空』より前に判定する。
+  if (!collectionResult.ok) {
+    return (
+      <div className="max-w-6xl space-y-6">
+        <div>
+          <Link href="/admin/collections" className="text-sm text-muted-foreground transition-colors hover:text-foreground active:text-foreground">
+            {tCollections("back_to_list")}
+          </Link>
+        </div>
+        <ErrorBanner message={errorMessage ?? tError(collectionResult.messageKey)} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl space-y-6">
       {/* 🚨 **タイトル行（`flex flex-wrap items-start justify-between gap-3`）を外した**。
@@ -147,7 +162,6 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       <ErrorBanner
         message={
           errorMessage ??
-          (!collectionResult.ok ? tError(collectionResult.messageKey) : null) ??
           (!fieldsResult.ok ? tError(fieldsResult.messageKey) : null) ??
           (!relationsResult.ok ? tError(relationsResult.messageKey) : null)
         }
