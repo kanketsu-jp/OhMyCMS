@@ -3,6 +3,7 @@
   "back_to_list": "Back to Items",
   "create_button": "Create",
   "delete_button": "Delete",
+  "empty": "No items yet.",
   "row_options": "Row actions",
   "edit_button": "Edit",
   "edit_item_title": "Edit Item",

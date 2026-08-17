@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
 import { isFileField } from "@/lib/schema/interfaces";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RowOptions } from "@/components/admin/row-options";
@@ -214,6 +215,9 @@ export default async function ContentPage({ params, searchParams }: Props) {
                   })}
                 </TableBody>
               </Table>
+              {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
+                  読み込めていないのか、まだ無いのかが分からない。 */}
+              {itemsResult.data.data.length === 0 ? <ListEmpty>{t("empty")}</ListEmpty> : null}
               <div className="mt-4 flex items-center justify-between text-sm">
                 <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
                 <div className="flex gap-2">

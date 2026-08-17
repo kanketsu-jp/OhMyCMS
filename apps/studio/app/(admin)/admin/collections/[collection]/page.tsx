@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RelationForm } from "@/components/admin/relation-form";
@@ -156,33 +157,38 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
         {fieldsResult.ok ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{tFields("field_header")}</TableHead>
-                <TableHead>{tFields("type_label")}</TableHead>
-                <TableHead>{tFields("required_label")}</TableHead>
-                <TableHead>{tFields("primary_key_header")}</TableHead>
-                <TableHead>{tFields("db_type_header")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {見せる項目.map((field) => (
-                <TableRow key={field.field}>
-                  <TableCell className="font-medium">
-                    {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
-                        辞書が空なら `fieldLabel` が識別子を返すので、
-                        名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
-                    {fieldLabel(field, locale)}
-                  </TableCell>
-                  <TableCell>{field.type}</TableCell>
-                  <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
-                  <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
-                  <TableCell>{field.schema?.data_type ?? ""}</TableCell>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{tFields("field_header")}</TableHead>
+                  <TableHead>{tFields("type_label")}</TableHead>
+                  <TableHead>{tFields("required_label")}</TableHead>
+                  <TableHead>{tFields("primary_key_header")}</TableHead>
+                  <TableHead>{tFields("db_type_header")}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {見せる項目.map((field) => (
+                  <TableRow key={field.field}>
+                    <TableCell className="font-medium">
+                      {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
+                          辞書が空なら `fieldLabel` が識別子を返すので、
+                          名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
+                      {fieldLabel(field, locale)}
+                    </TableCell>
+                    <TableCell>{field.type}</TableCell>
+                    <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
+                    <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
+                    <TableCell>{field.schema?.data_type ?? ""}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
+                読み込めていないのか、まだ無いのかが分からない。 */}
+            {見せる項目.length === 0 ? <ListEmpty>{tFields("empty")}</ListEmpty> : null}
+          </>
         ) : null}
         {/* 🚨 面は増やさない（`no-nested-surfaces`）。表と同じ面の中に置く。 */}
         {内部項目.length > 0 ? (

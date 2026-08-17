@@ -6,6 +6,7 @@
   "advanced_type_label": "Choose the DB type yourself",
   "back_to_collection": "Back to collection",
   "db_type_header": "DB Type",
+  "empty": "No visible fields.",
   "empty_fields": "No fields to display.",
   "field_header": "Field",
   "interface_auto": "Automatic (match the type)",
