@@ -298,6 +298,7 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
               readOnly={!editing}
               onChange={() => setNameError(null)}
               aria-invalid={nameError !== null || undefined}
+              placeholder={!editing ? tCommon("not_set") : undefined}
               defaultValue={composeDisplayName(firstName, lastName, locale)}
             />
             </div>

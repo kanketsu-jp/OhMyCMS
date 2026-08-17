@@ -158,6 +158,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
         type={type}
         readOnly={!editing}
         value={draft[key]}
+        placeholder={!editing ? tCommon("not_set") : undefined}
         onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
       />
       <p className="text-xs text-muted-foreground">

@@ -13,6 +13,7 @@
   "copy_button_failed_selected": "Copy failed. The value is selected, so copy it manually.",
   "locale_en": "English",
   "locale_ja": "日本語",
+  "not_set": "Not set",
   "pagination_label": "Pagination",
   "pagination_more": "More pages",
   "pagination_next": "Next",

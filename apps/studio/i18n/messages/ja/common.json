@@ -13,6 +13,7 @@
   "copy_button_failed_selected": "コピーできませんでした。値を選択したので手でコピーしてください。",
   "locale_en": "English",
   "locale_ja": "日本語",
+  "not_set": "未設定",
   "pagination_label": "ページ送り",
   "pagination_more": "他のページ",
   "pagination_next": "次へ",
