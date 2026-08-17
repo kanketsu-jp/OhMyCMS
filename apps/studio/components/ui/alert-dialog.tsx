@@ -148,15 +148,25 @@ function AlertDialogDescription({
 function AlertDialogAction({
   className,
   tone = "default",
+  loading = false,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Action> & {
   tone?: "default" | "danger"
+  /**
+   * 処理中の見た目。
+   * 🚨 **引き金と確認で、同じ文言のボタンが 2 つ在る**（「ゴミ箱へ入れる」など）。
+   *   印を引き金側だけに付けると、**確認を押した人には何も変わらない**。
+   *   由来: 2026-08-17。base2 が確認側を 976 標本測って「一度も変わらない」と報告した——
+   *   **壊れていたのではなく、確認側に印が無かった**。
+   */
+  loading?: boolean
 }) {
   return (
     <AlertDialogPrimitive.Action asChild>
       <Button
         data-slot="alert-dialog-action"
         variant={tone === "danger" ? "destructive" : "default"}
+        loading={loading}
         className={className}
         {...props}
       />

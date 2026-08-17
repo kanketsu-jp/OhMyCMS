@@ -224,7 +224,13 @@ export function FilesTable({
             type="button"
             variant="secondary"
             size="sm"
-            disabled={trashSelected.pending}
+            // 🚨 `disabled` ではなく `loading`。**「いま働いている」と「そもそも使えない」は別**
+            //    （`components/ui/button.tsx` の設計）。`loading` にすると
+            //    **スピナー・`aria-disabled`・押せなくする CSS** の 3 つが同時に付く。
+            //    由来: 2026-08-17。base2 が「押しても何も変わらない」と測ったが、
+            //    測っていたのは**ダイアログ側の同名ボタン**（印を持っていない方）だった。
+            //    🚨 **同じ文言のボタンが 2 つ在る**ので、印は**両方**に要る。
+            loading={trashSelected.pending}
             onClick={() => setConfirming(true)}
           >
             {t("bulk_trash")}
@@ -243,7 +249,10 @@ export function FilesTable({
           <AlertDialogFooter>
             <AlertDialogCancel />
             {/* 🚨 tone は既定（ふつう）。**ゴミ箱へ入れるだけで、戻せる**。 */}
-            <AlertDialogAction onClick={() => void trashSelected.run()}>
+            <AlertDialogAction
+              loading={trashSelected.pending}
+              onClick={() => void trashSelected.run()}
+            >
               {t("bulk_trash")}
             </AlertDialogAction>
           </AlertDialogFooter>

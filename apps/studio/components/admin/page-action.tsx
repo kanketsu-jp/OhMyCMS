@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChevronDownIcon } from "lucide-react";
 import { useSyncExternalStore, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, useFormStatus } from "react-dom";
 
 import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
@@ -119,6 +119,29 @@ export function PageAction({
   const headerSlot = useSlot("header-primary-action");
   const mobileSlot = useSlot("mobile-primary-action");
 
+  /**
+   * 🚨 **フォームで送っている間も「働いている」を出す**（2026-08-17）。
+   *
+   * 由来: 5.7MB のアップロードで、**送信の 1077ms のうち最初の 43ms しか印が出なかった**
+   * （司令塔が MutationObserver で実測: 21ms で `aria-disabled` / `data-loading` が付き、
+   *  **64ms で両方 null に戻る**。残り 1 秒は直る前と同じ見た目）。
+   *
+   * 原因（**推測を残す**）: `<form action={fn}>` は React 19 のトランザクションで走るので、
+   * **こちら側の state をどう持っても、トランザクション側の描画に上書きされうる**。
+   * `hooks/use-submit-once.ts` を外部ストアにして「出る」ところまでは来たが、**続かなかった**。
+   *
+   * 🚨 だから**自前の state で戦うのをやめる**。`useFormStatus` は
+   * **React がそのフォームの動作の間ずっと true にする**もので、上書きの心配が無い。
+   *
+   * 🚨 **フォームの中に置かれた `PageAction` にしか効かない**（React の仕様。
+   *   フォームの外に置いて `form="id"` だけで結んでいる場合は `false` のまま＝ 従来どおり）。
+   *   実測 2026-08-17: `files-manager` と `new-folder-form` は**どちらもフォームの中**。
+   * 🚨 囲っているフォームと `form` が指す先が違う場合、**囲っている側の状態を見る**。
+   *   いまその形は無いが、増やすときは注意すること。
+   */
+  const formStatus = useFormStatus();
+  const busy = pending || formStatus.pending;
+
   const variant = destructive ? "destructive" : role === "secondary" ? "outline" : "default";
   // 🚨 補助は**必ず主要の左**に出す。portal は mount の順に並ぶので、
   //    ページが補助を先に描くか後に描くかで左右が入れ替わってしまう。
@@ -130,7 +153,7 @@ export function PageAction({
     () => {
       // 🚨 `disabled` はボタンだけでなく**ここでも**見る。見ないと、押せないボタンの
       //    ぶんまで ⌘S が送ってしまい、「画面では止まっているのに保存される」ことになる。
-      if (!form || role !== "primary" || pending || disabled) return;
+      if (!form || role !== "primary" || busy || disabled) return;
 
       const target = document.getElementById(form);
       if (!(target instanceof HTMLFormElement)) return;
@@ -162,7 +185,7 @@ export function PageAction({
     onClick,
     label,
     icon,
-    pending,
+    pending: busy,
     disabled,
     variant,
     order: cn(order, "hidden md:inline-flex"),
@@ -171,7 +194,7 @@ export function PageAction({
     optionsLabel: t("action_options"),
   });
   const sp = renderAction({
-    href, form, onClick, label, icon, pending, disabled, variant, order, compact: true,
+    href, form, onClick, label, icon, pending: busy, disabled, variant, order, compact: true,
     options, optionsLabel: t("action_options"),
   });
 
