@@ -90,8 +90,8 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   },
   "/admin/collections/[collection]/fields/new": { titleKey: "fields.add_title" },
 
-  // 🚨 ページは無いが、**区画の名前**として道筋に出す（`navigable: false`）。
-  "/admin/content": { titleKey: "nav.content_heading", navigable: false },
+  // 🚨 コレクションが在れば最初の 1 つへ送り、無ければ作成導線を出す。
+  "/admin/content": { titleKey: "nav.content_heading" },
   "/admin/content/[collection]": {
     titleKey: "items.title_for_collection",
     titleFromData: true,

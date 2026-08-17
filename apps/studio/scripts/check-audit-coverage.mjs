@@ -33,6 +33,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
  */
 const EXCLUDED = [
   {
+    path: "/admin/content",
+    recordedAt: "2026-08-17",
+    status: "決定",
+    decider: "schema",
+    reason:
+      "コレクションが 1 件以上あると最初の 1 つへ転送する（/admin と同じ形。着地先 /admin/content/<識別子> を --paths で測る）。🚨 0 件のときの案内画面は、実データに 16 コレクション在るこの環境では出せず未測定",
+  },
+  {
     path: "/admin",
     recordedAt: "2026-08-15",
     status: "決定",
