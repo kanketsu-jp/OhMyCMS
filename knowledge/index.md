@@ -60,6 +60,7 @@ x_rag_okf:
 - [ポートは 31xx 帯に寄せ、よく使うポートを避ける](./decisions/port-allocation.md) — `decisions/port-allocation`
 - [台が作った利用者は、作った人が id で消す](./decisions/probes-clean-up-by-id.md) — `decisions/probes-clean-up-by-id`
 - [リレーションを辿るときも、相手側コレクションの権限を必ず通す](./decisions/relation-permission-boundary.md) — `decisions/relation-permission-boundary`
+- [行フィルタは空だと全行許可、壊れると拒否（fail-open しない）](./decisions/rowfilter-empty-is-allow-all.md) — `decisions/rowfilter-empty-is-allow-all`
 - [秘密の置き場所は「復元可能性」で決める（ハッシュ化できるものだけ GUI 可）](./decisions/secrets-storage-by-recoverability.md) — `decisions/secrets-storage-by-recoverability`
 - [設定は DB が正。env は初期値でしかない](./decisions/settings-db-beats-env.md) — `decisions/settings-db-beats-env`
 - [共有ファイルは、窓に自分の行を置かない](./decisions/shared-files-are-not-left-in-the-window.md) — `decisions/shared-files-are-not-left-in-the-window`
