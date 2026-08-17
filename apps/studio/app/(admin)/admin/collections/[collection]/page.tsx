@@ -209,82 +209,83 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                 method="post"
               />
             ))}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{tFields("field_header")}</TableHead>
-                  <TableHead>{tFields("display_name_header")}</TableHead>
-                  <TableHead>{tFields("type_label")}</TableHead>
-                  <TableHead>{tFields("required_label")}</TableHead>
-                  <TableHead>{tFields("primary_key_header")}</TableHead>
-                  <TableHead>{tFields("db_type_header")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {見せる項目.map((field) => {
-                  const formId = fieldTranslationFormId(field.field);
-                  const translations = field.meta?.translations ?? null;
-                  const jaLabel = tCommon("locale_ja");
-                  const enLabel = tCommon("locale_en");
+            {見せる項目.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{tFields("field_header")}</TableHead>
+                    <TableHead>{tFields("display_name_header")}</TableHead>
+                    <TableHead>{tFields("type_label")}</TableHead>
+                    <TableHead>{tFields("required_label")}</TableHead>
+                    <TableHead>{tFields("primary_key_header")}</TableHead>
+                    <TableHead>{tFields("db_type_header")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {見せる項目.map((field) => {
+                    const formId = fieldTranslationFormId(field.field);
+                    const translations = field.meta?.translations ?? null;
+                    const jaLabel = tCommon("locale_ja");
+                    const enLabel = tCommon("locale_en");
 
-                  return (
-                    <TableRow key={field.field}>
-                      <TableCell className="font-medium">
-                        {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
-                            辞書が空なら `fieldLabel` が識別子を返すので、
-                            名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
-                        {fieldLabel(field, locale)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-2">
-                          <div className="grid gap-2 md:grid-cols-2">
-                            <div className="flex flex-col gap-1.5">
-                              <Label htmlFor={`${formId}-ja`}>{jaLabel}</Label>
-                              <Input
-                                id={`${formId}-ja`}
-                                name="name_ja"
-                                form={formId}
-                                defaultValue={translations?.ja ?? ""}
-                                aria-label={tFields("display_name_input_label", {
-                                  field: field.field,
-                                  locale: jaLabel,
-                                })}
-                              />
+                    return (
+                      <TableRow key={field.field}>
+                        <TableCell className="font-medium">
+                          {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
+                              辞書が空なら `fieldLabel` が識別子を返すので、
+                              名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
+                          {fieldLabel(field, locale)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-2">
+                            <div className="grid gap-2 md:grid-cols-2">
+                              <div className="flex flex-col gap-1.5">
+                                <Label htmlFor={`${formId}-ja`}>{jaLabel}</Label>
+                                <Input
+                                  id={`${formId}-ja`}
+                                  name="name_ja"
+                                  form={formId}
+                                  defaultValue={translations?.ja ?? ""}
+                                  aria-label={tFields("display_name_input_label", {
+                                    field: field.field,
+                                    locale: jaLabel,
+                                  })}
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <Label htmlFor={`${formId}-en`}>{enLabel}</Label>
+                                <Input
+                                  id={`${formId}-en`}
+                                  name="name_en"
+                                  form={formId}
+                                  defaultValue={translations?.en ?? ""}
+                                  aria-label={tFields("display_name_input_label", {
+                                    field: field.field,
+                                    locale: enLabel,
+                                  })}
+                                />
+                              </div>
                             </div>
-                            <div className="flex flex-col gap-1.5">
-                              <Label htmlFor={`${formId}-en`}>{enLabel}</Label>
-                              <Input
-                                id={`${formId}-en`}
-                                name="name_en"
-                                form={formId}
-                                defaultValue={translations?.en ?? ""}
-                                aria-label={tFields("display_name_input_label", {
-                                  field: field.field,
-                                  locale: enLabel,
-                                })}
-                              />
+                            <div>
+                              <Button type="submit" form={formId} size="sm">
+                                <Save data-icon="inline-start" />
+                                {tFields("display_name_save")}
+                              </Button>
                             </div>
                           </div>
-                          <div>
-                            <Button type="submit" form={formId} size="sm">
-                              <Save data-icon="inline-start" />
-                              {tFields("display_name_save")}
-                            </Button>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{field.type}</TableCell>
-                      <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
-                      <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
-                      <TableCell>{field.schema?.data_type ?? ""}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
-                読み込めていないのか、まだ無いのかが分からない。 */}
-            {見せる項目.length === 0 ? <ListEmpty>{tFields("empty")}</ListEmpty> : null}
+                        </TableCell>
+                        <TableCell>{field.type}</TableCell>
+                        <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
+                        <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
+                        <TableCell>{field.schema?.data_type ?? ""}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            ) : (
+              <ListEmpty>{tFields("empty")}</ListEmpty>
+            )}
           </>
         ) : null}
         {/* 🚨 面は増やさない（`no-nested-surfaces`）。表と同じ面の中に置く。 */}

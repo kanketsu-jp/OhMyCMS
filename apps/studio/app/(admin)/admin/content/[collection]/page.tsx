@@ -307,7 +307,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                     dateField={calendarField}
                     month={calendarMonth}
                   />
-                ) : (
+                ) : itemsResult.data.data.length > 0 ? (
                   <WideTable>
                     <Table>
                       <TableHeader>
@@ -381,7 +381,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                       </TableBody>
                     </Table>
                   </WideTable>
-                )}
+                ) : null}
               </div>
               {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
                   読み込めていないのか、まだ無いのかが分からない。 */}

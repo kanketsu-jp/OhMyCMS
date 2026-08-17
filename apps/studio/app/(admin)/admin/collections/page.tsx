@@ -72,7 +72,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
              `lib/admin/page-meta.ts` の `sectionKeys` に残してある。 */}
       <div id={sectionAnchorId("collections.list_title")}>
         {result.ok ? (
-          <>
+          result.data.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -116,12 +116,9 @@ export default async function CollectionsPage({ searchParams }: Props) {
                 })}
               </TableBody>
             </Table>
-            {/* 1 件も無いことを、表の枠だけで伝えない。
-                （読み込めていないのか、まだ無いのかが分からない） */}
-            {result.data.length === 0 ? (
-              <ListEmpty>{t("empty")}</ListEmpty>
-            ) : null}
-          </>
+          ) : (
+            <ListEmpty>{t("empty")}</ListEmpty>
+          )
         ) : null}
       </div>
     </div>
