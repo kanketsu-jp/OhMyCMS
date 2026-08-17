@@ -227,6 +227,8 @@ type FileRow = {
   /** 配信用の圧縮版のキー。null なら圧縮版なし（元をそのまま配信する）。 */
   compressed_key: string | null;
   is_public: boolean;
+  visibility: "public" | "link" | "private";
+  public_token: string;
   /**
    * ゴミ箱に入れた時刻。**null なら生きている**（283 A・2026-08-16）。
    * 🚨 読むときは必ず `liveFiles()` を通す。素の `db("directus_files")` を書かない。
@@ -355,6 +357,8 @@ export type AssetResult = {
    */
   contentTypeOptions: string;
 };
+
+export type FileVisibility = "public" | "link" | "private";
 
 export type TransformInput = {
   width?: string | null;
@@ -487,7 +491,7 @@ async function findFile(
   publicOnly = false,
 ): Promise<FileRow> {
   const query = liveFiles().where({ id });
-  if (publicOnly) query.where({ is_public: true });
+  if (publicOnly) query.whereIn("visibility", ["public", "link"]);
   applyRowFilter(query, rowFilter, "directus_files", schemaOverview, relations);
   // 🚨 **id の形が uuid でないと、DB が 22P02 を投げて 500 になる**（実測 2026-08-17:
   //    /api/files/zz-not-an-id が 500 INTERNAL_ERROR。
@@ -507,6 +511,17 @@ async function findFile(
     throw error;
   }
   if (!row) {
+    throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
+  }
+  return row;
+}
+
+async function findFileByPublicToken(token: string): Promise<FileRow> {
+  const row = await liveFiles().where({ public_token: token }).first();
+  // 🚨 「公開」と「リンクを知っている人のみ」は、いまは配信の挙動が同じ（どちらも cookie 無しで開ける）。
+  //    差が出るのは「一覧や検索に出るかどうか」だが、その経路がまだ無い（2026-08-18 実測）。
+  //    先に状態だけ持たせてある。一覧・検索を作るときに、ここを見て分岐すること。
+  if (!row || row.visibility === "private") {
     throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
   }
   return row;
@@ -638,6 +653,8 @@ export async function uploadFile(actor: Actor | null, input: UploadFileInput): P
         blur_data_url: blurDataUrl,
         compressed_key: storedCompressedKey,
         is_public: true,
+        visibility: "public",
+        public_token: randomUUID(),
       })
       .returning("*");
     return toPublicFile(row);
@@ -724,22 +741,27 @@ export async function updateFile(
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_files", "update");
   const relations = permission.rowFilter ? await relationRows() : [];
-  const allowed = new Set(["title", "description", "tags", "folder"]);
+  const allowed = new Set(["title", "description", "tags", "folder", "visibility"]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) {
       throw new ApiError(400, "INVALID_FIELD", `更新できないフィールドです: ${key}`);
     }
   }
 
-  const patch = {
+  const patch: { title?: string | null; description?: string | null; tags?: string | null; folder?: string | null; visibility?: FileVisibility } = {
     title: optionalString(body.title, "title"),
     description: optionalString(body.description, "description"),
     tags: optionalString(body.tags, "tags"),
     folder: optionalString(body.folder, "folder"),
+    visibility: body.visibility === undefined ? undefined : body.visibility as FileVisibility,
   };
-  const update = Object.fromEntries(
+  if (patch.visibility !== undefined && patch.visibility !== "public" && patch.visibility !== "link" && patch.visibility !== "private") {
+    throw new ApiError(400, "INVALID_FIELD", "visibilityが不正です");
+  }
+  const update: Record<string, unknown> = Object.fromEntries(
     Object.entries(patch).filter(([, value]) => value !== undefined),
   );
+  if (patch.visibility !== undefined) update.is_public = patch.visibility !== "private";
 
   const [row] = await liveFiles()
     .where({ id })
@@ -756,6 +778,17 @@ export async function updateFile(
   if (!row) {
     throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
   }
+  return toPublicFile(row);
+}
+
+export async function rotatePublicToken(actor: Actor, id: string): Promise<PublicFileRow> {
+  const schemaOverview = await getSchemaOverview();
+  const permission = await permissionForAction(actor, "directus_files", "update");
+  const relations = permission.rowFilter ? await relationRows() : [];
+  const [row] = await liveFiles().where({ id }).modify((query) => {
+    applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
+  }).update({ public_token: randomUUID(), modified_by: actorUserId(actor), modified_on: new Date().toISOString() }).returning("*");
+  if (!row) throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
   return toPublicFile(row);
 }
 
@@ -1137,6 +1170,11 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
     contentLength: transformed.byteLength,
     contentTypeOptions: originalHeaders.contentTypeOptions,
   };
+}
+
+export async function getPublicAsset(token: string, input: TransformInput): Promise<AssetResult> {
+  const row = await findFileByPublicToken(token);
+  return getAsset(null, row.id, input);
 }
 
 export async function listFolders(actor: Actor, input: ListInput): Promise<FolderRow[]> {

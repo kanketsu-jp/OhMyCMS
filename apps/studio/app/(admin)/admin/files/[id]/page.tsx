@@ -26,7 +26,8 @@ type FileRow = {
   height: number | null;
   description: string | null;
   tags: string | null;
-  is_public: boolean;
+  visibility: "public" | "link" | "private";
+  public_token: string;
   uploaded_on: string;
   /**
    * 取り込み元などの付帯情報。ドライブから取り込んだものは `{ drive: {...} }` が入る。
@@ -136,7 +137,7 @@ export default async function FileDetailPage({ params }: Props) {
                <div><dt className="text-muted-foreground">{t("uploaded_on")}</dt><dd>{format.dateTime(file.uploaded_on)}</dd></div>
                <div>
                  <dt className="text-muted-foreground">{t("access_label")}</dt>
-                 <dd>{file.is_public ? t("access_public") : t("access_private")}</dd>
+                  <dd>{t(`access_${file.visibility}`)}</dd>
                </div>
             </dl>
           </Surface>

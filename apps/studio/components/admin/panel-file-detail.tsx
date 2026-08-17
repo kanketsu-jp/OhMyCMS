@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { useFormat, useT } from "@/i18n/client";
 import { useSelectedFiles, requestPreview } from "@/lib/admin/files-selection";
+import { useState } from "react";
+import { useSubmitOnce } from "@/hooks/use-submit-once";
 
 /**
  * 右サイドバーの「ファイルの詳細」（B6）。
@@ -60,6 +62,19 @@ export function PanelFileDetail() {
   const t = useT("panel");
   const format = useFormat();
   const files = useSelectedFiles();
+  const [changedVisibility, setChangedVisibility] = useState<Record<string, "public" | "link" | "private">>({});
+  const changeVisibility = useSubmitOnce(async (value: "public" | "link" | "private") => {
+    const id = files[0]?.id;
+    if (!id) return;
+    const response = await fetch(`/api/files/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ visibility: value }) });
+    if (response.ok) setChangedVisibility((current) => ({ ...current, [id]: value }));
+  });
+  const rotateLink = useSubmitOnce(async () => {
+    const id = files[0]?.id;
+    if (!id || !window.confirm(t("file_detail_rotate_confirm"))) return;
+    await fetch(`/api/files/${id}`, { method: "POST" });
+    window.location.reload();
+  });
 
   // 🚨 選んでいないときは枠ごと出さない（①概要・②項目一覧と同じ規律）。
   //    「選択なし」と書くと、出す物が無い状態と、壊れている状態の区別が付かない。
@@ -76,6 +91,8 @@ export function PanelFileDetail() {
   }
 
   const file = files[0]!;
+  const visibility = changedVisibility[file.id] ?? file.visibility;
+  const publicUrl = new URL(`/assets/${file.public_token}`, typeof window === "undefined" ? "http://localhost" : window.location.origin).toString();
   const size = formatSize(file.filesize);
   const dimensions =
     file.width !== null && file.height !== null ? `${file.width} x ${file.height}` : null;
@@ -95,7 +112,7 @@ export function PanelFileDetail() {
         <Row label={t("file_detail_uploaded")}>{format.dateTime(file.uploaded_on)}</Row>
         <Row label={t("file_detail_access_label")}>
           <span className="whitespace-normal">
-            {file.is_public ? t("file_detail_access_public") : t("file_detail_access_private")}
+            {t(`file_detail_access_${visibility}`)}
           </span>
         </Row>
         {file.modified_on ? (
@@ -114,6 +131,15 @@ export function PanelFileDetail() {
           </Link>
         </Row>
       </dl>
+
+      <label className="mt-3 block text-sm">
+        <span className="mb-1 block">{t("file_detail_visibility_label")}</span>
+        <select className="w-full border bg-input px-2 py-1.5" value={visibility} onChange={(event) => void changeVisibility.run(event.target.value as "public" | "link" | "private")}>
+          <option value="public">{t("file_detail_access_public")}</option>
+          <option value="link">{t("file_detail_access_link")}</option>
+          <option value="private">{t("file_detail_access_private")}</option>
+        </select>
+      </label>
 
       <div className="mt-2 flex items-center gap-2">
         {/*
@@ -150,9 +176,10 @@ export function PanelFileDetail() {
           // 🚨 何をコピーするか言う（DESIGN.md §2-12・堀池 AM1「ボタン自体が『ID をコピー』と
           //    表示するべき」）。🚨 ここが渡すのは **id ではなく URL** なので、そう言う
           //    （AL1 で id → URL に変えてある。**ボタンの文言だけ id のままにしない**）。
-           what={t(file.is_public ? "file_detail_url_public_what" : "file_detail_url_private_what")}
-          value={new URL(`/api/assets/${file.id}`, typeof window === "undefined" ? "http://localhost" : window.location.origin).toString()}
-        />
+           what={t("file_detail_url_public_what")}
+           value={publicUrl}
+         />
+         <Button type="button" variant="outline" size="sm" className="rounded-none" onClick={() => void rotateLink.run()}>{t("file_detail_rotate_link")}</Button>
       </div>
     </PanelSection>
   );

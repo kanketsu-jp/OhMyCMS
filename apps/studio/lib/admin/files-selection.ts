@@ -26,7 +26,8 @@ export type SelectedFile = {
   description: string | null;
   width: number | null;
   height: number | null;
-  is_public: boolean;
+  visibility: "public" | "link" | "private";
+  public_token: string;
 };
 
 type PreviewRequest = {

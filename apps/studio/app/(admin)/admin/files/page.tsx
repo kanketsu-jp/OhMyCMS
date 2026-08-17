@@ -67,7 +67,8 @@ type FileRow = {
   /** 🚨 ライトボックスの拡大に要る（無いと拡大が黙って効かない）。 */
   width: number | null;
   height: number | null;
-  is_public: boolean;
+  visibility: "public" | "link" | "private";
+  public_token: string;
 };
 
 type ApiFileRow = Omit<FileRow, "folder_name">;

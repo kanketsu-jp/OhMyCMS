@@ -1,5 +1,5 @@
 import { requireActor } from "@/lib/auth/context";
-import { deleteFile, getFile, recordBody, updateFile } from "@/lib/files/service";
+import { deleteFile, getFile, recordBody, rotatePublicToken, updateFile } from "@/lib/files/service";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 
 export const runtime = "nodejs";
@@ -34,6 +34,16 @@ export async function DELETE(request: Request, ctx: Context) {
     const { id } = await ctx.params;
     await deleteFile(actor, id);
     return new Response(null, { status: 204 });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function POST(request: Request, ctx: Context) {
+  try {
+    const actor = await requireActor(request);
+    const { id } = await ctx.params;
+    return ok({ data: await rotatePublicToken(actor, id) });
   } catch (error) {
     return errorResponse(error);
   }
