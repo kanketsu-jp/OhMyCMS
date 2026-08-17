@@ -15,6 +15,8 @@ import { getLocale, getT } from "@/i18n/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { COLLECTION_ICONS } from "@/lib/admin/collection-icons";
+import { CollectionIconFor } from "@/components/admin/left-sidebar";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
   Accordion,
@@ -140,6 +142,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
   }
 
   const currentTranslations = collectionResult.data.meta?.translations ?? null;
+  const currentIcon = collectionResult.data.meta?.icon ?? null;
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -354,6 +357,62 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             <Button type="submit">
               <Save data-icon="inline-start" />
               {tCollections("display_name_save")}
+            </Button>
+          </div>
+        </form>
+      </Surface>
+      {/* 🚨 アイコンを選ぶ（K2・堀池さん 2026-08-17「それぞれのコンテンツが固有のアイコンを持つように」）。
+          表示名のすぐ下に置く——**どちらもこのコレクションの「名乗り」**で、離すと片方を見落とす。
+          🚨 **一覧は `lib/admin/collection-icons.ts` の 1 本だけが決める。**
+             ここへ配列を写経しない（写経すると、画面に出るのに API が弾く／その逆が必ず起きる）。
+          🚨 選ばない（`""`）も**必ず出す**。一度選んだ人が**戻せなくなる**ため。 */}
+      <Surface>
+        <SurfaceTitle>{tCollections("icon_heading")}</SurfaceTitle>
+        <p className="text-sm text-muted-foreground">{tCollections("icon_help")}</p>
+        <form
+          action={`/admin/actions/collections/${encoded}/icon`}
+          method="post"
+          className="flex flex-col gap-4"
+        >
+          {/* 🚨 **箱を描かない**（`decisions/no-nested-surfaces.md`）。ここは既に `Surface` の中なので、
+              罫線や背景を持たせると**面の中に面**になる。実際 `check-surface-nesting` が 2 件で落とした
+              （門は正しく鳴いた）。選択中は**色だけ**で示す——太さや枠で状態を表さないのは
+              `tree-connector-lines.md` と同じ考え方。 */}
+          <div className="flex flex-wrap gap-2">
+            <label className="flex cursor-pointer items-center gap-1.5 px-1 py-1.5 text-sm has-checked:text-primary">
+              <input
+                type="radio"
+                name="icon"
+                value=""
+                defaultChecked={!currentIcon}
+                className="size-3.5"
+              />
+              {tCollections("icon_none")}
+            </label>
+            {COLLECTION_ICONS.map((name) => (
+              <label
+                key={name}
+                className="flex cursor-pointer items-center gap-1.5 px-1 py-1.5 text-sm has-checked:text-primary"
+              >
+                <input
+                  type="radio"
+                  name="icon"
+                  value={name}
+                  defaultChecked={currentIcon === name}
+                  className="size-3.5"
+                />
+                {/* 🚨 絵だけを出す。**名前（`shield-alert` 等）は識別子なので辞書に載せない**
+                    （`AGENTS.md` §3.8 の「辞書化しないもの: スキーマ識別子」と同じ扱い）。
+                    読み上げのために `title` に名前を残す。 */}
+                <CollectionIconFor icon={name} />
+                <span className="sr-only">{name}</span>
+              </label>
+            ))}
+          </div>
+          <div>
+            <Button type="submit">
+              <Save data-icon="inline-start" />
+              {tCollections("icon_save")}
             </Button>
           </div>
         </form>

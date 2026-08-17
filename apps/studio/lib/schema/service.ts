@@ -1,5 +1,6 @@
 import { db } from "@/lib/db/knex";
 import type { Knex } from "knex";
+import { isCollectionIcon } from "@/lib/admin/collection-icons";
 import { ApiError, rethrowAsConflict } from "./errors";
 import { getColumns, getSchemaOverview, getTables } from "./introspect";
 import type {
@@ -554,6 +555,15 @@ export async function updateCollection(
   }
 
   const meta = pickAllowed(body.meta ?? body, COLLECTION_META_COLUMNS, "UNSUPPORTED_COLLECTION_META");
+  // 🚨 **値そのものを、サーバで弾く**（K2・`AGENTS.md` §3.5
+  //    「画面で絞ってサーバが何でも受ける形にしない」）。
+  //    `COLLECTION_META_COLUMNS` は「**書いてよい列か**」しか見ておらず、中身は素通りする。
+  //    🚨 `null` は「選んでいない」で**正しい値**なので通す（`isAvatarEmoji` の使われ方と同じ形）。
+  //    🚨 ここで弾かないと、描けない名前が列に入り、画面は既定へ落として**黙って直る**——
+  //      **保存できたのに反映されない**という、いちばん気づきにくい壊れ方になる。
+  if ("icon" in meta && meta.icon !== null && !isCollectionIcon(meta.icon)) {
+    throw new ApiError(400, "INVALID_COLLECTION_ICON", "指定されたアイコンは選べません");
+  }
   const updated = await db.transaction(async (trx) => {
     if (!(await tableExists(trx, collection))) {
       throw new ApiError(404, "COLLECTION_NOT_FOUND", "コレクションが見つかりません");

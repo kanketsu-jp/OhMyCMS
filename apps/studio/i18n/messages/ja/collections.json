@@ -19,5 +19,9 @@
   "new_button": "新規作成",
   "note_label": "メモ",
   "subtitle": "テーブルを作成し、フィールド定義へ進みます。",
-  "title": "コレクション"
+  "title": "コレクション",
+  "icon_heading": "アイコン",
+  "icon_help": "左サイドバーに出る絵です。選ばないと表のアイコンになります。",
+  "icon_save": "アイコンを保存",
+  "icon_none": "選ばない"
 }
