@@ -3,6 +3,7 @@
 import {
   createContext,
   useCallback,
+  useEffect,
   useContext,
   useMemo,
   useState,
@@ -10,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { ArrowLeftIcon, InfoIcon, XIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -92,14 +94,34 @@ export function RightPanelProvider({
   brand: string;
   children: ReactNode;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  // 🚨 「開いているか」ではなく **「どの経路で開いたか」** を持つ。
+  //    前へ進んでも戻っても、**いまの経路と違えば閉じている**ことになる。
+  //    こうしないと、戻ったときに Next が state ごと復元してパネルだけ復活する
+  //    （2026-08-17 実測: 直す前は 移動しても戻っても aside=1 のままだった）。
+  //    🚨 効果（useEffect）で閉じる形にはしない。lint が「効果の中の同期 setState」を拒む。
+  const pathname = usePathname();
+  const [openedAt, setOpenedAt] = useState<string | null>(null);
   const [stack, setStack] = useState<PanelEntry[]>([]);
+  const isOpen = openedAt === pathname;
 
-  const open = useCallback(() => setIsOpen(true), []);
-  const toggle = useCallback(() => setIsOpen((value) => !value), []);
+  // 🚨 戻る／進むのときは、経路で導出するだけでは閉じない。
+  //    **`openedAt` も一緒に復元される**ので、戻った先で経路が再び一致してしまう
+  //    （2026-08-17 実測: 導出だけにしたら、戻ったあと aside=1 に戻った）。
+  //    そこで **popstate を購読して閉じる**（購読は効果の本来の用途で、lint も通る）。
+  useEffect(() => {
+    const onPop = () => setOpenedAt(null);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const open = useCallback(() => setOpenedAt(pathname), [pathname]);
+  const toggle = useCallback(
+    () => setOpenedAt((current) => (current === pathname ? null : pathname)),
+    [pathname],
+  );
 
   const close = useCallback(() => {
-    setIsOpen(false);
+    setOpenedAt(null);
     // 🚨 閉じたら積み重ねを捨てる。残すと、次に info を押したときに
     //    **前回書きかけの報告フォームが出てくる**（何を押したのか説明できない）。
     setStack([]);
@@ -111,8 +133,8 @@ export function RightPanelProvider({
       const withoutSame = current.filter((item) => item.key !== entry.key);
       return [...withoutSame, entry];
     });
-    setIsOpen(true);
-  }, []);
+    setOpenedAt(pathname);
+  }, [pathname]);
 
   const pop = useCallback(() => setStack((current) => current.slice(0, -1)), []);
 
@@ -124,7 +146,7 @@ export function RightPanelProvider({
   return (
     <RightPanelContext value={api}>
       {children}
-      <RightPanelSurface brand={brand} stack={stack} />
+      <RightPanelSurface brand={brand} stack={isOpen ? stack : []} />
     </RightPanelContext>
   );
 }
