@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Columns3, LayoutGrid } from "lucide-react";
+import { Check, LayoutGrid } from "lucide-react";
 
+import { ColumnPicker } from "@/components/admin/column-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +68,26 @@ export function FilesViewOptions({
   const t = useT("files");
   const label = view === "table" ? t("options_columns") : t("options_card_columns");
 
+  // 🚨 表の「出す項目」は **`ColumnPicker`（共通）** に寄せた（2026-08-17）。
+  //    content にも同じものが要り、**2 つ作ると片方だけ直る**ため。
+  //    🚨 **見た目は 1px も変えていない**——引き金の class もメニューの中身も同じものを移しただけ。
+  //    🚨 files では **`href` に `null` を渡さない**（列は 4 本固定で、
+  //      `readColumns` は空を「全部外した」として尊重する＝ **0 本にできてよい**）。
+  //      content 側だけが「最後の 1 本は外せない」を持つ（`resolveColumns` が既定へ戻すため）。
+  if (view === "table") {
+    return (
+      <ColumnPicker
+        label={t("options_columns")}
+        choices={FILE_COLUMNS.map((column) => ({
+          key: column,
+          label: t(`column_${column}`),
+          href: columnHref[column],
+          checked: columns.includes(column),
+        }))}
+      />
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -77,54 +98,28 @@ export function FilesViewOptions({
           "text-muted-foreground hover:text-foreground active:text-foreground",
         )}
       >
-        {view === "table" ? <Columns3 className="size-4" /> : <LayoutGrid className="size-4" />}
+        <LayoutGrid className="size-4" />
       </DropdownMenuTrigger>
       {/* 🚨 **幅を持たせる。** `asChild` で `<Link>` を差し込むと、
           shadcn の項目が持っていた `px-2 py-1.5` などが**リンク側に無い**ので、
           文字が縦に潰れる（実測 2026-08-17: メニューが 40px 幅になり、項目名が 1 文字ずつ折れた）。
           🚨 **「開いた」と「読める」は別**——押して見るまで分からなかった。 */}
       <DropdownMenuContent align="end" className="min-w-44">
-        {view === "table" ? (
-          <>
-            <DropdownMenuLabel>{t("options_columns")}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {/* 🚨 **名前も出す**（2026-08-17 から消せる）。
-                 行のどこでもクリックで開けるようにしたので、名前が無くても行を開ける。
-                 経緯は `lib/admin/files-view.ts` の `ALWAYS_ON_COLUMN`。 */}
-            {FILE_COLUMNS.map((column) => (
-              <DropdownMenuItem key={column} asChild>
-                <Link
-                  href={columnHref[column]}
-                  aria-checked={columns.includes(column)}
-                  role="menuitemcheckbox"
-                  // 🚨 リンクに項目の見た目を自分で持たせる（`asChild` は中身を差し替えるだけ）
-                  className="flex w-full cursor-pointer items-center gap-2 whitespace-nowrap px-2 py-1.5 text-sm"
-                >
-                  <Check className={columns.includes(column) ? "size-4" : "size-4 opacity-0"} aria-hidden />
-                  {t(`column_${column}`)}
-                </Link>
-              </DropdownMenuItem>
-            ))}
-          </>
-        ) : (
-          <>
-            <DropdownMenuLabel>{t("options_card_columns")}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {CARD_COLUMN_CHOICES.map((count) => (
-              <DropdownMenuItem key={count} asChild>
-                <Link
-                  href={cardColumnsHref[count]}
-                  aria-checked={cardColumns === count}
-                  role="menuitemradio"
-                  className="flex w-full cursor-pointer items-center gap-2 whitespace-nowrap px-2 py-1.5 text-sm"
-                >
-                  <Check className={cardColumns === count ? "size-4" : "size-4 opacity-0"} aria-hidden />
-                  {t("options_columns_count", { count })}
-                </Link>
-              </DropdownMenuItem>
-            ))}
-          </>
-        )}
+        <DropdownMenuLabel>{t("options_card_columns")}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {CARD_COLUMN_CHOICES.map((count) => (
+          <DropdownMenuItem key={count} asChild>
+            <Link
+              href={cardColumnsHref[count]}
+              aria-checked={cardColumns === count}
+              role="menuitemradio"
+              className="flex w-full cursor-pointer items-center gap-2 whitespace-nowrap px-2 py-1.5 text-sm"
+            >
+              <Check className={cardColumns === count ? "size-4" : "size-4 opacity-0"} aria-hidden />
+              {t("options_columns_count", { count })}
+            </Link>
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

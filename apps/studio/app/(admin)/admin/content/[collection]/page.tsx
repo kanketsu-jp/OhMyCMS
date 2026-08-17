@@ -4,6 +4,7 @@ import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
 import { isFileField } from "@/lib/schema/interfaces";
+import { ColumnPicker } from "@/components/admin/column-picker";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
@@ -65,6 +66,34 @@ function pageHref(
   }
   if (limit !== DEFAULT_LIST_LIMIT) query.set("limit", String(limit));
   return `/admin/content/${encoded}?${query.toString()}`;
+}
+
+/**
+ * その欄を**入れ替えた**ときの行き先。
+ *
+ * 🚨 **1 ページ目へ戻す。** 列を変えると**行の内容が変わって見える**ので、
+ *   5 ページ目のまま列だけ変わると「**どこを見ていたか**」が分からなくなる。
+ *   （`limit` は保つ——**1 ページに何件出すかは列と関係ない**）
+ *
+ * 🚨 **最後の 1 本は外せない**ので `null` を返す。
+ *   `resolveColumns` は **0 本になると既定（先頭 8 本）へ戻す**ので、外せるように見せると
+ *   「**外したのに 8 本戻ってくる**」になる。＝ **できないことを、できそうに見せない**。
+ */
+function columnToggleHref(
+  encoded: string,
+  field: FieldResult,
+  columns: FieldResult[],
+  limit: number,
+  fields: FieldResult[],
+): string | null {
+  const on = columns.some((one) => one.field === field.field);
+  if (on && columns.length === 1) return null;
+  // 🚨 並びは `fields` の順に揃える（`resolveColumns` と同じ規則。
+  //    URL に書かれた順を信じると、同じ選択で URL が何通りもできる）。
+  const next = on
+    ? columns.filter((one) => one.field !== field.field)
+    : fields.filter((one) => one.field === field.field || columns.some((c) => c.field === one.field));
+  return pageHref(encoded, 1, next, limit, fields);
 }
 
 export default async function ContentPage({ params, searchParams }: Props) {
@@ -154,6 +183,25 @@ export default async function ContentPage({ params, searchParams }: Props) {
         {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
             見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
+          {/* 🚨 「出す項目」。堀池指示「**また列が選択できないし**」（files では直したが、
+              ここは **`?cols=` の状態だけ在って触る操作が無かった**）。
+              🚨 **欄が 1 本も無いときは出さない**——**選ぶものが無いメニュー**を置かない。 */}
+          {fields.length > 0 ? (
+            <div className="mb-3 flex items-center justify-end gap-1">
+              <span className="mr-auto text-xs text-muted-foreground">
+                {t("columns_shown", { shown: columns.length, total: fields.length })}
+              </span>
+              <ColumnPicker
+                label={t("options_columns")}
+                choices={fields.map((field) => ({
+                  key: field.field,
+                  label: fieldLabel(field, locale),
+                  href: columnToggleHref(encoded, field, columns, limit, fields),
+                  checked: columns.some((one) => one.field === field.field),
+                }))}
+              />
+            </div>
+          ) : null}
           {itemsResult.ok ? (
             <>
               <Table>
