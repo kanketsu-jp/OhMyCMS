@@ -91,6 +91,14 @@ function read(file) {
 //   ・**layout.tsx の外**で描かれた場合 → 見つからないので**落ちる**（黙って通ることは無い）
 //   ・**条件付きで渡す形**（`{...(cond ? {a:1} : {})}`）→ spread を禁止したので**落ちる**
 //   ・**実際に画面へ出ているか** → 見ていない。本物は SP/PC を両方開いて数える
+//   ・🚨 **ページの名前（h1 / パンくず / `<title>`）は見ていない**。
+//     この検査は `layout.tsx` の prop 名の集合だけを比べるので、
+//     `lib/admin/page-meta.ts` / `components/admin/page-trail.ts` の側で
+//     **区画名が道筋から落ちる**形（2026-08-17 に design が `73da217` で直した）は
+//     **1 つも拾えない**。名前の側の不変条件は 2 つある（design の実測）:
+//       ① **道筋に区画が居ること**（`buildTrail` が PAGE_META に無い区間を捨てない）
+//       ② **居るがリンクではないこと**（`navigable: false`。押すと 404 になるため）
+//     🚨 どちらもこの検査の外なので、**ここが緑でも名前は保証されない**。
 const EXCEPTIONS = {
   brand: {
     onlyIn: "LeftSidebar",
