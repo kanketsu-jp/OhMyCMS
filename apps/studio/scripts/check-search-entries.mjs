@@ -147,7 +147,10 @@ let selfTestFailed = false;
 }
 
 {
-  const marker = "const reportsNav = (\n";
+  // 🚨 2026-08-17: 目印を `reportsNav` から替えた。I1 で **その変数ごと消えた**ため
+  //    （囮が的を失い、自己検査が「挿入 0 件」で赤くなった。検査は正しく鳴いていた）。
+  //    🚨 目印は **消えにくいもの**を選ぶ。`settingsItems` は左サイドバーの中身そのもの。
+  const marker = "const settingsItems = [\n";
   const insertion = '  <Link href="/admin/__search_self_test" />;\n';
   const broken = insertAfterCount(layoutSource, marker, insertion);
   const found = findViolations({

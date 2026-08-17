@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronsUpDown, LogOut, Settings } from "lucide-react";
+import { ChevronsUpDown, Info, LogOut, Settings } from "lucide-react";
 
+import { BugReportTrigger } from "@/components/admin/bug-report-trigger";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -125,6 +126,15 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
               <Settings />
               {t("profile")}
             </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/admin/version">
+              <Info />
+              {t("settings_child_version")}
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <BugReportTrigger label={t("report_create")} />
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <form action="/admin/actions/logout" method="post">

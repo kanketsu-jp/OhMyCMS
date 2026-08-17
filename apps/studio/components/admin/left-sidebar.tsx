@@ -40,13 +40,13 @@ import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
- * 左サイドバー。**上部＝検索 / 中央＝メニュー / 下部＝不具合報告**の3つに分かれる。
+ * 左サイドバー。**上部＝検索 / 中央＝メニュー / 下部＝利用者操作**の3つに分かれる。
  *
  * 由来（堀池・2026-08-15 原文）:
  * > 「上部・中央・下部の３つに分けて。**上部＝ヘッダーには検索を表示**（いまのヘッダーの検索）。
  * >   今のメニューは中央に当たります。中央とはいえ、その中身のメニューは **item-center に
  * >   しなくていい。今みたいにその高さに合わせて上から配置**。下部は flex-auto や
- * >   justify-between などで下部に配置。**「不具合報告」はその下部へ移動**。」
+ * >   justify-between などで下部に配置。」
  * > 「左サイドバーは**右のボーダーをクリックしたら閉じる**ようにする。」
  */
 
@@ -90,8 +90,6 @@ type Props = {
   collections: NavLink[];
   /** コレクションが引けなかったときに出す文 */
   collectionsError: string | null;
-  /** 下部の「不具合報告」。中身は E 群が差し替える */
-  reports: ReactNode;
   /** いま入っている人の表示名。出せないなら null */
   userName: string | null;
   /** いま入っている人のメールアドレス。出せないなら null */
@@ -235,7 +233,6 @@ export function LeftSidebar({
   groups,
   collections,
   collectionsError,
-  reports,
   userName,
   userLabel,
   userPicture,
@@ -283,7 +280,6 @@ export function LeftSidebar({
 
       <SidebarFooter className="gap-0 p-0">
         <div className="border-t px-2 py-2">
-          <div className="group-data-[collapsible=icon]:hidden">{reports}</div>
           <SidebarMenu className="hidden group-data-[collapsible=icon]:flex">
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip={t("reports")}>

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ButtonHTMLAttributes } from "react";
+
 import { MessageSquarePlus } from "lucide-react";
 
 import { BugReportComposer } from "@/components/admin/bug-report-composer";
@@ -30,12 +32,17 @@ type Props = {
  *    右サイドバーは元々そのページの説明を出していた面なので、
  *    報告のために横入りしたぶんだけ戻すのが元の状態。
  */
-export function BugReportTrigger({ label }: Props) {
+// 🚨 2026-08-17: `DropdownMenuItem asChild` の子として使うようになった（I1）。
+//    そのとき親は `role="menuitem"` や `data-*` を **props で渡してくる**ので、
+//    受け取って `<button>` へ流さないと **メニュー項目として認識されない**
+//    （実測: 見た目は出るが `[role=menuitem]` に数えられず、鍵で辿れなかった）。
+export function BugReportTrigger({ label, ...rest }: Props & ButtonHTMLAttributes<HTMLButtonElement>) {
   const panel = useRightPanel();
 
   return (
     <button
       type="button"
+      {...rest}
       onClick={() =>
         panel.push({
           key: "bug-report",

@@ -7,7 +7,7 @@ import {
   FolderTree,
   MenuIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import { GlobalSearchButton } from "@/components/admin/global-search";
 import { NavLinks, type NavGroup, type NavLink } from "@/components/admin/nav-links";
@@ -34,8 +34,6 @@ type Props = {
   groups: NavGroup[];
   /** 組より下に置く平リンク。**サイドバーと同じものを渡す**（通知など） */
   bottomItems: NavLink[];
-  /** 下部の「不具合報告」。**サイドバーと同じ ReactNode を渡す**（中身は E 群が差し替える） */
-  reports: ReactNode;
   /** ドロワーの中の「コンテンツ」見出し */
   contentHeading: string;
   /** メニュー最下部に出す、いま入っている人の表示名。取れなければ null */
@@ -67,18 +65,16 @@ type Props = {
  *
  * 🚨 面は作らない（§1）。上辺の罫線1本だけで、背景は本体と同じ。
  *
- * 🚨 **`bottomItems` と `reports` は必ずサイドバー（PC）と同じものを受け取る。**
+ * 🚨 **`bottomItems` は必ずサイドバー（PC）と同じものを受け取る。**
  * 同じデータを PC は `left-sidebar.tsx`、SP はここで別々に描いているため、
- * 片方だけに配線すると**もう片方だけ表示が消える**（実測: 2026-08-15、layout.tsx が
- * `bottomItems`/`reports` を `<LeftSidebar>` にしか渡しておらず、SP から通知・不具合報告が
- * 消えていた）。新しい行き先を足すときは、layout.tsx がこの2つのコンポーネント**両方**に
+ * 片方だけに配線すると**もう片方だけ表示が消える**。
+ * 新しい行き先を足すときは、layout.tsx がこの2つのコンポーネント**両方**に
  * 配線しているかを確認すること（`scripts/check-nav-parity.mjs` が機械的に検出する）。
  */
 export function MobileNav({
   items,
   groups,
   bottomItems,
-  reports,
   collections,
   collectionsError,
   contentHeading,
@@ -210,9 +206,6 @@ export function MobileNav({
                     ))}
                   </div>
                 ) : null}
-                {/* 🚨 PC の `SidebarFooter` と同じ位置＝一番下。中身は Server 側が渡す ReactNode
-                    なので `onClick` を持たせられない。クリックがバブルする外側で閉じる。 */}
-                <div onClick={() => setOpen(false)}>{reports}</div>
               </div>
             </div>
             <UserMenu

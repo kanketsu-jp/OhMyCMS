@@ -5,7 +5,6 @@ import { localAdminUserId } from "@/lib/settings/service";
 import { displayUserAvatarEmoji, displayUserLabel, displayUserName, displayUserPicture } from "@/lib/admin/user-label";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import { PageHeading } from "@/components/admin/page-heading";
-import { BugReportNav } from "@/components/admin/bug-report-nav";
 import { CollectionLabelsProvider } from "@/components/admin/collection-labels";
 import { GlobalSearchProvider } from "@/components/admin/global-search";
 import { HeaderBack } from "@/components/admin/header-back";
@@ -26,7 +25,7 @@ import { NotAllowedScreen } from "./not-allowed";
 // 7回続いて**上位5項目が埋もれる**。開閉に畳んで 12行 → 6行にする。
 //
 // 🚨 **「通知」はここに無い。** 組の下へ移した（堀池・2026-08-15）。
-// 🚨 **「不具合報告」はここに無い。** 左サイドバーの**下部**へ移した（堀池・2026-08-15）。
+// 🚨 **「不具合報告」はここに無い。** ユーザーメニューへ移した（堀池・2026-08-17）。
 // 🚨 **「ファイル」もここに無い。** 畳む組になった（下の `fileItems`）。
 const navItems: { href: string; labelKey: string }[] = [];
 
@@ -160,15 +159,6 @@ export default async function AdminLayout({
       ? Math.max(0, personalNotifications.data.unread)
       : 0;
 
-  // 左サイドバー下部の「不具合報告」。
-  // 🚨 **2026-08-15 にアコーディオン化した。** 以前の申し送りは「`/admin/reports/manage` と
-  //    『報告する』の部品が polish(p14) の worktree にあって main にまだ無いので、リンクを
-  //    足すと 404 になる」だったが、実測（HEAD 96b12cc）で `app/(admin)/admin/reports/manage/page.tsx`
-  //    と `components/admin/bug-report-trigger.tsx` はどちらも main に揃っていた。
-  //    → 揃ったので `BugReportNav`（「報告する」「報告一覧」「報告管理」のアコーディオン）へ差し替えた。
-  // 🚨 **組は1度だけ組み立てて、PC と SP の両方へ同じものを渡す。**
-  //    2箇所に書くと、片方だけ直したときに PC と SP で行き先が食い違う
-  //    （`nav-links.tsx` に同じ理由の申し送りがある）。
   const navGroups = [
     {
       key: "files",
@@ -184,25 +174,6 @@ export default async function AdminLayout({
     },
   ];
 
-  // 「報告管理」を出すかどうか。`/api/reports` の GET が `can_manage` を返す
-  // （`app/api/reports/route.ts:78` の `ok({ data, can_manage: manager })`）。
-  // 🚨 `me.ok` が偽のときは呼ばない（`collections` が `me.ok ? ... : null` としているのと同じ）。
-  // 🚨 取れなかったら **false に倒す**（出さない側へ倒す）。**UI で隠すのは権限制御ではない**——
-  //    本体の防御は API 側の 403（`route.ts:59`）。ここは見た目の話。
-  const reportsMeta = me.ok
-    ? await apiFetch<{ can_manage: boolean }>("/api/reports?limit=1")
-    : null;
-  const canManageReports = reportsMeta?.ok ? reportsMeta.data.can_manage === true : false;
-
-  const reportsNav = (
-    <BugReportNav
-      labelReport={t("report_create")}
-      labelList={t("report_list")}
-      labelManage={t("report_manage")}
-      groupLabel={t("reports")}
-      canManage={canManageReports}
-    />
-  );
   const sidebarCookie = (await cookies()).get("sidebar_state")?.value;
   const leftSidebarDefaultOpen = sidebarCookie !== "false";
 
@@ -226,7 +197,7 @@ export default async function AdminLayout({
       <GlobalSearchProvider>
       <LeftSidebarProvider defaultOpen={leftSidebarDefaultOpen}>
       <RightPanelProvider brand={brand}>
-      {/* 左サイドバー。**上部＝検索 / 中央＝メニュー / 下部＝不具合報告**（堀池・2026-08-15）。
+      {/* 左サイドバー。**上部＝検索 / 中央＝メニュー / 下部＝利用者操作**。
           🚨 中身の並べ方は `left-sidebar.tsx` が持つ。ここは**データを渡すだけ**にする
              （開閉の状態を持つので client component。データ取得はサーバのまま）。 */}
       <LeftSidebar
@@ -246,7 +217,6 @@ export default async function AdminLayout({
             : []
         }
         collectionsError={collections?.ok ? null : t("collections_error")}
-        reports={reportsNav}
         // 🚨 auth が `displayUserName(me, locale)` を供えたので、null から差し替え済み。
         //    1行目には本名が出る（無ければ `UserMenu` 側の「表示名 → 無ければ辞書の控え」で埋まる）。
         userName={displayUserName(me.ok ? me.data : null, locale, localAdminId)}
@@ -342,7 +312,6 @@ export default async function AdminLayout({
         items={navItems.map((item) => ({ href: item.href, label: t(item.labelKey) }))}
         groups={navGroups}
         bottomItems={bottomNavItems.map((item) => ({ href: item.href, label: tKey(item.labelKey) }))}
-        reports={reportsNav}
         collections={
           collections?.ok
             ? collections.data.map((row) => ({
@@ -362,8 +331,8 @@ export default async function AdminLayout({
         userPicture={displayUserPicture(me.ok ? me.data : null, localAdminId)}
         userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null, localAdminId)}
       />
-      {/* 🚨 `MobileNav` も Provider の中に置く。SP のドロワーから右パネルを開くものが入るため
-          （不具合報告の「報告する」）。`MobileNav` は fixed なので、flex の並びには影響しない。 */}
+      {/* 🚨 `MobileNav` も Provider の中に置く。SP のドロワー内の `UserMenu` から
+          右パネルを開くものが入るため。`MobileNav` は fixed なので、flex の並びには影響しない。 */}
       </RightPanelProvider>
       </LeftSidebarProvider>
       </GlobalSearchProvider>
