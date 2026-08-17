@@ -277,17 +277,23 @@ export default async function FilesPage({ searchParams }: Props) {
             </p>
           ) : null}
           {filesResult.ok || foldersResult.ok ? (
-            view === "table" ? (
-              <FilesTable folders={childFolders} files={files} columns={columns} />
-            ) : (
-            <div className={`grid gap-4 ${cardGridClass(cardColumns)}`}>
-              {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
-              <FilesLightboxGrid files={files} />
+            <>
+              {/* 表示形式の外に置く。カードと表で伝わる情報が変わっていたため。
+                  「元から空」と「絞り込んだ結果 0 件」では、次にする操作が違う。 */}
               {childFolders.length === 0 && files.length === 0 ? (
-                <p className="col-span-full text-sm text-muted-foreground">{t("empty_folder")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {activeLabel ? t("empty_filtered") : t("empty_folder")}
+                </p>
               ) : null}
-            </div>
-            )
+              {view === "table" ? (
+                <FilesTable folders={childFolders} files={files} columns={columns} />
+              ) : (
+                <div className={`grid gap-4 ${cardGridClass(cardColumns)}`}>
+                  {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
+                  <FilesLightboxGrid files={files} />
+                </div>
+              )}
+            </>
           ) : null}
           {filesResult.ok ? (
             <ListPagination

@@ -10,6 +10,7 @@
   "drop_active": "離すと追加されます",
   "drop_hint": "またはタップして選ぶ",
   "drop_label": "ここにファイルをドロップ",
+  "empty_filtered": "この条件に合うファイルはありません。",
   "empty_folder": "この場所は空です。",
   "error_delete_failed": "削除できません",
   "error_files_load_failed": "ファイル一覧を取得できません",

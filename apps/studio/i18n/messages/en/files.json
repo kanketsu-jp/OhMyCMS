@@ -10,6 +10,7 @@
   "drop_active": "Release to add",
   "drop_hint": "or tap to choose",
   "drop_label": "Drop files here",
+  "empty_filtered": "No files match this filter.",
   "empty_folder": "This location is empty",
   "error_delete_failed": "Failed to delete file",
   "error_files_load_failed": "Failed to load files",
