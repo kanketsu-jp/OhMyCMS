@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import Lightbox, { type Labels } from "yet-another-react-lightbox";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import "yet-another-react-lightbox/styles.css";
@@ -23,10 +24,43 @@ type ImageLightboxProps = {
   open: boolean;
   /** 閉じたときに呼ばれる */
   onClose: () => void;
+  /** ライトボックスを管理画面の本文領域だけに出す */
+  confineToContent?: boolean;
 };
 
-export function ImageLightbox({ images, index, open, onClose }: ImageLightboxProps) {
+/** 覆う矩形を "top,left,width,height" の文字列で返す。空文字は「覆わない」。 */
+function useContentBoxKey(enabled: boolean): string {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("resize", onChange);
+      window.addEventListener("scroll", onChange, true);
+      return () => {
+        window.removeEventListener("resize", onChange);
+        window.removeEventListener("scroll", onChange, true);
+      };
+    },
+    () => {
+      if (!enabled) return "";
+      const main = document.querySelector("main");
+      if (!main) return "";
+      const r = main.getBoundingClientRect();
+      const top = Math.max(0, r.top);
+      return [top, r.left, r.width, window.innerHeight - top].join(",");
+    },
+    () => "",
+  );
+}
+
+export function ImageLightbox({
+  images,
+  index,
+  open,
+  onClose,
+  confineToContent = false,
+}: ImageLightboxProps) {
   const t = useT("files");
+  const contentBoxKey = useContentBoxKey(confineToContent);
+  const [top = 0, left = 0, width = 0, height = 0] = contentBoxKey.split(",").map(Number);
   const labels = {
     Previous: t("lightbox_prev"),
     Next: t("lightbox_next"),
@@ -40,6 +74,27 @@ export function ImageLightbox({ images, index, open, onClose }: ImageLightboxPro
     "Zoom out": t("lightbox_zoom_out"),
   } satisfies Labels;
 
+  /**
+   * 🚨 **`portal={undefined}` を渡してはいけない。**
+   *
+   * この部品は既定の設定を props で上書きするので、**明示的に `undefined` を渡すと
+   * `portal` そのものが消える**。すると中の `Portal` が `{ root, container }` を
+   * 分解するところで落ちる。実測（2026-08-17）:
+   *   `Uncaught TypeError: Cannot read properties of undefined (reading 'root')`
+   *   ライトボックスは**開かない**（`[class*="yarl"]` が 0 件のまま）。
+   *
+   * 🚨 **一覧では起きない。** 一覧は `portal` を渡す側なので平気で、
+   *    壊れるのは**渡さない側の画面（ファイルの詳細）だけ**だった。
+   *    ＝ **自分が直した画面を見ているかぎり気づけない形の退行**。
+   *    🟢 対照でそれを掴んだ: HEAD の版に戻すと詳細ページは開き（yarl 0 → 24）、
+   *    こちらの版では開かなかった（0 のまま）。
+   *
+   * → **渡さないときは props ごと出さない。**
+   */
+  const portalProps = contentBoxKey
+    ? { portal: { container: { style: { top, left, width, height, right: "auto", bottom: "auto" } } } }
+    : {};
+
   return (
     <Lightbox
       open={open}
@@ -48,6 +103,7 @@ export function ImageLightbox({ images, index, open, onClose }: ImageLightboxPro
       slides={images}
       plugins={[Zoom]}
       labels={labels}
+      {...portalProps}
     />
   );
 }

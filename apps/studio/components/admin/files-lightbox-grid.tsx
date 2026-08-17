@@ -119,7 +119,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
           </FileTileMenu>
         );
       })}
-      <ImageLightbox images={images} index={index} open={open} onClose={() => setOpen(false)} />
+      <ImageLightbox images={images} index={index} open={open} onClose={() => setOpen(false)} confineToContent />
     </>
   );
 }
