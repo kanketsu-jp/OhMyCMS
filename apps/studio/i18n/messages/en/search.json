@@ -1,5 +1,7 @@
 {
   "placeholder": "Search",
+  "scope_all": "Everywhere",
+  "scope_page": "This screen",
   "dialog_title": "Search everything",
   "dialog_description": "Find items, files, collections, settings and screens in one place.",
   "open_hint": "Search",

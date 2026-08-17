@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SearchIcon } from "lucide-react";
 import {
   Command,
@@ -131,9 +131,11 @@ function SearchDialog({
   onOpenChange: (value: boolean) => void;
 }) {
   const t = useT("search");
+  const pathname = usePathname();
   const router = useRouter();
 
   const [query, setQuery] = useState("");
+  const [scope, setScope] = useState<"all" | "page">("all");
   const [result, setResult] = useState<SearchResult>(EMPTY);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -188,27 +190,100 @@ function SearchDialog({
     return () => clearTimeout(timer);
   }, [query]);
 
-  const go = useCallback(
-    (href: string) => {
-      onOpenChange(false);
-      setQuery("");
-      router.push(href);
-    },
-    [router, onOpenChange],
+  const pageKinds = useMemo<(keyof SearchResult)[]>(() => {
+    if (pathname.startsWith("/admin/files")) return ["files"];
+    if (
+      pathname.startsWith("/admin/content") ||
+      pathname.startsWith("/admin/collections")
+    ) {
+      return ["items", "collections"];
+    }
+    if (pathname.startsWith("/admin/settings")) return ["settings"];
+    return ["pages"];
+  }, [pathname]);
+
+  const visibleGroups = useMemo(
+    () =>
+      scope === "all"
+        ? GROUPS
+        : GROUPS.filter((group) => pageKinds.includes(group.key)),
+    [pageKinds, scope],
   );
 
-  const total = GROUPS.reduce((n, group) => n + result[group.key].length, 0);
+  const handleOpenChange = useCallback(
+    (value: boolean) => {
+      if (!value) {
+        setScope("all");
+        setQuery("");
+      }
+      onOpenChange(value);
+    },
+    [onOpenChange],
+  );
+
+  const go = useCallback(
+    (href: string) => {
+      handleOpenChange(false);
+      router.push(href);
+    },
+    [router, handleOpenChange],
+  );
+
+  const total = visibleGroups.reduce(
+    (n, group) => n + result[group.key].length,
+    0,
+  );
 
   return (
     <CommandDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title={t("dialog_title")}
       description={t("dialog_description")}
     >
       {/* 🚨 絞り込みはサーバが済ませているので、cmdk 側の絞り込みは切る。 */}
       <Command shouldFilter={false}>
+        <div
+          role="tablist"
+          className="mx-3 mt-3 grid grid-cols-2 rounded-lg bg-muted p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={scope === "all"}
+            onClick={() => setScope("all")}
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-background/80 active:bg-background ${
+              scope === "all"
+                ? "bg-background text-foreground shadow-xs"
+                : "text-muted-foreground"
+            }`}
+          >
+            {t("scope_all")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={scope === "page"}
+            onClick={() => setScope("page")}
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-background/80 active:bg-background ${
+              scope === "page"
+                ? "bg-background text-foreground shadow-xs"
+                : "text-muted-foreground"
+            }`}
+          >
+            {t("scope_page")}
+          </button>
+        </div>
+        {/* 🚨 **`autoFocus` は飾りではない。** 切り替えのボタンを入力欄より前に置いた瞬間、
+            ダイアログが最初に焦点を当てる先が**そのボタン**になり、
+            **開いてすぐ打っても 1 文字も入らなくなった**（実測 2026-08-17:
+            入力欄の値 "" ／ 焦点が入力欄か false ／ 見出し 0 件。
+            🟢 対照 同じときに `/api/search?q=a` は 200 で items 5・collections 5 を返していた
+            ＝ 検索が壊れたのではなく、**打った文字が入力欄に届いていなかった**）。
+            切り替えを入力欄の**上**に置くのは堀池さんの「分かりやすい UI」の形なので動かさず、
+            **焦点だけを入力欄へ戻す**。 */}
         <CommandInput
+          autoFocus
           value={query}
           onValueChange={onQueryChange}
           placeholder={t("placeholder")}
@@ -225,7 +300,7 @@ function SearchDialog({
             <CommandEmpty>{t("empty")}</CommandEmpty>
           ) : null}
 
-          {GROUPS.map(({ key, labelKey }) =>
+          {visibleGroups.map(({ key, labelKey }) =>
             result[key].length > 0 ? (
               <CommandGroup key={key} heading={t(labelKey)}>
                 {result[key].map((hit) => (
