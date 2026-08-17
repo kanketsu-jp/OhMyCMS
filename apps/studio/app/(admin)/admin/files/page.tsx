@@ -378,7 +378,17 @@ export default async function FilesPage({ searchParams }: Props) {
                 <FilesTable folders={childFolders} files={files} columns={columns} />
               ) : (
                 <div className={`grid gap-4 ${cardGridClass(cardColumns)}`}>
-                  {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
+                  {foldersResult.ok ? (
+                    <FolderGrid
+                      folders={childFolders}
+                      currentFolderId={currentFolderId}
+                      parentFolderId={
+                        currentFolderId
+                          ? folders.find((folder) => folder.id === currentFolderId)?.parent ?? null
+                          : null
+                      }
+                    />
+                  ) : null}
                   <FilesLightboxGrid files={files} />
                 </div>
               )}

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Folder, MoreHorizontal, Trash2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowUp, Folder, MoreHorizontal, Trash2 } from "lucide-react";
 import { useState, type ComponentProps, type ComponentType } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,14 @@ type FolderTileProps = {
   onRemove: () => void;
   recolorPending: boolean;
   onRecolor: (color: string | null) => void;
+};
+
+type ParentFolderTileProps = {
+  isDropTarget: boolean;
+  onDragOver: (event: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (event: React.DragEvent) => void;
+  onOpen: () => void;
 };
 
 /**
@@ -209,7 +217,50 @@ function FolderTile({
   );
 }
 
-export function FolderGrid({ folders }: { folders: FolderRow[] }) {
+function ParentFolderTile({
+  isDropTarget,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onOpen,
+}: ParentFolderTileProps) {
+  const t = useT("folders");
+
+  return (
+    <div
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={
+        isDropTarget
+          ? "group/tile relative min-w-0 rounded-md p-3 outline-2 outline-offset-[-2px] outline-dashed outline-ring"
+          : "group/tile relative min-w-0 rounded-md p-3 hover:bg-muted active:bg-muted/80"
+      }
+    >
+      <button type="button" onClick={onOpen} className="block w-full min-w-0 text-left">
+        <div
+          data-surface-exempt
+          className="mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted"
+        >
+          <ArrowUp className="size-10 text-muted-foreground" />
+        </div>
+        <p className="truncate text-sm font-medium">{t("move_to_parent")}</p>
+      </button>
+    </div>
+  );
+}
+
+const PARENT_DROP_TARGET = "__parent__";
+
+export function FolderGrid({
+  folders,
+  currentFolderId,
+  parentFolderId,
+}: {
+  folders: FolderRow[];
+  currentFolderId: string | null;
+  parentFolderId: string | null;
+}) {
   const t = useT("folders");
   const tError = useT("errors");
   const messageFrom = (payload: unknown, status: number, fallback: string) => {
@@ -218,6 +269,7 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
     return key ? tError(key) : fallback;
   };
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
   const remove = useSubmitOnce(async (id: string) => {
@@ -296,7 +348,7 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
    *    足すとしたら「同じ操作が 2 回走ることの無駄」を減らすためで、**壊れるからではない**。
    *    **「守りが無い」と「危ない」は別**なので、そう書き分けておきます。
    */
-  const moveInto = async (folderId: string, fileIds: string[]) => {
+  const moveInto = async (folderId: string | null, fileIds: string[]) => {
     let moved = 0;
     let failed = 0;
     for (const fileId of fileIds) {
@@ -321,9 +373,39 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
   const carriesFile = (event: React.DragEvent): boolean =>
     Array.from(event.dataTransfer.types).includes(DRAG_FILE_MIME);
 
+  const parentHref = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("folder", parentFolderId ?? "root");
+    return `/admin/files?${params.toString()}`;
+  };
+
   return (
     <div className="contents">
       {error ? <p className="col-span-full text-sm text-destructive">{error}</p> : null}
+      {currentFolderId ? (
+        <ParentFolderTile
+          isDropTarget={dropTarget === PARENT_DROP_TARGET}
+          onDragOver={(event) => {
+            if (!carriesFile(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setDropTarget(PARENT_DROP_TARGET);
+          }}
+          onDragLeave={() =>
+            setDropTarget((current) => (current === PARENT_DROP_TARGET ? null : current))
+          }
+          onDrop={(event) => {
+            if (!carriesFile(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setDropTarget(null);
+            const raw = event.dataTransfer.getData(DRAG_FILE_MIME);
+            const ids = raw ? (JSON.parse(raw) as string[]) : [];
+            if (ids.length > 0) void moveInto(parentFolderId, ids);
+          }}
+          onOpen={() => router.push(parentHref())}
+        />
+      ) : null}
       {folders.map((folder) => (
         <FolderTile
           key={folder.id}

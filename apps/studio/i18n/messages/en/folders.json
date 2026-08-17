@@ -11,6 +11,7 @@
   "name_placeholder": "Folder name",
   "title": "Folders",
   "moved": "Moved {count} file(s)",
+  "move_to_parent": "Up one level",
   "move_failed": "Could not move {count} file(s)",
   "color_slate": "Gray",
   "color_red": "Red",
