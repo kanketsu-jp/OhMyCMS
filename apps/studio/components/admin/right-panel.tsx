@@ -252,7 +252,15 @@ function PanelBody({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // 🚨 `min-w-0` が要る（DESIGN.md §7-1「PC 幅だけで測らない」で見つけた）。
+    //    flex の子は既定が `min-width: auto` ＝ **中身より小さくならない**。
+    //    SP は全画面ダイアログなので、中の「LLM へ渡すプロンプト」（`w-max` の pre）が
+    //    そのままこの器を押し広げていた。実測（幅 390・/admin/content/<c>）:
+    //      節を開く前 …………………… はみ出す要素 **0**
+    //      🚨 API・MCP を開いた後 … はみ出す要素 **73** ／ ダイアログの幅 **904**（画面は 390）
+    //    ＝ 横に流せる箱（ScrollArea）は在ったのに、**その外側が縮めなかった**ので効いていなかった。
+    // 🚨 PC でも同じ器を使う。PC は幅が決まっているので見た目は変わらない（実測で確認済み）。
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex min-h-14 shrink-0 items-center gap-1 border-b px-2">
         {/* 🚨 戻るボタンは**深さが2以上のときだけ**。押し込んだ側に描かせない
             （描かせると、押し込む場所ごとに戻る動きが割れる）。 */}
