@@ -386,3 +386,34 @@
     block-size: calc(var(--tree-row-h-pc) / 2);
   }
 }
+
+/* WideTable の濃いフェード案。
+   🚨 data-slot="table-container" だけでは絞らない。Table は 11 ファイルから参照される共有部品なので、
+      この案は WideTable のラッパー属性配下だけに閉じ込める。
+   🚨 --scroll-fade-s / --scroll-fade-e は scroll-fade-x がスクロール位置に追従して動かす値をそのまま使う。
+      端に着いた側は 0 になるため、「端に着いたらフェードが消える」挙動は保たれる。 */
+[data-wide-table="strong"] [data-slot="table-container"] {
+  --scroll-fade-size: min(20%, 96px);
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    rgba(0, 0, 0, 0.08) calc(var(--scroll-fade-s, 0px) * 0.35),
+    rgba(0, 0, 0, 0.45) calc(var(--scroll-fade-s, 0px) * 0.7),
+    #000 var(--scroll-fade-s, 0px),
+    #000 calc(100% - var(--scroll-fade-e, 0px)),
+    rgba(0, 0, 0, 0.45) calc(100% - var(--scroll-fade-e, 0px) * 0.7),
+    rgba(0, 0, 0, 0.08) calc(100% - var(--scroll-fade-e, 0px) * 0.35),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    rgba(0, 0, 0, 0.08) calc(var(--scroll-fade-s, 0px) * 0.35),
+    rgba(0, 0, 0, 0.45) calc(var(--scroll-fade-s, 0px) * 0.7),
+    #000 var(--scroll-fade-s, 0px),
+    #000 calc(100% - var(--scroll-fade-e, 0px)),
+    rgba(0, 0, 0, 0.45) calc(100% - var(--scroll-fade-e, 0px) * 0.7),
+    rgba(0, 0, 0, 0.08) calc(100% - var(--scroll-fade-e, 0px) * 0.35),
+    transparent 100%
+  );
+}
