@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
@@ -10,7 +11,7 @@ import { RelationForm } from "@/components/admin/relation-form";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { fieldLabel } from "@/lib/schema/labels";
 import { getLocale, getT } from "@/i18n/server";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
   Accordion,
@@ -265,16 +266,30 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                     <TableCell>{row.relatedCollection}</TableCell>
                     <TableCell>{row.relatedField}</TableCell>
                     <TableCell className="text-right">
+                      {/* 🚨 関連の削除は**戻せない**（`lib/schema/service.ts:1143` が `.delete()`）。
+                          決定 `confirm-by-reversibility-and-reach` の①に当たるので確認を出す。
+                          🚨 **フォームはサーバ側のまま**（`method="post"` → route handler）。
+                          送信ボタンだけを client にしてある（`ConfirmSubmit` の申し送り参照）。 */}
                       <form
+                        id={`relation-delete-${row.key}`}
                         action={`/admin/actions/collections/${encoded}/relations/delete`}
                         method="post"
                       >
                         <input type="hidden" name="many_collection" value={row.relation.many_collection} />
                         <input type="hidden" name="many_field" value={row.relation.many_field} />
-                        <Button type="submit" variant="destructive-ghost" size="sm" aria-label={tRelations("delete_button")}>
+                        <ConfirmSubmit
+                          formId={`relation-delete-${row.key}`}
+                          title={tRelations("delete_confirm_title")}
+                          description={tRelations("delete_confirm", {
+                            field: row.currentField,
+                            collection: row.relatedCollection,
+                          })}
+                          confirmLabel={tRelations("delete_button")}
+                          ariaLabel={tRelations("delete_button")}
+                        >
                           <Trash2 />
                           <span className="hidden md:inline">{tRelations("delete_button")}</span>
-                        </Button>
+                        </ConfirmSubmit>
                       </form>
                     </TableCell>
                   </TableRow>
