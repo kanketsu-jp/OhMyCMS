@@ -214,7 +214,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         <FormDraft formId="user-policy-assign-form" />
         <div className="space-y-1.5">
           <FieldLabel htmlFor="user" required>{t("user_label")}</FieldLabel>
-          <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
+          <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
             {users.map((user) => (
               <option key={user.id} value={user.id}>{user.email}</option>
             ))}
@@ -222,7 +222,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         </div>
         <div className="space-y-1.5">
           <FieldLabel htmlFor="policy" required>{t("policy_label")}</FieldLabel>
-          <select id="policy" name="policy" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
+          <select id="policy" name="policy" required className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
             {policies.map((policy) => (
               <option key={policy.id} value={policy.id}>{policy.name}</option>
             ))}

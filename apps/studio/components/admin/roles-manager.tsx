@@ -184,7 +184,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="parent">{t("parent_label")}</Label>
-          <select id="parent" name="parent" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
+          <select id="parent" name="parent" className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
             <option value="">{t("none_option")}</option>
             {roles.map((role) => (
               <option key={role.id} value={role.id}>{role.name}</option>

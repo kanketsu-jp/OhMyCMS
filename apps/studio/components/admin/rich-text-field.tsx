@@ -289,7 +289,8 @@ export function RichTextField({
 
   return (
     // 🚨 これは面ではなく、**入力欄の見た目**（憲章 §1「面の中の入力は罫線を外して塗る」）。
-    // 塗りは、この場所にあった JSON の <textarea> と同じ `bg-muted/60` に揃えてある。
+    // 塗りは、この場所にあった JSON の <textarea> と同じ `bg-input` に揃えてある
+    // （2026-08-17・堀池 AN1 で `bg-muted/60` から動いた。**揃える先が動いたら追随する**）。
     // <div> なので監査の FORM 判定（input/select/textarea）に当たらず面2段目として出るため、
     // 例外を**コードに書いて見えるようにする**（検査側に例外リストを隠さない）。
     <div
@@ -299,7 +300,7 @@ export function RichTextField({
         // 🚨 表示モードは**罫線・背景・左余白を落とす**（§2-1 の目標「値が文字として見える」）。
         //    `editable: false` にしても**枠はそのまま残る**ので、ここで落とす（実測 2026-08-16）。
         editable
-          ? "bg-muted/60 focus-within:ring-3 focus-within:ring-ring/50"
+          ? "bg-input focus-within:ring-3 focus-within:ring-ring/50"
           : "bg-transparent",
       )}
     >
@@ -328,7 +329,7 @@ export function RichTextField({
       <ScrollFade
         data-surface-exempt
         direction="horizontal"
-        className="sticky top-0 z-10 rounded-t-lg border-b border-border bg-muted/60"
+        className="sticky top-0 z-10 rounded-t-lg border-b border-border bg-input"
       >
         <div className="flex w-max items-center gap-0.5 px-1">
           <ToolbarButton label={t("bold")} active={active?.bold} disabled={!editor} onClick={() => editor?.chain().focus().toggleBold().run()}>

@@ -29,7 +29,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
         "min-h-(--control-h) w-full min-w-0 rounded-lg bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none field-sizing-content md:min-h-(--control-h-pc) placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-muted-foreground aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm",
         insideSurface
           // 面の中: 罫線を持たず背景で区別する
-          ? "bg-muted/60 disabled:bg-muted/40"
+          ? "bg-input disabled:bg-muted/40"
           // 面の外: 罫線で区別する
           : "border border-input focus-visible:border-ring disabled:bg-input/50 aria-invalid:border-destructive dark:bg-input/30",
         // 🚨 **`input.tsx` と同じ扱いにする**（2026-08-16 に**欠けているのを実測で見つけた**）。
@@ -71,7 +71,7 @@ function NativeSelect({ className, ...props }: React.ComponentProps<"select">) {
         // 🚨 文字は text-base（16px）から。SP で 16px を割ると iOS が focus 時に画面を拡大する（憲章 §7 R5）。
         "min-h-(--control-h) w-full min-w-0 rounded-lg bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-muted-foreground md:min-h-(--control-h-pc-field) md:text-sm",
         insideSurface
-          ? "bg-muted/60 disabled:bg-muted/40"
+          ? "bg-input disabled:bg-muted/40"
           : "border border-input focus-visible:border-ring disabled:bg-input/50 dark:bg-input/30",
         className
       )}

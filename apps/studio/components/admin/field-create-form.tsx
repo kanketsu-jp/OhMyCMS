@@ -57,7 +57,7 @@ const fieldKinds: Record<FieldKindId, FieldKind> = {
 };
 
 const selectClassName =
-  "h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm";
+  "h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm";
 
 type Props = {
   collection: string;

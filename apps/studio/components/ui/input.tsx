@@ -41,7 +41,17 @@ function Input({
         "w-full min-w-0 rounded-lg bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-(--control-h-xs) file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-muted-foreground aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm",
         insideSurface
           // 面の中: 罫線を持たず背景で区別する
-          ? "bg-muted/60 disabled:bg-muted/40"
+          // 🚨 **`bg-muted/60` から `bg-input` へ（2026-08-17・堀池 AN1）。**
+          // 原文:「編集モードなのにどこが編集できるフィールドなのか全くわからない」
+          // 実測（アイテム編集・欄 34 個 = 読み取り専用 1 / 編集できる 33）:
+          //   編集できる bg-muted/60 を白(--card 255)に重ねると **249** ／
+          //   読み取り専用 read-only:bg-muted/40 は **251**
+          //   ＝ 🚨 **差は 2 / 255。枠は両方 0px。見えない**（指摘は正確だった）
+          // → `--input`(229) を敷いて差を **22 / 255** にした。
+          // 🚨 **枠を足して直さないのは、面が罫線を持っているため**
+          //   （decisions/no-nested-surfaces §2-2「どちらか一方。両方に境界を持たせない」）。
+          //   DESIGN §1-12 は「枠・地の色・カーソルのいずれか」なので、**地の色で満たす**。
+          ? "bg-input disabled:bg-muted/40"
           // 面の外: 罫線で区別する
           : "border border-input focus-visible:border-ring disabled:bg-input/50 aria-invalid:border-destructive dark:bg-input/30",
         // 🚨 **変えられない値は、入力欄に見せない**（堀池・2026-08-15 原文）:
@@ -58,6 +68,12 @@ function Input({
         // 🚨 2026-08-17 に堀池さんの指摘で反転:
         // > 「フィールドの枠がないので、わからない。」
         // 枠は出さず、薄い地の色と通常入力と同じ左右余白で、欄が在ることを示す。
+        // 🚨 **同じ日に、その副作用が指摘された（AN1）**:
+        // > 「編集モードなのにどこが編集できるフィールドなのか全くわからない」
+        // ＝ 読み取り専用に地の色を敷いたので、**編集できる欄と区別が付かなくなった**。
+        // 直したのは**編集できる側**（上の `bg-input`）。ここ（読み取り専用）は 251 のまま。
+        // 🚨 表示モードでは**全部の欄が読み取り専用**になるので、ここを濃くすると
+        //   「欄が在る」の合図が消える。**状態ごとに要求が違うので、片側だけ動かす。**
         // 🚨 `<input>` のままにするのは、**ID をなぞって選択・コピーできる必要がある**ため
         //    （`<p>` にすると値だけを選びにくくなる）。
         "read-only:border-transparent read-only:bg-muted/40 read-only:px-3 read-only:cursor-default read-only:focus-visible:ring-0",
