@@ -290,7 +290,15 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         </TableHeader>
         <TableBody>
           {agents.map((agent) => (
-            <TableRow key={agent.id}>
+            <TableRow
+              key={agent.id}
+              className="cursor-pointer"
+              // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("button, a")) return;
+                router.push(`/admin/settings/agents/${agent.id}`);
+              }}
+            >
               <TableCell className="font-medium">
                 {/* 🚨 名前から 1 件のページへ（`decisions/list-views-are-switchable-layouts` §3）。
                     **失効しているものも開ける**——**いつ失効したかが、いちばん見たい情報**なので。 */}

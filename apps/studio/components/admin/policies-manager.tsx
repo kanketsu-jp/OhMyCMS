@@ -113,7 +113,15 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
         </TableHeader>
         <TableBody>
           {policies.map((policy) => (
-            <TableRow key={policy.id}>
+            <TableRow
+              key={policy.id}
+              className="cursor-pointer"
+              // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("button, a")) return;
+                router.push(`/admin/settings/policies/${policy.id}`);
+              }}
+            >
               <TableCell className="font-medium">
                 <span className="flex items-center gap-2">
                   {policy.name}
@@ -128,10 +136,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
                     （`knowledge/decisions/action-button-and-edit-mode.md`。283 A を行へ延ばしたもの）。
                     形はゴミ箱（`trash-manager.tsx`）に合わせている。新しい形を作らない。 */}
                 <div className="flex justify-end gap-1">
-                  <Link
-                    href={`/admin/settings/policies/${policy.id}`}
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                  >
+                  <Link href={`/admin/settings/policies/${policy.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                     {t("edit_permissions_link")}
                   </Link>
                   <RowOptions

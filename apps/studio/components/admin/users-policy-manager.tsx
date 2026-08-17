@@ -130,7 +130,15 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         </TableHeader>
         <TableBody>
           {access.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow
+              key={row.id}
+              className="cursor-pointer"
+              // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("button, a")) return;
+                router.push(`/admin/settings/users/${row.user}`);
+              }}
+            >
               {/* 🚨 **利用者の行だけ**、1 件のページへ開ける
                   （`decisions/list-views-are-switchable-layouts` §3。**役割には 1 件のページが別に在る**）。
                   🚨 **役割の行をここからリンクしない**——**役割の一覧が別に在るのに、

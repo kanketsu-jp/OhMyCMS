@@ -110,7 +110,15 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
         </TableHeader>
         <TableBody>
           {roles.map((role) => (
-            <TableRow key={role.id}>
+            <TableRow
+              key={role.id}
+              className="cursor-pointer"
+              // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("button, a")) return;
+                router.push(`/admin/settings/roles/${role.id}`);
+              }}
+            >
               {/* 🚨 一覧から 1 件へ開ける（`decisions/list-views-are-switchable-layouts` §3）。
                   名前をリンクにするのは `files-table` と同じ形——**行の識別子が入口**。 */}
               <TableCell className="font-medium">
