@@ -28,6 +28,7 @@ x_rag_okf:
 - [v1 として何を約束しているか（V1-A〜E）](./areas/v1-scope.md) — `areas/v1-scope`
 - [アクションボタンは1つ。表示モードと編集モードを分ける](./decisions/action-button-and-edit-mode.md) — `decisions/action-button-and-edit-mode`
 - [管理画面は「全部見える」か「何も見えない」の二値](./decisions/admin-ui-is-all-or-nothing.md) — `decisions/admin-ui-is-all-or-nothing`
+- [読み込み中の表示は「画面が変わるとき」だけ入っている。「その場で変わるとき」は入っていない](./decisions/loading-indicators-cover-navigation-not-in-place.md) — `decisions/loading-indicators-cover-navigation-not-in-place`
 - [指示書は AGENTS.md を正本にする](./decisions/agents-md-as-canonical.md) — `decisions/agents-md-as-canonical`
 - [認証は SAML → メール OTP → パスワードの順に使う](./decisions/auth-methods.md) — `decisions/auth-methods`
 - [アバターは絵文字にする。メールの頭文字を出さない](./decisions/avatar-is-emoji-not-initials.md) — `knowledge/decisions/avatar-is-emoji-not-initials.md`
@@ -51,6 +52,7 @@ x_rag_okf:
 - [設定・スキーマの正本は JSON](./decisions/json-as-source-of-truth.md) — `decisions/json-as-source-of-truth`
 - [一覧は「画面」ではなく「切り替えられる表示形式」にする](./decisions/list-views-are-switchable-layouts.md) — `decisions/list-views-are-switchable-layouts`
 - [多層で守ると、層ごとの退行が外から見えなくなる](./decisions/layers-hide-each-others-regressions.md) — `decisions/layers-hide-each-others-regressions`
+- [読み込み中の合図は遷移の種類で分ける。「その場で変わる」ときは、まだ入れていない](./decisions/loading-feedback-by-navigation-kind.md) — `decisions/loading-feedback-by-navigation-kind`
 - [migration を足す人は、直前に「他人の未適用分」を確認する](./decisions/migrations-are-shared.md) — `decisions/migrations-are-shared`
 - [開発サーバを外部へ公開しない（公開するのは本番ビルドだけ）](./decisions/never-expose-dev-server.md) — `decisions/never-expose-dev-server`
 - [Directus をフォークしない](./decisions/no-directus-fork.md) — `decisions/no-directus-fork`
