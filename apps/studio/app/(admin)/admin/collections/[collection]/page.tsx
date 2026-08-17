@@ -77,6 +77,10 @@ function relationRows(relations: RelationResult[], collection: string): Collecti
   });
 }
 
+function fieldTranslationFormId(field: string) {
+  return `field-translation-form-${encodeURIComponent(field)}`;
+}
+
 export default async function CollectionDetailPage({ params, searchParams }: Props) {
   const query = await searchParams;
   // 🚨 URL の値は鍵としてしか受け取らない（許可リスト・fail closed）。i18n/error.ts 参照。
@@ -194,10 +198,19 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
         {fieldsResult.ok ? (
           <>
+            {見せる項目.map((field) => (
+              <form
+                key={field.field}
+                id={fieldTranslationFormId(field.field)}
+                action={`/admin/actions/collections/${encoded}/fields/${encodeURIComponent(field.field)}/translations`}
+                method="post"
+              />
+            ))}
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{tFields("field_header")}</TableHead>
+                  <TableHead>{tFields("display_name_header")}</TableHead>
                   <TableHead>{tFields("type_label")}</TableHead>
                   <TableHead>{tFields("required_label")}</TableHead>
                   <TableHead>{tFields("primary_key_header")}</TableHead>
@@ -205,20 +218,65 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {見せる項目.map((field) => (
-                  <TableRow key={field.field}>
-                    <TableCell className="font-medium">
-                      {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
-                          辞書が空なら `fieldLabel` が識別子を返すので、
-                          名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
-                      {fieldLabel(field, locale)}
-                    </TableCell>
-                    <TableCell>{field.type}</TableCell>
-                    <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
-                    <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
-                    <TableCell>{field.schema?.data_type ?? ""}</TableCell>
-                  </TableRow>
-                ))}
+                {見せる項目.map((field) => {
+                  const formId = fieldTranslationFormId(field.field);
+                  const translations = field.meta?.translations ?? null;
+                  const jaLabel = tCommon("locale_ja");
+                  const enLabel = tCommon("locale_en");
+
+                  return (
+                    <TableRow key={field.field}>
+                      <TableCell className="font-medium">
+                        {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
+                            辞書が空なら `fieldLabel` が識別子を返すので、
+                            名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
+                        {fieldLabel(field, locale)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-2">
+                          <div className="grid gap-2 md:grid-cols-2">
+                            <div className="flex flex-col gap-1.5">
+                              <Label htmlFor={`${formId}-ja`}>{jaLabel}</Label>
+                              <Input
+                                id={`${formId}-ja`}
+                                name="name_ja"
+                                form={formId}
+                                defaultValue={translations?.ja ?? ""}
+                                aria-label={tFields("display_name_input_label", {
+                                  field: field.field,
+                                  locale: jaLabel,
+                                })}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <Label htmlFor={`${formId}-en`}>{enLabel}</Label>
+                              <Input
+                                id={`${formId}-en`}
+                                name="name_en"
+                                form={formId}
+                                defaultValue={translations?.en ?? ""}
+                                aria-label={tFields("display_name_input_label", {
+                                  field: field.field,
+                                  locale: enLabel,
+                                })}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Button type="submit" form={formId} size="sm">
+                              <Save data-icon="inline-start" />
+                              {tFields("display_name_save")}
+                            </Button>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{field.type}</TableCell>
+                      <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
+                      <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
+                      <TableCell>{field.schema?.data_type ?? ""}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
