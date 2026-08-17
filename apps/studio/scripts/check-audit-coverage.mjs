@@ -54,6 +54,22 @@ const EXCLUDED = [
     reason:
       "中身を /admin/version へ移し、ここは転送だけになった（堀池「settings は不要で設定もしないので、admin/version でお願いします」）。着地先 /admin/version を直接巡回している",
   },
+  {
+    path: "/admin/settings/agents",
+    recordedAt: "2026-08-17",
+    status: "決定",
+    decider: "pages",
+    reason:
+      "HTTP 307（/admin/settings/ai へ統合・堀池「これらは1つのページにまとめるか、タブで切り替えられるようにしてください」）。着地先を直接巡回している",
+  },
+  {
+    path: "/admin/settings/mcp",
+    recordedAt: "2026-08-17",
+    status: "決定",
+    decider: "pages",
+    reason:
+      "HTTP 307（/admin/settings/ai へ統合・堀池「これらは1つのページにまとめるか、タブで切り替えられるようにしてください」）。着地先を直接巡回している",
+  },
 ];
 
 /**

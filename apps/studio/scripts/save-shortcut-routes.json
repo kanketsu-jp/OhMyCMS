@@ -21,6 +21,7 @@
     "🚨 いまは戻っている": "ece7d7b「③の 6 枚で ⌘Enter（保存）を戻す — フォームが自分で受ける」で、design の実測では 6 枚とも submit 1〜3（🟢 対照 /admin/collections/new 発火・🟢 陰性 ⌘B は 0）。つまり **画面では効く**。removed が『まだ外れている』と読めるが、それは d635b58 時点の記録であって、いまの状態ではない。",
     "🚨 件数が 4 と 5 で違うのは正しい": "⌘Enter を失ったのは 4 ルート。<PageAction> を失ったのは 5 枚。差の 1 枚 policy-permissions は form= を持たない onClick だったので**元から ⌘Enter を持っていない**。ece7d7b では hook を入れたのでその 1 枚も効く（実測 submit 3）＝ **戻したのではなく 1 枚は新しく足した**。だから『removed 4』と『いま効く 5〜6 枚』を引き算しないこと。",
     "🚨 いま removed が空な理由": "生成器（build-shortcuts-manifest.mjs）が 1beda45 で useFormSubmitShortcut を呼ぶ画面も数えるようになり、写しの scope が 11 → 17 ルートになった。d635b58 で失った 4 ルートは全部戻り、さらに labels と settings/policies/[id] が新しく加わった（＝ 戻したのではなく増えた分が在る）。removed に在るものが写しにも在ると declared-but-present で落ちるので、removed を空にし、過去の記録は _history_removed へ移した。",
+    "🚨 2026-08-17 /admin/settings/agents → /admin/settings/ai は「減った」ではなく「名前が変わった」": "堀池さんの G3（エージェント管理と MCP を 1 ページにまとめる）で、エージェントの画面が /admin/settings/ai のタブになった。/admin/settings/agents は転送だけのルートとして残っている。⌘Enter で保存できる画面は 1 つも減っていない（写しの scope も 18 ルートのまま）ので、removed へは移していない。removed へ入れると『保存の鍵を失った』と読まれるが、失っていない。",
     "🚨 写しと台帳は同じコミットで動かす": "実測（saml・2026-08-16）: 写しだけ先に入れると『写しに在るのに台帳に無い 6 件』で赤。台帳の removed だけ先に消すと『台帳に在る・写しに無い・理由が無い』で赤。＝ どちらを先に入れても、その間だけ門が赤くなる。2 ファイルは 1 コミットで入れる。"
   },
   "routes": [
@@ -34,7 +35,7 @@
     "/admin/files/new-folder",
     "/admin/labels",
     "/admin/profile",
-    "/admin/settings/agents",
+    "/admin/settings/ai",
     "/admin/settings/general",
     "/admin/settings/policies",
     "/admin/settings/policies/[id]",

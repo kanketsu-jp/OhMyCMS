@@ -53,7 +53,7 @@
       "page:/admin/profile",
       "page:/admin/collections/[collection]",
       "page:/admin/labels",
-      "page:/admin/settings/agents",
+      "page:/admin/settings/ai",
       "page:/admin/settings/policies/[id]",
       "page:/admin/settings/policies",
       "page:/admin/settings/roles",

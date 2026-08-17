@@ -1,33 +1,7 @@
-import { AgentsManager } from "@/components/admin/agents-manager";
-import { ErrorBanner } from "@/components/admin/error-banner";
-import { Surface, SurfaceTitle } from "@/components/ui/surface";
-import { getT } from "@/i18n/server";
-import { apiFetch } from "@/lib/admin/api";
+import { redirect } from "next/navigation";
 
-type AgentRow = {
-  id: string;
-  name: string;
-  on_behalf_of: string;
-  tenant_scope: unknown;
-  capabilities: unknown;
-  origin: string | null;
-  expires_at: string;
-  revoked_at: string | null;
-  created_at: string;
-};
-
-export default async function AgentsPage() {
-  const t = await getT("agents");
-  const tError = await getT("errors");
-  const result = await apiFetch<{ data: AgentRow[] }>("/api/auth/agents");
-
-  return (
-    <div className="max-w-6xl space-y-6">
-      <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
-      <Surface>
-        <SurfaceTitle>{t("manage_title")}</SurfaceTitle>
-        {result.ok ? <AgentsManager agents={result.data.data} /> : null}
-      </Surface>
-    </div>
-  );
+export default function AgentsPage() {
+  // 外に出ている旧 URL を壊さないため、ページ本体は統合先へ転送する。
+  // 左サイドバーのリンクが移るまでは、このルートを残して受ける。
+  redirect("/admin/settings/ai?tab=agents");
 }

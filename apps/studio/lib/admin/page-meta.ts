@@ -133,6 +133,7 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   // 🚨 `/admin/content` と同じ理由。ページは無いが名前は道筋に出す。
   "/admin/settings": { titleKey: "nav.settings", navigable: false },
   "/admin/settings/general": { titleKey: "settings.title", descriptionKey: "settings.description" },
+  "/admin/settings/ai": { titleKey: "agents.ai_title", descriptionKey: "agents.ai_description" },
   "/admin/settings/agents": { titleKey: "agents.title", descriptionKey: "agents.description" },
   "/admin/settings/mcp": { titleKey: "mcp.title", descriptionKey: "mcp.description" },
   "/admin/settings/policies": { titleKey: "policies.title", descriptionKey: "policies.description" },

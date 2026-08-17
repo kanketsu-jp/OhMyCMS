@@ -4,6 +4,8 @@
   "action_delete": "Delete",
   "action_read": "Read",
   "action_update": "Update",
+  "ai_description": "Agent keys and the MCP connection in one place.",
+  "ai_title": "AI",
   "capabilities_json_help": "The picker writes its result here. If you edit this JSON directly, this value is submitted.",
   "capabilities_label": "capabilities (JSON)",
   "capabilities_picker_help": "Choose the operations delegated to the agent for each real collection.",

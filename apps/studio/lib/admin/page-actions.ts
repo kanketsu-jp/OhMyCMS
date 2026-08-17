@@ -384,15 +384,15 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
   // 🚨 文字は**状態で変わる**。行を選んでいない間は「追加」、選んでいる間は「更新」
   //    （`policies.update_button`）。ここに書けるのは既定の側だけなので、
   //    実装が `update_button` も出すことをこの注記で残す。
-  // 🚨 MCP のページは**設定を読むだけ**で、そこで作るものが無い。
+  // 🚨 AI 管理の MCP タブは**設定を読むだけ**で、そこで作るものが無い。
   //    次にすることは「繋ぐためのトークンを発行する」なので、行き先はエージェント管理。
   //    （画面内の「コピー」は行ごとの操作なので、ページの主要アクションではない）
-  "/admin/settings/mcp": [
+  "/admin/settings/ai": [
     {
       kind: "link",
       labelKey: "mcp.issue_token_link",
       icon: "KeyRound",
-      href: "/admin/settings/agents",
+      href: "/admin/settings/ai",
       role: "primary",
     },
   ],

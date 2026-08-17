@@ -4,6 +4,8 @@
   "action_delete": "削除",
   "action_read": "読取",
   "action_update": "更新",
+  "ai_description": "エージェントの鍵と、MCP の接続先をここでまとめて扱います。",
+  "ai_title": "AI管理",
   "capabilities_json_help": "選択表の内容はここへ反映されます。直接編集した場合はこのJSONが送信されます。",
   "capabilities_label": "capabilities（JSON）",
   "capabilities_picker_help": "実在するコレクションごとに、エージェントへ委譲する操作を選びます。",
