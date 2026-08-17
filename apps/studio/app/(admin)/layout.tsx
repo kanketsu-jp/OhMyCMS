@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import { PageHeading } from "@/components/admin/page-heading";
 import { CollectionLabelsProvider } from "@/components/admin/collection-labels";
 import { GlobalSearchProvider } from "@/components/admin/global-search";
+import { HeaderActionSkeleton } from "@/components/admin/header-action-skeleton";
 import { HeaderBack } from "@/components/admin/header-back";
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { LeftSidebar, LeftSidebarProvider, LeftSidebarToggle } from "@/components/admin/left-sidebar";
@@ -325,6 +326,12 @@ export default async function AdminLayout({
             {/* 🚨 **PC の主要アクションの行き先**。中身はページごとに違うので器だけ置く。
                 埋めるのは `components/admin/page-action.tsx` の portal（SP の
                 `#mobile-primary-action` と対になる）。**空でも消さないこと。** */}
+            {/* 🚨 **主操作がまだ出ていないあいだ、骨組みを出す**（司令塔の決定・案 B・2026-08-17）。
+                【測った】遅い回線で **主操作が出るまで 2418〜7720ms**（header は 0ms で出る）
+                ＝ その間「主操作が無いヘッダー」が完成品の顔で出ており、
+                  **「操作が無い画面」と「まだ出ていない」が同じ見た目**だった。
+                🚨 **持つ画面にだけ出す**（宣言を引く）。持たない画面に出すと §1-4 の「空の帯」になる。 */}
+            <HeaderActionSkeleton />
             <div id="header-primary-action" data-slot="header-primary-action" className="flex items-stretch" />
             {/* 🚨 検索は**ヘッダーから左サイドバーの上部へ移した**（堀池・2026-08-15）。
                 ここには戻さないこと。 */}
