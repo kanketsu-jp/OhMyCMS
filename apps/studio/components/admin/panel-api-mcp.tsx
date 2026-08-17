@@ -133,7 +133,7 @@ export function PanelApiMcp() {
           </div>
           <pre
             id="panel-api-prompt"
-            className="overflow-x-auto text-xs whitespace-pre text-muted-foreground"
+            className="overflow-x-auto text-xs whitespace-pre text-muted-foreground rounded-md bg-muted p-2"
           >
             {prompt}
           </pre>
@@ -148,7 +148,7 @@ export function PanelApiMcp() {
             {curl ? <CopyButton value={curl} selectTargetId="panel-api-curl" /> : null}
           </div>
           {curl ? (
-            <pre id="panel-api-curl" className="overflow-x-auto text-xs whitespace-pre text-muted-foreground">
+            <pre id="panel-api-curl" className="overflow-x-auto text-xs whitespace-pre text-muted-foreground rounded-md bg-muted p-2">
               {curl}
             </pre>
           ) : (
