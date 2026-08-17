@@ -26,5 +26,6 @@
   "message_bug_report_reopened": "\"{title}\" was reopened",
   "tab_personal": "For you",
   "tab_system": "System",
+  "tab_reports": "Bug reports",
   "empty_system": "No system notices."
 }

@@ -1,12 +1,14 @@
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { NotificationsManager } from "@/components/admin/notifications-manager";
 import { PageTabs } from "@/components/admin/page-tabs";
-import { getT } from "@/i18n/server";
+import { ReportRooms } from "@/components/admin/report-rooms";
+import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 import type { Notification } from "@/lib/notifications/service";
+import type { BugReport } from "@/lib/reports/service";
 
 type Props = {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; status?: string }>;
 };
 
 /**
@@ -26,7 +28,66 @@ export default async function NotificationsPage({ searchParams }: Props) {
   const params = await searchParams;
 
   // 既定は「あなた宛」。知らない値が来ても、あなた宛として扱う。
-  const tab = params.tab === "system" ? "system" : "personal";
+  const tab =
+    params.tab === "system" ? "system" : params.tab === "reports" ? "reports" : "personal";
+  const topTabs = [
+    {
+      href: "/admin/notifications?tab=personal",
+      label: t("tab_personal"),
+      current: tab === "personal",
+    },
+    {
+      href: "/admin/notifications?tab=system",
+      label: t("tab_system"),
+      current: tab === "system",
+    },
+    {
+      href: "/admin/notifications?tab=reports",
+      label: t("tab_reports"),
+      current: tab === "reports",
+    },
+  ];
+
+  if (tab === "reports") {
+    const tR = await getT("reports");
+    const format = await getFormat();
+    const status = params.status === "resolved" ? "resolved" : "open";
+    const result = await apiFetch<{ data: BugReport[]; can_manage: boolean }>(
+      `/api/reports?status=${status}`,
+    );
+
+    return (
+      <div className="max-w-3xl space-y-6">
+        <PageTabs tabs={topTabs} />
+
+        <PageTabs
+          tabs={[
+            {
+              href: "/admin/notifications?tab=reports&status=open",
+              label: tR("tab_open"),
+              current: status === "open",
+            },
+            {
+              href: "/admin/notifications?tab=reports&status=resolved",
+              label: tR("tab_resolved"),
+              current: status === "resolved",
+            },
+          ]}
+        />
+
+        {result.ok ? (
+          <ReportRooms
+            reports={result.data.data}
+            emptyLabel={status === "open" ? tR("empty_open") : tR("empty_resolved")}
+            resolvedLabel={tR("tab_resolved")}
+            formatDateTime={(value) => format.dateTime(value)}
+          />
+        ) : (
+          <ErrorBanner message={tError(result.messageKey)} />
+        )}
+      </div>
+    );
+  }
 
   const result = await apiFetch<{ data: Notification[]; unread: number }>(
     `/api/notifications?category=${tab}`,
@@ -34,20 +95,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <PageTabs
-        tabs={[
-          {
-            href: "/admin/notifications?tab=personal",
-            label: t("tab_personal"),
-            current: tab === "personal",
-          },
-          {
-            href: "/admin/notifications?tab=system",
-            label: t("tab_system"),
-            current: tab === "system",
-          },
-        ]}
-      />
+      <PageTabs tabs={topTabs} />
 
       {result.ok ? (
         <NotificationsManager
