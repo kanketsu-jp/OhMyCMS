@@ -902,6 +902,25 @@ class Session {
 export async function open() {
   // 落とし穴6: このプロセスで初めて open() されたときに、後始末ハンドラを一度だけ登録する。
   ensureProcessCleanupRegistered();
+  // 🚨 **同時に測っている人が居ないか**を、開く前に 1 回だけ見る（2026-08-17）。
+  //    この台は 166 行に書いたとおり **共有物**で、**cookie とログイン状態が同じ profile に同居**する。
+  //    ＝ 私が dev-login すると、次の人の測定も **ログイン済みの状態**から始まる。
+  //    実際、同じ時間に 3 人以上が使っていた（司令塔・schema・polish）。
+  //    🚨 **止めない**（測定を邪魔しない）。**出すだけ**——混ざったことに気づける合図が要る。
+  try {
+    const listRes = await fetch(`${BASE}/json/list`);
+    const others = (await listRes.json()).filter((t) => t.type === "page" && t.url !== "about:blank");
+    if (others.length > 0) {
+      console.error(
+        `🚨 この台（${BASE}）に、測定中と思われるタブが ${others.length} 件あります。` +
+          `cookie とログイン状態は共有です（混ざります）:\n` +
+          others.map((t) => `   - ${t.url}`).join("\n"),
+      );
+    }
+  } catch {
+    // 🚨 数えられなくても測定は止めない。**ただし黙らない**（数えられなかったことを言う）。
+    console.error(`🚨 同時利用を数えられませんでした（${BASE}/json/list に届きません）。混ざっていないとは言えません`);
+  }
   const res = await fetch(`${BASE}/json/new?about:blank`, { method: "PUT" });
   const target = await res.json();
   const ws = new WebSocket(target.webSocketDebuggerUrl);
