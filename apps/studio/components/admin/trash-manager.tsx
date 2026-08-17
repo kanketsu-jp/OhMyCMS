@@ -288,7 +288,7 @@ export function TrashManager({
                 <TableCell>{t("remaining_days", { days: item.daysRemaining })}</TableCell>
                 <TableCell className="text-right">
                   {item.canRestore ? (
-                    <ButtonGroup className="ml-auto justify-end">
+                    <ButtonGroup className="ml-auto justify-end [&>*]:rounded-none">
                       <Button
                         onClick={() => void previewRestore.run(item)}
                         loading={previewRestore.isPending(item.key)}

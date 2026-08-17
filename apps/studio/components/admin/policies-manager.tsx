@@ -149,7 +149,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
                 {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
                     （`knowledge/decisions/action-button-and-edit-mode.md`。283 A を行へ延ばしたもの）。
                     形はゴミ箱（`trash-manager.tsx`）に合わせている。新しい形を作らない。 */}
-                <ButtonGroup className="ml-auto justify-end">
+                <ButtonGroup className="ml-auto justify-end [&>*]:rounded-none">
                   <Link href={`/admin/settings/policies/${policy.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
                     {t("edit_permissions_link")}
                   </Link>

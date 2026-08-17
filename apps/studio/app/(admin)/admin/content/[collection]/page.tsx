@@ -343,7 +343,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                                 >
                                   <input type="hidden" name="_method" value="delete" />
                                 </form>
-                                <ButtonGroup>
+                                <ButtonGroup className="[&>*]:rounded-none">
                                   <Link
                                     href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
                                     className={cn(buttonVariants({ variant: "outline" }))}
