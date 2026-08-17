@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
@@ -8,7 +9,7 @@ import { FilePreviewLightbox } from "@/components/admin/file-preview-lightbox";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getFormat, getT } from "@/i18n/server";
-import { apiFetch } from "@/lib/admin/api";
+import { apiFetch, hasApiCode } from "@/lib/admin/api";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -66,6 +67,17 @@ export default async function FileDetailPage({ params }: Props) {
     apiFetch<{ data: LabelRow[] }>("/api/labels"),
     apiFetch<{ data: LabelRow[] }>(`/api/files/${id}/labels`),
   ]);
+
+  // 🚨 **無い id は自前の画面でなく notFound() を呼ぶ**（2026-08-17・auth の実測を受けて）。
+  //    自前で描くと **HTTP が 200 のまま**になり、機械には「在る」と答えてしまう
+  //    （実測: /admin/files/<無い id> が 200。🟢 対照 /admin/zz-nope は 404）。
+  //    さらに右パネルの「概要」は**経路だけ**で決まるので、無いファイルの画面で
+  //    「このファイルの題・説明・タグ・置き場所を変えられます」と**できないことを約束していた**。
+  //    notFound() を呼べば `(admin)/not-found.tsx` が受け、**404 と右パネルの抑止が同時に直る**。
+  //    🚨 引き換えに、専用の文言は共有の「見つかりません」になる（schema が content で同じ判断）。
+  if (hasApiCode(fileResult, "FILE_NOT_FOUND") || (!fileResult.ok && fileResult.status === 404)) {
+    notFound();
+  }
 
   const file = fileResult.ok ? fileResult.data.data : null;
 

@@ -147,7 +147,18 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
       return;
     }
     setSelection(next);
-    panel.open();
+    // 🚨 **狭い画面では開かない**（司令塔の決め・2026-08-17・案ア）。
+    //    実測（幅 390）: 1 枚選ぶと右サイドバーではなく**全画面のダイアログ**が開き、
+    //    `body` と `main` の `pointer-events` が **none** になる。
+    //    ＝ 一覧が触れなくなり、**2 枚目を選べない**（B5 が SP で成立しない）。
+    //    🟢 対照（幅 1440）: `aside` が開き、`pointer-events` は `auto` のまま。
+    //    🚨 どちらの実装も指示どおりで、**組み合わせで初めて壊れていた**。
+    //    B5（複数選択）は堀池さんが名指しした機能、AJ1 は PC の右サイドバーの話なので、
+    //    **名指しされた B5 を優先する**（司令塔の判断）。
+    //    🚨 判定は**押した手の中**で行う（描画中に window を見ると水和で食い違う）。
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+      panel.open();
+    }
   }
 
   function toggle(file: FileRow): void {

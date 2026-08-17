@@ -486,7 +486,23 @@ async function findFile(
 ): Promise<FileRow> {
   const query = liveFiles().where({ id });
   applyRowFilter(query, rowFilter, "directus_files", schemaOverview, relations);
-  const row = await query.first();
+  // 🚨 **id の形が uuid でないと、DB が 22P02 を投げて 500 になる**（実測 2026-08-17:
+  //    /api/files/zz-not-an-id が 500 INTERNAL_ERROR。
+  //    🟢 対照 形の正しい無い id は 404 FILE_NOT_FOUND）。
+  //    利用者から見れば、どちらも「そんなファイルは無い」なので **404 に寄せる**
+  //    （schema が collections で同じ判断をしている: 壊れた id を 500 でなく 404 に）。
+  //    500 のままだと「アプリが壊れた」に見え、画面側も notFound() へ落とせず
+  //    **HTTP 200 のまま右パネルが「編集できます」と約束してしまう**（auth の実測）。
+  let row: FileRow | undefined;
+  try {
+    row = await query.first();
+  } catch (error) {
+    // 22P02 invalid_text_representation … uuid の列に uuid でない値
+    if ((error as { code?: unknown } | null)?.code === "22P02") {
+      throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
+    }
+    throw error;
+  }
   if (!row) {
     throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
   }
