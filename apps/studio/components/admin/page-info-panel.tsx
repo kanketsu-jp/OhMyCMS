@@ -1,11 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Accordion } from "@/components/ui/accordion";
 import { PanelFileDetail } from "@/components/admin/panel-file-detail";
 import { PanelStorage } from "@/components/admin/panel-storage";
+import { useSelectedFiles } from "@/lib/admin/files-selection";
 import { PanelSection } from "@/components/admin/panel-section";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { PanelDisplay } from "@/components/admin/panel-display";
@@ -60,8 +61,34 @@ export function PageInfoPanel() {
   const sections = meta?.sectionKeys ?? [];
   const anchors = useExistingAnchors(sections.map(sectionAnchorId));
 
+  // 🚨 ファイルを選んだら「ファイルの詳細」を開く（堀池・2026-08-17 AJ1）。
+  //    原文:「ファイルを選択したら、閉じていても右サイドバーを出すし、ファイル詳細も出す。」
+  //    🚨 **パネルを開く役は一覧側**（`files-lightbox-grid.tsx` が `useRightPanel().open()` を呼ぶ）。
+  //       閉じているあいだ、この部品は描かれないので、こちらからは選択を見られない。
+  //    ＝ ここがやるのは「開いた後、どの節を開くか」だけ。
+  //
+  // 🚨 **概要は閉じる。** 理由は 3 つ:
+  //    ① 3 つとも開くと縦に長くなり、いちばん見たい詳細が下へ押し出される
+  //    ② 概要の中身は「このページの説明」と保管先で、**選んだファイルとは関係が無い**
+  //    ③ D5 の「既定で開く」は**ページを開いたとき**の話で、選んだときまで固定していない
+  //    🚨 失うもの … 選ぶと保管先を見ながら選べない。要ると分かったら 1 行で戻せる。
+  const selectedCount = useSelectedFiles().length;
+  const [value, setValue] = useState<string[]>(["overview"]);
+  // 🚨 **初回のマウント時も「選ばれている」ことが在る。**
+  //    パネルは閉じているあいだ描かれないので、一覧が `open()` を呼んで初めてこの部品が生まれる。
+  //    ＝ そのときには既に選択が 1 件在り、`useRef(selectedCount)` の初期値も 1 になるので、
+  //    「0 → 1 の変化」は**一度も観測できない**（2026-08-17 実測: 概要が開いたまま・詳細は閉じたまま）。
+  //    → 初期値を 0 にして、**生まれた瞬間も「増えた」と数える**。
+  const lastCount = useRef(0);
+  useEffect(() => {
+    const had = lastCount.current;
+    lastCount.current = selectedCount;
+    // 🚨 増えた瞬間だけ動かす。毎回上書きすると、利用者が手で閉じた節が勝手に開き直る。
+    if (had === 0 && selectedCount > 0) setValue(["file-detail"]);
+  }, [selectedCount]);
+
   return (
-    <Accordion defaultValue={["overview"]}>
+    <Accordion value={value} onValueChange={(v) => setValue(Array.isArray(v) ? v : [v])}>
       {/* ① 概要。🚨 説明が**無いページでは枠ごと出さない**。
           「準備中です」を出すと、説明が要らないページと、書き忘れたページの区別が付かない。 */}
       {meta?.descriptionKey ? (

@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { PanelSection } from "@/components/admin/panel-section";
+import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { useFormat, useT } from "@/i18n/client";
 import { useSelectedFiles, requestPreview } from "@/lib/admin/files-selection";
@@ -114,13 +115,17 @@ export function PanelFileDetail() {
           🚨 拡大は**ページ遷移ではない**（堀池さんの B5「詳細アコーディオン内の拡大ボタンから」）。
              一覧側のライトボックスを開く。画像でない / 一覧に無い id では L4 が false を返す。
         */}
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => requestPreview(file.id)}
-          className="flex min-h-(--control-h) items-center rounded-md px-2 text-sm hover:bg-muted active:bg-muted md:min-h-(--control-h-pc)"
+          // 🚨 角丸を使わない（DESIGN.md §1-1「クロームは平ら」）。
+          //    枠は付ける（AL1 原文「拡大に枠が無い」）。押せるものだと見えないため。
+          className="rounded-none"
         >
           {t("file_detail_preview")}
-        </button>
+        </Button>
         <CopyButton value={file.id} />
       </div>
     </PanelSection>
