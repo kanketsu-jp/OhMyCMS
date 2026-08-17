@@ -412,7 +412,9 @@ export function LeftSidebar({
           // 🚨 `h-` のまま（`min-h-` にしない）。ここは**高さを固定したい**行で、
           //    `min-h-` にすると中身の自然な高さまで伸びる（sidebar.tsx で親の行が 32→36px に伸びた）。
           //    32px は `--control-h-pc-sm`＝サイドバーの行の高さと同じ段。
-          className="flex h-(--control-h-pc-sm) min-w-0 items-center gap-2 rounded-md px-2 text-base font-semibold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+          // 🚨 角丸を持たない（`DESIGN.md` §1-1「クロームは平ら」・司令塔の決定 2026-08-17）。
+          //    サイドバー本体は `ui/sidebar.tsx` で外した（501984e6）が、**この行は自分で書いていた**ので残っていた。
+          className="flex h-(--control-h-pc-sm) min-w-0 items-center gap-2 px-2 text-base font-semibold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
           {logo ? (
             // eslint-disable-next-line @next/next/no-img-element -- 外部URLもありうるので Image コンポーネントを使わない

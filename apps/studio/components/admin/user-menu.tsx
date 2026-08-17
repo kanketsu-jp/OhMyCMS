@@ -81,7 +81,13 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
           <Button
             type="button"
             variant="ghost"
-            className="w-full justify-start px-3"
+            // 🚨 **角丸を持たない**（`DESIGN.md` §1-1「クロームは平ら」・司令塔の決定 2026-08-17）。
+            //    角丸は `ui/button.tsx` の**既定**から来ている。🚨 **そこは触らない**——
+            //    全ボタンに及ぶ（`DESIGN.md` §0-1「判断の軸は何画面に及ぶか」）。**呼び出し側で打ち消す。**
+            // 🚨 **背景・色・余白は 1 文字も触っていない**（司令塔の条件）。
+            //    押せる塊に見えているのが「角丸のおかげ」か「背景のおかげ」かを、
+            //    出してから堀池さんに見てもらうため。**角丸を戻すのは最後の手**。
+            className="w-full justify-start rounded-none px-3"
           >
             <Avatar size="sm">
               {userPicture ? (
