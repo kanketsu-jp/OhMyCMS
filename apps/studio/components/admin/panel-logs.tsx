@@ -36,7 +36,8 @@ type ActivityEntry = {
 type LogsState =
   | { status: "loading"; key: string }
   | { status: "forbidden"; key: string }
-  | { status: "error"; key: string }
+  // 🚨 `expired` … 401（セッション切れ）。もう一度押しても直らないので分けて持つ。
+  | { status: "error"; key: string; expired: boolean }
   | { status: "empty"; key: string }
   | { status: "list"; key: string; entries: ActivityEntry[] };
 
@@ -116,7 +117,8 @@ function PanelLogsAccordionItem({
           return;
         }
         if (!response.ok) {
-          setState({ status: "error", key });
+          // 🚨 401 だけ分ける（「もう一度」では直らない）。403 は上で `forbidden` として扱っている。
+          setState({ status: "error", key, expired: response.status === 401 });
           return;
         }
         const body = (await response.json()) as { data: ActivityEntry[] };
@@ -128,7 +130,8 @@ function PanelLogsAccordionItem({
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setState({ status: "error", key });
+        // 🚨 通信が切れた側。ここは「もう一度」で直りうる。
+        setState({ status: "error", key, expired: false });
       });
 
     return () => controller.abort();
@@ -145,7 +148,11 @@ function PanelLogsAccordionItem({
         {current.status === "loading" ? (
           <p className="text-sm text-muted-foreground">{t("history_loading")}</p>
         ) : current.status === "error" ? (
-          <PanelError message={t("history_error")} onRetry={() => setReload((n) => n + 1)} />
+          <PanelError
+            message={t("history_error")}
+            expired={current.status === "error" && current.expired}
+            onRetry={() => setReload((n) => n + 1)}
+          />
         ) : current.status === "empty" ? (
           <p className="text-sm text-muted-foreground">{t("history_empty")}</p>
         ) : (

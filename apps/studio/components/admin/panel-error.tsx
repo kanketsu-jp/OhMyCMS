@@ -1,6 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useT } from "@/i18n/client";
 
 /**
@@ -33,8 +35,38 @@ import { useT } from "@/i18n/client";
  * 直す前は 3 節がそれぞれ `<p>` を書いていた。ここへ寄せる
  * （`DESIGN.md` §0-1・`list-empty.tsx` と同じ考え方——**寄せ先が無いと同じ行が散る**）。
  */
-export function PanelError({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function PanelError({
+  message,
+  onRetry,
+  expired = false,
+}: {
+  message: string;
+  onRetry: () => void;
+  /**
+   * 🚨 **もう一度押しても直らない失敗**（セッションが切れた＝ 401）かどうか。
+   *
+   * 3 つの口はどれも `requireActor(request)` を最初に通すので、
+   * **開いたまま時間が経つと 401 が返る**（`panel-display.tsx` に実測の申し送りが在る）。
+   * そのとき「もう一度読み込む」を出すのは**嘘**——何回押しても直らない。
+   */
+  expired?: boolean;
+}) {
   const t = useT("panel");
+  const tError = useT("errors");
+
+  // 🚨 **直らないものに「もう一度」と言わない**（DESIGN.md・2026-08-17 司令塔）。
+  //    何をすれば直るか（ログインし直す）を出す。文言は既に在る `errors.unauthenticated` を使う
+  //    （同じことを 2 通りで書かない。**その辞書は他レーンが触っているので読むだけ**）。
+  if (expired) {
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <p className="text-sm text-muted-foreground">{tError("unauthenticated")}</p>
+        <Link href="/login" className={buttonVariants({ variant: "outline", size: "sm" }) + " rounded-none"}>
+          {t("relogin")}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-start gap-2">

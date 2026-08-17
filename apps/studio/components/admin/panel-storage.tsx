@@ -39,6 +39,8 @@ export function PanelStorage() {
   const pathname = usePathname();
   const [status, setStatus] = useState<StorageStatus | null>(null);
   const [failed, setFailed] = useState(false);
+  // 🚨 **401（セッション切れ）だけは、もう一度押しても直らない**ので分けて持つ。
+  const [expired, setExpired] = useState(false);
   // 🚨 **もう一度読み込めるようにする**（司令塔の「途中で失敗したとき」②「次に何をすればよいか」）。
   //    この値が変わると下の効果が走り直す。失敗したまま何もできない画面にしない。
   const [reload, setReload] = useState(0);
@@ -53,9 +55,13 @@ export function PanelStorage() {
       try {
         const response = await fetch("/api/settings/storage-status", { cache: "no-store" });
         if (!response.ok) {
-          // 🚨 403（権限が無い）も 500 も、ここでは同じ「出せない」に落とす。
-          //    画面に理由を書かない代わりに、節ごと出さない。
-          if (alive) setFailed(true);
+          // 🚨 403（権限が無い）と 500 は同じ「出せない」に落とす（利用者にできることが同じ）。
+          //    🚨 **401 だけは分ける**——「もう一度」では直らないため（DESIGN.md・直らないものに
+          //    「もう一度お試しください」と言わない）。
+          if (alive) {
+            setExpired(response.status === 401);
+            setFailed(true);
+          }
           return;
         }
         const payload = (await response.json()) as { data?: StorageStatus };
@@ -79,8 +85,10 @@ export function PanelStorage() {
     return (
       <PanelError
         message={t("storage_error")}
+        expired={expired}
         onRetry={() => {
           setFailed(false);
+          setExpired(false);
           setReload((n) => n + 1);
         }}
       />

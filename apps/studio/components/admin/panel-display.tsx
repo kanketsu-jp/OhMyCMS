@@ -45,7 +45,8 @@ import { fieldLabel } from "@/lib/schema/labels";
 type FieldsState =
   | { status: "loading"; collection: string }
   | { status: "ready"; collection: string; fields: FieldResult[] }
-  | { status: "error"; collection: string };
+  // 🚨 `expired` … 401（セッション切れ）。もう一度押しても直らないので分けて持つ。
+  | { status: "error"; collection: string; expired: boolean };
 
 const EMPTY_FIELDS: FieldResult[] = [];
 
@@ -102,10 +103,18 @@ function PanelDisplayControls({
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) throw new Error("fields fetch failed");
+        // 🚨 **失敗を Error の文言で運ばない。** 状態はここで決めて、下へは null を渡す。
+        //    以前は `throw new Error("unauthenticated")` にしていたが、`check-raw-api-message` が
+        //    `error.message` を「API の生文言を画面へ流している」として止めた（実測: exit 1）。
+        //    門の言い分が正しい——**文字列で分岐する形そのものが危うい**ので、状態で持つ。
+        if (!response.ok) {
+          setState({ status: "error", collection, expired: response.status === 401 });
+          return null;
+        }
         return (await response.json()) as FieldResult[];
       })
       .then((fields) => {
+        if (fields === null) return;
         setState({
           status: "ready",
           collection,
@@ -116,7 +125,8 @@ function PanelDisplayControls({
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setState({ status: "error", collection });
+        // 🚨 ここへ来るのは通信が切れた側。**「もう一度」で直りうる**ので expired にしない。
+        setState({ status: "error", collection, expired: false });
       });
 
     return () => controller.abort();
@@ -165,7 +175,11 @@ function PanelDisplayControls({
         <p className="text-sm text-muted-foreground">{t("display_loading")}</p>
       ) : status === "error" ? (
         // 🚨 **取れなかった**とき。実際に出ることを実測済み（セッションが切れた状態でパネルを開くと 401）。
-        <PanelError message={t("display_error")} onRetry={() => setReload((n) => n + 1)} />
+        <PanelError
+          message={t("display_error")}
+          expired={isCurrent && state.status === "error" && state.expired}
+          onRetry={() => setReload((n) => n + 1)}
+        />
       ) : fields.length === 0 ? (
         // 🚨 **取れたが候補が無い**とき。上の「取れなかった」と**別の文言**にする。
         //    同じ見た目にすると「列が無い」と「列を取りに行けていない」が区別できない
