@@ -44,5 +44,7 @@
   "resolve_button": "解決済みにする",
   "reopen_button": "未解決に戻す",
   "marked_resolved": "解決済みにしました",
-  "marked_reopened": "未解決に戻しました"
+  "marked_reopened": "未解決に戻しました",
+  "scope_mine": "自分の報告",
+  "scope_all": "全員の報告"
 }

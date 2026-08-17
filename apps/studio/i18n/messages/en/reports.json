@@ -44,5 +44,7 @@
   "resolve_button": "Mark as resolved",
   "reopen_button": "Reopen",
   "marked_resolved": "Marked as resolved.",
-  "marked_reopened": "Reopened."
+  "marked_reopened": "Reopened.",
+  "scope_mine": "My reports",
+  "scope_all": "All reports"
 }
