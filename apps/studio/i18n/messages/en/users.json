@@ -23,5 +23,21 @@
   "no_provider": "(not set)",
   "last_access_label": "Last used",
   "never_accessed": "Never used",
-  "detail_read_only_note": "This page only shows the user. Assign policies from the list."
+  "detail_read_only_note": "This page only shows the user. Assign policies from the list.",
+  "effective_view_title": "What this person can see",
+  "effective_view_description": "This shows what this person can do in each collection.",
+  "effective_view_empty": "No collections can be shown.",
+  "effective_collection": "Collection",
+  "effective_read": "View",
+  "effective_write": "Write",
+  "effective_delete": "Delete",
+  "effective_details": "Visible range",
+  "effective_allowed": "Allowed",
+  "effective_not_allowed": "Not allowed",
+  "effective_rows_limited": "Only some rows are visible",
+  "effective_rows_all": "All rows are visible",
+  "effective_rows_unavailable": "Rows are not visible",
+  "effective_fields_limited": "Fields: {fields}",
+  "effective_fields_all": "All fields are visible",
+  "effective_fields_unavailable": "Fields are not visible"
 }

@@ -39,13 +39,26 @@ type UserRow = {
   external_identifier: string | null;
 };
 
+type EffectiveCollectionView = {
+  collection: string;
+  read: boolean;
+  write: boolean;
+  delete: boolean;
+  rowFiltered: boolean;
+  fieldsRestricted: boolean;
+  fields: string[] | "*";
+};
+
 export default async function UserDetailPage({ params }: Props) {
   const { id } = await params;
   const t = await getT("users");
   const tError = await getT("errors");
   const format = await getFormat();
 
-  const result = await apiFetch<{ data: UserRow }>(`/api/users/${id}`);
+  const [result, effectiveResult] = await Promise.all([
+    apiFetch<{ data: UserRow }>(`/api/users/${id}`),
+    apiFetch<{ data: EffectiveCollectionView[] }>(`/api/users/${id}/effective-view`),
+  ]);
   const user = result.ok ? result.data.data : null;
   const name = [user?.first_name, user?.last_name].filter(Boolean).join(" ");
 
@@ -61,6 +74,7 @@ export default async function UserDetailPage({ params }: Props) {
       </div>
       <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
       {user ? (
+        <>
         <Surface>
           {/* 🚨 名前が無い人が居る（SSO で来ると空のことが在る）。**メールを見出しにする**——
               **必ず在るもの**を見出しにしないと、見出しが空の画面ができる。 */}
@@ -85,6 +99,55 @@ export default async function UserDetailPage({ params }: Props) {
           {/* 🚨 **できないことを、その場に書く。** 編集の場所を探させない。 */}
           <p className="mt-4 text-sm text-muted-foreground">{t("detail_read_only_note")}</p>
         </Surface>
+        <Surface>
+          <SurfaceTitle>{t("effective_view_title")}</SurfaceTitle>
+          <p className="mb-4 text-sm text-muted-foreground">{t("effective_view_description")}</p>
+          {!effectiveResult.ok ? (
+            <ErrorBanner message={tError(effectiveResult.messageKey)} />
+          ) : effectiveResult.data.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("effective_view_empty")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[48rem] text-sm">
+                <div className="grid grid-cols-[minmax(12rem,2fr)_repeat(3,minmax(6rem,1fr))_minmax(12rem,1.5fr)] border-b px-3 py-2 font-medium">
+                  <div>{t("effective_collection")}</div>
+                  <div>{t("effective_read")}</div>
+                  <div>{t("effective_write")}</div>
+                  <div>{t("effective_delete")}</div>
+                  <div>{t("effective_details")}</div>
+                </div>
+                {effectiveResult.data.data.map((item) => (
+                  <div
+                    key={item.collection}
+                    className="grid grid-cols-[minmax(12rem,2fr)_repeat(3,minmax(6rem,1fr))_minmax(12rem,1.5fr)] border-b px-3 py-3 last:border-b-0"
+                  >
+                    <div className="font-medium">{item.collection}</div>
+                    <div>{item.read ? t("effective_allowed") : t("effective_not_allowed")}</div>
+                    <div>{item.write ? t("effective_allowed") : t("effective_not_allowed")}</div>
+                    <div>{item.delete ? t("effective_allowed") : t("effective_not_allowed")}</div>
+                    <div className="space-y-1 text-muted-foreground">
+                      <div>
+                        {item.read
+                          ? item.rowFiltered
+                            ? t("effective_rows_limited")
+                            : t("effective_rows_all")
+                          : t("effective_rows_unavailable")}
+                      </div>
+                      <div>
+                        {!item.read
+                          ? t("effective_fields_unavailable")
+                          : item.fieldsRestricted && item.fields !== "*"
+                          ? t("effective_fields_limited", { fields: item.fields.join(", ") })
+                          : t("effective_fields_all")}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Surface>
+        </>
       ) : null}
     </div>
   );

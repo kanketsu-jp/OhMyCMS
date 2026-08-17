@@ -23,5 +23,21 @@
   "no_provider": "（未設定）",
   "last_access_label": "最後に使った日時",
   "never_accessed": "まだ一度も使っていません",
-  "detail_read_only_note": "このページは内容を見るだけです。方針の割り当ては一覧から行います。"
+  "detail_read_only_note": "このページは内容を見るだけです。方針の割り当ては一覧から行います。",
+  "effective_view_title": "この人に見える内容",
+  "effective_view_description": "この人が各コレクションでできることを表示しています。",
+  "effective_view_empty": "表示できるコレクションはありません。",
+  "effective_collection": "コレクション",
+  "effective_read": "見る",
+  "effective_write": "書く",
+  "effective_delete": "消す",
+  "effective_details": "見える範囲",
+  "effective_allowed": "できる",
+  "effective_not_allowed": "できない",
+  "effective_rows_limited": "一部の行だけ見える",
+  "effective_rows_all": "すべての行が見える",
+  "effective_rows_unavailable": "行は見えない",
+  "effective_fields_limited": "欄: {fields}",
+  "effective_fields_all": "すべての欄が見える",
+  "effective_fields_unavailable": "欄は見えない"
 }
