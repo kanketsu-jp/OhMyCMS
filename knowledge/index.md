@@ -33,6 +33,7 @@ x_rag_okf:
 - [アバターは絵文字にする。メールの頭文字を出さない](./decisions/avatar-is-emoji-not-initials.md) — `knowledge/decisions/avatar-is-emoji-not-initials.md`
 - [検査は「何を見ていないか」を言えて初めて検査になる](./decisions/checks-must-declare-blind-spots.md) — `decisions/checks-must-declare-blind-spots`
 - [検査は索引を見る。ただし「走査」と「照合」で直し方が違う](./decisions/checks-read-the-index-not-the-worktree.md) — `decisions/checks-read-the-index-not-the-worktree`
+- [失敗の戻り先を変えたら、その戻り先が理由を出せるかを画面で見る](./decisions/error-destination-must-render-the-reason.md) — `decisions/error-destination-must-render-the-reason`
 - [CLI と MCP は REST API 経由（DB 直接アクセス禁止）](./decisions/cli-mcp-over-rest.md) — `decisions/cli-mcp-over-rest`
 - [確認を出す基準は「戻せない」か「一度に多数へ及ぶ」](./decisions/confirm-by-reversibility-and-reach.md) — `decisions/confirm-by-reversibility-and-reach`
 - [項目のプレビュー（Directus の content-item-preview）は v1 で作らない](./decisions/content-preview-not-in-v1.md) — `decisions/content-preview-not-in-v1`
