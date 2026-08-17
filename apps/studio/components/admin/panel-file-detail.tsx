@@ -126,7 +126,24 @@ export function PanelFileDetail() {
         >
           {t("file_detail_preview")}
         </Button>
-        <CopyButton value={file.id} />
+        {/*
+          🚨 **コピーするのは id ではなく URL**（堀池・2026-08-17 AL1）。
+             files（L4）が引いて決めた形をそのまま使う:
+             `<origin>/api/assets/<id>` の絶対 URL。
+          🚨 **失うもの … ログインしていない人には開けない。**
+             `app/api/assets/[id]/route.ts` は 1 行目で `requireActor` を通すため。
+             ＝ 「公開 URL」という言葉の意味は満たしていない。
+             【L4 の実測】`public_url` / `signedUrl` / `presigned` … 0 件
+             （🟢 対照 同じ探し方で `assets` は 4 件＝ 見ていない 0 ではなく、仕組みが無い 0）
+             社外へ渡す用途なら「公開の口を新しく作る」話で、認可の設計に触るので司令塔案件。
+          🚨 **角を 0 にする**（DESIGN.md §1-1）。L4 の実測で、隣の「拡大」が 0px・
+             こちらが 8px と**並びで角の扱いが違っていた**。共有部品（`ui/copy-button.tsx`）は
+             触らず、呼び出し側で揃える（`{...props}` が Button まで通る）。
+        */}
+        <CopyButton
+          className="rounded-none"
+          value={new URL(`/api/assets/${file.id}`, typeof window === "undefined" ? "http://localhost" : window.location.origin).toString()}
+        />
       </div>
     </PanelSection>
   );
