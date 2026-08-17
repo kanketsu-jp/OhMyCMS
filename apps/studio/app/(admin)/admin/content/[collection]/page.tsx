@@ -25,6 +25,7 @@ import {
   resolveLimit,
 } from "@/lib/admin/list-view";
 import { buttonVariants } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { WideTable } from "@/components/admin/wide-table";
 import {
@@ -335,20 +336,20 @@ export default async function ContentPage({ params, searchParams }: Props) {
                                     （`knowledge/decisions/action-button-and-edit-mode.md`）。
                                     🚨 form は**残す**。`RowOptions` の `formId` が指す相手そのもので、
                                        消すと削除が黙って効かなくなる（中身は隠し項目だけでよい）。 */}
-                                <div className="flex gap-1">
+                                <form
+                                  id={`item-delete-${id}`}
+                                  action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`}
+                                  method="post"
+                                >
+                                  <input type="hidden" name="_method" value="delete" />
+                                </form>
+                                <ButtonGroup>
                                   <Link
                                     href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
-                                    className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                                    className={cn(buttonVariants({ variant: "outline" }))}
                                   >
                                     {t("edit_button")}
                                   </Link>
-                                  <form
-                                    id={`item-delete-${id}`}
-                                    action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`}
-                                    method="post"
-                                  >
-                                    <input type="hidden" name="_method" value="delete" />
-                                  </form>
                                   <RowOptions
                                     label={t("row_options")}
                                     options={[
@@ -372,7 +373,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                                       },
                                     ]}
                                   />
-                                </div>
+                                </ButtonGroup>
                               </TableCell>
                             </ClickableRow>
                           );

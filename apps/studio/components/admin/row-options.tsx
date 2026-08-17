@@ -67,7 +67,7 @@ export function RowOptions({ label, options }: { label: string; options: RowOpti
     <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="icon-sm" variant="outline" aria-label={label}>
+        <Button size="icon" variant="outline" aria-label={label}>
           <ChevronDown />
         </Button>
       </DropdownMenuTrigger>

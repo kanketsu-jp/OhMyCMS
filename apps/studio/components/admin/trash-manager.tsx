@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, RotateCcw, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Dialog,
   DialogContent,
@@ -287,9 +288,8 @@ export function TrashManager({
                 <TableCell>{t("remaining_days", { days: item.daysRemaining })}</TableCell>
                 <TableCell className="text-right">
                   {item.canRestore ? (
-                    <div className="inline-flex items-center justify-end gap-1">
+                    <ButtonGroup className="ml-auto justify-end">
                       <Button
-                        size="sm"
                         onClick={() => void previewRestore.run(item)}
                         loading={previewRestore.isPending(item.key)}
                       >
@@ -298,7 +298,7 @@ export function TrashManager({
                       </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button size="icon-sm" variant="outline" aria-label={t("row_options")}>
+                          <Button size="icon" variant="outline" aria-label={t("row_options")}>
                             <ChevronDown />
                           </Button>
                         </DropdownMenuTrigger>
@@ -312,7 +312,7 @@ export function TrashManager({
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
+                    </ButtonGroup>
                   ) : (
                     <p className="text-left text-xs text-muted-foreground md:text-right">
                       {disabledText(t, item.disabledReason)}
