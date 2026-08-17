@@ -216,13 +216,11 @@ type DirectusUserRow = {
  *
  * 探す順:
  *   1. **同じ IdP の同じ NameID**（いちばん確か）
- *   2. **同じメールの既存利用者**（🔴 受入「同じメールで別人が増えない」）
+ *   2. **同じメールの既存利用者**なら、承認なしでは結び付けず断る
  *   3. 見つからなければ作る
  *
- * 🚨 2 は「**IdP がそのメールの持ち主を確認している**」という前提に乗っている。
- *    SAML では IdP を管理者が明示的に設定するので前提は成り立つが、
- *    **IdP の設定を間違えると他人の口座に入れる**ということでもある。
- *    ここを外部の未検証な情報源（一般の OAuth 等）へ広げないこと。
+ * 🚨 SAML のメールは IdP が送っただけで、こちらでは持ち主を確認していない。
+ *    本人か管理者の承認なしに、既存の利用者へ結び付けない。
  */
 export async function upsertSamlUser(identity: SamlIdentity): Promise<DirectusUserRow> {
   const byNameId = await db<DirectusUserRow & { auth_data?: unknown }>("directus_users")
@@ -263,13 +261,28 @@ export async function upsertSamlUser(identity: SamlIdentity): Promise<DirectusUs
       .first();
 
     if (byEmail) {
-      // 既存の利用者に SAML を結びつける（**新しい行を作らない**）。
-      await db("directus_users").where("id", byEmail.id).update({
-        provider: "saml",
-        external_identifier: identity.nameId,
-        last_access: db.fn.now(),
+      // Google はメールの持ち主であることを確認して返すが、SAML の IdP はそう言っていない。
+      await db("directus_activity").insert({
+        action: "login",
+        user: null,
+        actor_type: "saml",
+        actor_id: null,
+        collection: "directus_users",
+        item: byEmail.id,
+        ip: "unknown",
+        user_agent: null,
+        comment: JSON.stringify({
+          event: "saml_link_rejected",
+          nameId: identity.nameId,
+          email: identity.email,
+          matchedUserId: byEmail.id,
+        }),
       });
-      return byEmail;
+      throw new ApiError(
+        403,
+        "SAML_LINK_REQUIRES_APPROVAL",
+        "このメールアドレスは既存の利用者に登録されています。本人または管理者の承認なしには SAML を結び付けられません",
+      );
     }
   }
 

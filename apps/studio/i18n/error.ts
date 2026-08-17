@@ -44,6 +44,7 @@ export const ERROR_KEYS = [
   // 🚨 401。以前は lib/admin/api.ts が「認証が必要です」という日本語を直接持っていた。
   //    鍵にしないと permission_denied（403）へ潰れ、**入り直せば直る**ことが伝わらない。
   "unauthenticated",
+  "saml_link_requires_approval",
   // ファイル由来（storage・2026-08-16）
   "file_too_large",
   "file_name_too_long",
@@ -103,6 +104,7 @@ export function errorKeyFromQuery(value: string | undefined): ErrorKey | null {
  */
 const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   UNAUTHENTICATED: "unauthenticated",
+  SAML_LINK_REQUIRES_APPROVAL: "saml_link_requires_approval",
   PERMISSION_DENIED: "permission_denied",
   AUTH_FAILED: "permission_denied",
   INVALID_FIELD: "invalid_field",

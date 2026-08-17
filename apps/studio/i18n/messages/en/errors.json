@@ -17,6 +17,7 @@
   "unexpected": "Could not complete the request. Please try again later.",
   "relation_partial_failure": "The column was created, but the relation could not be created.",
   "unauthenticated": "Please sign in again.",
+  "saml_link_requires_approval": "This email address belongs to an existing user. SAML cannot be linked without approval from the user or an administrator.",
   "file_empty": "The file has no content. Please choose the file again.",
   "too_many_items": "Too many items at once. Please split the operation.",
   "file_required": "Please choose a file.",
