@@ -34,6 +34,7 @@ import {
 import {
   COLLECTION_ICONS,
   DEFAULT_COLLECTION_ICON,
+  collectionIconFor,
   type CollectionIcon,
 } from "@/lib/admin/collection-icons";
 
@@ -172,6 +173,11 @@ function NavItemIcon({ href }: { href: string }) {
   if (href === "/admin/settings/ai") return <SquareCode />;
   if (href === "/admin/settings/agents") return <SquareCode />;
   if (href === "/admin/settings/mcp") return <Link2 />;
+  // 🚨 auth の AH1（f8bb53d7）で **バージョンが設定から出て `/admin/version` へ移った**。
+  //    古い道（`/admin/settings/version`）も残す——ページは実在し、直接 URL で開けるため。
+  //    【測った 2026-08-17】移った直後、新しい道が既定の table に落ちていた。
+  //    ＝ 🚨 **既定落ちは、他レーンが行を動かすたびに再発する**（今日 2 度目）。
+  if (href === "/admin/version") return <RefreshCw />;
   if (href === "/admin/settings/version") return <RefreshCw />;
   // 🚨 クエリ付き（`?scope=all`）なので **前方一致**で見る。完全一致だと当たらない。
   //    絵は左サイドバー下部の「不具合報告」と**同じ BugIcon**——**同じ意味だから同じ絵が正しい**
@@ -204,11 +210,19 @@ const COLLECTION_ICON_COMPONENTS: Record<CollectionIcon, typeof TableIcon> = {
   "shield-alert": ShieldAlert,
 };
 
-/** 保存されている名前から部品を引く。**知らない名前は既定へ落とす**（画面を壊さない）。 */
-export function CollectionIconFor({ icon }: { icon: string | null }) {
-  const key = (COLLECTION_ICONS as readonly string[]).includes(icon ?? "")
-    ? (icon as CollectionIcon)
-    : DEFAULT_COLLECTION_ICON;
+/**
+ * 保存されている名前から部品を引く。**知らない名前・未選択は既定へ落とす**（画面を壊さない）。
+ *
+ * 🚨 `collection` を渡すと、**選んでいないときに名前から散らす**（`collectionIconFor`）。
+ *    渡さないときは `table` のまま（選ぶ画面の見本など、散らしたくない場所のため）。
+ *    【測った 2026-08-17】渡す前は左サイドバーの **16 件が全部 `table`** だった。
+ */
+export function CollectionIconFor({ icon, collection }: { icon: string | null; collection?: string }) {
+  const key = collection
+    ? collectionIconFor(collection, icon)
+    : (COLLECTION_ICONS as readonly string[]).includes(icon ?? "")
+      ? (icon as CollectionIcon)
+      : DEFAULT_COLLECTION_ICON;
   const Icon = COLLECTION_ICON_COMPONENTS[key];
   return <Icon />;
 }
@@ -295,7 +309,15 @@ function SidebarGroupNav({ group }: { group: NavGroup }) {
                         {/* 🚨 コレクションの行だけ、自分のアイコンを持つ（K2）。
                             持っていない行（設定の子など）は既定の分岐へ落ちるので、
                             **渡していない行の見た目は変わらない**。 */}
-                        {item.icon ? (
+                        {/* 🚨 コレクションの行は**選んでいなくても固有の絵**にする（司令塔の決め・2026-08-17）。
+                            名前を渡すと `collectionIconFor` が名前から散らす。
+                            それ以外の行（設定の子など）は従来どおり分岐へ落とす。 */}
+                        {item.href.startsWith("/admin/content/") ? (
+                          <CollectionIconFor
+                            icon={item.icon ?? null}
+                            collection={decodeURIComponent(item.href.slice("/admin/content/".length))}
+                          />
+                        ) : item.icon ? (
                           <CollectionIconFor icon={item.icon} />
                         ) : (
                           <NavItemIcon href={item.href} />

@@ -58,6 +58,32 @@ export type CollectionIcon = (typeof COLLECTION_ICONS)[number];
 export const DEFAULT_COLLECTION_ICON: CollectionIcon = "table";
 
 /**
+ * **選んでいないコレクションに、既定の絵を割り当てる**（司令塔の決め・2026-08-17）。
+ *
+ * 由来: 堀池さんの原文「それぞれのコンテンツが**固有のアイコンを持つ**ようにしてください」。
+ * 【測った 2026-08-17】選ぶ画面まで入れたのに、**値が 1 件も入っていない**ので
+ * 左サイドバーのコレクション **16 件が全部 `table`** だった。
+ * ＝ **選べるだけでは足りない。既定で固有に見える必要がある。**
+ *
+ * 🚨 **賢く推測しない**（司令塔の指示）。名前から意味を当てにいくと、
+ * 「posts だから file」のような**当たっているように見えて外れる**割り当てが混ざる。
+ * ここがやるのは **散らすことだけ**。
+ *
+ * 🚨 **同じ名前なら、いつも同じ絵**であること。毎回変わると**別物に見える**。
+ * だから乱数を使わず、名前から決まる値（下の総和）で選ぶ。
+ *
+ * 🚨 **利用者が選んだ値は必ず優先**。この関数は「選んでいないとき」しか効かない。
+ */
+export function collectionIconFor(collection: string, icon: string | null | undefined): CollectionIcon {
+  if (isCollectionIcon(icon)) return icon;
+  // 🚨 コードポイントの総和。**暗号ではない**ので衝突してよい（見た目を散らすだけ）。
+  //    `for...of` にしているのは、絵文字や合成文字が名前に入っても壊れないため。
+  let sum = 0;
+  for (const ch of collection) sum = (sum + ch.codePointAt(0)!) % 100003;
+  return COLLECTION_ICONS[sum % COLLECTION_ICONS.length]!;
+}
+
+/**
  * 保存してよい値か。**サーバ側の検証はこれを通す**
  * （`AGENTS.md` §3.5「画面で絞ってサーバが何でも受ける形にしない」）。
  *
