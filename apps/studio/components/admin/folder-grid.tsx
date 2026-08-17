@@ -208,15 +208,25 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
               : "group/tile relative min-w-0 rounded-md p-3 hover:bg-muted active:bg-muted/80"
           }
         >
-          <Link href={`/admin/files?folder=${folder.id}`} className="block min-w-0 pr-10">
-            <Folder
-              className={
-                folder.color && FOLDER_COLOR_CLASS[folder.color]
-                  ? `mb-3 size-10 ${FOLDER_COLOR_CLASS[folder.color]}`
-                  : "mb-3 size-10 text-muted-foreground"
-              }
-            />
-            <p className="truncate text-sm font-medium">{folder.name}</p>
+          <Link href={`/admin/files?folder=${folder.id}`} className="block min-w-0">
+            {/*
+              🚨 **ファイルのカードと同じ正方形**にする（`files-lightbox-grid.tsx` と同じ形）。
+                 決定 `list-views-are-switchable-layouts`。**フォルダだけ違う形だと、
+                 同じ並びの中で高さが揃わず、行が崩れる**（そして「別のもの」に見える）。
+            */}
+            <div
+              data-surface-exempt
+              className="mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted"
+            >
+              <Folder
+                className={
+                  folder.color && FOLDER_COLOR_CLASS[folder.color]
+                    ? `size-10 ${FOLDER_COLOR_CLASS[folder.color]}`
+                    : "size-10 text-muted-foreground"
+                }
+              />
+            </div>
+            <p className="truncate pr-8 text-sm font-medium">{folder.name}</p>
           </Link>
           <div className="absolute right-2 top-2">
             <DropdownMenu>

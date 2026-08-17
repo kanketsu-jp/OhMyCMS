@@ -5,6 +5,7 @@ import { Folder, FileIcon } from "lucide-react";
 
 import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
 import { useFormat, useT } from "@/i18n/client";
+import type { FileColumn } from "@/lib/admin/files-view";
 
 type FileRow = {
   id: string;
@@ -33,12 +34,19 @@ type FolderRow = {
 export function FilesTable({
   folders,
   files,
+  columns,
 }: {
   folders: FolderRow[];
   files: FileRow[];
+  /**
+   * 出す項目。🚨 **名前は含まれない**（消せない列なので、選択の対象にしていない。
+   * 理由は `lib/admin/files-view.ts` の `ALWAYS_ON_COLUMN`）。
+   */
+  columns: readonly FileColumn[];
 }) {
   const t = useT("files");
   const format = useFormat();
+  const shows = (column: FileColumn): boolean => columns.includes(column);
 
   const size = (value: string | number | null): string => {
     if (value === null) return "—";
@@ -58,9 +66,9 @@ export function FilesTable({
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
             <th scope="col" className="py-2 pr-4 font-medium">{t("column_name")}</th>
-            <th scope="col" className="py-2 pr-4 font-medium">{t("column_type")}</th>
-            <th scope="col" className="py-2 pr-4 font-medium">{t("column_size")}</th>
-            <th scope="col" className="py-2 font-medium">{t("column_uploaded")}</th>
+            {shows("type") ? <th scope="col" className="py-2 pr-4 font-medium">{t("column_type")}</th> : null}
+            {shows("size") ? <th scope="col" className="py-2 pr-4 font-medium">{t("column_size")}</th> : null}
+            {shows("uploaded") ? <th scope="col" className="py-2 font-medium">{t("column_uploaded")}</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -72,9 +80,9 @@ export function FilesTable({
                   <span className="truncate">{folder.name}</span>
                 </Link>
               </td>
-              <td className="py-2 pr-4 text-muted-foreground">{t("row_folder")}</td>
-              <td className="py-2 pr-4 text-muted-foreground">—</td>
-              <td className="py-2 text-muted-foreground">—</td>
+              {shows("type") ? <td className="py-2 pr-4 text-muted-foreground">{t("row_folder")}</td> : null}
+              {shows("size") ? <td className="py-2 pr-4 text-muted-foreground">—</td> : null}
+              {shows("uploaded") ? <td className="py-2 text-muted-foreground">—</td> : null}
             </tr>
           ))}
           {files.map((file) => (
@@ -94,11 +102,13 @@ export function FilesTable({
                   <span className="truncate">{file.title ?? file.filename_download}</span>
                 </Link>
               </td>
-              <td className="py-2 pr-4 text-muted-foreground">{file.type ?? "—"}</td>
-              <td className="py-2 pr-4 text-muted-foreground">{size(file.filesize)}</td>
-              <td className="py-2 text-muted-foreground">
-                {format.dateTime(new Date(file.uploaded_on))}
-              </td>
+              {shows("type") ? <td className="py-2 pr-4 text-muted-foreground">{file.type ?? "—"}</td> : null}
+              {shows("size") ? <td className="py-2 pr-4 text-muted-foreground">{size(file.filesize)}</td> : null}
+              {shows("uploaded") ? (
+                <td className="py-2 text-muted-foreground">
+                  {format.dateTime(new Date(file.uploaded_on))}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

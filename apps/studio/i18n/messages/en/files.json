@@ -84,5 +84,8 @@
   "labels_loading": "Loading…",
   "labels_load_failed": "Could not load labels",
   "view_source": "View original",
-  "no_file_selected": "Not selected"
+  "no_file_selected": "Not selected",
+  "options_columns": "Columns",
+  "options_card_columns": "Cards per row",
+  "options_columns_count": "{count} columns"
 }

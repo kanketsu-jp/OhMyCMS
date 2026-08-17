@@ -84,5 +84,8 @@
   "labels_loading": "読み込んでいます…",
   "labels_load_failed": "ラベルを読み込めませんでした",
   "view_source": "もとのファイルをみる",
-  "no_file_selected": "選ばれていません"
+  "no_file_selected": "選ばれていません",
+  "options_columns": "出す項目",
+  "options_card_columns": "1 行に並べる数",
+  "options_columns_count": "{count} 列"
 }

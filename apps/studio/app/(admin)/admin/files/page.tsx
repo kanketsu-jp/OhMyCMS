@@ -4,8 +4,18 @@ import { ErrorBanner } from "@/components/admin/error-banner";
 import { FilesDropUpload } from "@/components/admin/files-drop-upload";
 import { FilesLightboxGrid } from "@/components/admin/files-lightbox-grid";
 import { FilesTable } from "@/components/admin/files-table";
+import { FilesViewOptions } from "@/components/admin/files-view-options";
 import { FilesViewSwitch } from "@/components/admin/files-view-switch";
 import { FolderGrid } from "@/components/admin/folder-grid";
+import {
+  CARD_COLUMN_CHOICES,
+  FILE_COLUMNS,
+  cardGridClass,
+  readCardColumns,
+  readColumns,
+  type CardColumns,
+  type FileColumn,
+} from "@/lib/admin/files-view";
 import { ListPagination } from "@/components/admin/list-pagination";
 import { PageAction } from "@/components/admin/page-action";
 import {
@@ -26,7 +36,16 @@ import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
 
 type Props = {
-  searchParams: Promise<{ folder?: string; page?: string; view?: string; label?: string }>;
+  searchParams: Promise<{
+    folder?: string;
+    page?: string;
+    view?: string;
+    label?: string;
+    /** 表で出す項目（`type,size`）。🚨 空文字は「全部外した」で、無指定とは別。 */
+    cols?: string;
+    /** カードを 1 行に並べる数（1〜5）。 */
+    cards?: string;
+  }>;
 };
 
 type FileRow = {
@@ -97,6 +116,46 @@ export default async function FilesPage({ searchParams }: Props) {
     const search = params.toString();
     return search ? `/admin/files?${search}` : "/admin/files";
   })();
+
+  /**
+   * 表示形式ごとの設定（表＝出す項目 / カード＝1 行の数）。
+   * 🚨 `view` と同じく **URL に持ち、知らない値は既定へ落とす**（`lib/admin/files-view.ts`）。
+   */
+  const columns = readColumns(query.cols);
+  const cardColumns = readCardColumns(query.cards);
+
+  /** 1 つのクエリだけ差し替えた行き先（他は保つ）。🚨 `viewHref` と同じ形。 */
+  const withQuery = (key: string, value: string | null): string => {
+    const params = new URLSearchParams();
+    for (const [name, raw] of Object.entries(query)) {
+      if (name === key || raw === undefined) continue;
+      for (const one of Array.isArray(raw) ? raw : [raw]) {
+        if (one !== "") params.append(name, one);
+      }
+    }
+    // 🚨 `null` は「そのクエリを消す」。**空文字は消さない**——
+    //    `?cols=` は「全部外した」という指定で、消すと既定へ戻ってしまう。
+    if (value !== null) params.set(key, value);
+    const search = params.toString();
+    return search ? `/admin/files?${search}` : "/admin/files";
+  };
+
+  /**
+   * その列を**入れ替えた**ときの行き先。
+   * 🚨 **関数ではなく表で渡す**（サーバ側の描画から関数は渡せない）。
+   */
+  const columnHref = Object.fromEntries(
+    FILE_COLUMNS.map((column) => {
+      const next = columns.includes(column)
+        ? columns.filter((one) => one !== column)
+        : FILE_COLUMNS.filter((one) => columns.includes(one) || one === column);
+      return [column, withQuery("cols", next.join(","))];
+    }),
+  ) as Record<FileColumn, string>;
+
+  const cardColumnsHref = Object.fromEntries(
+    CARD_COLUMN_CHOICES.map((count) => [count, withQuery("cards", String(count))]),
+  ) as Record<CardColumns, string>;
 
   const viewHref = (target: "grid" | "table"): string => {
     const params = new URLSearchParams();
@@ -196,7 +255,16 @@ export default async function FilesPage({ searchParams }: Props) {
         {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
             見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
-            <FilesViewSwitch view={view} gridHref={viewHref("grid")} tableHref={viewHref("table")} />
+            <div className="flex items-center gap-1">
+              <FilesViewSwitch view={view} gridHref={viewHref("grid")} tableHref={viewHref("table")} />
+              <FilesViewOptions
+                view={view}
+                columns={columns}
+                cardColumns={cardColumns}
+                columnHref={columnHref}
+                cardColumnsHref={cardColumnsHref}
+              />
+            </div>
           </div>
           {/* 🚨 絞り込み中であることと、**解除の出口**を必ず出す。
               出さないと「ファイルが減った」ように見えて、戻し方が分からない。 */}
@@ -210,9 +278,9 @@ export default async function FilesPage({ searchParams }: Props) {
           ) : null}
           {filesResult.ok || foldersResult.ok ? (
             view === "table" ? (
-              <FilesTable folders={childFolders} files={files} />
+              <FilesTable folders={childFolders} files={files} columns={columns} />
             ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={`grid gap-4 ${cardGridClass(cardColumns)}`}>
               {foldersResult.ok ? <FolderGrid folders={childFolders} /> : null}
               <FilesLightboxGrid files={files} />
               {childFolders.length === 0 && files.length === 0 ? (
