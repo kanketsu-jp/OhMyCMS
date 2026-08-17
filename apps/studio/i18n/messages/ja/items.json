@@ -1,6 +1,7 @@
 {
   "actions_header": "操作",
   "back_to_list": "アイテム一覧へ",
+  "calendar_needs_date_field": "カレンダーで出すには日付の欄が要ります。",
   "columns_shown": "{total} 個の欄のうち {shown} 個を出しています",
   "create_button": "作成",
   "delete_button": "削除",

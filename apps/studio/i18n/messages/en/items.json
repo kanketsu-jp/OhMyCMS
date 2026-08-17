@@ -1,6 +1,7 @@
 {
   "actions_header": "Actions",
   "back_to_list": "Back to Items",
+  "calendar_needs_date_field": "A date field is required to show the calendar.",
   "columns_shown": "Showing {shown} of {total} fields",
   "create_button": "Create",
   "delete_button": "Delete",

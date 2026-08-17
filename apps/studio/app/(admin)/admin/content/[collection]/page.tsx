@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
+import { ItemCalendar } from "@/components/admin/item-calendar";
 import { ItemCards } from "@/components/admin/item-cards";
 import { isFileField } from "@/lib/schema/interfaces";
 import { ColumnPicker } from "@/components/admin/column-picker";
@@ -14,6 +15,7 @@ import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RowOptions } from "@/components/admin/row-options";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getLocale, getT } from "@/i18n/server";
+import { resolveCalendarField, resolveCalendarMonth } from "@/lib/admin/calendar-field";
 import { fieldLabel } from "@/lib/schema/labels";
 import { DEFAULT_LIST_LAYOUT, resolveLayout, type ListLayoutId } from "@/lib/admin/list-layouts";
 import {
@@ -49,6 +51,8 @@ type Props = {
     cols?: string;
     limit?: string;
     layout?: string | string[];
+    "cal.field"?: string | string[];
+    "cal.month"?: string | string[];
   }>;
 };
 
@@ -71,6 +75,7 @@ function pageHref(
   columns: FieldResult[],
   limit: number,
   fields: FieldResult[],
+  calendar?: { field: string | null; month: { year: number; month: number } },
 ): string {
   const query = new URLSearchParams({ page: String(page) });
   if (layout !== DEFAULT_LIST_LAYOUT) query.set("layout", layout);
@@ -83,6 +88,10 @@ function pageHref(
     query.set("cols", selectedColumns.join(","));
   }
   if (limit !== DEFAULT_LIST_LIMIT) query.set("limit", String(limit));
+  if (layout === "calendar" && calendar) {
+    if (calendar.field) query.set("cal.field", calendar.field);
+    query.set("cal.month", `${calendar.month.year}-${String(calendar.month.month).padStart(2, "0")}`);
+  }
   return `/admin/content/${encoded}?${query.toString()}`;
 }
 
@@ -104,6 +113,7 @@ function columnToggleHref(
   columns: FieldResult[],
   limit: number,
   fields: FieldResult[],
+  calendar?: { field: string | null; month: { year: number; month: number } },
 ): string | null {
   const on = columns.some((one) => one.field === field.field);
   if (on && columns.length === 1) return null;
@@ -112,7 +122,7 @@ function columnToggleHref(
   const next = on
     ? columns.filter((one) => one.field !== field.field)
     : fields.filter((one) => one.field === field.field || columns.some((c) => c.field === one.field));
-  return pageHref(encoded, layout, 1, next, limit, fields);
+  return pageHref(encoded, layout, 1, next, limit, fields, calendar);
 }
 
 export default async function ContentPage({ params, searchParams }: Props) {
@@ -128,6 +138,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const page = Math.max(1, Number(query.page ?? "1") || 1);
   const layout = resolveLayout(query.layout);
   const limit = resolveLimit(query.limit);
+  const calendarMonth = resolveCalendarMonth(query["cal.month"], new Date());
   const offset = (page - 1) * limit;
   const encoded = encodeURIComponent(collection);
   const [fieldsResult, itemsResult] = await Promise.all([
@@ -143,6 +154,8 @@ export default async function ContentPage({ params, searchParams }: Props) {
     ? fieldsResult.data.filter((field) => Boolean(field.schema) && !field.meta?.hidden)
     : [];
   const columns = resolveColumns(query.cols, fields);
+  const calendarField = resolveCalendarField(fields, query["cal.field"]);
+  const calendarState = { field: calendarField, month: calendarMonth };
   /**
    * この表の削除が**論理削除になるか**。
    *
@@ -156,7 +169,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const columnChoices = fields.map((field) => ({
     key: field.field,
     label: fieldLabel(field, locale),
-    href: columnToggleHref(encoded, layout, field, columns, limit, fields),
+    href: columnToggleHref(encoded, layout, field, columns, limit, fields, calendarState),
     checked: columns.some((one) => one.field === field.field),
   }));
   const softDeletes = fieldsResult.ok
@@ -257,6 +270,15 @@ export default async function ContentPage({ params, searchParams }: Props) {
                     collection={collection}
                     lookup={lookup}
                   />
+                ) : layout === "calendar" ? (
+                  <ItemCalendar
+                    items={itemsResult.data.data}
+                    fields={columns}
+                    pk={pk}
+                    collection={collection}
+                    dateField={calendarField}
+                    month={calendarMonth}
+                  />
                 ) : (
                   <WideTable>
                     <Table>
@@ -335,18 +357,20 @@ export default async function ContentPage({ params, searchParams }: Props) {
               </div>
               {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
                   読み込めていないのか、まだ無いのかが分からない。 */}
-              {itemsResult.data.data.length === 0 ? <ListEmpty>{t("empty")}</ListEmpty> : null}
+              {itemsResult.data.data.length === 0 && !(layout === "calendar" && calendarField === null) ? (
+                <ListEmpty>{t("empty")}</ListEmpty>
+              ) : null}
               <div className="mt-4 flex items-center justify-between text-sm">
                 <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
                 <div className="flex gap-2">
                   <Link
-                    href={pageHref(encoded, layout, Math.max(1, page - 1), columns, limit, fields)}
+                    href={pageHref(encoded, layout, Math.max(1, page - 1), columns, limit, fields, calendarState)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
                   >
                     {t("prev_page")}
                   </Link>
                   <Link
-                    href={pageHref(encoded, layout, Math.min(pageCount, page + 1), columns, limit, fields)}
+                    href={pageHref(encoded, layout, Math.min(pageCount, page + 1), columns, limit, fields, calendarState)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
                   >
                     {t("next_page")}
