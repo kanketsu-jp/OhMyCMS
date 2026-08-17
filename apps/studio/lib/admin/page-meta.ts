@@ -102,7 +102,13 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
 
   // 🚨 files には概要の文言が無い（`description` キーが存在しない）。
   //    **推測で辞書へ足さない**（**守り手: 無し＝願望**）。概要が要ると決まったら、そのとき書く。
-  "/admin/files": { titleKey: "files.title", sectionKeys: ["files.list_title"] },
+  // 🚨 sectionKeys を持たせない（堀池・2026-08-17 D3 原文）:
+  //    「admin/files の右サイドバーにある『項目一覧』アコーディオンは、
+  //      現状『一覧』という文字しかなく機能していないため廃止してください」
+  //    節が 1 つだけで、その名前が「一覧」だった。飛び先の一覧として意味を成していない。
+  //    🚨 0 件のときに枠ごと消す動きは page-info-panel.tsx:80 に既に在るので、
+  //       ここを空にするだけで枠は出なくなる（新しい分岐を足していない）。
+  "/admin/files": { titleKey: "files.title" },
   "/admin/files/new": { titleKey: "files.upload_title" },
   "/admin/files/new-folder": { titleKey: "folders.title" },
   "/admin/labels": { titleKey: "labels.title", descriptionKey: "labels.description" },
