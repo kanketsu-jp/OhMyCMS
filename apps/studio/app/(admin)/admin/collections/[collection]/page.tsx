@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
 import { apiFetch, hasApiCode } from "@/lib/admin/api";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { WideTable } from "@/components/admin/wide-table";
+import { FieldCreateForm } from "@/components/admin/field-create-form";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RelationForm } from "@/components/admin/relation-form";
@@ -172,24 +173,16 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           🚨 form は**残す**。`form="collection-delete-form"` が指す相手そのものなので、
              消すと削除ボタンが黙って効かなくなる（中身は空でよい）。 */}
       <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post" />
-      {/* 🚨 **主アクションは 1 つ。削除は ▾ の中**（堀池さん 283 A・2026-08-15 原文:
-          「主アクションを別のものにし、削除はオプションへ」）。
-          規約 `knowledge/decisions/action-button-and-edit-mode.md` §3。
-          🚨 主を「フィールド追加」にしたのは**規約の表がそう決めている**から。
-          **押された回数は測れない**（記録を取っていない）ので、**頻度の根拠は推測**。
-          🚨 押したあとの振る舞い（ゴミ箱へ入るのか消えるのか）と文言は **288 待ち**。
-          ここで決めたのは**置き場所だけ**。 */}
+      {/* 🚨 項目追加は本文フォームを主とし、ヘッダーからも同じフォームを送れるようにする。削除は ▾ の中。 */}
       <PageAction
-        href={`/admin/collections/${encoded}/fields/new`}
-        label={tFields("add_title")}
-        icon={<Plus />}
+        form="field-create-form"
+        label={tFields("add_button")}
+        icon={<Save />}
         options={[
           {
             label: tCollections("delete_button"),
             formId: "collection-delete-form",
             destructive: true,
-            // 🚨 **戻せない**（`lib/schema/service.ts` が表ごと落とす）。決定の①。
-            //    本文に**及ぶ範囲**を書く（決定 §4）——**中の項目も一緒に消える**。
             confirm: {
               title: tCollections("delete_confirm_title"),
               description: tCollections("delete_confirm", { name: collection }),
@@ -299,10 +292,6 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             ) : (
               <ListEmpty>
                 {tFields("empty")}{" "}
-                <Link href={`/admin/collections/${encoded}/fields/new`} className={cn(buttonVariants({ size: "sm" }))}>
-                  <Plus data-icon="inline-start" />
-                  {tFields("add_title")}
-                </Link>
               </ListEmpty>
             )}
           </>
@@ -348,6 +337,10 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             {tItems("manage_link")}
           </Link>
         </div>
+      </Surface>
+      <Surface id={sectionAnchorId("fields.add_title")} className="pt-6">
+        <SurfaceTitle>{tFields("add_title")}</SurfaceTitle>
+        <FieldCreateForm collection={encoded} inline />
       </Surface>
       {/* 🚨 面の上の線と見出しがくっつかないよう、線の下に 24px（DESIGN.md §1-9・/admin/version と同じ形）。 */}
       <Surface className="pt-6">

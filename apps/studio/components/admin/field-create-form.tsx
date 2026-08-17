@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { useT } from "@/i18n/client";
 import { interfacesForType, type FieldInterfaceId } from "@/lib/schema/interfaces";
 
@@ -61,9 +62,10 @@ const selectClassName =
 
 type Props = {
   collection: string;
+  inline?: boolean;
 };
 
-export function FieldCreateForm({ collection }: Props) {
+export function FieldCreateForm({ collection, inline = false }: Props) {
   const t = useT("fields");
   const [kindId, setKindId] = useState<FieldKindId>("short_text");
   const [advancedType, setAdvancedType] = useState("");
@@ -185,12 +187,21 @@ export function FieldCreateForm({ collection }: Props) {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-      <PageAction
-        form="field-create-form"
-        role="primary"
-        label={t("add_button")}
-        icon={<Check />}
-      />
+      {inline ? (
+        <div>
+          <Button type="submit">
+            <Check data-icon="inline-start" />
+            {t("add_button")}
+          </Button>
+        </div>
+      ) : (
+        <PageAction
+          form="field-create-form"
+          role="primary"
+          label={t("add_button")}
+          icon={<Check />}
+        />
+      )}
     </form>
   );
 }
