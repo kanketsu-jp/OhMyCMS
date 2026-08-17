@@ -44,6 +44,8 @@ export function PanelStorage() {
   // 🚨 **もう一度読み込めるようにする**（司令塔の「途中で失敗したとき」②「次に何をすればよいか」）。
   //    この値が変わると下の効果が走り直す。失敗したまま何もできない画面にしない。
   const [reload, setReload] = useState(0);
+  // 🚨 押した手応え。押している間も**失敗の表示を出したまま**にする（消すと空白になる）。
+  const [pending, setPending] = useState(false);
 
   // 🚨 `/admin/files` 以外では読みに行かない（他のページの負荷を増やさない）。
   const enabled = pathname === "/admin/files";
@@ -61,13 +63,23 @@ export function PanelStorage() {
           if (alive) {
             setExpired(response.status === 401);
             setFailed(true);
+            setPending(false);
           }
           return;
         }
         const payload = (await response.json()) as { data?: StorageStatus };
-        if (alive && payload.data) setStatus(payload.data);
+        if (alive && payload.data) {
+          // 🚨 **成功したときに初めて失敗の印を消す。**押した瞬間に消すと、応答が返るまで
+          //    節が丸ごと消える（実測 2026-08-17: 押した 0.4 秒後に保管先の行も失敗の文も無くなった）。
+          setStatus(payload.data);
+          setFailed(false);
+          setPending(false);
+        }
       } catch {
-        if (alive) setFailed(true);
+        if (alive) {
+          setFailed(true);
+          setPending(false);
+        }
       }
     })();
     return () => {
@@ -86,9 +98,11 @@ export function PanelStorage() {
       <PanelError
         message={t("storage_error")}
         expired={expired}
+        pending={pending}
         onRetry={() => {
-          setFailed(false);
+          // 🚨 `failed` はここで消さない（消すと応答が返るまで節ごと消える）。
           setExpired(false);
+          setPending(true);
           setReload((n) => n + 1);
         }}
       />

@@ -94,6 +94,8 @@ function PanelDisplayControls({
   const [state, setState] = useState<FieldsState>({ status: "loading", collection });
   // 🚨 **もう一度読み込めるようにする**（司令塔の「途中で失敗したとき」②）。
   const [reload, setReload] = useState(0);
+  // 🚨 押した手応え（実測: 押しても見た目が変わらないと、人はもう一度押す）。
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -109,12 +111,15 @@ function PanelDisplayControls({
         //    門の言い分が正しい——**文字列で分岐する形そのものが危うい**ので、状態で持つ。
         if (!response.ok) {
           setState({ status: "error", collection, expired: response.status === 401 });
+          setPending(false);
           return null;
         }
         return (await response.json()) as FieldResult[];
       })
       .then((fields) => {
         if (fields === null) return;
+        // 🚨 応答が返ったら押した手応えを下ろす。
+        setPending(false);
         setState({
           status: "ready",
           collection,
@@ -127,6 +132,7 @@ function PanelDisplayControls({
         if (error instanceof DOMException && error.name === "AbortError") return;
         // 🚨 ここへ来るのは通信が切れた側。**「もう一度」で直りうる**ので expired にしない。
         setState({ status: "error", collection, expired: false });
+        setPending(false);
       });
 
     return () => controller.abort();
@@ -178,7 +184,11 @@ function PanelDisplayControls({
         <PanelError
           message={t("display_error")}
           expired={isCurrent && state.status === "error" && state.expired}
-          onRetry={() => setReload((n) => n + 1)}
+          pending={pending}
+          onRetry={() => {
+            setPending(true);
+            setReload((n) => n + 1);
+          }}
         />
       ) : fields.length === 0 ? (
         // 🚨 **取れたが候補が無い**とき。上の「取れなかった」と**別の文言**にする。

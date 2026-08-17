@@ -39,6 +39,7 @@ export function PanelError({
   message,
   onRetry,
   expired = false,
+  pending = false,
 }: {
   message: string;
   onRetry: () => void;
@@ -50,6 +51,11 @@ export function PanelError({
    * そのとき「もう一度読み込む」を出すのは**嘘**——何回押しても直らない。
    */
   expired?: boolean;
+  /**
+   * 🚨 **押した手応えを出すため**。実測（2026-08-17）で、押しても見た目が変わらず、
+   * 人は**もう一度押す**（10 連打で 10 本飛んだ。GET なので二重に作られる物は無いが、手応えが無い）。
+   */
+  pending?: boolean;
 }) {
   const t = useT("panel");
   const tError = useT("errors");
@@ -72,7 +78,14 @@ export function PanelError({
     <div className="flex flex-col items-start gap-2">
       <p className="text-sm text-muted-foreground">{message}</p>
       {/* 🚨 角丸を使わない（`DESIGN.md` §1-1）。小さくしない（§2-2・§1-7）。 */}
-      <Button type="button" variant="outline" size="sm" className="rounded-none" onClick={onRetry}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="rounded-none"
+        loading={pending}
+        onClick={onRetry}
+      >
         {t("retry")}
       </Button>
     </div>

@@ -101,6 +101,8 @@ function PanelLogsAccordionItem({
   const [state, setState] = useState<LogsState>({ status: "loading", key });
   // 🚨 **もう一度読み込めるようにする**（司令塔の「途中で失敗したとき」②）。
   const [reload, setReload] = useState(0);
+  // 🚨 押した手応え（実測: 押しても見た目が変わらないと、人はもう一度押す）。
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -113,15 +115,19 @@ function PanelLogsAccordionItem({
     })
       .then(async (response) => {
         if (response.status === 403) {
+          setPending(false);
           setState({ status: "forbidden", key });
           return;
         }
         if (!response.ok) {
           // 🚨 401 だけ分ける（「もう一度」では直らない）。403 は上で `forbidden` として扱っている。
+          setPending(false);
           setState({ status: "error", key, expired: response.status === 401 });
           return;
         }
         const body = (await response.json()) as { data: ActivityEntry[] };
+        // 🚨 応答が返ったら押した手応えを下ろす。
+        setPending(false);
         setState(
           body.data.length === 0
             ? { status: "empty", key }
@@ -131,6 +137,7 @@ function PanelLogsAccordionItem({
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         // 🚨 通信が切れた側。ここは「もう一度」で直りうる。
+        setPending(false);
         setState({ status: "error", key, expired: false });
       });
 
@@ -151,7 +158,11 @@ function PanelLogsAccordionItem({
           <PanelError
             message={t("history_error")}
             expired={current.status === "error" && current.expired}
-            onRetry={() => setReload((n) => n + 1)}
+          pending={pending}
+            onRetry={() => {
+            setPending(true);
+            setReload((n) => n + 1);
+          }}
           />
         ) : current.status === "empty" ? (
           <p className="text-sm text-muted-foreground">{t("history_empty")}</p>
