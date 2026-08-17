@@ -1,7 +1,7 @@
 ---
 type: decision
 title: 行フィルタは空だと全行許可、壊れると拒否（fail-open しない）
-description: 権限の行フィルタを生 JSON で手書きさせる。壊れた入力（非オブジェクト・存在しない列・parse できない JSON）は 400／500／クエリ拒否で fail-CLOSED。空・null・{} は allow-all＝標準の「行の制限なし」。🚨「空欄＝拒否」と誤解する余地が残る。対処は UI 側で「制限なし」を明示する（条件ビルダー・design の持ち場）。security が実測。
+description: 権限の行フィルタを生 JSON で手書きさせる。壊れた入力（非オブジェクト・存在しない列・parse できない JSON）は 400／500／クエリ拒否で fail-CLOSED。空・null・{} は allow-all＝標準の「行の制限なし」。🚨「空欄＝拒否」と誤解する余地が残る。🚨 さらに合成では {} は null と等価でなく、複数ポリシーの OR で落ちて絞りに縮む（全行を正しく表せるのは null だけ・保存時に {} を null へ正規化）。対処は UI 側で「制限なし」を明示＋サーバ側 shape 検証（design の持ち場）。security が実測。
 tags: [permissions, security]
 status: accepted
 date: 2026-08-17
@@ -46,11 +46,31 @@ UI がそれを明示しないと「空にしたから安全」と誤読され�
 `null`／空は「委任元の権限を全継承」になる（`lib/permissions/resolve.ts` の `capabilityAllows`）。
 ＝ 生 JSON を手書きさせる入力は「空＝無制限」の footgun を共有する。
 
+## 🚨 合成での例外: `{}` は null と等価でない（2026-08-17 追記・security 実測）
+
+上の「空・null・`{}` は allow-all」は**単一ポリシーのとき**だけ正しい。**複数ポリシーの合成では `{}` は `null` と等価でない。**
+
+利用者に複数のポリシーが付くと、`resolvePermission` は各ポリシーの行フィルタを OR で合成する（`lib/permissions/resolve.ts` の `composeOr`）。このとき:
+
+- `null`（フィルタ無し）は `hasUnfilteredRow`（`resolve.ts`・`permissions === null || undefined` だけを見る）で捕まり、合成前に **全行**へ確定する。
+- `{}` は `null` 扱いされず `composeOr` に入る。ところが `applyFilter` は `{}` を回すと 0 件で **where 句を 1 つも足さない**（`lib/items/filter.ts`）。
+
+実測（applyFilter 直叩き・対照つき・残骸0）:
+
+| filter | SQL | 行数 |
+|---|---|---|
+| `{}` 単体 | （where なし） | 2（全行）🟢 |
+| `{"owner":{"_eq":"a"}}` 単体 | `where "owner" = 'a'` | 1 🟢 |
+| 🚨 `{"_or":[{}, {"owner":{"_eq":"a"}}]}` | `where ("owner" = 'a')` | **1（`{}` が落ちた）** |
+| 🚨 順序逆 `{"_or":[{"owner":{"_eq":"a"}}, {}]}` | `where ("owner" = 'a')` | **1** |
+
+＝ **`{}` で「全行許可」したつもりのポリシーが、別ポリシーの絞りと同居した瞬間、黙ってその絞りに縮む。** 向きは fail-CLOSED（狭くなる＝機密漏れではない）。だが「全部見せたはずが見えない」という正しさ/可用性の footgun で、生 JSON に `{}` を『全部』のつもりで書く人が、2 つ目のポリシーが付いた時に踏む。**合成で「全行許可」を正しく表せるのは `null` だけ。**
+
 ## 対処（design の持ち場）
 
 条件ビルダー（Directus の `system-filter` 相当・自作）を入れ、「制限なし」を明示的な選択肢にする。
 `$CURRENT_USER` の置換機構は既に在る（`lib/permissions/variables.ts`）ので、「自分のものだけ」等は接続可能。
-直接編集の口を残すなら、サーバ側で形（非オブジェクト拒否＋列名の実在）を検証する。
+直接編集の口を残すなら、サーバ側で形を検証する: **①非オブジェクト拒否 ②列名の実在 ③🚨 空オブジェクト `{}` は保存時に `null` へ正規化する**（③が無いと上の合成 footgun が残る。「すべて／制限なし」は必ず `null` で永続化し、`{}` を保存しない）。
 
 ## sources
 
