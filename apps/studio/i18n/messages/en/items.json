@@ -4,6 +4,7 @@
   "calendar_needs_date_field": "A date field is required to show the calendar.",
   "columns_shown": "Showing {shown} of {total} fields",
   "create_button": "Create",
+  "copy_button": "Save as copy",
   "delete_button": "Delete",
   "delete_confirm_hard": "This item will be deleted. This collection does not support the trash, so it cannot be undone.",
   "delete_confirm_soft": "It will be moved to the trash. You can restore it from there.",

@@ -89,6 +89,35 @@ export async function POST(request: Request, ctx: Context) {
     return redirectWithMessage(request, backPath, "error", "invalid_input");
   }
 
+  if (formData.get("_method") === "copy") {
+    const primaryKey = formData.get("__primary_key");
+    if (typeof primaryKey !== "string" || primaryKey === "") {
+      return redirectWithMessage(request, backPath, "error", "invalid_input");
+    }
+    const response = await fetch(new URL(`/api/items/${encoded}`, internalOrigin(request)), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: request.headers.get("cookie") ?? "",
+      },
+      body: JSON.stringify(parsed.data),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      return redirectWithMessage(request, backPath, "error", await apiErrorKey(response));
+    }
+    const result = (await response.json()) as { data?: Record<string, unknown> };
+    const copiedId = result.data?.[primaryKey];
+    if (copiedId === undefined || copiedId === null || copiedId === "") {
+      return redirectWithMessage(request, backPath, "error", "invalid_input");
+    }
+    const url = new URL(
+      `/admin/content/${encoded}/${encodeURIComponent(String(copiedId))}`,
+      publicBaseUrl(request),
+    );
+    return NextResponse.redirect(url, { status: 303 });
+  }
+
   const response = await fetch(new URL(`/api/items/${encoded}/${encodedId}`, internalOrigin(request)), {
     method: "PATCH",
     headers: {

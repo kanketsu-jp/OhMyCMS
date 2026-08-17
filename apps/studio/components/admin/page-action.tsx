@@ -83,6 +83,9 @@ export type ActionOption = {
    *    削除のように「フォームを送る」操作は、**id を文字列で渡す**形でしか表せない。
    */
   formId?: string;
+  /** フォーム送信時に追加する操作名（例: `_method=delete`）。 */
+  submitName?: string;
+  submitValue?: string;
   /** 取り消せない操作。赤く出す（規約 §3「破壊的な操作は必ず ▾ の中」） */
   destructive?: boolean;
   /**
@@ -429,7 +432,13 @@ function renderAction({
               // 🚨 `type="submit"` を忘れると**押しても何も起きない**（既定は button）。
               //    `button.tsx` の申し送りと同じ罠。
               <DropdownMenuItem key={o.label} variant={o.destructive ? "destructive" : "default"} asChild>
-                <button type="submit" form={o.formId} className="w-full text-left">
+                <button
+                  type="submit"
+                  form={o.formId}
+                  name={o.submitName}
+                  value={o.submitValue}
+                  className="w-full text-left"
+                >
                   {o.label}
                 </button>
               </DropdownMenuItem>

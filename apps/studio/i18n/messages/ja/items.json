@@ -4,6 +4,7 @@
   "calendar_needs_date_field": "カレンダーで出すには日付の欄が要ります。",
   "columns_shown": "{total} 個の欄のうち {shown} 個を出しています",
   "create_button": "作成",
+  "copy_button": "コピーとして保存",
   "delete_button": "削除",
   "delete_confirm_hard": "この項目を削除します。このコレクションはゴミ箱に対応していないため、元に戻せません。",
   "delete_confirm_soft": "ゴミ箱へ入れます。ゴミ箱から戻せます。",

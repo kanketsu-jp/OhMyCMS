@@ -78,6 +78,27 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
     if (field.meta?.hidden) return false;
     return true;
   });
+  const primaryKeyField = fields.find((field) => field.schema?.is_primary_key)?.field;
+  const hasTrash = fields.some((field) => field.field === "deleted_at");
+  const deleteOption = {
+    label: tItems("delete_button"),
+    formId: "item-form",
+    submitName: "_method",
+    submitValue: "delete",
+    destructive: true,
+    confirm: {
+      title: tItems("delete_confirm_title"),
+      description: hasTrash ? tItems("delete_confirm_soft") : tItems("delete_confirm_hard"),
+      confirmLabel: tItems("delete_button"),
+      tone: hasTrash ? "default" as const : "danger" as const,
+    },
+  };
+  const copyOption = {
+    label: tItems("copy_button"),
+    formId: "item-form",
+    submitName: "_method",
+    submitValue: "copy",
+  };
 
   return (
     <form
@@ -118,6 +139,9 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
                 モードで消すと、編集モードへ入った瞬間に作り直されるだけなので害は無いが、
                 **「送らない理由」が 2 つ混ざる**ので分けておく。 */}
             {!pkReadonly ? <input type="hidden" name="__field" value={field.field} /> : null}
+            {field.field === primaryKeyField ? (
+              <input type="hidden" name="__primary_key" value={field.field} />
+            ) : null}
             <input type="hidden" name={`__type:${field.field}`} value={field.type} />
             <input
               type="hidden"
@@ -249,6 +273,7 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
             role="primary"
             label={isEdit ? tCommon("action_save") : tItems("create_button")}
             icon={<Check />}
+            options={isEdit ? [copyOption, deleteOption] : undefined}
           />
         </>
       ) : (
@@ -257,6 +282,7 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
           label={tCommon("action_edit")}
           icon={<Pencil />}
           onClick={() => setEditing(true)}
+          options={isEdit ? [copyOption, deleteOption] : undefined}
         />
       )}
     </form>
