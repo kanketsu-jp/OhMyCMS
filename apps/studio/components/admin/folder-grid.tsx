@@ -141,6 +141,7 @@ function FolderTile({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          data-folder-tile
           // 🚨 ここで受けるのは**画面内から掴んできたファイルだけ**。外から来たファイル
           //    （アップロード）は上位の層が受けるので、種類で見分けて棲み分ける。
           onDragOver={onDragOver}
@@ -228,6 +229,7 @@ function ParentFolderTile({
 
   return (
     <div
+      data-folder-tile
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}

@@ -97,6 +97,15 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     () => new Set(selectedFiles.map((file) => file.id)),
     [selectedFiles],
   );
+  const [selectionRect, setSelectionRect] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
+  const selectionAddRef = useRef(false);
+  const selectionMovedRef = useRef(false);
   const previewImageIndex = (() => {
     if (!previewRequest) return null;
     const file = fileById.get(previewRequest.id);
@@ -113,6 +122,73 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   useEffect(() => {
     setPreviewableIds(imageIdsKey ? imageIdsKey.split("\u0000") : []);
   }, [imageIdsKey]);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
+      if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) return;
+      if (event.button !== 0) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("[data-file-tile], [data-folder-tile], a, button")) return;
+
+      const firstTile = document.querySelector<HTMLElement>("[data-file-tile]");
+      const surface = firstTile?.parentElement;
+      if (!surface || (target !== surface && !surface.contains(target))) return;
+
+      selectionStartRef.current = { x: event.clientX, y: event.clientY };
+      selectionAddRef.current = event.shiftKey || event.metaKey;
+      selectionMovedRef.current = false;
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      const start = selectionStartRef.current;
+      if (!start) return;
+      const left = Math.min(start.x, event.clientX);
+      const top = Math.min(start.y, event.clientY);
+      const width = Math.abs(start.x - event.clientX);
+      const height = Math.abs(start.y - event.clientY);
+      if (width < 3 && height < 3) return;
+      selectionMovedRef.current = true;
+      event.preventDefault();
+      setSelectionRect({ left, top, width, height });
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      const start = selectionStartRef.current;
+      if (!start) return;
+      selectionStartRef.current = null;
+      setSelectionRect(null);
+      if (!selectionMovedRef.current) return;
+
+      const selectionLeft = Math.min(start.x, event.clientX);
+      const selectionTop = Math.min(start.y, event.clientY);
+      const selectionRight = Math.max(start.x, event.clientX);
+      const selectionBottom = Math.max(start.y, event.clientY);
+      const selectedInRect = files.filter((file) => {
+        const tile = Array.from(document.querySelectorAll<HTMLElement>("[data-file-tile]")).find(
+          (element) => element.dataset.fileTile === file.id,
+        );
+        if (!tile) return false;
+        const rect = tile.getBoundingClientRect();
+        const bounds = [selectionRight, selectionLeft, selectionBottom, selectionTop];
+        return Boolean(rect.left < bounds[0]) && Boolean(rect.right > bounds[1]) && Boolean(rect.top < bounds[2]) && Boolean(rect.bottom > bounds[3]);
+      });
+      const next = selectionAddRef.current
+        ? [...selectedFiles, ...selectedInRect.filter((file) => !selectedIds.has(file.id))]
+        : selectedInRect;
+      replaceSelection(next);
+      selectionMovedRef.current = false;
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+    };
+  // `replaceSelection` is a stable function declaration; it only dispatches selection state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, selectedFiles, selectedIds]);
 
   useEffect(() => {
     return () => {
@@ -208,8 +284,16 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   }, []);
 
   return (
-    <div className="contents">
-      {files.map((file) => {
+    <>
+      {selectionRect ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed z-50 border border-ring bg-ring/20"
+          style={selectionRect}
+        />
+      ) : null}
+      <div className="contents">
+        {files.map((file) => {
         const label = file.title ?? file.filename_download;
         /**
          * 掴んで運べるようにする。
@@ -226,10 +310,11 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
         if (isImage(file)) {
           return (
             <FileTileMenu key={file.id} fileId={file.id}>
-            <button
-              {...dragProps}
-              type="button"
-              data-selected={selected ? "true" : undefined}
+             <button
+               {...dragProps}
+               type="button"
+               data-file-tile={file.id}
+               data-selected={selected ? "true" : undefined}
               /* 🚨 **`aria-selected` は使えない。** `role=button`（`<button>` の暗黙の役）は
                  この属性を持てず、lint が名指しで警告した（`jsx-a11y/role-supports-aria-props`）。
                  選んでいる状態を読み上げに伝えるのは **`aria-pressed`**（押している/いない）。
@@ -268,25 +353,27 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
          */
         return (
           <FileTileMenu key={file.id} fileId={file.id}>
-          <Link
-            {...dragProps}
-            href={`/admin/files/${file.id}`}
-            data-selected={selected ? "true" : undefined}
-            className={tileClassName}
-            onClick={(event) => selectFromEvent(event, file)}
-          >
-            <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
-              <div className="text-center text-muted-foreground">
-                <FileIcon className="mx-auto mb-2 size-10" />
-                <span className="text-sm font-medium">{extension(file, t("file_extension_fallback"))}</span>
+            <Link
+              {...dragProps}
+              href={`/admin/files/${file.id}`}
+              data-file-tile={file.id}
+              data-selected={selected ? "true" : undefined}
+              className={tileClassName}
+              onClick={(event) => selectFromEvent(event, file)}
+            >
+              <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
+                <div className="text-center text-muted-foreground">
+                  <FileIcon className="mx-auto mb-2 size-10" />
+                  <span className="text-sm font-medium">{extension(file, t("file_extension_fallback"))}</span>
+                </div>
               </div>
-            </div>
-            <p className="mt-3 truncate text-sm font-medium">{label}</p>
-            <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
-          </Link>
+              <p className="mt-3 truncate text-sm font-medium">{label}</p>
+              <p className="truncate text-xs text-muted-foreground">{file.filename_download}</p>
+            </Link>
           </FileTileMenu>
         );
       })}
+      </div>
       <ImageLightbox
         images={images}
         index={lightboxIndex}
@@ -297,6 +384,6 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
         }}
         confineToContent
       />
-    </div>
+    </>
   );
 }
