@@ -132,7 +132,7 @@ export function BugReportComposer({ onDone }: Props) {
   return (
     <form
       id="bug-report-form"
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         void submit.run();
@@ -146,9 +146,10 @@ export function BugReportComposer({ onDone }: Props) {
           name="body"
           value={body}
           onChange={(event) => setBody(event.target.value)}
-          rows={6}
+          rows={3}
           maxLength={20000}
           placeholder={t("report_body_placeholder")}
+          aria-label={t("report_body_label")}
           aria-invalid={fieldError === "body" || undefined}
         />
         {fieldError === "body" ? (
@@ -188,9 +189,11 @@ export function BugReportComposer({ onDone }: Props) {
         </AccordionItem>
       </Accordion>
 
-      <Button type="submit" loading={submit.pending} className="w-full">
-        {t("submit_button")}
-      </Button>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button type="submit" loading={submit.pending}>
+          {t("submit_button")}
+        </Button>
+      </div>
     </form>
   );
 }
