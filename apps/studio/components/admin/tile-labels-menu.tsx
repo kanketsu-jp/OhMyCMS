@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { Check, Lock, Tag } from "lucide-react";
 
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { labelDisplayName } from "@/components/admin/label-display-name";
@@ -17,7 +26,7 @@ type LabelRow = {
 };
 
 /**
- * タイルに付けるラベル（メニューの中に置く小さな一覧）。
+ * タイルに付けるラベル（メニューの中から開く、探せる一覧）。
  *
  * 🚨 **一覧の描画時には取りに行かない。** タイルの数だけ問い合わせが飛ぶ（N+1）。
  *    **メニューを開いた人の分だけ**取る。開く操作の中で呼ぶので、
@@ -25,11 +34,14 @@ type LabelRow = {
  *
  * 🚨 ラベルが増えたらメニューが縦に伸びる。**10 個を超えたら**別の画面
  *    （フォルダの設定）へ移すこと。**いまは3件なので、置き場所を増やさない方を選んだ。**
+ *    2026-08-17 に一覧はダイアログへ移したが、「メニュー内一覧だったころの判断」は
+ *    経緯として残す。ダイアログでも、件数が大きくなりすぎたら専用画面のほうがよい。
  */
 export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
   const t = useT("files");
   // 🚨 システムラベルの表示名だけは `labels` の辞書から出す（この画面の名前空間とは別）
   const tl = useT("labels");
+  const [open, setOpen] = useState(false);
   const [all, setAll] = useState<LabelRow[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -62,48 +74,76 @@ export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
     toast.success(t("labels_saved"));
   });
 
-  // まだ開いていない（＝取りに行っていない）ときは、押すと取りに行くだけの1行を出す。
-  if (all === null) {
-    return (
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next && all === null) {
+      void load.run();
+    }
+  };
+
+  return (
+    <>
       <button
         type="button"
         disabled={load.pending}
-        onClick={() => void load.run()}
+        onClick={() => handleOpenChange(true)}
         className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground active:text-foreground"
       >
         <Tag className="size-4" />
         {load.pending ? t("labels_loading") : t("labels_heading")}
       </button>
-    );
-  }
 
-  if (all.length === 0) return null;
-
-  return (
-    <div className="flex flex-col gap-1 px-2 py-1.5">
-      {all.map((label) => {
-        const on = selected.has(label.id);
-        return (
-          <button
-            key={label.id}
-            type="button"
-            aria-pressed={on}
-            disabled={save.pending}
-            onClick={() => {
-              const next = new Set(selected);
-              if (next.has(label.id)) next.delete(label.id);
-              else next.add(label.id);
-              setSelected(next);
-              void save.run(next);
-            }}
-            className="flex items-center gap-2 text-left text-sm hover:underline active:underline"
-          >
-            {on ? <Check className="size-3.5" /> : <Tag className="size-3.5 opacity-50" />}
-            <span className="truncate">{labelDisplayName(tl, label)}</span>
-            {label.is_system ? <Lock className="size-3 opacity-60" /> : null}
-          </button>
-        );
-      })}
-    </div>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("labels_dialog_title")}</DialogTitle>
+          </DialogHeader>
+          <Command>
+            <CommandInput autoFocus placeholder={t("labels_search_placeholder")} />
+            <CommandList>
+              {all === null ? (
+                <CommandEmpty>
+                  {load.pending ? t("labels_loading") : t("labels_load_failed")}
+                </CommandEmpty>
+              ) : (
+                <>
+                  <CommandEmpty>{t("labels_none_found")}</CommandEmpty>
+                  {all.length > 0 ? (
+                    <CommandGroup>
+                      {all.map((label) => {
+                        const on = selected.has(label.id);
+                        const name = labelDisplayName(tl, label);
+                        return (
+                          <CommandItem
+                            key={label.id}
+                            value={name}
+                            aria-checked={on}
+                            role="menuitemcheckbox"
+                            disabled={save.pending}
+                            onSelect={() => {
+                              const next = new Set(selected);
+                              if (next.has(label.id)) next.delete(label.id);
+                              else next.add(label.id);
+                              setSelected(next);
+                              void save.run(next);
+                            }}
+                          >
+                            <Check className={on ? "size-4" : "size-4 opacity-0"} aria-hidden />
+                            <span>{name}</span>
+                            {label.is_system ? (
+                              <Lock className="ml-auto size-3.5 opacity-60" />
+                            ) : null}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  ) : null}
+                </>
+              )}
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
