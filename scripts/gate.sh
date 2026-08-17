@@ -157,10 +157,11 @@ printf '%s\n' "$JOBS" | while IFS="$(printf '\037')" read -r job root cmd; do
       #      **道具が、git に無い場所から状態を読む**。
       #    → **0 を「stale 無し」と書かない。** 出すのは drift だけにし、stale は測れないと言う。
       if [ "$ks" = "0" ]; then
-        log "  ✅ ${job}  索引: drift ${kd} 件 / 🚨 stale は**測れていません**（隔離ツリーでは検査が走らない・実測）"
-        log "      → stale は共有ツリーで \`rokf doctor\` を引いてください"
+        log "  ✅ ${job}  索引: drift ${kd} 件（**落とさないと決めた**・2026-08-16 司令塔）"
+        log "      🚨 stale は**測れていません**（隔離ツリーでは検査が走らない・実測）。**落とさないと決めたのとは別です**"
+        log "      → stale は共有ツリーで \`rokf doctor\` を引いてください（**stale だけは落とす方針。門への実装は未着手**）"
       else
-        log "  ✅ ${job}  索引: drift ${kd} 件 / stale ${ks} 件"
+        log "  ✅ ${job}  索引: drift ${kd} 件（落とさない） / 🚨 stale ${ks} 件（**落とす方針だが、門への実装は未着手**）"
         grep -aE '^[[:space:]]*warn[[:space:]]+stale' "$jlog" | head -n 5 | sed 's/^/      /'
       fi
     elif [ -n "$why0" ] && grep -qE '⚠|🚨|warn' "$jlog" 2>/dev/null; then
