@@ -25,5 +25,8 @@
   "policy_in_use": "Cannot delete: this policy is assigned to users",
   "role_in_use": "Cannot delete: this role is assigned to users",
   "role_has_assignments": "Cannot delete: policies are assigned to this role",
-  "local_admin_not_linked": "Something is wrong with the setup. Start over from the initial setup, or tell your administrator about this screen."
+  "local_admin_not_linked": "Something is wrong with the setup. Start over from the initial setup, or tell your administrator about this screen.",
+  "page_not_found_title": "This page does not exist",
+  "page_not_found_body": "The URL may have changed, or the page may have been deleted.",
+  "page_not_found_home": "Go to the admin home"
 }
