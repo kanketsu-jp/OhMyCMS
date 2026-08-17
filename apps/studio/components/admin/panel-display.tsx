@@ -13,7 +13,6 @@ import {
 } from "@/lib/admin/list-view";
 import { PanelSection } from "@/components/admin/panel-section";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { useLocale, useT } from "@/i18n/client";
 import { fieldLabel } from "@/lib/schema/labels";
 
@@ -211,8 +210,12 @@ function PanelDisplayControls({
             </div>
           </section>
 
-          <Separator />
-
+          {/*
+            🚨 **ここに線を足さない**（DESIGN.md §1-3）。
+               「列を選ぶ」と「表示件数」は小見出しどうし＝「項目どうしの間」で、
+               2026-08-15 に堀池さんが外した側の線（別の要素に見えてしまう）。
+               間隔は親の `gap-4` が持つ（同 §1-3 追記「Divier、space-y をちゃんと活用」）。
+          */}
           <section className="flex min-w-0 flex-col gap-2">
             <h3 className="text-sm font-medium">{t("display_limit_heading")}</h3>
             <div className="flex min-w-0 flex-col">

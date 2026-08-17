@@ -6,7 +6,6 @@ import { usePathname, useParams } from "next/navigation";
 import { PanelSection } from "@/components/admin/panel-section";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useT } from "@/i18n/client";
 import TOOL_CATALOG from "@/lib/mcp/tool-catalog.json";
 
@@ -141,8 +140,12 @@ export function PanelApiMcp() {
           </ScrollArea>
         </section>
 
-        <Separator />
-
+        {/*
+          🚨 **ここに線を足さない**（DESIGN.md §1-3）。
+             小見出しどうしのあいだは「項目どうしの間」＝ 2026-08-15 に堀池さんが外した側の線
+             （「divider は明確に分けるものなので、今の位置にあると設定は別の要素と考えてしまう」）。
+             間隔は親の `space-y-4` が持つ（同 §1-3 追記「Divier、space-y をちゃんと活用」）。
+        */}
         {/* ── REST（このページを叩く形） ── */}
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -168,8 +171,7 @@ export function PanelApiMcp() {
           )}
         </section>
 
-        <Separator />
-
+        {/* 🚨 ここも線を足さない（同上・§1-3）。間隔は親の `space-y-4`。 */}
         {/* ── MCP（この画面に効くツール） ── */}
         <section className="space-y-2">
           <h3 className="text-sm font-medium">{t("api_mcp_heading")}</h3>
