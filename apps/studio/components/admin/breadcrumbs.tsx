@@ -13,10 +13,10 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tree, TreeItem } from "@/components/ui/tree";
 import { usePageTrail } from "@/components/admin/page-trail";
 import { useT } from "@/i18n/client";
 
@@ -94,7 +94,34 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuGroup>
+                {/* 🚨 **罫線文字（├ └）をやめて、接続線そのものを描く**（堀池・2026-08-17・C4）。
+                    原文:「パンくずリスト：現在の罫線はただの記号のようなので、デザインとして
+                          あしらいを加えてください。以前お渡しした YouTube のチャット UI のように、
+                          角丸の線で動的に変化するようなイメージにしてください。」
+
+                    🚨 **これは堀池さん自身の前の指示の反転**（消さずに残す）。
+                      2026-08-15 の原文は「それより前のページは『├XXX』『└XXX』で表示させ」だった。
+                      2 日使ってみて「ただの記号」＝ 線に見えない、という判断に変わった。
+
+                    🚨 **新しく描かない。既に在るものを繋ぐ。**【測った 2026-08-17】
+                      規約 `knowledge/decisions/tree-connector-lines.md` が
+                      「**罫線文字（├ └ ┣）を使わない**」を既に決めていて、
+                      `components/ui/tree.tsx` と `app/globals.css` に実装まで在った。
+                      🚨 それでも `TreeItem` の使用は **リポジトリ全体で 0 件**、
+                      罫線文字が残っていたのは **このファイルだけ**（他 0 件）だった
+                      ＝ **規約と部品が在って、繋がっていなかった**のがこの指摘の実体。
+
+                    🚨 **平らな並びのまま置く**（入れ子にしない）。
+                      `::before`（通し線）は `:last-child` で消えるので、
+                      **途中の行＝ ├ / 最後の行＝ └** が、記号のときと 1 対 1 で対応する。
+                      入れ子にすると段ごとに 1 件になり、通し線が 1 本も出なくなる
+                      （＝ 記号のときの意味が変わる）。tree.tsx の実測も平らな並びで採られている。
+
+                    🚨 `role="none"` は**外さないこと**。Radix の `DropdownMenuContent` は
+                      `role="menu"` なので、素の `ul` / `li` を入れると
+                      **メニューの中に「リスト」が現れて読み上げの構造が二重になる**。
+                      見た目のための器なので、意味としては消しておく。 */}
+                <Tree role="none">
                   {/* 🚨 **本物のリンク（`<a href>`）にする**（2026-08-15）。
                       以前は onClick でページを移していたが、`href` が無いと:
                         ・**Cmd+クリック / 中クリックで新しいタブに開けない**
@@ -108,35 +135,33 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                       押せないものを `DropdownMenuItem` にすると**押せそうに見えて何も起きない**ので、
                       **項目にせず、見出しの行として置く**（`disabled` で薄くするのとは意味が違う——
                       これは「いま使えない」ではなく「**もともと行き先が無い**」）。 */}
-                  {parents.map((crumb, index) => {
-                    // 木の枝の記号。最後（＝ひとつ上の階層）だけ └ にする。
-                    // 記号なので辞書には載せない（文言ではない）。
-                    const branch = index === parents.length - 1 ? "└" : "├";
+                  {parents.map((crumb) => {
+                    // 🚨 枝は **CSS が描く**（`li` の擬似要素）。ここでは印を付けるだけ。
+                    //    どの行が └ になるかは `:last-child` が決めるので、
+                    //    **添字で分岐しない**（分岐を 2 箇所に持つと、片方だけ直したときに割れる）。
                     if (!crumb.navigable) {
                       return (
-                        <div
-                          key={crumb.href}
-                          className="px-2 py-1.5 text-sm text-muted-foreground"
-                        >
-                          <span className="truncate">
-                            {branch}
-                            {crumb.label}
-                          </span>
-                        </div>
+                        <TreeItem key={crumb.href} role="none">
+                          {/* 🚨 **ページが無い区画は押させない**（上の申し送りと同じ理由）。
+                              行の高さは `tree-item` が持つので、縦の余白は指定しない
+                              （指定すると肘の位置が行の中央からずれる）。 */}
+                          <div className="flex items-center px-2 text-sm text-muted-foreground">
+                            <span className="truncate">{crumb.label}</span>
+                          </div>
+                        </TreeItem>
                       );
                     }
                     return (
-                      <DropdownMenuItem key={crumb.href} asChild>
-                        <Link href={crumb.href}>
-                          <span className="truncate">
-                            {branch}
-                            {crumb.label}
-                          </span>
-                        </Link>
-                      </DropdownMenuItem>
+                      <TreeItem key={crumb.href} role="none">
+                        <DropdownMenuItem asChild>
+                          <Link href={crumb.href}>
+                            <span className="truncate">{crumb.label}</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </TreeItem>
                     );
                   })}
-                </DropdownMenuGroup>
+                </Tree>
               </DropdownMenuContent>
             </DropdownMenu>
           </BreadcrumbItem>
