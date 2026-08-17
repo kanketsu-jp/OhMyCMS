@@ -1,7 +1,7 @@
 {
   "placeholder": "検索",
   "scope_all": "全体",
-  "scope_page": "この画面の中",
+  "scope_page": "関係するものだけ",
   "dialog_title": "横断検索",
   "dialog_description": "アイテム・ファイル・コレクション・設定・画面をまとめて探します。",
   "open_hint": "検索",

@@ -1,6 +1,8 @@
 "use client";
 
 import { Check } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
 import { AVATAR_EMOJIS } from "@/lib/admin/avatar-emojis";
@@ -73,7 +75,22 @@ export function AvatarEmojiGrid({ current }: GridProps) {
           // （2026-08-15・hover: には必ず active: を対にする）に従ったもの。
           // 🚨 未検証: 実機でのタップ感触は誰も確認していない。確かめたのは生成後のCSSに
           // `:active` + `bg-accent` の組が存在すること（Tailwindに握りつぶされていないこと）だけ。
-          className="relative flex size-11 shrink-0 items-center justify-center rounded-lg text-2xl hover:bg-accent active:bg-accent disabled:opacity-50"
+          aria-pressed={emoji === current}
+          // 🚨 **選択中を、チェック 1 つに頼らない**（堀池・2026-08-17 AG1 原文
+          //    「いまのアイコン（選択時）がわかりずらい」）。
+          //    実測: 選択中の印は右上の ✓（size-3 ＝ 12px）だけで、枠も背景も無かった。
+          //
+          // 🚨 **塗りでは示さない。** ここには既存の判断が在る（「現在地は塗りでなく ✓。
+          //    塗ると面が増える」）。それを壊さずに離れて見ても分かる形にするため、**枠**で示す。
+          //    ＝ D2（アコーディオンの開閉）では背景を採ったが、あちらは面が 1 段の中だった。
+          //    ここは 24 個が並ぶ格子なので、塗ると 24 枚の面が生まれる。**同じ手は使えない。**
+          className={cn(
+            "relative flex size-11 shrink-0 items-center justify-center rounded-lg text-2xl hover:bg-accent active:bg-accent disabled:opacity-50",
+            // 🚨 `ring-*` は効かなかった（2026-08-17 実測: box-shadow が両方とも透明のまま）。
+            //    このリポジトリの Tailwind v4 では ring の色が既定で透明のため。
+            //    ＝ **border で示す**（実際に太さと色が変わることを測って確かめた）。
+            emoji === current ? "border-2 border-primary" : "border border-transparent",
+          )}
         >
           {emoji}
           {/* 🚨 現在地は塗りでなく `✓`（憲章 §3b）。塗ると面が増える。 */}
