@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
+import { rowLabel } from "@/lib/display/row-label";
 import { deleteStoredObjects } from "@/lib/files/service";
 import { trashRetentionDays } from "./purge";
 import { applyFilter } from "@/lib/items/filter";
@@ -17,15 +18,10 @@ import { assertSafeIdentifier } from "@/lib/schema/validate";
 // 読むには `trashRetentionDays(conn)`（`lib/trash/purge.ts`）を使う。
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DISPLAY_FIELDS = [
-  "title",
-  "name",
-  "filename_download",
-  "email",
-  "collection",
-  "field",
-  "id",
-];
+// 🚨 **「その 1 行を人にどう見せるか」の答えは `lib/display/row-label.ts` に 1 つだけ置く。**
+//    ここに在った `DISPLAY_FIELDS` は、**同じ問いの 2 つ目の答え**になっていた
+//    （カード表示 / 関連の相手 / 横断検索 / ゴミ箱の 4 箇所に出る問い）。
+//    **順番も含めて 1 文字も変えずに移した**ので、表示は変わらない。
 
 type PrimaryKeyMap = Record<string, string>;
 type SourceKind = "collection" | "files" | "folders" | "labels" | "label_assignments" | "activity";
@@ -241,14 +237,16 @@ function applyPrimaryKey(
   }
 }
 
+/**
+ * 🚨 **判定を持たない。** 呼び方をここに残しているだけで、答えは `rowLabel` が持つ。
+ *
+ * 🚨 **雛形（`display_template`）はまだ渡していない。** ゴミ箱は行を**表ごと**に集めており、
+ *    `directus_collections` の雛形を引く経路をここに足すと**問い合わせが 1 本増える**。
+ *    いまは**読む所が 0 件・実データも全部 null**（2026-08-17 実測）なので、
+ *    **渡す価値が出た時に渡す**（＝ 渡していないことを、ここに書いておく）。
+ */
 function displayName(row: Record<string, unknown>, primaryKeys: string[]): string {
-  for (const field of DISPLAY_FIELDS) {
-    const value = row[field];
-    if (typeof value === "string" && value.trim() !== "") return value;
-    if (typeof value === "number") return String(value);
-  }
-  const firstKey = primaryKeys[0];
-  return firstKey ? String(row[firstKey] ?? "") : "";
+  return rowLabel({ row, primaryKeys });
 }
 
 function deletedAtString(value: unknown): string {
