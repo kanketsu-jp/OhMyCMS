@@ -25,7 +25,7 @@ import { ChatComposer, ChatComposerField } from "@/components/admin/chat-compose
 import { FormDraft } from "@/components/admin/form-draft";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useLocale, useT } from "@/i18n/client";
-import { errorKeyFromApiCode } from "@/i18n/error";
+import { errorKeyFromPayload } from "@/i18n/error";
 
 type Props = {
   /** 送り終わったら呼ぶ。右サイドバーなら 1 つ前へ戻す用 */
@@ -148,10 +148,11 @@ export function BugReportComposer({ onDone }: Props) {
       }
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: { code?: string } } | null;
-        // API の生文言は画面へ出さない（code を鍵へ写す）。理由はこの部品の冒頭。
-        const key = errorKeyFromApiCode(payload?.error?.code);
-        toast.error(key === "unexpected" ? t("error_submit_failed") : tError(key));
+        // 🚨 API の生文言は画面へ出さない（code を鍵へ写す）。寄せ先は i18n/error.ts の 1 本だけ
+        //    （司令塔 2026-08-17: 同じ取り出しが 10 箇所に散っていたのを寄せた）。
+        //    表に無い code では `null` が返るので、その場の具体的な文言を使う。
+        const key = errorKeyFromPayload(await response.json().catch(() => null));
+        toast.error(key === null ? t("error_submit_failed") : tError(key));
         return;
       }
 
