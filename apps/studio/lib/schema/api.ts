@@ -6,8 +6,14 @@ export function ok<T>(data: T, status = 200): Response {
 
 export function errorResponse(error: unknown): Response {
   if (isApiError(error)) {
+    // 🚨 **足す。変えない。** `fields` は 1 件以上あるときだけ載せる
+    //    （渡していない既存の 309 件では、応答は今までと 1 バイトも変わらない）。
+    //    SDK は `isApiErrorBody` で `code` が文字列かしか見ておらず、
+    //    生の本文を `detail.body` に保持するので、足しても壊れない（実測 2026-08-17）。
+    //    決定: `knowledge/decisions/field-errors-need-a-container.md`
+    const fields = error.fields && error.fields.length > 0 ? error.fields : undefined;
     return Response.json(
-      { error: { code: error.code, message: error.message } },
+      { error: { code: error.code, message: error.message, ...(fields ? { fields } : {}) } },
       { status: error.status },
     );
   }

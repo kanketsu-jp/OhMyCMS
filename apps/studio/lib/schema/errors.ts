@@ -1,8 +1,35 @@
+/**
+ * 「どの欄が、なぜ悪いか」の 1 件。
+ *
+ * 🚨 **文言を持たせない。** `field`（スキーマ識別子）と `code` だけを運ぶ。
+ *    理由: `lib/admin/forms.ts` に **`apiMessage()` を 2026-08-15 に削除した経緯**が書いてある。
+ *    API の生文言を画面へ流すと、細工したリンクで**任意の文章をアプリ公式のエラー枠**へ出せる。
+ *    **欄ごとに message を足すのは、その関数を欄の数だけ作り直すのと同じ。**
+ *    文言は画面側が辞書から引き、表示名は `lib/schema/labels.ts` の `fieldLabel` が解決する。
+ *
+ * 🚨 **同じ `field` が 2 行出てよい**（必須かつ形式違反、が同時に起きうる）。
+ *    何件見せるかは画面の判断で、入れ物は減らさない。
+ *
+ * 決定: `knowledge/decisions/field-errors-need-a-container.md`
+ */
+export type FieldIssue = {
+  /** スキーマ識別子（"title" / "status"）。🚨 辞書化しない（AGENTS.md §3.8） */
+  field: string;
+  /** `ApiError` の code と同じ空間。画面側は `errorKeyFromApiCode` で鍵へ落とす */
+  code: string;
+};
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly code: string,
     message: string,
+    /**
+     * 🚨 **任意**。渡さなければ応答は今までと 1 バイトも変わらない
+     * （`lib/schema/api.ts` が `fields` を載せるのは、1 件以上あるときだけ）。
+     * 既存の `new ApiError(...)` 309 件は無改修で動く。
+     */
+    public readonly fields?: readonly FieldIssue[],
   ) {
     super(message);
   }

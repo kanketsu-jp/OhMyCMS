@@ -148,6 +148,12 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   TOO_MANY_ITEMS: "too_many_items",
   // 🚨 まとめて削除で ids が空・不正。**「選んでいない」なので `field_required`**。
   IDS_REQUIRED: "field_required",
+  // 🚨 2026-08-17 に足した。**`lib/schema/errors.ts` の PG 写像が投げているのに、
+  //    この表に無かった**（＝ 利用者には `unexpected`「処理できませんでした」しか出ていなかった）。
+  //    23502 not_null → REQUIRED_FIELD ／ 22P02 invalid_text → INVALID_VALUE。
+  //    どちらも**利用者の入力が原因の 400** なので、一般の失敗と同じ顔にしない。
+  REQUIRED_FIELD: "field_required",
+  INVALID_VALUE: "invalid_field",
   FILE_TOO_LARGE: "file_too_large",
   UPLOAD_BODY_UNREADABLE: "upload_unreadable",
   ROLE_NOT_FOUND: "not_found",

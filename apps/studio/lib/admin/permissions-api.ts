@@ -60,7 +60,10 @@ export function optionalString(body: Record<string, unknown>, key: string): stri
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
   if (typeof value !== "string") {
-    throw new ApiError(400, "INVALID_FIELD", `${key} は文字列で指定してください`);
+    // 🚨 **key を文にして捨てない。** 欄として渡す（決定 field-errors-need-a-container）。
+    throw new ApiError(400, "INVALID_FIELD", `${key} は文字列で指定してください`, [
+      { field: key, code: "INVALID_FIELD" },
+    ]);
   }
   return value.trim() === "" ? null : value.trim();
 }
@@ -68,7 +71,10 @@ export function optionalString(body: Record<string, unknown>, key: string): stri
 export function requiredString(body: Record<string, unknown>, key: string): string {
   const value = optionalString(body, key);
   if (!value) {
-    throw new ApiError(400, "INVALID_FIELD", `${key} は必須です`);
+    // 🚨 code は「必須が欠けた」を言う FIELD_REQUIRED。全体の code（INVALID_FIELD）とは別物。
+    throw new ApiError(400, "INVALID_FIELD", `${key} は必須です`, [
+      { field: key, code: "REQUIRED_FIELD" },
+    ]);
   }
   return value;
 }
@@ -77,7 +83,9 @@ function optionalBoolean(body: Record<string, unknown>, key: string): boolean | 
   const value = body[key];
   if (value === undefined) return undefined;
   if (typeof value !== "boolean") {
-    throw new ApiError(400, "INVALID_FIELD", `${key} はbooleanで指定してください`);
+    throw new ApiError(400, "INVALID_FIELD", `${key} はbooleanで指定してください`, [
+      { field: key, code: "INVALID_FIELD" },
+    ]);
   }
   return value;
 }

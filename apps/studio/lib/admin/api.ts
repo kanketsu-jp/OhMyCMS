@@ -6,12 +6,49 @@ type ApiErrorPayload = {
   error?: {
     code?: string;
     message?: string;
+    fields?: unknown;
   };
 };
 
+/** 画面が「どの欄が悪いか」を出すための 1 件。🚨 文言でなく鍵を持つ（`ApiResult` と同じ流儀）。 */
+export type FieldIssueResult = { field: string; messageKey: ErrorKey };
+
 export type ApiResult<T> =
   | { ok: true; status: number; data: T }
-  | { ok: false; status: number; messageKey: ErrorKey; code?: string };
+  | {
+      ok: false;
+      status: number;
+      messageKey: ErrorKey;
+      code?: string;
+      /**
+       * 🚨 **任意**。サーバが `fields` を載せたときだけ入る。
+       * 空配列にはしない（**「欄が分かる」と「欄が 1 件も悪くない」を同じ形にしない**）。
+       */
+      fieldIssues?: FieldIssueResult[];
+    };
+
+/**
+ * 応答の `error.fields` を、画面が使える形へ落とす。
+ *
+ * 🚨 **fail closed。** 形が違う要素は**捨てる**（`code` が無い・`field` が文字列でない等）。
+ *    知らないコードは `errorKeyFromApiCode` が `unexpected` へ落とすので、
+ *    **足りない鍵があっても危険側に倒れない**。
+ * 🚨 **0 件なら `undefined` を返す**（`[]` を返すと、受け手が
+ *    「欄の情報が来た（が中身が無い）」と読めてしまう）。
+ */
+function fieldIssuesFrom(value: unknown): FieldIssueResult[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const issues: FieldIssueResult[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const field = (entry as { field?: unknown }).field;
+    const code = (entry as { code?: unknown }).code;
+    if (typeof field !== "string" || field === "") continue;
+    if (typeof code !== "string" || code === "") continue;
+    issues.push({ field, messageKey: errorKeyFromApiCode(code) });
+  }
+  return issues.length > 0 ? issues : undefined;
+}
 
 export type MeResult =
   | {
@@ -90,6 +127,7 @@ export async function apiFetch<T>(
       status: response.status,
       code: payload?.error?.code,
       messageKey: errorKeyFor(response.status, payload),
+      fieldIssues: fieldIssuesFrom(payload?.error?.fields),
     };
   }
 
