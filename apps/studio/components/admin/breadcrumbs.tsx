@@ -69,10 +69,18 @@ export function Breadcrumbs({ brand }: { brand: string }) {
     //    PC 用の文字ボタンが下部ナビと二重になり、**パンくずより先に幅を取っていた**。
     //    名前の長さは無関係（63 文字＝識別子の上限でも潰れ 0）。
     //    もし将来レイアウトの都合で `flex-1` が要るなら、**「潰れの対策ではない」と書いて足すこと**。
-    <Breadcrumb aria-label={t("nav.breadcrumb_label")} className="min-w-0">
-      <BreadcrumbList className="flex-nowrap gap-1">
+    // 🚨 **高さをヘッダーいっぱいまで通す**（`DESIGN.md` §2-6・堀池 2026-08-17 L1）。
+    //    `h-full` は**間の器が 1 つでも伸びていないと効かない**ので、
+    //    nav → ol → li の 3 段すべてに通す（実測: 通す前はここだけ 36px で、他は 55px だった）。
+    //
+    //    🚨 **これは私（header）の前の判断の反転**。2026-08-17 の C2 のとき、
+    //    「56 にするとパンくずが枠付きの塊になって主操作より重く見える」と考えて**そのままにし**、
+    //    司令塔も「いまのままで結構」と答えた。**そのあと L1 で角丸が消えて平らになり、
+    //    §2-6 が規約として書かれた**ので、残す理由が無くなった。**経緯を消さずに残す。**
+    <Breadcrumb aria-label={t("nav.breadcrumb_label")} className="flex min-w-0 items-stretch self-stretch">
+      <BreadcrumbList className="flex-nowrap items-stretch gap-1">
         {parents.length > 0 ? (
-          <BreadcrumbItem className="min-w-0">
+          <BreadcrumbItem className="min-w-0 items-stretch">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -174,7 +182,7 @@ export function Breadcrumbs({ brand }: { brand: string }) {
             </DropdownMenu>
           </BreadcrumbItem>
         ) : (
-          <BreadcrumbItem className="min-w-0">
+          <BreadcrumbItem className="min-w-0 items-stretch">
             {/* 🚨 **上の階層が無いときは、押せる見た目にしない**（ボタンにも secondary にもしない）。
                 押しても開くものが無いのに「押せる」と見せると、堀池さんの指示
                 （「押下できることがわかるように」）と逆になる。スラッシュも出さない。
