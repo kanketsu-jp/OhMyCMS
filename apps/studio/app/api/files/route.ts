@@ -73,11 +73,18 @@ export async function POST(request: Request) {
     //    ＝ 利用者から見ると「アップロードできないのに増えている」。
     // 🚨 `FILE_REQUIRED` に相乗りさせない——**「選んでいない」と「選んだものが空」は、
     //    利用者がとる行動が違う**（後者は**選び直す**）。
-    if (value.size === 0) {
-      throw new ApiError(400, "FILE_EMPTY", "中身のないファイルは送れません");
-    }
+    // 🚨 **名前を先に見る。順番がこの区別を決める。**
+    //    【測った 2026-08-17・ブラウザ】**何も選ばずに送ると**、ブラウザは
+    //    `File { name: "", size: 0, type: "application/octet-stream" }` を送る。
+    //    ＝ 🚨 **名前が空であることが「選んでいない」の signal**。
+    //    size を先に見ると **必ず `FILE_EMPTY` に当たり**、選んでいない人に
+    //    「**選び直してください**」と言うことになる（＝ 上のコメントの意図を、順番が打ち消す）。
+    //    **次に触る人へ: size を先に戻さないこと。**
     if (value.name.trim() === "") {
       throw new ApiError(400, "FILE_REQUIRED", "fileフィールドにファイルを指定してください");
+    }
+    if (value.size === 0) {
+      throw new ApiError(400, "FILE_EMPTY", "中身のないファイルは送れません");
     }
     const body = Buffer.from(await value.arrayBuffer());
     const row = await uploadFile(actor, {

@@ -50,6 +50,10 @@ export const ERROR_KEYS = [
   //    （**選び直す**）。実測: 1 回目のアップロード成功後にもう一度押すと、
   //    画面は「選択中」に見えるのに入力欄は空で、**0 バイトの行が無言で増えていた**。
   "file_empty",
+  // 🚨 ファイルを選んでいない（2026-08-17）。**`field_required` の汎用文言に落とさない**——
+  //    「必要な項目が入力されていません」では、**どの項目か**が分からない。
+  //    ここは入口が 1 つ（ファイル）しかないので、**選ぶ動作をそのまま言う**。
+  "file_required",
   // 🚨 まとめて操作するときの上限超え（2026-08-17）。**`invalid_input` に潰さない**——
   //    利用者がとる行動が「選び直す」ではなく「**分けて実行する**」なので、文言が違う。
   "too_many_items",
@@ -139,7 +143,7 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   FOLDER_NOT_FOUND: "not_found",
   FILE_NOT_FOUND: "not_found",
   FILE_NOT_STORED: "not_found",
-  FILE_REQUIRED: "field_required",
+  FILE_REQUIRED: "file_required",
   FILE_EMPTY: "file_empty",
   TOO_MANY_ITEMS: "too_many_items",
   // 🚨 まとめて削除で ids が空・不正。**「選んでいない」なので `field_required`**。

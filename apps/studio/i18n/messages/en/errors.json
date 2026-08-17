@@ -18,6 +18,7 @@
   "unauthenticated": "Please sign in again.",
   "file_empty": "The file has no content. Please choose the file again.",
   "too_many_items": "Too many items at once. Please split the operation.",
+  "file_required": "Please choose a file.",
   "file_too_large": "The file is too large. Use a file of 50 MB or less.",
   "upload_unreadable": "The upload could not be read. Please try again.",
   "last_admin_cannot_be_removed": "Cannot remove the last administrator",
