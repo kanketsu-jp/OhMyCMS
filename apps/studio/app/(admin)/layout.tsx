@@ -69,8 +69,11 @@ const settingsItems = [
   // （🚨 一度、ページが git に入る前にリンクだけが入って「押すと 404」になった。
   //  リンク・文言・ページは**必ず同じコミットで**揃える）。
   { href: "/admin/settings/sso", labelKey: "settings_child_sso" },
-  { href: "/admin/settings/agents", labelKey: "settings_child_agents" },
-  { href: "/admin/settings/mcp", labelKey: "settings_child_mcp" },
+  // 🚨 **2 行を 1 行にした（堀池さん AF1）。** 原文:「AI のページが 1 つなのに左サイドバーで 2 項目」。
+  //    G3 で /admin/settings/ai の 1 ページ（タブ 2 枚）にまとめたのに、**入口だけ 2 つ残っていた**。
+  //    🚨 `settings_child_agents` と `settings_child_mcp` の鍵は**消していない**——
+  //    その 2 つは `/admin/settings/ai` の**タブの見出し**として今も使っている（実測: ai/page.tsx:48,53）。
+  { href: "/admin/settings/ai", labelKey: "settings_child_ai" },
   { href: "/admin/settings/version", labelKey: "settings_child_version" },
   // 🚨 I4（堀池さん 2026-08-17）「管理者は設定の中に不具合報告管理のメニューを 1 つ」。
   //    **新しいページは作らない**。J1 で 1 ページに統合済みの `/admin/reports` へ、

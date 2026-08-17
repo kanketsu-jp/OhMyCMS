@@ -120,8 +120,9 @@ const PAGE_ENTRIES: StaticEntry[] = [
   { labelKey: "page_settings_roles", href: "/admin/settings/roles" },
   { labelKey: "page_settings_policies", href: "/admin/settings/policies" },
   { labelKey: "page_settings_users", href: "/admin/settings/users" },
-  { labelKey: "page_settings_agents", href: "/admin/settings/agents" },
-  { labelKey: "page_settings_mcp", href: "/admin/settings/mcp" },
+  // 🚨 ナビと同じ 1 行にする。**ナビの href が PAGE_ENTRIES に無いと check-search-entries が落ちる**ので、
+  //    layout.tsx とここと nav/search の辞書は**同じコミットで動かす**（片方だけ入れると必ず赤くなる）。
+  { labelKey: "page_settings_ai", href: "/admin/settings/ai" },
   { labelKey: "page_settings_version", href: "/admin/settings/version" },
 ];
 

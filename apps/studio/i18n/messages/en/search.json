@@ -40,8 +40,7 @@
   "page_settings_roles": "Roles",
   "page_settings_policies": "Policies",
   "page_settings_users": "Users",
-  "page_settings_agents": "Agents",
-  "page_settings_mcp": "MCP Connection",
+  "page_settings_ai": "AI",
   "page_settings_version": "Version",
   "shortcut_hint": "⌘K"
 }

@@ -49,5 +49,6 @@
   "settings_policies": "設定 / ポリシー",
   "settings_roles": "設定 / ロール",
   "settings_users": "設定 / ユーザー",
-  "settings_version": "設定 / バージョン"
+  "settings_version": "設定 / バージョン",
+  "settings_child_ai": "AI管理"
 }
