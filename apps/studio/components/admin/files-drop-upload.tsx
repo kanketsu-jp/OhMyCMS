@@ -7,6 +7,7 @@ import { UploadCloud } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
+import { errorKeyFromPayload } from "@/i18n/error";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,6 +30,7 @@ export function FilesDropUpload({
   children: React.ReactNode;
 }) {
   const t = useT("files");
+  const tError = useT("errors");
   const router = useRouter();
   const [over, setOver] = useState(false);
   // 🚨 dragenter / dragleave は**子要素をまたぐたびに発火する**ので、
@@ -42,6 +44,7 @@ export function FilesDropUpload({
   const upload = useSubmitOnce(async (files: File[]) => {
     let done = 0;
     let failed = 0;
+    const reasons = new Set<string>();
     for (const file of files) {
       const form = new FormData();
       form.append("file", file);
@@ -49,15 +52,28 @@ export function FilesDropUpload({
       try {
         const response = await fetch("/api/files", { method: "POST", body: form });
         if (response.ok) done += 1;
-        else failed += 1;
+        else {
+          failed += 1;
+          const payload = await response.json().catch(() => null);
+          const key = errorKeyFromPayload(payload);
+          if (key) reasons.add(tError(key));
+        }
       } catch {
         failed += 1;
+        reasons.add(t("drop_failed_network"));
       }
     }
     // 🚨 「何件上がって何件落ちたか」を出す。まとめて「失敗しました」にすると、
     //    **一部だけ上がった状態**が見えなくなる。
     if (done > 0) toast.success(t("drop_uploaded", { count: String(done) }));
-    if (failed > 0) toast.error(t("drop_failed", { count: String(failed) }));
+    if (failed > 0) {
+      const reason = reasons.size === 1 ? [...reasons][0] : null;
+      toast.error(
+        reason
+          ? t("drop_failed_with_reason", { count: String(failed), reason })
+          : t("drop_failed", { count: String(failed) }),
+      );
+    }
     if (done > 0) router.refresh();
   });
 

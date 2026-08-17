@@ -69,6 +69,8 @@
   "drop_uploading": "Uploading…",
   "drop_uploaded": "Uploaded {count} file(s)",
   "drop_failed": "Could not upload {count} file(s)",
+  "drop_failed_with_reason": "Could not upload {count} file(s) ({reason})",
+  "drop_failed_network": "Could not reach the server",
   "view_grid": "Card view",
   "view_table": "Table view",
   "column_name": "Name",

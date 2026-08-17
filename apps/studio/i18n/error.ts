@@ -165,3 +165,25 @@ export function errorKeyFromApiCode(code: string | undefined): ErrorKey {
   if (!code) return FALLBACK_ERROR_KEY;
   return API_CODE_TO_KEY[code] ?? FALLBACK_ERROR_KEY;
 }
+
+/**
+ * 🚨 **API の生文言を画面へ出さない。** code だけを見て辞書の鍵へ写す。
+ *    生文言は `lib/` に直書きされた日本語なので、**英語で見ている人の画面にも日本語が出る**。
+ *    表に無い code は `null` を返し、呼び出し側の具体的な文言を使う
+ *    （`unexpected`「予期しないエラー」より、その場の文言のほうが正確なため）。
+ */
+export function errorKeyFromPayload(payload: unknown): ErrorKey | null {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    payload.error &&
+    typeof payload.error === "object" &&
+    "code" in payload.error &&
+    typeof payload.error.code === "string"
+  ) {
+    const key = errorKeyFromApiCode(payload.error.code);
+    return key === FALLBACK_ERROR_KEY ? null : key;
+  }
+  return null;
+}

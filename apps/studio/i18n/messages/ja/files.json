@@ -69,6 +69,8 @@
   "drop_uploading": "アップロードしています…",
   "drop_uploaded": "{count} 件アップロードしました",
   "drop_failed": "{count} 件アップロードできませんでした",
+  "drop_failed_with_reason": "{count} 件アップロードできませんでした（{reason}）",
+  "drop_failed_network": "通信できませんでした",
   "view_grid": "カードで表示",
   "view_table": "表で表示",
   "column_name": "名前",
