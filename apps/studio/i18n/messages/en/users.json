@@ -11,5 +11,14 @@
   "policy_prefix": "Policy: {policy}",
   "remove_button": "Remove Assignment",
   "title": "Users",
-  "user_label": "User"
+  "user_label": "User",
+  "back_to_list": "Back to users",
+  "name_label": "Name",
+  "no_name": "(no name set)",
+  "status_label": "Status",
+  "provider_label": "Sign-in",
+  "no_provider": "(not set)",
+  "last_access_label": "Last used",
+  "never_accessed": "Never used",
+  "detail_read_only_note": "This page only shows the user. Assign policies from the list."
 }

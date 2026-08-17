@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, UserMinus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
@@ -130,7 +131,19 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         <TableBody>
           {access.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className="font-medium">{row.user_email ?? row.role_name ?? row.user ?? row.role}</TableCell>
+              {/* 🚨 **利用者の行だけ**、1 件のページへ開ける
+                  （`decisions/list-views-are-switchable-layouts` §3。**役割には 1 件のページが別に在る**）。
+                  🚨 **役割の行をここからリンクしない**——**役割の一覧が別に在るのに、
+                  同じものへの入口を 2 箇所に作ると、どちらが正か分からなくなる**。 */}
+              <TableCell className="font-medium">
+                {row.user ? (
+                  <Link href={`/admin/settings/users/${row.user}`} className="hover:underline">
+                    {row.user_email ?? row.user}
+                  </Link>
+                ) : (
+                  (row.role_name ?? row.role)
+                )}
+              </TableCell>
               <TableCell className="text-muted-foreground">
                 {t("policy_prefix", { policy: row.policy_name ?? row.policy })}
               </TableCell>

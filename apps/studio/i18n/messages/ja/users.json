@@ -11,5 +11,14 @@
   "policy_prefix": "ポリシー: {policy}",
   "remove_button": "割り当て削除",
   "title": "ユーザー",
-  "user_label": "ユーザー"
+  "user_label": "ユーザー",
+  "back_to_list": "利用者の一覧へ戻る",
+  "name_label": "名前",
+  "no_name": "（名前は未設定）",
+  "status_label": "状態",
+  "provider_label": "入口",
+  "no_provider": "（未設定）",
+  "last_access_label": "最後に使った日時",
+  "never_accessed": "まだ一度も使っていません",
+  "detail_read_only_note": "このページは内容を見るだけです。方針の割り当ては一覧から行います。"
 }
