@@ -149,7 +149,7 @@ const DEFAULT_PATHS = [
   "/admin/settings/agents",
   "/admin/settings/roles",
   "/admin/settings/sso",
-  "/admin/settings/version",
+  "/admin/version",
   // 🚨 /admin/folders は 2026-08-14 に /admin/files へ統合され、恒久転送になった
   //    （堀池さん「この二つはどう違うのかわからない」）。**測る対象ではない**ので外す。
   //    転送が生きているかは受入側で curl の実測を貼ること。

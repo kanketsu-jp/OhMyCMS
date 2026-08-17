@@ -396,7 +396,7 @@ export const PAGE_ACTIONS: Readonly<Record<string, readonly PageActionDef[]>> = 
       role: "primary",
     },
   ],
-  "/admin/settings/version": [
+  "/admin/version": [
     {
       kind: "button",
       labelKey: "version.check_button",

@@ -46,6 +46,14 @@ const EXCLUDED = [
     decider: "design",
     reason: "HTTP 307（/admin/files へ統合済み・堀池「この二つはどう違うのかわからない」）",
   },
+  {
+    path: "/admin/settings/version",
+    recordedAt: "2026-08-17",
+    status: "決定",
+    decider: "pages",
+    reason:
+      "中身を /admin/version へ移し、ここは転送だけになった（堀池「settings は不要で設定もしないので、admin/version でお願いします」）。着地先 /admin/version を直接巡回している",
+  },
 ];
 
 /**

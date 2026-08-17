@@ -145,7 +145,7 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   "/admin/settings/sso": { titleKey: "sso.title", descriptionKey: "sso.description" },
   "/admin/settings/storage": { titleKey: "storage.title", descriptionKey: "storage.description" },
   "/admin/settings/users": { titleKey: "users.title", descriptionKey: "users.description" },
-  "/admin/settings/version": { titleKey: "version.title", descriptionKey: "version.description" },
+  "/admin/version": { titleKey: "version.title", descriptionKey: "version.description" },
 };
 
 /**
