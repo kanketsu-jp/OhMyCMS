@@ -26,6 +26,7 @@ export type SelectedFile = {
   description: string | null;
   width: number | null;
   height: number | null;
+  is_public: boolean;
 };
 
 type PreviewRequest = {

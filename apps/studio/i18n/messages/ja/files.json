@@ -67,6 +67,9 @@
   "uploaded": "アップロードしました",
   "upload_title": "アップロード",
   "uploaded_on": "アップロード日時",
+  "access_label": "開ける人",
+  "access_public": "このリンクを知っている人は、ログインしなくても開けます",
+  "access_private": "ログインした人だけが開けます",
   "drop_here": "ここに放すとアップロードします",
   "drop_uploading": "アップロードしています…",
   "drop_uploaded": "{count} 件アップロードしました",
@@ -116,5 +119,6 @@
   "options_columns": "出す項目",
   "options_card_columns": "1 行に並べる数",
   "options_columns_count": "{count} 列",
-  "description": "アップロードしたファイルの一覧です。フォルダで整理し、ラベルで探せます。"
+  "description": "アップロードしたファイルの一覧です。フォルダで整理し、ラベルで探せます。",
+  "upload_public_notice": "アップロードしたファイルは、リンクを知っている人ならログインしなくても開けます。"
 }

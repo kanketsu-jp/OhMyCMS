@@ -93,6 +93,11 @@ export function PanelFileDetail() {
           </Row>
         ) : null}
         <Row label={t("file_detail_uploaded")}>{format.dateTime(file.uploaded_on)}</Row>
+        <Row label={t("file_detail_access_label")}>
+          <span className="whitespace-normal">
+            {file.is_public ? t("file_detail_access_public") : t("file_detail_access_private")}
+          </span>
+        </Row>
         {file.modified_on ? (
           <Row label={t("file_detail_modified")}>{format.dateTime(file.modified_on)}</Row>
         ) : null}
@@ -145,7 +150,7 @@ export function PanelFileDetail() {
           // 🚨 何をコピーするか言う（DESIGN.md §2-12・堀池 AM1「ボタン自体が『ID をコピー』と
           //    表示するべき」）。🚨 ここが渡すのは **id ではなく URL** なので、そう言う
           //    （AL1 で id → URL に変えてある。**ボタンの文言だけ id のままにしない**）。
-          what={t("file_detail_url_what")}
+           what={t(file.is_public ? "file_detail_url_public_what" : "file_detail_url_private_what")}
           value={new URL(`/api/assets/${file.id}`, typeof window === "undefined" ? "http://localhost" : window.location.origin).toString()}
         />
       </div>

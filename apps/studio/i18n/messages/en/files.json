@@ -67,6 +67,9 @@
   "uploaded": "Uploaded",
   "upload_title": "Upload",
   "uploaded_on": "Uploaded on",
+  "access_label": "Who can open it",
+  "access_public": "Anyone with this link can open it without signing in",
+  "access_private": "Only signed-in users can open it",
   "drop_here": "Drop here to upload",
   "drop_uploading": "Uploading…",
   "drop_uploaded": "Uploaded {count} file(s)",
@@ -116,5 +119,6 @@
   "options_columns": "Columns",
   "options_card_columns": "Cards per row",
   "options_columns_count": "{count} columns",
-  "description": "Uploaded files. Organize them into folders and find them with labels."
+  "description": "Uploaded files. Organize them into folders and find them with labels.",
+  "upload_public_notice": "Uploaded files can be opened by anyone with the link, without signing in."
 }

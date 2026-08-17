@@ -26,6 +26,7 @@ type FileRow = {
   height: number | null;
   description: string | null;
   tags: string | null;
+  is_public: boolean;
   uploaded_on: string;
   /**
    * 取り込み元などの付帯情報。ドライブから取り込んだものは `{ drive: {...} }` が入る。
@@ -126,13 +127,17 @@ export default async function FileDetailPage({ params }: Props) {
                 <dt className="text-muted-foreground">{t("id_label")}</dt>
                 <dd className="mt-1 flex flex-wrap items-center gap-2">
                   <span id="file-detail-id" className="break-all">{file.id}</span>
-                  <CopyButton what={t("id_label")} value={file.id} selectTargetId="file-detail-id" data-copy-target="file-detail-id" />
+                   <CopyButton what={t("id_label")} value={file.id} selectTargetId="file-detail-id" data-copy-target="file-detail-id" />
                 </dd>
               </div>
               <div><dt className="text-muted-foreground">{t("type_label")}</dt><dd>{file.type ?? ""}</dd></div>
               <div><dt className="text-muted-foreground">{t("size_label")}</dt><dd>{format.fileSize(file.filesize)}</dd></div>
               <div><dt className="text-muted-foreground">{t("dimensions_label")}</dt><dd>{file.width && file.height ? `${file.width} x ${file.height}` : "-"}</dd></div>
-              <div><dt className="text-muted-foreground">{t("uploaded_on")}</dt><dd>{format.dateTime(file.uploaded_on)}</dd></div>
+               <div><dt className="text-muted-foreground">{t("uploaded_on")}</dt><dd>{format.dateTime(file.uploaded_on)}</dd></div>
+               <div>
+                 <dt className="text-muted-foreground">{t("access_label")}</dt>
+                 <dd>{file.is_public ? t("access_public") : t("access_private")}</dd>
+               </div>
             </dl>
           </Surface>
           <Surface>
