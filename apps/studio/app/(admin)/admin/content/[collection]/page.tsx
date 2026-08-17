@@ -132,6 +132,13 @@ export default async function ContentPage({ params, searchParams }: Props) {
    * 🚨 判定に使うのは **`fieldsResult.data`（未フィルタ）**。
    *   上の `fields` は `meta.hidden` を落としており、**`deleted_at` は hidden なので入っていない**。
    */
+  /** 「出す項目」に並べる選択肢。🚨 **`href: null` は外せない項目**（最後の 1 本）。 */
+  const columnChoices = fields.map((field) => ({
+    key: field.field,
+    label: fieldLabel(field, locale),
+    href: columnToggleHref(encoded, field, columns, limit, fields),
+    checked: columns.some((one) => one.field === field.field),
+  }));
   const softDeletes = fieldsResult.ok
     ? fieldsResult.data.some((field) => field.field === "deleted_at")
     : false;
@@ -196,22 +203,27 @@ export default async function ContentPage({ params, searchParams }: Props) {
             見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
           {/* 🚨 「出す項目」。堀池指示「**また列が選択できないし**」（files では直したが、
-              ここは **`?cols=` の状態だけ在って触る操作が無かった**）。
-              🚨 **欄が 1 本も無いときは出さない**——**選ぶものが無いメニュー**を置かない。 */}
-          {fields.length > 0 ? (
+              ここは **`?cols=` の状態だけ在って触る操作が無かった**）。 */}
+          {columnChoices.some((choice) => choice.href !== null) || columns.length < fields.length ? (
             <div className="mb-3 flex items-center justify-end gap-1">
-              <span className="mr-auto text-xs text-muted-foreground">
-                {t("columns_shown", { shown: columns.length, total: fields.length })}
-              </span>
-              <ColumnPicker
-                label={t("options_columns")}
-                choices={fields.map((field) => ({
-                  key: field.field,
-                  label: fieldLabel(field, locale),
-                  href: columnToggleHref(encoded, field, columns, limit, fields),
-                  checked: columns.some((one) => one.field === field.field),
-                }))}
-              />
+              {/* 🚨 **出していない欄が在るときだけ**知らせる。
+                  全部出しているときの「N 個のうち N 個」は、何も伝えていない
+                  （`every-element-must-earn-its-place`。**足した理由が
+                  「出していない欄が在ることを知らせる」だった**ので、無いときは出さない）。 */}
+              {columns.length < fields.length ? (
+                <span className="mr-auto text-xs text-muted-foreground">
+                  {t("columns_shown", { shown: columns.length, total: fields.length })}
+                </span>
+              ) : null}
+              {/* 🚨 **押せる項目が 1 つも無いなら、メニューごと出さない**（2026-08-17）。
+                  由来: base2 が `zz_probe_dialog`（**欄 1 本**）で押して「項目 0 件」を見つけた。
+                  欄が 1 本のとき、その 1 本は**最後の 1 本なので外せない**（押せない行になる）
+                  ＝ 🚨 **開いても何もできないメニュー**。**私が自分で禁じた形**
+                  （「選ぶものが無いメニューを置かない」——**欄 0 本のときだけ見ていて、
+                    「欄は在るが動かせない」を見落としていた**）。 */}
+              {columnChoices.some((choice) => choice.href !== null) ? (
+                <ColumnPicker label={t("options_columns")} choices={columnChoices} />
+              ) : null}
             </div>
           ) : null}
           {itemsResult.ok ? (
