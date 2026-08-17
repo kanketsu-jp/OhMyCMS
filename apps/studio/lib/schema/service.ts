@@ -26,6 +26,10 @@ const COLLECTION_META_COLUMNS = new Set([
   //    足さないと `pickAllowed` が黙って捨てるのではなく `UNSUPPORTED_COLLECTION_META` で
   //    弾くので、**画面から名前を付けられない**（`directus_fields.translations` と同じ扱い）。
   "translations",
+  // 🚨 アイコン（K2）。`translations` と同じ理由でここへ足す——足さないと
+  //    `pickAllowed` が `UNSUPPORTED_COLLECTION_META` で弾き、**画面から選べない**。
+  //    🚨 **値そのものの検証は別**（`isCollectionIcon`）。ここは「書いてよい列か」だけ。
+  "icon",
   "display_template",
   "hidden",
   "singleton",
@@ -464,7 +468,9 @@ export async function listCollections(includeSystem: boolean): Promise<Collectio
  */
 export async function listCollectionNames(
   includeSystem: boolean,
-): Promise<{ collection: string; translations: Record<string, string> | null }[]> {
+): Promise<
+  { collection: string; translations: Record<string, string> | null; icon: string | null }[]
+> {
   const [tables, metaByCollection] = await Promise.all([
     getTables(),
     getCollectionMetaMap(),
@@ -478,6 +484,9 @@ export async function listCollectionNames(
     .map((collection) => ({
       collection,
       translations: metaByCollection.get(collection)?.translations ?? null,
+      // 🚨 **サイドバーはこの口しか見ない**（`layout.tsx` が `?names=true` で引く）。
+      //    ここに載せないと、列に値が入っていても画面まで届かない。
+      icon: metaByCollection.get(collection)?.icon ?? null,
     }));
 }
 

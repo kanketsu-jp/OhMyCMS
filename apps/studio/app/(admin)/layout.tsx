@@ -117,7 +117,9 @@ export default async function AdminLayout({
   // 🚨 サイドバーは名前しか描かない。全列のスキーマを引くと、
   // 管理画面のどのページを開いても information_schema の全走査が走る（?names=true で避ける）。
   const collections = me.ok
-    ? await apiFetch<{ collection: string; translations: Record<string, string> | null }[]>(
+    ? await apiFetch<
+        { collection: string; translations: Record<string, string> | null; icon: string | null }[]
+      >(
         "/api/collections?names=true",
       )
     : null;
@@ -230,6 +232,9 @@ export default async function AdminLayout({
                 // 🚨 表示名が在れば出す。無ければ識別子のまま（司令塔の決め・2026-08-17）。
                 //    ここはサーバなので、対応表から直に引く（`useCollectionLabel` は client 用）。
                 label: collectionLabels[row.collection] ?? row.collection,
+                // 🚨 K2。`/api/collections?names=true` が返す値をそのまま渡す。
+                //    null なら描く側が既定（table）へ落とす＝ いまと同じ見た目。
+                icon: row.icon,
               }))
             : []
         }
@@ -336,6 +341,9 @@ export default async function AdminLayout({
                 // 🚨 表示名が在れば出す。無ければ識別子のまま（司令塔の決め・2026-08-17）。
                 //    ここはサーバなので、対応表から直に引く（`useCollectionLabel` は client 用）。
                 label: collectionLabels[row.collection] ?? row.collection,
+                // 🚨 K2。`/api/collections?names=true` が返す値をそのまま渡す。
+                //    null なら描く側が既定（table）へ落とす＝ いまと同じ見た目。
+                icon: row.icon,
               }))
             : []
         }

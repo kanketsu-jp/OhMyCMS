@@ -11,7 +11,13 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 
-export type NavLink = { href: string; label: string };
+export type NavLink = { href: string; label: string   /**
+   * 行のアイコン名（K2・堀池さん 2026-08-17）。**コレクションの行だけが持つ。**
+   * 🚨 `undefined` / `null` は「持っていない」で、描く側は既定（`NavItemIcon` の分岐）に落とす。
+   *    ＝ **足しても、渡していない行の見た目は 1 ミリも変わらない。**
+   */
+  icon?: string | null;
+};
 
 export type NavGroup = {
   /** 開閉の識別子（画面には出ない） */

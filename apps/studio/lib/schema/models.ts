@@ -29,6 +29,16 @@ export type CollectionMeta = {
   status: string;
   autosave_revision_interval: number | null;
   /**
+   * このコレクションのアイコン名（K2・堀池さん 2026-08-17）。
+   *
+   * 🚨 **lucide のアイコン名**（`shield-alert` 等）で、絵文字ではない。
+   *    選べる値は `lib/admin/collection-icons.ts` の 1 本だけが決める
+   *    （**任意の名前は描けない**——lucide 1.31.0 は遅延読み込みの口を持たないので、
+   *     先に import したものだけが出せる）。
+   * 🚨 `null` は「選んでいない」。画面側は `DEFAULT_COLLECTION_ICON`（= table）へ落とす。
+   */
+  icon: string | null;
+  /**
    * コレクションの表示名の辞書（設問318）。`{"ja": "記事", "en": "Articles"}`。
    * 🚨 **null が既定**。null のときは**表名をそのまま出す**——
    * 「まだ名前を付けていない」と「空文字の名前を付けた」を区別するため。

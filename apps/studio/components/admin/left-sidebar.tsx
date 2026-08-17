@@ -12,7 +12,10 @@ import {
   FilesIcon,
   FileIcon,
   FolderIcon,
+  FolderTree,
+  ImageIcon,
   KeyRound,
+  List,
   SettingsIcon,
   ShieldAlert,
   TableIcon,
@@ -20,6 +23,12 @@ import {
   Trash2Icon,
   UsersIcon,
 } from "lucide-react";
+
+import {
+  COLLECTION_ICONS,
+  DEFAULT_COLLECTION_ICON,
+  type CollectionIcon,
+} from "@/lib/admin/collection-icons";
 
 import { GlobalSearchButton } from "@/components/admin/global-search";
 import { matchesNavGroup, type NavGroup, type NavLink } from "@/components/admin/nav-links";
@@ -138,6 +147,39 @@ function NavItemIcon({ href }: { href: string }) {
   return <TableIcon />;
 }
 
+/**
+ * コレクションが選べるアイコンの、**名前 → 部品**の対応表（K2・堀池さん 2026-08-17）。
+ *
+ * 🚨 **ここが「先に import してある」の実体。** lucide-react 1.31.0 は遅延読み込みの口を
+ *    持たない（実測: `exports` に該当 0 件）ので、**書いた名前しか描けない**。
+ *    ＝ 一覧（`collection-icons.ts`）とこの表は**必ず同じ鍵を持つ**。
+ * 🚨 ずれると「選べるのに描けない」になるので、下の型で**コンパイル時に落ちる**ようにしてある
+ *    （`Record<CollectionIcon, ...>` は鍵が 1 つでも欠けると型エラー）。
+ */
+const COLLECTION_ICON_COMPONENTS: Record<CollectionIcon, typeof TableIcon> = {
+  table: TableIcon,
+  database: DatabaseIcon,
+  file: FileIcon,
+  files: FilesIcon,
+  folder: FolderIcon,
+  "folder-tree": FolderTree,
+  image: ImageIcon,
+  list: List,
+  tag: Tag,
+  users: UsersIcon,
+  "key-round": KeyRound,
+  "shield-alert": ShieldAlert,
+};
+
+/** 保存されている名前から部品を引く。**知らない名前は既定へ落とす**（画面を壊さない）。 */
+export function CollectionIconFor({ icon }: { icon: string | null }) {
+  const key = (COLLECTION_ICONS as readonly string[]).includes(icon ?? "")
+    ? (icon as CollectionIcon)
+    : DEFAULT_COLLECTION_ICON;
+  const Icon = COLLECTION_ICON_COMPONENTS[key];
+  return <Icon />;
+}
+
 function NavGroupIcon({ groupKey }: { groupKey: string }) {
   if (groupKey === "content") return <DatabaseIcon />;
   if (groupKey === "files") return <FilesIcon />;
@@ -194,7 +236,14 @@ function SidebarGroupNav({ group }: { group: NavGroup }) {
                             トップ項目と**同じ関数**を通す（分岐を 2 箇所に持つと必ず割れる）。
                             🚨 コレクションの行もここを通るので、**既定は `TableIcon` のまま残す**
                             （表であることは正しい。K2 で 1 件ずつ持たせる話は別）。 */}
-                        <NavItemIcon href={item.href} />
+                        {/* 🚨 コレクションの行だけ、自分のアイコンを持つ（K2）。
+                            持っていない行（設定の子など）は既定の分岐へ落ちるので、
+                            **渡していない行の見た目は変わらない**。 */}
+                        {item.icon ? (
+                          <CollectionIconFor icon={item.icon} />
+                        ) : (
+                          <NavItemIcon href={item.href} />
+                        )}
                         <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                       </Link>
                     </SidebarMenuSubButton>
