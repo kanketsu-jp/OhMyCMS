@@ -3,6 +3,7 @@
 import { useCrumbLabel } from "@/components/admin/crumb-label";
 import { usePageTrail } from "@/components/admin/page-trail";
 import { useT } from "@/i18n/client";
+import { usePageMissing } from "@/lib/admin/page-missing";
 
 /**
  * 画面の `<h1>`。**読み上げ専用**（`sr-only`）。
@@ -54,6 +55,7 @@ import { useT } from "@/i18n/client";
  */
 export function PageHeading({ brand }: { brand: string }) {
   const t = useT("nav");
+  const tErrors = useT("errors");
   const crumbs = usePageTrail(brand);
   // 🚨 **パンくずと同じ変換を通す**（schema の契約 eb24c2d・司令塔の「出す側」の役）。
   //    ここで別の解き方をすると、**見出しとパンくずで名前が食い違う**
@@ -65,9 +67,24 @@ export function PageHeading({ brand }: { brand: string }) {
   // 🚨 先頭（ブランド）と葉を除いた真ん中が「区画」。`/admin` 自身では空になる。
   const context = crumbs.slice(1, -1).map(labelOfCrumb).join(" / ");
   // 🚨 **`current.label` を直に使わない**（訳す前の識別子が見出しに残る）。
-  const currentLabel = current ? labelOfCrumb(current) : "";
+  /**
+   * 🚨 **無い画面では、その名前を名乗らない**（2026-08-17・私が「初めて触る人の目」で見つけた分）。
+   *
+   * 【測った】`/admin/collections/zz_gone_xxx` を開くと、
+   * **本文は「このページはありません」**なのに **h1 は「zz_gone_xxx（コレクション）」**、
+   * **パンくずも「zz_gone_xx…」**と、**在るものとして名乗って**いた。
+   * ＝ 🚨 **ヘッダーは在ると言い、本文は無いと言っている。**
+   *   司令塔が挙げた実害「**無いページで機能を約束する**」と同じ形。
+   *
+   * 🚨 **新しい口を作っていない。** pages が右サイドバー用に作った `usePageMissing()` に乗る
+   *   （`lib/admin/page-missing.ts`）。同じことを 2 通りで知る仕組みを作らない（DESIGN.md §0-1）。
+   */
+  const missing = usePageMissing();
+  const currentLabel = missing ? tErrors("page_not_found_title") : current ? labelOfCrumb(current) : "";
   const heading = currentLabel
-    ? context
+    ? missing
+      ? currentLabel
+      : context
       ? t("page_title_with_context").replace("{name}", currentLabel).replace("{context}", context)
       : currentLabel
     : "";

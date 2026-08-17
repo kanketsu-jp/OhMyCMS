@@ -21,6 +21,7 @@ import { useCrumbLabel } from "@/components/admin/crumb-label";
 import { isRedirectOnlySection } from "@/components/admin/redirect-only-sections";
 import { usePageTrail } from "@/components/admin/page-trail";
 import { useT } from "@/i18n/client";
+import { usePageMissing } from "@/lib/admin/page-missing";
 
 /**
  * ヘッダーのパンくず。**ページ名の置き場所はここだけ**になる。
@@ -45,10 +46,25 @@ function shorten(label: string): string {
 
 export function Breadcrumbs({ brand }: { brand: string }) {
   const t = useT();
+  const tErrors = useT("errors");
   const crumbs = usePageTrail(brand);
   // 🚨 コレクションの表示名を当てる（schema の契約 eb24c2d・司令塔の「出す側」の役）。
   //    条件と、翻訳が黙って止まる形は `crumb-label.ts` に書いてある。
   const labelOfCrumb = useCrumbLabel();
+
+  /**
+   * 🚨 **無い画面では、その名前を名乗らない**（2026-08-17・私が「初めて触る人の目」で見つけた分）。
+   *
+   * 【測った】`/admin/collections/zz_gone_xxx` を開くと、
+   * **本文は「このページはありません」**なのに **h1 は「zz_gone_xxx（コレクション）」**、
+   * **パンくずも「zz_gone_xx…」**と、**在るものとして名乗って**いた。
+   * ＝ 🚨 **ヘッダーは在ると言い、本文は無いと言っている。**
+   *   司令塔が挙げた実害「**無いページで機能を約束する**」と同じ形。
+   *
+   * 🚨 **新しい口を作っていない。** pages が右サイドバー用に作った `usePageMissing()` に乗る
+   *   （`lib/admin/page-missing.ts`）。同じことを 2 通りで知る仕組みを作らない（DESIGN.md §0-1）。
+   */
+  const missing = usePageMissing();
 
   const current = crumbs[crumbs.length - 1];
   const parents = crumbs.slice(0, -1);
@@ -57,7 +73,7 @@ export function Breadcrumbs({ brand }: { brand: string }) {
 
   // 🚨 現在地の名前は **2 か所**で使う（畳んだ表示と、畳む前を残す `title`）。
   //    ここで 1 回だけ解いて両方へ渡す（別々に解くと、片方だけ識別子のまま残る）。
-  const currentLabel = labelOfCrumb(current);
+  const currentLabel = missing ? tErrors("page_not_found_title") : labelOfCrumb(current);
 
   return (
     // 🚨 **ここに `flex-1` を足さないこと。**（**守り手: 無し＝これは願望**。足しても何も止めない）
