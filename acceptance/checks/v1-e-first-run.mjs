@@ -237,7 +237,7 @@ export async function check(context) {
     let dbReady = false;
     let lastReady = null;
     for (let i = 0; i < 60; i++) {
-      lastReady = await run("docker", ["exec", createdId, "pg_isready", "-U", "cms"]);
+      lastReady = await run("docker", ["exec", createdId, "pg_isready", "-h", "127.0.0.1", "-U", "cms"]);
       if (lastReady.code === 0) { dbReady = true; break; }
       await sleep(1000);
     }

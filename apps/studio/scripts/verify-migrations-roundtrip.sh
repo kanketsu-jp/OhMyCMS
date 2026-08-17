@@ -54,10 +54,10 @@ docker run --rm -d --name "$CONTAINER" \
 #    実測（shell）… 窓は **0.16 秒前後**（`POSTGRES_DB` を指定すると +38%）
 #    🚨 **回数を増やしても直らない**（見ているものが同じなので）。**見る対象を変える。**
 for _ in $(seq 1 60); do
-  docker exec -e PGPASSWORD=probe "$CONTAINER" psql -U postgres -d postgres -c 'select 1' >/dev/null 2>&1 && break
+  docker exec -e PGPASSWORD=probe "$CONTAINER" psql -h 127.0.0.1 -U postgres -d postgres -c 'select 1' >/dev/null 2>&1 && break
   sleep 1
 done
-docker exec -e PGPASSWORD=probe "$CONTAINER" psql -U postgres -d postgres -c 'select 1' >/dev/null 2>&1 \
+docker exec -e PGPASSWORD=probe "$CONTAINER" psql -h 127.0.0.1 -U postgres -d postgres -c 'select 1' >/dev/null 2>&1 \
   || { echo "🚨 60 秒待ってもクエリが通りません"; exit 2; }
 
 # public スキーマの表の名前を、並べ替えて 1 行ずつ返す。

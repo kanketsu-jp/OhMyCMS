@@ -66,7 +66,12 @@ create unique index ohmycms_labels_name_unique
 - 🚨 `migrate:rollback` は**バッチ全体**を戻す。44 本が 1 バッチだったので**表ごと消えた**。
   1 本だけ戻すのは `migrate:down`。
 - 🚨 `pg_isready` が 1 回通っても、初期化中の postgres はそのあと落ちる。
-  **3 回連続で通るまで待つ**。
+  🚨 **ここに書いていた「3 回連続で通るまで待つ」は塞がらない**（2026-08-17 実測）。
+  `docker exec` を 3 回打つと 1 回しか通らず塞いだように見えるが、**中で 1 回にまとめると
+  3/5 で 3 回とも通る**——**塞いでいたのは述語ではなく `docker exec` の実費**だった。
+  正しい待ち方と理由は
+  [soft-deleted-permissions-must-not-grant](../../knowledge/decisions/soft-deleted-permissions-must-not-grant.md)
+  の「なぜ嘘の ready が出るか」を見る。
 - 🚨 判定を「`duplicate key` が**出ない**こと」で書いたので、
   **`relation does not exist` も「出ない」に入り、緑になった**。
   → `INSERT 0 1` との**完全一致**で判定し直した（[verify-the-verifier](../../knowledge/decisions/verify-the-verifier.md) の 10 番）。

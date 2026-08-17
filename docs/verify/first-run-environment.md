@@ -50,7 +50,7 @@ WT=$REPO-probe-onboard          # 🚨 リポジトリの外ではなく「隣�
 docker run -d --name ohmycms-onboard-probe \
   -e POSTGRES_USER=cms -e POSTGRES_PASSWORD=cms -e POSTGRES_DB=cms \
   -p 5437:5432 postgres:17
-until docker exec ohmycms-onboard-probe pg_isready -U cms; do sleep 1; done
+until docker exec ohmycms-onboard-probe pg_isready -h 127.0.0.1 -U cms; do sleep 1; done
 
 # ② 作業ツリーを分ける（🚨 .next を共有すると :3102 を壊す）
 git -C "$REPO" worktree add "$WT" HEAD --detach
