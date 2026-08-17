@@ -4,16 +4,15 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, Trash2 } from "lucide-react";
 
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
-import { useLongPressMenu } from "@/components/admin/use-long-press-menu";
 import { TileLabelsMenu } from "@/components/admin/tile-labels-menu";
 
 /**
@@ -22,8 +21,12 @@ import { TileLabelsMenu } from "@/components/admin/tile-labels-menu";
  * 🚨 **タイルごとに1つ持つ**。1つのメニューを使い回して「いまどれを触っているか」を
  *    別の状態で持つと、**閉じる前に別のタイルを長押ししたときに対象がずれる**。
  *
- * 🚨 **項目は必ず `DropdownMenuItem`**。素の `<button>` を置くと**矢印キーの輪に入らない**
- *    （design が実測済み）。`DropdownMenuLabel` は `DropdownMenuGroup` の外に置くと落ちる。
+ * 🚨 **項目は必ず `ContextMenuItem`**。素の `<button>` を置くと**矢印キーの輪に入らない**
+ *    （design が実測済み）。`ContextMenuLabel` は `ContextMenuGroup` の外に置くと落ちる。
+ *
+ * 🚨 2026-08-17 に自作の長押しフック + `DropdownMenu` から Radix `ContextMenu` へ寄せた。
+ *    Radix が右クリックとタッチ/ペン長押しを持ち、メニューも指した座標に出るため。
+ *    以前の自作フックは Escape で閉じたあと、次の左クリックを 1 回捨てる状態も残していた。
  */
 export function FileTileMenu({
   fileId,
@@ -35,7 +38,6 @@ export function FileTileMenu({
 }) {
   const t = useT("files");
   const router = useRouter();
-  const menu = useLongPressMenu();
 
   const remove = useSubmitOnce(async () => {
     const response = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
@@ -48,7 +50,7 @@ export function FileTileMenu({
   });
 
   return (
-    <DropdownMenu open={menu.open} onOpenChange={(next) => (next ? undefined : menu.close())}>
+    <ContextMenu>
       {/*
         🚨 `asChild` にして**タイルそのものを起点**にする。別途トリガーのボタンを置くと、
            タイルの中に押せるものが2つになり、長押しの対象が曖昧になる。
@@ -66,40 +68,40 @@ export function FileTileMenu({
            メニューの起点への影響に繋げていなかった。**
         🚨 中間要素を消しても `user-select` / `-webkit-touch-callout` は効く。
            `asChild` がタイルへ**直接**載せるので、継承に頼らない分むしろ確実。
+        🚨 画面全体の余白メニューも同じ画面内にあるため、ここで伝播を止める。
+           止めないとファイル用と余白用の `ContextMenu` が同時に開く。
       */}
-      <DropdownMenuTrigger
+      <ContextMenuTrigger
         asChild
-        {...menu.handlers}
+        onContextMenu={(event) => event.stopPropagation()}
         className="select-none [-webkit-touch-callout:none]"
       >
         {children}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-44">
-        <DropdownMenuGroup>
-          <DropdownMenuItem
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuGroup>
+          <ContextMenuItem
             onClick={() => {
-              menu.close();
               router.push(`/admin/files/${fileId}`);
             }}
           >
             <ExternalLink />
             {t("menu_open_detail")}
-          </DropdownMenuItem>
+          </ContextMenuItem>
           <TileLabelsMenu endpoint={"/api/files/" + fileId + "/labels"} />
-          <DropdownMenuItem
+          <ContextMenuItem
             variant="destructive"
             className="text-destructive"
             disabled={remove.pending}
             onClick={() => {
-              menu.close();
               void remove.run();
             }}
           >
             <Trash2 />
             {t("menu_delete")}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </ContextMenuItem>
+        </ContextMenuGroup>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

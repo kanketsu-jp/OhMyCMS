@@ -3,6 +3,7 @@ import { FolderPlus, Upload } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FilesDropUpload } from "@/components/admin/files-drop-upload";
 import { FilesLightboxGrid } from "@/components/admin/files-lightbox-grid";
+import { FilesPageMenu } from "@/components/admin/files-page-menu";
 import { FilesTable } from "@/components/admin/files-table";
 import { FilesViewOptions } from "@/components/admin/files-view-options";
 import { FilesViewSwitch } from "@/components/admin/files-view-switch";
@@ -257,6 +258,7 @@ export default async function FilesPage({ searchParams }: Props) {
         />
         {/* 🚨 一覧そのものを受け皿にする。ここへ放り込むと、いま開いているフォルダに入る。 */}
         <FilesDropUpload folder={currentFolderId}>
+        <FilesPageMenu newFileHref={newFileHref} newFolderHref={newFolderHref}>
         <Surface>
           <div className="flex items-center justify-between gap-3">
         {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
@@ -312,6 +314,7 @@ export default async function FilesPage({ searchParams }: Props) {
             />
           ) : null}
         </Surface>
+        </FilesPageMenu>
         </FilesDropUpload>
       </div>
     </>

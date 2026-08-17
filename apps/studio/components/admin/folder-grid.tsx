@@ -3,9 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Folder, MoreHorizontal, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ComponentProps, type ComponentType } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +32,20 @@ type FolderRow = {
   name: string;
   parent: string | null;
   color: string | null;
+};
+
+type MenuItemComponent = ComponentType<ComponentProps<typeof DropdownMenuItem>>;
+
+type FolderTileProps = {
+  folder: FolderRow;
+  isDropTarget: boolean;
+  onDragOver: (event: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (event: React.DragEvent) => void;
+  removePending: boolean;
+  onRemove: () => void;
+  recolorPending: boolean;
+  onRecolor: (color: string | null) => void;
 };
 
 /**
@@ -63,6 +84,151 @@ function errorKeyFrom(payload: unknown): ErrorKey | null {
     return key === FALLBACK_ERROR_KEY ? null : key;
   }
   return null;
+}
+
+function FolderMenuItems({
+  folder,
+  Item,
+  removePending,
+  onRemove,
+  recolorPending,
+  onRecolor,
+}: {
+  folder: FolderRow;
+  Item: MenuItemComponent;
+  removePending: boolean;
+  onRemove: () => void;
+  recolorPending: boolean;
+  onRecolor: (color: string | null) => void;
+}) {
+  const t = useT("folders");
+
+  return (
+    <>
+      {/* 🚨 開いた人の分だけ取りに行く（一覧の描画で N+1 にしない）。 */}
+      <TileLabelsMenu endpoint={"/api/folders/" + folder.id + "/labels"} />
+      {/* 🚨 色は「選ぶ」ものなので、1項目に押し込まず並べる。
+          文字にすると6行になり、削除より目立ってしまう。 */}
+      <div className="flex flex-wrap gap-1 px-2 py-1.5">
+        {FOLDER_COLOR_NAMES.map((name) => (
+          <button
+            key={name}
+            type="button"
+            aria-label={t(`color_${name}`)}
+            title={t(`color_${name}`)}
+            aria-pressed={folder.color === name}
+            disabled={recolorPending}
+            onClick={() => onRecolor(name)}
+            className={`size-5 rounded-full ${FOLDER_COLOR_CLASS[name]} bg-current ${
+              folder.color === name ? "ring-2 ring-offset-1 ring-ring" : ""
+            }`}
+          />
+        ))}
+      </div>
+      <Item
+        variant="destructive"
+        className="text-destructive"
+        disabled={removePending}
+        onClick={onRemove}
+      >
+        <Trash2 />
+        {t("delete_button")}
+      </Item>
+    </>
+  );
+}
+
+function FolderTile({
+  folder,
+  isDropTarget,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  removePending,
+  onRemove,
+  recolorPending,
+  onRecolor,
+}: FolderTileProps) {
+  const t = useT("folders");
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          // 🚨 ここで受けるのは**画面内から掴んできたファイルだけ**。外から来たファイル
+          //    （アップロード）は上位の層が受けるので、種類で見分けて棲み分ける。
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onContextMenu={(event) => event.stopPropagation()}
+          className={
+            isDropTarget
+              ? "group/tile relative min-w-0 rounded-md p-3 outline-2 outline-offset-[-2px] outline-dashed outline-ring"
+              : "group/tile relative min-w-0 rounded-md p-3 hover:bg-muted active:bg-muted/80"
+          }
+        >
+          <Link href={`/admin/files?folder=${folder.id}`} className="block min-w-0">
+            {/*
+              🚨 **ファイルのカードと同じ正方形**にする（`files-lightbox-grid.tsx` と同じ形）。
+                 決定 `list-views-are-switchable-layouts`。**フォルダだけ違う形だと、
+                 同じ並びの中で高さが揃わず、行が崩れる**（そして「別のもの」に見える）。
+            */}
+            <div
+              data-surface-exempt
+              className="mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted"
+            >
+              <Folder
+                className={
+                  folder.color && FOLDER_COLOR_CLASS[folder.color]
+                    ? `size-10 ${FOLDER_COLOR_CLASS[folder.color]}`
+                    : "size-10 text-muted-foreground"
+                }
+              />
+            </div>
+            <p className="truncate pr-8 text-sm font-medium">{folder.name}</p>
+          </Link>
+          <div className="absolute right-2 top-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("actions_label")}
+                >
+                  <MoreHorizontal />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuGroup>
+                  <FolderMenuItems
+                    folder={folder}
+                    Item={DropdownMenuItem}
+                    removePending={removePending}
+                    onRemove={onRemove}
+                    recolorPending={recolorPending}
+                    onRecolor={onRecolor}
+                  />
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuGroup>
+          <FolderMenuItems
+            folder={folder}
+            Item={ContextMenuItem}
+            removePending={removePending}
+            onRemove={onRemove}
+            recolorPending={recolorPending}
+            onRecolor={onRecolor}
+          />
+        </ContextMenuGroup>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
 
 export function FolderGrid({ folders }: { folders: FolderRow[] }) {
@@ -181,10 +347,10 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
     <div className="contents">
       {error ? <p className="col-span-full text-sm text-destructive">{error}</p> : null}
       {folders.map((folder) => (
-        <div
+        <FolderTile
           key={folder.id}
-          // 🚨 ここで受けるのは**画面内から掴んできたファイルだけ**。外から来たファイル
-          //    （アップロード）は上位の層が受けるので、種類で見分けて棲み分ける。
+          folder={folder}
+          isDropTarget={dropTarget === folder.id}
           onDragOver={(event) => {
             if (!carriesFile(event)) return;
             event.preventDefault();
@@ -202,80 +368,11 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
             const ids = raw ? (JSON.parse(raw) as string[]) : [];
             if (ids.length > 0) void moveInto(folder.id, ids);
           }}
-          className={
-            dropTarget === folder.id
-              ? "group/tile relative min-w-0 rounded-md p-3 outline-2 outline-offset-[-2px] outline-dashed outline-ring"
-              : "group/tile relative min-w-0 rounded-md p-3 hover:bg-muted active:bg-muted/80"
-          }
-        >
-          <Link href={`/admin/files?folder=${folder.id}`} className="block min-w-0">
-            {/*
-              🚨 **ファイルのカードと同じ正方形**にする（`files-lightbox-grid.tsx` と同じ形）。
-                 決定 `list-views-are-switchable-layouts`。**フォルダだけ違う形だと、
-                 同じ並びの中で高さが揃わず、行が崩れる**（そして「別のもの」に見える）。
-            */}
-            <div
-              data-surface-exempt
-              className="mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted"
-            >
-              <Folder
-                className={
-                  folder.color && FOLDER_COLOR_CLASS[folder.color]
-                    ? `size-10 ${FOLDER_COLOR_CLASS[folder.color]}`
-                    : "size-10 text-muted-foreground"
-                }
-              />
-            </div>
-            <p className="truncate pr-8 text-sm font-medium">{folder.name}</p>
-          </Link>
-          <div className="absolute right-2 top-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t("actions_label")}
-                >
-                  <MoreHorizontal />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuGroup>
-                  {/* 🚨 開いた人の分だけ取りに行く（一覧の描画で N+1 にしない）。 */}
-                  <TileLabelsMenu endpoint={"/api/folders/" + folder.id + "/labels"} />
-                  {/* 🚨 色は「選ぶ」ものなので、1項目に押し込まず並べる。
-                      文字にすると6行になり、削除より目立ってしまう。 */}
-                  <div className="flex flex-wrap gap-1 px-2 py-1.5">
-                    {FOLDER_COLOR_NAMES.map((name) => (
-                      <button
-                        key={name}
-                        type="button"
-                        aria-label={t(`color_${name}`)}
-                        title={t(`color_${name}`)}
-                        aria-pressed={folder.color === name}
-                        disabled={recolor.isPending(folder.id)}
-                        onClick={() => void recolor.run(folder.id, folder.color === name ? null : name)}
-                        className={`size-5 rounded-full ${FOLDER_COLOR_CLASS[name]} bg-current ${
-                          folder.color === name ? "ring-2 ring-offset-1 ring-ring" : ""
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    className="text-destructive"
-                    disabled={remove.isPending(folder.id)}
-                    onClick={() => void remove.run(folder.id)}
-                  >
-                    <Trash2 />
-                    {t("delete_button")}
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+          removePending={remove.isPending(folder.id)}
+          onRemove={() => void remove.run(folder.id)}
+          recolorPending={recolor.isPending(folder.id)}
+          onRecolor={(color) => void recolor.run(folder.id, folder.color === color ? null : color)}
+        />
       ))}
     </div>
   );
