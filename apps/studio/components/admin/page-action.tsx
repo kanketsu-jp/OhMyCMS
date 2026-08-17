@@ -9,7 +9,7 @@ import { ConfirmDialog, submitFormById, type ConfirmSpec } from "@/components/ad
 
 import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
 import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
-import { Kbd } from "@/components/ui/kbd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -350,14 +350,33 @@ function renderAction({
     >
       {icon}
       {text}
-      {/* 🚨 **効く条件と同じときだけ出す**（呼び出し元で `form && primary` を見ている）。
-          🚨 `pointer-events-none` は `Kbd` が持っているので、押し心地は変わらない。 */}
-      {shortcutHint ? <Kbd className="hidden md:inline-flex">{shortcutHint}</Kbd> : null}
     </Button>
   );
   })();
 
-  if (!options?.length) return 主;
+  // 🚨 **ショートカットはバッジで出さない。ツールチップで見せる**
+  //    （堀池・2026-08-17・Y1「ショートカットバッジは窮屈なので、すべて廃止。
+  //      代わりにツールチップにする」＋ 画像: 保存ボタンの中に ⌘↵ が入って窮屈）。
+  //    🚨 これは **L1（30 分前）の「ショートカットキーも表示しながら」の反転**。
+  //      実物を見ての判断で、前の指示が誤りだったのではない。**経緯を消さない。**
+  //    🚨 **出す条件は変えていない**（`form && role === "primary"` のときだけ）。
+  //      ずらすと**効かない鍵を見せる**ことになる。
+  // 🚨 名前を ASCII にしてある。日本語の識別子を **JSX の位置**（三項の分岐など）に置くと、
+  //    `check-i18n-hardcoded` が**画面に出る文字と読み違えて落ちる**（実測 2026-08-17）。
+  //    既存の `主` は代入の右辺にしか出ないので通っている。
+  //    🚨 三項ではなく `let` + `if` で書く。三項の分岐の位置に日本語の識別子が出ると、
+  //      同じ検査が **`) : 主;` を画面の文字と読んで落ちる**（実測 2026-08-17・2 回踏んだ）。
+  let mainWithTooltip = 主;
+  if (shortcutHint) {
+    mainWithTooltip = (
+      <Tooltip>
+        <TooltipTrigger asChild>{主}</TooltipTrigger>
+        <TooltipContent side="bottom">{shortcutHint}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  if (!options?.length) return mainWithTooltip;
 
   // 🚨 ▾ は **`Button`** で作る（素の <button> にしない）。
   //    規約 §1: base の `active:not-aria-[haspopup]:translate-y-px` を継承するため。
@@ -370,7 +389,7 @@ function renderAction({
     //    `elementFromPoint` が **null** を返した。**開かないのではなく、届かなかった**。
     //    → 群は `w-full`、主ボタンは `flex-1 min-w-0` で縮ませ、▾ は `shrink-0` で 44px を守る。
     <ButtonGroup className={cn(order, compact && "w-full min-w-0")}>
-      {主}
+      {mainWithTooltip}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant={variant} size="icon-sm" disabled={disabled} className="shrink-0">
