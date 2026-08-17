@@ -154,8 +154,14 @@ export default async function FilesPage({ searchParams }: Props) {
     }),
   ) as Record<FileColumn, string>;
 
-  const cardColumnsHref = Object.fromEntries(
-    CARD_COLUMN_CHOICES.map((count) => [count, withQuery("cards", String(count))]),
+  const gridCardColumnsHref = Object.fromEntries(
+    CARD_COLUMN_CHOICES.map((count) => {
+      const [path, search = ""] = withQuery("cards", String(count)).split("?");
+      const params = new URLSearchParams(search);
+      params.delete("view");
+      const next = params.toString();
+      return [count, next ? `${path}?${next}` : path];
+    }),
   ) as Record<CardColumns, string>;
 
   const viewHref = (target: "grid" | "table"): string => {
@@ -257,13 +263,16 @@ export default async function FilesPage({ searchParams }: Props) {
             見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
             <div className="flex items-center gap-1">
-              <FilesViewSwitch view={view} gridHref={viewHref("grid")} tableHref={viewHref("table")} />
+              <FilesViewSwitch
+                view={view}
+                tableHref={viewHref("table")}
+                cardColumns={cardColumns}
+                gridCardColumnsHref={gridCardColumnsHref}
+              />
               <FilesViewOptions
                 view={view}
                 columns={columns}
-                cardColumns={cardColumns}
                 columnHref={columnHref}
-                cardColumnsHref={cardColumnsHref}
               />
             </div>
           </div>

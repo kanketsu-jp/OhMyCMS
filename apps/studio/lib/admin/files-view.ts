@@ -37,10 +37,10 @@ export const ALWAYS_ON_COLUMN = null;
 /** 何も指定が無いときに出す列。 */
 export const DEFAULT_COLUMNS: readonly FileColumn[] = FILE_COLUMNS;
 
-/** カードを 1 行に並べる数。🚨 既定 3・1〜5 から選べる（設問 316 の備考）。 */
+/** カードを 1 行に並べる数。🚨 既定 5（堀池・2026-08-17「デフォルトは5にしてください」）。以前は 3（設問 316 の備考）。 */
 export const CARD_COLUMN_CHOICES = [1, 2, 3, 4, 5] as const;
 export type CardColumns = (typeof CARD_COLUMN_CHOICES)[number];
-export const DEFAULT_CARD_COLUMNS: CardColumns = 3;
+export const DEFAULT_CARD_COLUMNS: CardColumns = 5;
 
 /**
  * `?cols=type,size` を読む。
