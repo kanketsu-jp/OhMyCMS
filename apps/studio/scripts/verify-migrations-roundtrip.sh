@@ -44,11 +44,21 @@ docker run --rm -d --name "$CONTAINER" \
   -e POSTGRES_PASSWORD=probe -e POSTGRES_DB=postgres \
   -p "127.0.0.1:${PROBE_PORT}:5432" postgres:17 >/dev/null || { echo "🚨 起動できません"; exit 2; }
 
+# 🚨 **`pg_isready` を待ち条件にしない**（2026-08-17・shell が機構を測った）。
+#    postgres の image は初期化中に**一時サーバ**を立てるが、それは
+#    `listen_addresses=''` ＝ **unix socket にしか出ない**。
+#    `docker exec` は container の中から叩くので、**その一時サーバが見えてしまい**、
+#    `pg_isready` は「使えないサーバ」を ready と言う。
+#    実測（auth）… ready の直後に `database "cms" does not exist` →
+#                  `the database system is shutting down`（＝ 初期化の途中だった）
+#    実測（shell）… 窓は **0.16 秒前後**（`POSTGRES_DB` を指定すると +38%）
+#    🚨 **回数を増やしても直らない**（見ているものが同じなので）。**見る対象を変える。**
 for _ in $(seq 1 60); do
-  docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1 && break
+  docker exec -e PGPASSWORD=probe "$CONTAINER" psql -U postgres -d postgres -c 'select 1' >/dev/null 2>&1 && break
   sleep 1
 done
-docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1 || { echo "🚨 60 秒待っても応答しません"; exit 2; }
+docker exec -e PGPASSWORD=probe "$CONTAINER" psql -U postgres -d postgres -c 'select 1' >/dev/null 2>&1 \
+  || { echo "🚨 60 秒待ってもクエリが通りません"; exit 2; }
 
 # public スキーマの表の名前を、並べ替えて 1 行ずつ返す。
 表一覧() {
