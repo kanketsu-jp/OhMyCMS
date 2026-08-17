@@ -228,7 +228,11 @@ export function PageAction({
     pending: busy,
     disabled,
     variant,
-    order: cn(order, "hidden md:inline-flex"),
+    // 🚨 **アクションは横幅をしっかり取る**（堀池・2026-08-17・L1「アクションはちゃんと横幅をかくほ」
+    //    ＋ 画像で「アクション」が黒い塊として広く描かれている）。
+    //    【測った】直す前の主操作の幅は **156px**（主ボタン 124 + ▾ 32）。
+    //    🚨 `min-w` にする（`w-` にしない）——**文言が長い画面で切れる**ため。
+    order: cn(order, "hidden md:inline-flex md:min-w-40 md:justify-center"),
     compact: false,
     options,
     optionsLabel: t("action_options"),

@@ -277,12 +277,20 @@ export default async function AdminLayout({
               （器のどれか 1 つが `items-center` だと、そこで高さが auto に戻って 100% の基準が消える）。 */}
         <header
           data-slot="app-header"
-          className="flex min-h-14 items-stretch justify-between gap-2 border-b px-4 md:px-6 [&_[data-slot=button-group]]:h-full [&_a]:h-full [&_button]:h-full"
+          // 🚨 **フラットにする**（堀池・2026-08-17・L1「Header のデザインが破壊的に悪い。
+          //    角丸はいらない。フラットに。」＋ モックの画像: 四角い区画が隙間なく並ぶ）。
+          //    【測った 2026-08-17・PC 1280】直す前: ヘッダーの操作 **6 件すべてが角丸**
+          //    （8〜10px）、`gap-2` と `px-4 md:px-6` で隙間が空いていた。
+          // 🚨 角丸と余白を**ここ（header）に閉じた入れ子セレクタ**で消す。
+          //    左サイドバー開閉は L1、右パネル開閉は L2 の持ち場なので、あちらは触らない。
+          // 🚨 隙間を 0 にすると**区画の境目が消える**ので、`divide-x` で 1px の仕切りを入れる
+          //    （画像も区画の間に縦線が入っている）。
+          className="flex min-h-14 items-stretch justify-between border-b [&_[data-slot=button-group]]:h-full [&_a]:h-full [&_a]:rounded-none [&_button]:h-full [&_button]:rounded-none"
         >
           {/* 左: 戻る → パンくず。
               🚨 メニュー開閉ボタン（一番左・常に固定）は**左サイドバーの開閉状態**を持つので、
                  左サイドバーを3分割する回で入れる（TODO: A群③）。 */}
-          <div className="flex min-w-0 flex-1 items-stretch gap-1">
+          <div className="flex min-w-0 flex-1 items-stretch divide-x">
             {/* 一番左は**常に固定**のメニュー開閉（堀池・2026-08-15）。 */}
             <LeftSidebarToggle />
             <HeaderBack />
@@ -295,7 +303,7 @@ export default async function AdminLayout({
           <div className="hidden min-w-0 shrink items-center md:flex" />
 
           {/* 右: そのページの主要アクション → info（右サイドバーの開閉）。 */}
-          <div className="flex shrink-0 items-stretch gap-2">
+          <div className="flex shrink-0 items-stretch divide-x border-l">
             {/* 🚨 **PC の主要アクションの行き先**。中身はページごとに違うので器だけ置く。
                 埋めるのは `components/admin/page-action.tsx` の portal（SP の
                 `#mobile-primary-action` と対になる）。**空でも消さないこと。** */}
