@@ -7,6 +7,7 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PermissionCell, cellStateOf, type CellState } from "@/components/admin/permission-grid";
+import { WideTable } from "@/components/admin/wide-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -295,7 +296,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           </Link>
         </div>
       ) : (
-        <div className="w-full overflow-x-auto">
+        <WideTable>
           <Table>
             <TableHeader>
               <TableRow>
@@ -357,7 +358,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
               })}
             </TableBody>
           </Table>
-        </div>
+        </WideTable>
       )}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>

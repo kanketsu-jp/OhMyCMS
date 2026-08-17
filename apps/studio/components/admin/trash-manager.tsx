@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { WideTable } from "@/components/admin/wide-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -269,60 +270,62 @@ export function TrashManager({
       {items.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("column_item")}</TableHead>
-              <TableHead>{t("column_source")}</TableHead>
-              <TableHead>{t("column_deleted_at")}</TableHead>
-              <TableHead>{t("column_remaining")}</TableHead>
-              <TableHead className="text-right">{t("column_actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.key}>
-                <TableCell className="max-w-[18rem] overflow-hidden text-ellipsis">{item.displayName}</TableCell>
-                <TableCell>{sourceLabel(t, item)}</TableCell>
-                <TableCell>{format.dateTime(item.deletedAt)}</TableCell>
-                <TableCell>{t("remaining_days", { days: item.daysRemaining })}</TableCell>
-                <TableCell className="text-right">
-                  {item.canRestore ? (
-                    <ButtonGroup className="ml-auto justify-end [&>*]:rounded-none">
-                      <Button
-                        onClick={() => void previewRestore.run(item)}
-                        loading={previewRestore.isPending(item.key)}
-                      >
-                        <RotateCcw />
-                        <span>{t("restore")}</span>
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="outline" aria-label={t("row_options")}>
-                            <ChevronDown />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-44">
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => setPendingDelete(item)}
-                          >
-                            <Trash2 />
-                            <span>{t("delete_permanently")}</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </ButtonGroup>
-                  ) : (
-                    <p className="text-left text-xs text-muted-foreground md:text-right">
-                      {disabledText(t, item.disabledReason)}
-                    </p>
-                  )}
-                </TableCell>
+        <WideTable>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("column_item")}</TableHead>
+                <TableHead>{t("column_source")}</TableHead>
+                <TableHead>{t("column_deleted_at")}</TableHead>
+                <TableHead>{t("column_remaining")}</TableHead>
+                <TableHead className="text-right">{t("column_actions")}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.key}>
+                  <TableCell className="max-w-[18rem] overflow-hidden text-ellipsis">{item.displayName}</TableCell>
+                  <TableCell>{sourceLabel(t, item)}</TableCell>
+                  <TableCell>{format.dateTime(item.deletedAt)}</TableCell>
+                  <TableCell>{t("remaining_days", { days: item.daysRemaining })}</TableCell>
+                  <TableCell className="text-right">
+                    {item.canRestore ? (
+                      <ButtonGroup className="ml-auto justify-end [&>*]:rounded-none">
+                        <Button
+                          onClick={() => void previewRestore.run(item)}
+                          loading={previewRestore.isPending(item.key)}
+                        >
+                          <RotateCcw />
+                          <span>{t("restore")}</span>
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="outline" aria-label={t("row_options")}>
+                              <ChevronDown />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="min-w-44">
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() => setPendingDelete(item)}
+                            >
+                              <Trash2 />
+                              <span>{t("delete_permanently")}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </ButtonGroup>
+                    ) : (
+                      <p className="text-left text-xs text-muted-foreground md:text-right">
+                        {disabledText(t, item.disabledReason)}
+                      </p>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </WideTable>
       )}
 
       {/* 🚨 **完全削除の確認**。`window.confirm` の置き換え（2026-08-17）。

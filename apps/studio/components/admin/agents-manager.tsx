@@ -7,6 +7,7 @@ import { KeyRound, Ban, Plus } from "lucide-react";
 import { FieldLabel } from "@/components/admin/field-label";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { WideTable } from "@/components/admin/wide-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -293,63 +294,65 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         <ListEmpty>{t("empty")}</ListEmpty>
       ) : (
         // 名前・代理ユーザー・期限・失効状態・操作の複数列を読む一覧なので table にする。
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("name_label")}</TableHead>
-              <TableHead>on_behalf_of</TableHead>
-              <TableHead>expires_at</TableHead>
-              <TableHead>revoked_at</TableHead>
-              <TableHead className="text-right">
-                <span className="sr-only">{t("revoke_button")}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {agents.map((agent) => (
-              <TableRow
-                key={agent.id}
-                className="cursor-pointer"
-                // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
-                onClick={(event) => {
-                  if ((event.target as HTMLElement).closest("button, a")) return;
-                  router.push(`/admin/settings/agents/${agent.id}`);
-                }}
-              >
-                <TableCell className="font-medium">
-                  {/* 🚨 名前から 1 件のページへ（`decisions/list-views-are-switchable-layouts` §3）。
-                      **失効しているものも開ける**——**いつ失効したかが、いちばん見たい情報**なので。 */}
-                  <Link href={`/admin/settings/agents/${agent.id}`} className="hover:underline">
-                    {agent.name}
-                  </Link>
-                  {/* 🚨 塗った箱にしない。面の中なので、背景を持たせると深さ 2 になる
-                      （knowledge/decisions/no-nested-surfaces.md §2-1）。
-                      2026-08-15 実測: bg-muted の chip が 64x21px の面として検出された。
-                      失効は**取り消せない状態**なので、色ではなく赤い文字で示す。 */}
-                  {agent.revoked_at ? <span className="ml-2 text-xs font-medium text-destructive">{t("revoked_badge")}</span> : null}
-                </TableCell>
-                <TableCell className="font-mono text-xs">{agent.on_behalf_of}</TableCell>
-                <TableCell className="font-mono text-xs">{agent.expires_at}</TableCell>
-                <TableCell className="font-mono text-xs">{agent.revoked_at ?? "-"}</TableCell>
-                <TableCell>
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="destructive-ghost"
-                      size="sm"
-                      aria-label={t("revoke_button")}
-                      disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)}
-                      onClick={() => setConfirming(agent.id)}
-                    >
-                      <Ban data-icon="inline-start" />
-                      <span className="hidden md:inline">{t("revoke_button")}</span>
-                    </Button>
-                  </div>
-                </TableCell>
+        <WideTable>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("name_label")}</TableHead>
+                <TableHead>on_behalf_of</TableHead>
+                <TableHead>expires_at</TableHead>
+                <TableHead>revoked_at</TableHead>
+                <TableHead className="text-right">
+                  <span className="sr-only">{t("revoke_button")}</span>
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {agents.map((agent) => (
+                <TableRow
+                  key={agent.id}
+                  className="cursor-pointer"
+                  // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+                  onClick={(event) => {
+                    if ((event.target as HTMLElement).closest("button, a")) return;
+                    router.push(`/admin/settings/agents/${agent.id}`);
+                  }}
+                >
+                  <TableCell className="font-medium">
+                    {/* 🚨 名前から 1 件のページへ（`decisions/list-views-are-switchable-layouts` §3）。
+                        **失効しているものも開ける**——**いつ失効したかが、いちばん見たい情報**なので。 */}
+                    <Link href={`/admin/settings/agents/${agent.id}`} className="hover:underline">
+                      {agent.name}
+                    </Link>
+                    {/* 🚨 塗った箱にしない。面の中なので、背景を持たせると深さ 2 になる
+                        （knowledge/decisions/no-nested-surfaces.md §2-1）。
+                        2026-08-15 実測: bg-muted の chip が 64x21px の面として検出された。
+                        失効は**取り消せない状態**なので、色ではなく赤い文字で示す。 */}
+                    {agent.revoked_at ? <span className="ml-2 text-xs font-medium text-destructive">{t("revoked_badge")}</span> : null}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{agent.on_behalf_of}</TableCell>
+                  <TableCell className="font-mono text-xs">{agent.expires_at}</TableCell>
+                  <TableCell className="font-mono text-xs">{agent.revoked_at ?? "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="destructive-ghost"
+                        size="sm"
+                        aria-label={t("revoke_button")}
+                        disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)}
+                        onClick={() => setConfirming(agent.id)}
+                      >
+                        <Ban data-icon="inline-start" />
+                        <span className="hidden md:inline">{t("revoke_button")}</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </WideTable>
       )}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
@@ -403,43 +406,45 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
               //    スクロールできることは scroll-fade が示すので、背景は要らない。
               className="max-h-72 rounded-lg"
             >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-48">{t("collection_column")}</TableHead>
-                    {permissionActions.map((action) => (
-                      <TableHead key={action}>{t(`action_${action}`)}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {collections.map((row) => (
-                    <TableRow key={row.collection}>
-                      <TableCell className="font-mono text-xs">{row.collection}</TableCell>
-                      {permissionActions.map((action) => {
-                        const checked = capabilities.selection[row.collection]?.includes(action) ?? false;
-                        return (
-                          <TableCell key={action}>
-                            <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                aria-label={t("action_checkbox_label", {
-                                  collection: row.collection,
-                                  action: t(`action_${action}`),
-                                })}
-                                onChange={(event) => toggleCapability(row.collection, action, event.target.checked)}
-                                className="size-4"
-                              />
-                              <span className="sr-only">{t(`action_${action}`)}</span>
-                            </label>
-                          </TableCell>
-                        );
-                      })}
+              <WideTable>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-48">{t("collection_column")}</TableHead>
+                      {permissionActions.map((action) => (
+                        <TableHead key={action}>{t(`action_${action}`)}</TableHead>
+                      ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {collections.map((row) => (
+                      <TableRow key={row.collection}>
+                        <TableCell className="font-mono text-xs">{row.collection}</TableCell>
+                        {permissionActions.map((action) => {
+                          const checked = capabilities.selection[row.collection]?.includes(action) ?? false;
+                          return (
+                            <TableCell key={action}>
+                              <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  aria-label={t("action_checkbox_label", {
+                                    collection: row.collection,
+                                    action: t(`action_${action}`),
+                                  })}
+                                  onChange={(event) => toggleCapability(row.collection, action, event.target.checked)}
+                                  className="size-4"
+                                />
+                                <span className="sr-only">{t(`action_${action}`)}</span>
+                              </label>
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </WideTable>
             </ScrollFade>
           ) : (
             <ListEmpty>

@@ -3,6 +3,7 @@ import type { CollectionResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { WideTable } from "@/components/admin/wide-table";
 import { CollectionIconFor } from "@/components/admin/left-sidebar";
 import { HeaderSearch } from "@/components/admin/header-search";
 import { PageAction } from "@/components/admin/page-action";
@@ -104,57 +105,59 @@ export default async function CollectionsPage({ searchParams }: Props) {
       <div id={sectionAnchorId("collections.list_title")}>
         {result.ok ? (
           rows.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("title")}</TableHead>
-                  <TableHead>{t("field_count_header")}</TableHead>
-                  <TableHead>{t("note_label")}</TableHead>
-                  <TableHead className="w-56">{t("actions_header")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((collection) => {
-                  const encoded = encodeURIComponent(collection.collection);
-                  return (
-                    <TableRow key={collection.collection}>
-                      <TableCell>
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
-                            <CollectionIconFor
-                              icon={collection.meta?.icon ?? null}
-                              collection={collection.collection}
-                            />
-                          </span>
-                          <span className="flex min-w-0 flex-col gap-0.5">
-                            <span className="font-medium">{collectionLabel(collection, locale)}</span>
-                            <span className="text-xs text-muted-foreground">{collection.collection}</span>
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>
-                      <TableCell>{collection.meta?.note ?? ""}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/admin/collections/${encoded}`}
-                            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                          >
-                            {t("fields_link")}
-                          </Link>
-                          <Link
-                            href={`/admin/content/${encoded}`}
-                            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-                          >
-                            {t("items_link")}
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <WideTable>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("title")}</TableHead>
+                    <TableHead>{t("field_count_header")}</TableHead>
+                    <TableHead>{t("note_label")}</TableHead>
+                    <TableHead className="w-56">{t("actions_header")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((collection) => {
+                    const encoded = encodeURIComponent(collection.collection);
+                    return (
+                      <TableRow key={collection.collection}>
+                        <TableCell>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
+                              <CollectionIconFor
+                                icon={collection.meta?.icon ?? null}
+                                collection={collection.collection}
+                              />
+                            </span>
+                            <span className="flex min-w-0 flex-col gap-0.5">
+                              <span className="font-medium">{collectionLabel(collection, locale)}</span>
+                              <span className="text-xs text-muted-foreground">{collection.collection}</span>
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>
+                        <TableCell>{collection.meta?.note ?? ""}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Link
+                              href={`/admin/collections/${encoded}`}
+                              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                            >
+                              {t("fields_link")}
+                            </Link>
+                            <Link
+                              href={`/admin/content/${encoded}`}
+                              className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                            >
+                              {t("items_link")}
+                            </Link>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </WideTable>
           ) : query ? (
             /* 🚨 **「絞り込んだ結果 0 件」と「元から空」は別物**（`list-empty.tsx` の冒頭が
                 そう決めている。**規約は在ったのに、私が絞り込みを入れたとき分けなかった**）。

@@ -7,6 +7,8 @@ import { Plus, UserMinus } from "lucide-react";
 import { FieldLabel } from "@/components/admin/field-label";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { WideTable } from "@/components/admin/wide-table";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +27,7 @@ import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
+import { AVATAR_EMOJIS } from "@/lib/admin/avatar-emojis";
 
 type UserRow = {
   id: string;
@@ -33,6 +36,7 @@ type UserRow = {
   last_name: string | null;
   status: string;
   role: string | null;
+  avatar_emoji: string | null;
 };
 
 type PolicyRow = {
@@ -90,6 +94,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const assignDisabled = users.length === 0 || policies.length === 0;
+  const usersById = new Map(users.map((user) => [user.id, user]));
 
   const assign = useSubmitOnce(async (formData: FormData) => {
     setError(null);
@@ -135,64 +140,74 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         <ListEmpty>{t("empty")}</ListEmpty>
       ) : (
         // ユーザーとポリシーを別列で照合する一覧なので table にする。
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("user_label")}</TableHead>
-              <TableHead>{t("policy_label")}</TableHead>
-              <TableHead className="text-right">
-                <span className="sr-only">{t("remove_button")}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {access.map((row) => (
-              <TableRow
-                key={row.id}
-                className="cursor-pointer"
-                // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
-                onClick={(event) => {
-                  if ((event.target as HTMLElement).closest("button, a")) return;
-                  router.push(`/admin/settings/users/${row.user}`);
-                }}
-              >
-                {/* 🚨 **利用者の行だけ**、1 件のページへ開ける
-                    （`decisions/list-views-are-switchable-layouts` §3。**役割には 1 件のページが別に在る**）。
-                    🚨 **役割の行をここからリンクしない**——**役割の一覧が別に在るのに、
-                    同じものへの入口を 2 箇所に作ると、どちらが正か分からなくなる**。 */}
-                <TableCell className="font-medium">
-                  {row.user ? (
-                    <Link href={`/admin/settings/users/${row.user}`} className="hover:underline">
-                      {row.user_email ?? row.user}
-                    </Link>
-                  ) : (
-                    (row.role_name ?? row.role)
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {t("policy_prefix", { policy: row.policy_name ?? row.policy })}
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="destructive-ghost"
-                      size="sm"
-                      aria-label={t("remove_button")}
-                      disabled={remove.isPending(row.id)}
-                      onClick={() => setConfirming(row.id)}
-                    >
-                      {/* 🚨 ゴミ箱にしない。**割り当てを外す**操作で、ユーザーが消えるわけではない
-                          （ゴミ箱だと「ユーザーごと消える」と誤解される。design ⑬） */}
-                      <UserMinus />
-                      <span className="hidden md:inline">{t("remove_button")}</span>
-                    </Button>
-                  </div>
-                </TableCell>
+        <WideTable>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("user_label")}</TableHead>
+                <TableHead>{t("policy_label")}</TableHead>
+                <TableHead className="text-right">
+                  <span className="sr-only">{t("remove_button")}</span>
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {access.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className="cursor-pointer"
+                  // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+                  onClick={(event) => {
+                    if ((event.target as HTMLElement).closest("button, a")) return;
+                    router.push(`/admin/settings/users/${row.user}`);
+                  }}
+                >
+                  {/* 🚨 **利用者の行だけ**、1 件のページへ開ける
+                      （`decisions/list-views-are-switchable-layouts` §3。**役割には 1 件のページが別に在る**）。
+                      🚨 **役割の行をここからリンクしない**——**役割の一覧が別に在るのに、
+                      同じものへの入口を 2 箇所に作ると、どちらが正か分からなくなる**。 */}
+                  <TableCell className="font-medium">
+                    {row.user ? (
+                      <Link
+                        href={`/admin/settings/users/${row.user}`}
+                        className="inline-flex min-w-0 items-center gap-2 hover:underline"
+                      >
+                        <Avatar size="sm" aria-hidden="true">
+                          <AvatarFallback>
+                            {usersById.get(row.user)?.avatar_emoji ?? AVATAR_EMOJIS[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{row.user_email ?? row.user}</span>
+                      </Link>
+                    ) : (
+                      (row.role_name ?? row.role)
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {t("policy_prefix", { policy: row.policy_name ?? row.policy })}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="destructive-ghost"
+                        size="sm"
+                        aria-label={t("remove_button")}
+                        disabled={remove.isPending(row.id)}
+                        onClick={() => setConfirming(row.id)}
+                      >
+                        {/* 🚨 ゴミ箱にしない。**割り当てを外す**操作で、ユーザーが消えるわけではない
+                            （ゴミ箱だと「ユーザーごと消える」と誤解される。design ⑬） */}
+                        <UserMinus />
+                        <span className="hidden md:inline">{t("remove_button")}</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </WideTable>
       )}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>

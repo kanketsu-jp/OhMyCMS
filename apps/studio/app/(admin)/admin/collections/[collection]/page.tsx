@@ -6,6 +6,7 @@ import { apiFetch, hasApiCode } from "@/lib/admin/api";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { WideTable } from "@/components/admin/wide-table";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RelationForm } from "@/components/admin/relation-form";
@@ -220,79 +221,81 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               />
             ))}
             {見せる項目.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{tFields("field_header")}</TableHead>
-                    <TableHead>{tFields("display_name_header")}</TableHead>
-                    <TableHead>{tFields("type_label")}</TableHead>
-                    <TableHead>{tFields("required_label")}</TableHead>
-                    <TableHead>{tFields("primary_key_header")}</TableHead>
-                    <TableHead>{tFields("db_type_header")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {見せる項目.map((field) => {
-                    const formId = fieldTranslationFormId(field.field);
-                    const translations = field.meta?.translations ?? null;
-                    const jaLabel = tCommon("locale_ja");
-                    const enLabel = tCommon("locale_en");
+              <WideTable>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{tFields("field_header")}</TableHead>
+                      <TableHead>{tFields("display_name_header")}</TableHead>
+                      <TableHead>{tFields("type_label")}</TableHead>
+                      <TableHead>{tFields("required_label")}</TableHead>
+                      <TableHead>{tFields("primary_key_header")}</TableHead>
+                      <TableHead>{tFields("db_type_header")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {見せる項目.map((field) => {
+                      const formId = fieldTranslationFormId(field.field);
+                      const translations = field.meta?.translations ?? null;
+                      const jaLabel = tCommon("locale_ja");
+                      const enLabel = tCommon("locale_en");
 
-                    return (
-                      <TableRow key={field.field}>
-                        <TableCell className="font-medium">
-                          {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
-                              辞書が空なら `fieldLabel` が識別子を返すので、
-                              名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
-                          {fieldLabel(field, locale)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-2">
-                            <div className="grid gap-2 md:grid-cols-2">
-                              <div className="flex flex-col gap-1.5">
-                                <Label htmlFor={`${formId}-ja`}>{jaLabel}</Label>
-                                <Input
-                                  id={`${formId}-ja`}
-                                  name="name_ja"
-                                  form={formId}
-                                  defaultValue={translations?.ja ?? ""}
-                                  aria-label={tFields("display_name_input_label", {
-                                    field: field.field,
-                                    locale: jaLabel,
-                                  })}
-                                />
+                      return (
+                        <TableRow key={field.field}>
+                          <TableCell className="font-medium">
+                            {/* 🚨 生の識別子でなく辞書を通す（設問286 A ②）。
+                                辞書が空なら `fieldLabel` が識別子を返すので、
+                                名前を付けるまでは**いままでと 1 文字も変わらない**。 */}
+                            {fieldLabel(field, locale)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-2">
+                              <div className="grid gap-2 md:grid-cols-2">
+                                <div className="flex flex-col gap-1.5">
+                                  <Label htmlFor={`${formId}-ja`}>{jaLabel}</Label>
+                                  <Input
+                                    id={`${formId}-ja`}
+                                    name="name_ja"
+                                    form={formId}
+                                    defaultValue={translations?.ja ?? ""}
+                                    aria-label={tFields("display_name_input_label", {
+                                      field: field.field,
+                                      locale: jaLabel,
+                                    })}
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <Label htmlFor={`${formId}-en`}>{enLabel}</Label>
+                                  <Input
+                                    id={`${formId}-en`}
+                                    name="name_en"
+                                    form={formId}
+                                    defaultValue={translations?.en ?? ""}
+                                    aria-label={tFields("display_name_input_label", {
+                                      field: field.field,
+                                      locale: enLabel,
+                                    })}
+                                  />
+                                </div>
                               </div>
-                              <div className="flex flex-col gap-1.5">
-                                <Label htmlFor={`${formId}-en`}>{enLabel}</Label>
-                                <Input
-                                  id={`${formId}-en`}
-                                  name="name_en"
-                                  form={formId}
-                                  defaultValue={translations?.en ?? ""}
-                                  aria-label={tFields("display_name_input_label", {
-                                    field: field.field,
-                                    locale: enLabel,
-                                  })}
-                                />
+                              <div>
+                                <Button type="submit" form={formId} size="sm">
+                                  <Save data-icon="inline-start" />
+                                  {tFields("display_name_save")}
+                                </Button>
                               </div>
                             </div>
-                            <div>
-                              <Button type="submit" form={formId} size="sm">
-                                <Save data-icon="inline-start" />
-                                {tFields("display_name_save")}
-                              </Button>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{field.type}</TableCell>
-                        <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
-                        <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
-                        <TableCell>{field.schema?.data_type ?? ""}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          </TableCell>
+                          <TableCell>{field.type}</TableCell>
+                          <TableCell>{field.schema?.is_nullable === false ? tFields("yes") : tFields("no")}</TableCell>
+                          <TableCell>{field.schema?.is_primary_key ? tFields("yes") : tFields("no")}</TableCell>
+                          <TableCell>{field.schema?.data_type ?? ""}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </WideTable>
             ) : (
               <ListEmpty>
                 {tFields("empty")}{" "}
@@ -313,24 +316,26 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               </AccordionTrigger>
               <AccordionContent>
                 <p className="mb-2 text-sm text-muted-foreground">{tFields("internal_fields_note")}</p>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{tFields("field_header")}</TableHead>
-                      <TableHead>{tFields("type_label")}</TableHead>
-                      <TableHead>{tFields("db_type_header")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {内部項目.map((field) => (
-                      <TableRow key={field.field}>
-                        <TableCell className="font-medium">{fieldLabel(field, locale)}</TableCell>
-                        <TableCell>{field.type}</TableCell>
-                        <TableCell>{field.schema?.data_type ?? ""}</TableCell>
+                <WideTable>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{tFields("field_header")}</TableHead>
+                        <TableHead>{tFields("type_label")}</TableHead>
+                        <TableHead>{tFields("db_type_header")}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {内部項目.map((field) => (
+                        <TableRow key={field.field}>
+                          <TableCell className="font-medium">{fieldLabel(field, locale)}</TableCell>
+                          <TableCell>{field.type}</TableCell>
+                          <TableCell>{field.schema?.data_type ?? ""}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </WideTable>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -438,61 +443,63 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       <Surface id={sectionAnchorId("relations.list_title")} className="pt-6">
         {relationsResult.ok ? (
           collectionRelations.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{tRelations("kind_header")}</TableHead>
-                  <TableHead>{tRelations("current_field_header")}</TableHead>
-                  <TableHead>{tRelations("related_collection_header")}</TableHead>
-                  <TableHead>{tRelations("related_field_header")}</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {collectionRelations.map((row) => (
-                  <TableRow key={row.key}>
-                    <TableCell>{tRelations(row.kind === "m2o" ? "kind_m2o" : "kind_o2m")}</TableCell>
-                    <TableCell className="font-medium">{row.currentField}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">
-                          {labelForCollectionName(row.relatedCollection)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{row.relatedCollection}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{row.relatedField}</TableCell>
-                    <TableCell className="text-right">
-                      {/* 🚨 関連の削除は**戻せない**（`lib/schema/service.ts:1143` が `.delete()`）。
-                          決定 `confirm-by-reversibility-and-reach` の①に当たるので確認を出す。
-                          🚨 **フォームはサーバ側のまま**（`method="post"` → route handler）。
-                          送信ボタンだけを client にしてある（`ConfirmSubmit` の申し送り参照）。 */}
-                      <form
-                        id={`relation-delete-${row.key}`}
-                        action={`/admin/actions/collections/${encoded}/relations/delete`}
-                        method="post"
-                      >
-                        <input type="hidden" name="many_collection" value={row.relation.many_collection} />
-                        <input type="hidden" name="many_field" value={row.relation.many_field} />
-                        <ConfirmSubmit
-                          formId={`relation-delete-${row.key}`}
-                          title={tRelations("delete_confirm_title")}
-                          description={tRelations("delete_confirm", {
-                            field: row.currentField,
-                            collection: row.relatedCollection,
-                          })}
-                          confirmLabel={tRelations("delete_button")}
-                          ariaLabel={tRelations("delete_button")}
-                        >
-                          <Trash2 />
-                          <span className="hidden md:inline">{tRelations("delete_button")}</span>
-                        </ConfirmSubmit>
-                      </form>
-                    </TableCell>
+            <WideTable>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{tRelations("kind_header")}</TableHead>
+                    <TableHead>{tRelations("current_field_header")}</TableHead>
+                    <TableHead>{tRelations("related_collection_header")}</TableHead>
+                    <TableHead>{tRelations("related_field_header")}</TableHead>
+                    <TableHead />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {collectionRelations.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell>{tRelations(row.kind === "m2o" ? "kind_m2o" : "kind_o2m")}</TableCell>
+                      <TableCell className="font-medium">{row.currentField}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium">
+                            {labelForCollectionName(row.relatedCollection)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{row.relatedCollection}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{row.relatedField}</TableCell>
+                      <TableCell className="text-right">
+                        {/* 🚨 関連の削除は**戻せない**（`lib/schema/service.ts:1143` が `.delete()`）。
+                            決定 `confirm-by-reversibility-and-reach` の①に当たるので確認を出す。
+                            🚨 **フォームはサーバ側のまま**（`method="post"` → route handler）。
+                            送信ボタンだけを client にしてある（`ConfirmSubmit` の申し送り参照）。 */}
+                        <form
+                          id={`relation-delete-${row.key}`}
+                          action={`/admin/actions/collections/${encoded}/relations/delete`}
+                          method="post"
+                        >
+                          <input type="hidden" name="many_collection" value={row.relation.many_collection} />
+                          <input type="hidden" name="many_field" value={row.relation.many_field} />
+                          <ConfirmSubmit
+                            formId={`relation-delete-${row.key}`}
+                            title={tRelations("delete_confirm_title")}
+                            description={tRelations("delete_confirm", {
+                              field: row.currentField,
+                              collection: row.relatedCollection,
+                            })}
+                            confirmLabel={tRelations("delete_button")}
+                            ariaLabel={tRelations("delete_button")}
+                          >
+                            <Trash2 />
+                            <span className="hidden md:inline">{tRelations("delete_button")}</span>
+                          </ConfirmSubmit>
+                        </form>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </WideTable>
           ) : (
             <p className="text-sm text-muted-foreground">{tRelations("empty_relations")}</p>
           )
