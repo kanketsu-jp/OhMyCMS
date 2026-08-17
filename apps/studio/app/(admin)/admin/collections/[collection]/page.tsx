@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Plus, Save, Trash2 } from "lucide-react";
 import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
-import { apiFetch } from "@/lib/admin/api";
+import { apiFetch, hasApiCode } from "@/lib/admin/api";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
@@ -127,6 +128,15 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
     collectionLabelByName.get(name) ?? collectionLabel({ collection: name, meta: null }, locale);
 
   // 対象が無いときは、中身を描かない。『無い』と『在るが空』を同じ場所で混ぜない。
+  // 🚨 **無いコレクションは notFound() を呼ぶ**（2026-08-17・auth の実測）。
+  //    自前で描くと **HTTP が 200 のまま**になり、右パネルの「概要」も出続けて
+  //    **無いものについて「欄と関係を設定します」と約束していた**。
+  //    🚨 それ以外の失敗（権限・通信）は今までどおり ErrorBanner で出す
+  //       （**「無い」と「取れなかった」を混ぜない**）。
+  if (hasApiCode(collectionResult, "COLLECTION_NOT_FOUND")) {
+    notFound();
+  }
+
   // 『対象が無い』は『中身が空』より前に判定する。
   if (!collectionResult.ok) {
     return (

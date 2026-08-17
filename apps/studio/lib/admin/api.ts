@@ -137,3 +137,15 @@ export async function apiFetch<T>(
 export async function currentUser(): Promise<ApiResult<MeResult>> {
   return apiFetch<MeResult>("/api/auth/me");
 }
+
+/**
+ * API の失敗が、特定の `code` かどうか。
+ *
+ * 🚨 **2 箇所以上に出たので、ここへ寄せた**（DESIGN.md §0-1・2026-08-17）。
+ * 元は `content/[collection]/page.tsx` の中だけに在り、
+ * `collections/[collection]/page.tsx` でも要ることが分かった時点で共有にした。
+ * 🚨 **`!ok` を必ず見る**（成功した応答に `code` は無いが、将来の形に引きずられないため）。
+ */
+export function hasApiCode(result: { ok: boolean; code?: string }, code: string): boolean {
+  return !result.ok && result.code === code;
+}

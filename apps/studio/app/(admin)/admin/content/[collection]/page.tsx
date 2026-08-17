@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import type { FieldResult } from "@/lib/schema/models";
-import { apiFetch } from "@/lib/admin/api";
+import { apiFetch, hasApiCode } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
 import { ItemCalendar } from "@/components/admin/item-calendar";
 import { ItemCards } from "@/components/admin/item-cards";
@@ -58,10 +59,6 @@ type Props = {
     "cal.month"?: string | string[];
   }>;
 };
-
-function hasApiCode(result: { ok: boolean; code?: string }, code: string): boolean {
-  return !result.ok && result.code === code;
-}
 
 function ContentNotFound({ t }: { t: Awaited<ReturnType<typeof getT>> }) {
   return (
@@ -215,8 +212,14 @@ export default async function ContentPage({ params, searchParams }: Props) {
     return search ? `/admin/content/${encoded}?${search}` : `/admin/content/${encoded}`;
   })();
 
+  // 🚨 **自前の画面でなく notFound() を呼ぶ**（2026-08-17・auth の実測を受けて）。
+  //    自前で描くと **HTTP が 200 のまま**になり、機械には「在る」と答えてしまう。
+  //    さらに右パネルの「概要」が経路だけで決まるので、**無いコレクションの画面で
+  //    「一覧・検索し、開いて編集できます」と約束していた**。
+  //    notFound() を呼べば `(admin)/not-found.tsx` が受け、**404 と右パネルの抑止が同時に直る**。
+  //    🚨 引き換えに、専用の文言（「そのコレクションはありません」）は共有の文言になる。
   if (hasApiCode(fieldsResult, "COLLECTION_NOT_FOUND")) {
-    return <ContentNotFound t={t} />;
+    notFound();
   }
 
   const fields = fieldsResult.ok
@@ -240,7 +243,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const itemsResult = await apiFetch<ItemsPayload>(`/api/items/${encoded}?${itemsSearch}`);
 
   if (hasApiCode(itemsResult, "COLLECTION_NOT_FOUND")) {
-    return <ContentNotFound t={t} />;
+    notFound();
   }
 
   const calendarField = resolveCalendarField(fields, query["cal.field"]);
