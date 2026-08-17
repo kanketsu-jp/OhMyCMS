@@ -297,6 +297,7 @@ export async function listPermissions(
   const { limit, offset } = parseListRange(range);
   const query = db<PermissionRow>("directus_permissions")
     .select("*")
+    .whereNull("deleted_at")
     .orderBy("id")
     .limit(limit)
     .offset(offset);
@@ -324,7 +325,7 @@ export async function createPermission(body: Record<string, unknown>): Promise<P
 }
 
 export async function getPermission(id: string): Promise<PermissionRow> {
-  const row = await db<PermissionRow>("directus_permissions").where({ id: Number(id) }).first();
+  const row = await db<PermissionRow>("directus_permissions").where({ id: Number(id) }).whereNull("deleted_at").first();
   if (!row) throw new ApiError(404, "PERMISSION_NOT_FOUND", "permission行が見つかりません");
   return row;
 }
@@ -353,7 +354,10 @@ export async function updatePermission(id: string, body: Record<string, unknown>
 }
 
 export async function deletePermission(id: string): Promise<void> {
-  const deleted = await db<PermissionRow>("directus_permissions").where({ id: Number(id) }).delete();
+  const deleted = await db<PermissionRow>("directus_permissions")
+    .where({ id: Number(id) })
+    .whereNull("deleted_at")
+    .update({ deleted_at: db.fn.now() } as Partial<PermissionRow> & { deleted_at: unknown });
   if (!deleted) throw new ApiError(404, "PERMISSION_NOT_FOUND", "permission行が見つかりません");
 }
 

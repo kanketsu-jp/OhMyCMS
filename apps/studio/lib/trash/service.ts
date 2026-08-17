@@ -72,6 +72,9 @@ export type TrashItem = {
    *    これを返さないと **`canRestore: true` のまま出て、押した瞬間にエラー**になる。
    */
   disabledReason: "missing_primary_key" | "system_table" | null;
+  canDeletePermanently: boolean;
+  deleteDisabledReason: "permission_assigned" | null;
+  assignedPolicies: string[];
 };
 
 export type TrashRestorePlan = {
@@ -133,16 +136,16 @@ function sourceKindFor(collection: string): SourceKind {
  *    「ゴミ箱に入る表」の定義は `tableMetas()`（`deleted_at` を持つ表を実行時に探す）で、
  *    そちらは **GUI で作った利用者コレクションも含む**（＝ 許可リストにはならない）。
  *
- * 🛑 `directus_permissions` は**入れない**（2026-08-17 司令塔の判断）。
- *    権限の行を物理削除したときに何が起きるか（参照している役割・復元・追跡）を
- *    誰も測っていない。詰まりの実害も 0 件だったので、**開けるほうが危ない**。
- *    可否は堀池さん待ちとして board に出ている。
+ * `directus_permissions` は、割り当ての無い行だけ完全削除を許可する。
+ *    割り当て済みの権限を物理削除すると、認可ルールが黙って消えるため、
+ *    サーバ側で拒否する。
  */
 const TRASH_SYSTEM_COLLECTIONS = new Set([
   "directus_files",
   "directus_folders",
   "ohmycms_labels",
   "ohmycms_label_assignments",
+  "directus_permissions",
 ]);
 
 /**
@@ -186,6 +189,19 @@ function permissionCollection(collection: string): string {
 
 function canApplyRowFilter(collection: string): boolean {
   return permissionCollection(collection) === collection;
+}
+
+async function assignedPolicyNames(permissionIds: number[]): Promise<Map<number, string[]>> {
+  if (permissionIds.length === 0) return new Map();
+  const rows = await db<{ permission_id: number; name: string }>("directus_permissions")
+    .join("directus_access", "directus_permissions.policy", "directus_access.policy")
+    .join("directus_policies", "directus_access.policy", "directus_policies.id")
+    .whereIn("directus_permissions.id", permissionIds)
+    .distinct("directus_permissions.id as permission_id", "directus_policies.name")
+    .orderBy("directus_policies.name");
+  const result = new Map<number, string[]>();
+  for (const row of rows) result.set(row.permission_id, [...(result.get(row.permission_id) ?? []), row.name]);
+  return result;
 }
 
 async function relationRows(): Promise<RelationMeta[]> {
@@ -317,9 +333,15 @@ export async function listTrash(actor: Actor): Promise<TrashItem[]> {
       }
       const deletedRows = await query.select("*").orderBy("deleted_at", "desc");
       const operable = trashOperable(meta.collection);
+      const assignments = meta.collection === "directus_permissions"
+        ? await assignedPolicyNames(deletedRows.map((row) => Number(row.id)))
+        : new Map<number, string[]>();
       return deletedRows.map((row, index): TrashItem => {
         const deletedAt = deletedAtString(row.deleted_at);
         const primaryKey = meta.primaryKeys.length > 0 ? primaryKeyForRow(row, meta.primaryKeys) : null;
+        const assignedPolicies = meta.collection === "directus_permissions"
+          ? assignments.get(Number(row.id)) ?? []
+          : [];
         return {
           key: encodeKey({ collection: meta.collection, primaryKey: primaryKey ?? { __row: String(index) } }),
           collection: meta.collection,
@@ -334,7 +356,10 @@ export async function listTrash(actor: Actor): Promise<TrashItem[]> {
             ? "missing_primary_key"
             : operable
               ? null
-              : "system_table",
+                : "system_table",
+          canDeletePermanently: primaryKey !== null && operable && assignedPolicies.length === 0,
+          deleteDisabledReason: assignedPolicies.length > 0 ? "permission_assigned" : null,
+          assignedPolicies,
         };
       });
     }),
@@ -558,7 +583,11 @@ export async function restoreTrashItem(
   return { restored: 1 + related.length };
 }
 
-export async function permanentlyDeleteTrashItem(actor: Actor, encodedKey: string): Promise<void> {
+export async function permanentlyDeleteTrashItem(
+  actor: Actor,
+  encodedKey: string,
+  context: { ip: string; userAgent: string | null } = { ip: "", userAgent: null },
+): Promise<void> {
   const key = decodeKey(encodedKey);
   await rowForKey(actor, key, "delete");
   const primaryKey = key.primaryKey;
@@ -579,9 +608,44 @@ export async function permanentlyDeleteTrashItem(actor: Actor, encodedKey: strin
   try {
     await db.transaction(async (trx) => {
       assertTrashCollection(key.collection);
+      if (key.collection === "directus_permissions") {
+        const permission = await trx<{ id: number; policy: string }>("directus_permissions")
+          .select("id", "policy")
+          .whereNotNull("deleted_at")
+          .modify((query) => {
+            for (const [column, value] of Object.entries(key.primaryKey ?? {})) query.where(column as "id", value);
+          })
+          .forUpdate()
+          .first();
+        if (!permission) throw new ApiError(404, "TRASH_ITEM_NOT_FOUND", "ゴミ箱の項目が見つかりません");
+        const assignments = await trx<{ name: string }>("directus_access")
+          .join("directus_policies", "directus_access.policy", "directus_policies.id")
+          .where("directus_access.policy", permission.policy)
+          .select("directus_policies.name")
+          .distinct()
+          .orderBy("directus_policies.name");
+        if (assignments.length > 0) {
+          throw new ApiError(
+            409,
+            "PERMISSION_ASSIGNED",
+            `この権限はポリシー「${assignments.map((row) => row.name).join("、")}」に割り当てられているため完全に削除できません。先に割り当てを外してください`,
+          );
+        }
+      }
       const query = trx<Record<string, unknown>>(key.collection).whereNotNull("deleted_at");
       applyPrimaryKey(query, primaryKey);
-      await query.delete();
+      const deleted = await query.delete();
+      if (!deleted) throw new ApiError(404, "TRASH_ITEM_NOT_FOUND", "ゴミ箱の項目が見つかりません");
+      await trx("directus_activity").insert({
+        action: "delete",
+        user: actor.type === "human" ? actor.userId : null,
+        actor_type: actor.type,
+        actor_id: actor.type === "agent" ? actor.agentId : null,
+        collection: key.collection,
+        item: String(primaryKey.id ?? Object.values(primaryKey)[0]),
+        ip: context.ip,
+        user_agent: context.userAgent,
+      });
     });
   } catch (error) {
     // 🚨 **他の行から参照されている行を完全削除すると、pg が `23503` を投げる。**

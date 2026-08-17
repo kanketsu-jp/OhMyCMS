@@ -38,6 +38,8 @@
   "error_forbidden": "権限がありません。",
   "error_not_found": "対象が見つかりません。",
   "error_referenced": "他の項目から参照されているため、完全に削除できません。先に参照している側を消してください。",
+  "permission_assigned": "ポリシー「{policies}」に割り当てられているため、完全に削除できません。先に割り当てを外してください。",
+  "error_permission_assigned": "この権限はポリシーに割り当てられているため、完全に削除できません。先に割り当てを外してください。",
   "error_unauthenticated": "ログインしてください。",
   "error_failed": "操作できませんでした。"
 }

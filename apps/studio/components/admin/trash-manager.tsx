@@ -61,9 +61,12 @@ export type TrashItem = {
    * 🚨 **戻せない理由**。増える。**画面はここから文言を引くこと**（下の `disabledText`）。
    *   `missing_primary_key` … 主キーが無いので行を特定できない
    *   `system_table` ……… 仕組みが使う表なので、ゴミ箱からは触らせない
-   *     （2026-08-17。`directus_permissions` のように `deleted_at` は持つが許可しない表）
+   *     （`directus_permissions` はこの理由ではなく、割り当て状況を `deleteDisabledReason` で表す）
    */
   disabledReason: "missing_primary_key" | "system_table" | null;
+  canDeletePermanently: boolean;
+  deleteDisabledReason: "permission_assigned" | null;
+  assignedPolicies: string[];
 };
 
 type ReferenceIssue = {
@@ -146,6 +149,8 @@ function errorMessage(t: ReturnType<typeof useT>, status: number, code: string |
     //     同じ文言を 2 箇所に置くと片方が腐る（`i18n/error.ts` の FOLDER_NOT_EMPTY の経緯と同じ理由）。
     case "ITEM_REFERENCED":
       return t("error_referenced");
+    case "PERMISSION_ASSIGNED":
+      return t("error_permission_assigned");
     default:
       break;
   }
@@ -298,22 +303,28 @@ export function TrashManager({
                           <RotateCcw />
                           <span>{t("restore")}</span>
                         </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="outline" aria-label={t("row_options")}>
-                              <ChevronDown />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="min-w-44">
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() => setPendingDelete(item)}
-                            >
-                              <Trash2 />
-                              <span>{t("delete_permanently")}</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {item.canDeletePermanently ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="outline" aria-label={t("row_options")}>
+                                <ChevronDown />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-44">
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => setPendingDelete(item)}
+                              >
+                                <Trash2 />
+                                <span>{t("delete_permanently")}</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : item.deleteDisabledReason === "permission_assigned" ? (
+                          <p className="max-w-[22rem] text-left text-xs text-muted-foreground md:text-right">
+                            {t("permission_assigned", { policies: item.assignedPolicies.join(", ") })}
+                          </p>
+                        ) : null}
                       </ButtonGroup>
                     ) : (
                       <p className="text-left text-xs text-muted-foreground md:text-right">

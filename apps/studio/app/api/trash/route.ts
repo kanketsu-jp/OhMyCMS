@@ -27,7 +27,10 @@ export async function DELETE(request: Request) {
   try {
     const actor = await requireActor(request);
     const body = await readJsonObject(request);
-    await permanentlyDeleteTrashItem(actor, String(body.key ?? ""));
+    await permanentlyDeleteTrashItem(actor, String(body.key ?? ""), {
+      ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "",
+      userAgent: request.headers.get("user-agent"),
+    });
     return new Response(null, { status: 204 });
   } catch (error) {
     return errorResponse(error);
