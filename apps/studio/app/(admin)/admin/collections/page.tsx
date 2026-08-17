@@ -42,6 +42,16 @@ export default async function CollectionsPage({ searchParams }: Props) {
   //    見えている文字で絞れないと「打ったのに出ない」になる。
   //    🚨 大文字小文字は無視する（識別子は小文字、表示名は日本語で混ざるため）。
   const query = (params.q ?? "").trim().toLowerCase();
+  // 🚨 **絞りを外した行き先**（他のクエリは保つ）。`files/page.tsx` の `clearLabelHref` と同じ形。
+  const clearQueryHref = (() => {
+    const next = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (key === "q" || value === undefined || value === "") continue;
+      next.append(key, String(value));
+    }
+    const search = next.toString();
+    return search ? `/admin/collections?${search}` : "/admin/collections";
+  })();
   const rows = result.ok
     ? result.data.filter(
         (c) =>
@@ -145,6 +155,19 @@ export default async function CollectionsPage({ searchParams }: Props) {
                 })}
               </TableBody>
             </Table>
+          ) : query ? (
+            /* 🚨 **「絞り込んだ結果 0 件」と「元から空」は別物**（`list-empty.tsx` の冒頭が
+                そう決めている。**規約は在ったのに、私が絞り込みを入れたとき分けなかった**）。
+                【測った 2026-08-17】直す前は `?q=zz-not-real` で「**コレクションはまだありません**」
+                と出ていた。**コレクションは 16 件在る**ので、これは嘘で、
+                利用者からは「**データが消えた**」と読める。しかも**解除する手段が本文に 0 件**だった。
+                🚨 文言と解除の出し方は `files/page.tsx` の前例に揃えている（新しい言い回しを作らない）。 */
+            <ListEmpty>
+              {t("empty_filtered")}{" "}
+              <Link href={clearQueryHref} className="underline">
+                {t("clear_filter")}
+              </Link>
+            </ListEmpty>
           ) : (
             <ListEmpty>{t("empty")}</ListEmpty>
           )

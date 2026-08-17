@@ -23,5 +23,7 @@
   "icon_heading": "アイコン",
   "icon_help": "左サイドバーに出る絵です。選ばないと表のアイコンになります。",
   "icon_save": "アイコンを保存",
-  "icon_none": "選ばない"
+  "icon_none": "選ばない",
+  "empty_filtered": "この条件に合うコレクションはありません。",
+  "clear_filter": "絞り込みを解除"
 }
