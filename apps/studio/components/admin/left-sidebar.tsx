@@ -162,6 +162,14 @@ function NavItemIcon({ href }: { href: string }) {
   if (href === "/admin/settings/general") return <Info />;
   if (href === "/admin/settings/storage") return <Cloud />;
   if (href === "/admin/settings/sso") return <Lock />;
+  // 🚨 **AI の入口が 1 つになった**（pages の AF1・9bbdd348）ので、`/admin/settings/ai` を足す。
+  //    足さないと既定の `<TableIcon />` に落ちる（`DESIGN.md` §3-1）。
+  //    【測った 2026-08-17】S1 の直後は 0 件だったのに、**行が 1 つ増えて 1 件に戻っていた**
+  //    ＝ 🚨 **既定に落ちる形は、他レーンが項目を足すたびに再発する**。
+  //      この分岐は「守り手が居ない約束」なので、次に増える人も同じところで落ちる。
+  // 🚨 `agents` / `mcp` の分岐は**消していない**。ページ自体は残っており
+  //    （実測: 3 つとも page.tsx が在る）、直接 URL で開けば道筋に出るため。
+  if (href === "/admin/settings/ai") return <SquareCode />;
   if (href === "/admin/settings/agents") return <SquareCode />;
   if (href === "/admin/settings/mcp") return <Link2 />;
   if (href === "/admin/settings/version") return <RefreshCw />;
