@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { usePageTrail } from "@/components/admin/page-trail";
 import { Undo2Icon } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -25,7 +26,41 @@ export function HeaderBack() {
   const router = useRouter();
   const isMac = useIsMac();
 
-  const goBack = useCallback(() => router.back(), [router]);
+  /**
+   * 🚨 **アプリの外へ出さない**（2026-08-17・「初めて触る人の目」で見つけた）。
+   *
+   * 【測った】共有台で **新しいタブから `/admin/version` を直接開く**（ブックマーク・リンク・再読み込み）:
+   * ```
+   * history.length …… **2**（about:blank → その画面）
+   * 「もどる」を押す … URL が **about:blank** ＝ **真っ白な画面へ出る。戻る道も無い**
+   * 🟢 対照 パンくずの中には `/admin` への本物のリンクが在った
+   *    ＝ **上へ行く道は在るのに、目立つボタンの方が外へ出していた**
+   * ```
+   * ＝ `router.back()` は**ブラウザの履歴**をたどるもので、**画面の階層**ではない。
+   *   アプリの中を歩いてきた人には正しいが、**直接来た人には正しくない**。
+   *
+   * 🚨 直し方: **この画面より前にアプリの中で動いたか**を見て、
+   *   動いていなければ **上の階層へ**行く（`page-trail` が持っている道筋の、押せる最後の親）。
+   *   🚨 **押せない区画（`navigable: false`）は行き先にしない**——`/admin/settings` は
+   *     ページが無く、行くと 404 になる（`page-trail.ts` の申し送り）。
+   */
+  const entryLength = useRef<number | null>(null);
+  // 🚨 サーバでは `history` が無いので、描くたびではなく**最初に押されたとき**に基準を採る。
+  //    `useEffect` で採らないのは、効果の中の同期 setState を lint が拒むため（`page-action.tsx` と同じ理由）。
+  const crumbs = usePageTrail("");
+  const parent = [...crumbs].slice(0, -1).reverse().find((c) => c.navigable);
+
+  const goBack = useCallback(() => {
+    if (entryLength.current === null) entryLength.current = window.history.length;
+    // 🚨 **この画面へ来る前にアプリの中で動いていれば**、履歴を戻すのが正しい。
+    //    そうでなければ、戻ると**アプリの外**（about:blank や別のサイト）へ出る。
+    const cameFromInsideApp = window.history.length > 2;
+    if (cameFromInsideApp) {
+      router.back();
+      return;
+    }
+    router.push(parent?.href ?? "/admin");
+  }, [router, parent]);
   useShortcut(SHORTCUTS.back, goBack);
 
   return (
