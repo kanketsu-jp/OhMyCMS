@@ -93,14 +93,27 @@ export function NotificationsManager({
         />
       ) : null}
 
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground">
-          {t("unread_badge", { count: unread })}
-        </span>
-        <Button variant="ghost" size="sm" onClick={() => setUnreadOnly((v) => !v)}>
-          {unreadOnly ? t("show_all") : t("show_unread_only")}
-        </Button>
-      </div>
+      {/* 🚨 **1 件も無いときは、この行ごと出さない**（`DESIGN.md` §1-4
+          「中身が 0 件のとき、器と線を残さない」）。
+          数える対象が無いのに「未読 0 件」と言い、絞る対象が無いのに「未読だけ表示」を出すと、
+          **押しても何も変わらない操作**が常設される——上の PageAction が
+          「押しても何も起きないボタンを常設しない」と書いているのと同じ理由。
+          実測（2026-08-17・pages）: /admin/notifications?tab=personal と ?tab=system で、
+          行 0 件のまま「未読 0 件 / 未読だけ表示」が出ていた。
+          🚨 **`unread === 0` では消さない。** 通知が在って全部読み終えただけのときは、
+          「未読だけ表示」に切り替える意味がまだ在る（絞る対象が在る）。
+          消す条件は **`notifications.length === 0`**（元の件数）。`visible` ではない——
+          `visible` は絞った後なので、**絞った結果 0 になった瞬間に操作が消えて戻せなくなる**。 */}
+      {notifications.length > 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm text-muted-foreground">
+            {t("unread_badge", { count: unread })}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => setUnreadOnly((v) => !v)}>
+            {unreadOnly ? t("show_all") : t("show_unread_only")}
+          </Button>
+        </div>
+      ) : null}
 
       {visible.length === 0 ? (
         <ListEmpty>{emptyLabel}</ListEmpty>
