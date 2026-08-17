@@ -19,6 +19,7 @@ import {
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { labelDisplayName } from "@/components/admin/label-display-name";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { useT } from "@/i18n/client";
 
 export type LabelRow = {
@@ -236,7 +237,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
       <section className="space-y-3">
         <h2 className="text-sm font-medium">{t("list_heading")}</h2>
         {labels.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("empty")}</p>
+          <ListEmpty>{t("empty")}</ListEmpty>
         ) : (
           // 1行はラベル名と補助操作だけなので、表ではなく名前中心のリストにする。
           <ul className="divide-y">

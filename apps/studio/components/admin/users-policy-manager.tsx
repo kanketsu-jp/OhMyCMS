@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, UserMinus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
@@ -177,7 +178,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
         </TableBody>
       </Table>
       {access.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        <ListEmpty>{t("empty")}</ListEmpty>
       ) : null}
       <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <FormDraft formId="user-policy-assign-form" />

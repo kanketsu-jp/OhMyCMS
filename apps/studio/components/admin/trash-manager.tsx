@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/toast";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
 // 🚨 型だけを持つファイル（`lib/trash/types.ts` は import 0 行）。
@@ -265,7 +266,7 @@ export function TrashManager({
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        <ListEmpty>{t("empty")}</ListEmpty>
       ) : (
         <Table>
           <TableHeader>

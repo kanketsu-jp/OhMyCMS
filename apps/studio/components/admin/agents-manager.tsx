@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { KeyRound, Ban, Plus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Input } from "@/components/ui/input";
@@ -334,7 +335,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         </TableBody>
       </Table>
       {agents.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        <ListEmpty>{t("empty")}</ListEmpty>
       ) : null}
       <form id="agent-issue-form" action={create.run} className="space-y-4">
         <FormDraft formId="agent-issue-form" />
@@ -404,9 +405,9 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
               </Table>
             </ScrollFade>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <ListEmpty>
               {t("collections_empty")}
-            </p>
+            </ListEmpty>
           )}
         </div>
         <div className="grid gap-4 md:grid-cols-2">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, CheckCheck, Undo2 } from "lucide-react";
 
+import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -102,7 +103,7 @@ export function NotificationsManager({
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+        <ListEmpty>{emptyLabel}</ListEmpty>
       ) : (
         <ul className="divide-y">
           {visible.map((notification) => (

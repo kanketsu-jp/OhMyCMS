@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ListEmpty } from "@/components/admin/list-empty";
 import type { BugReport } from "@/lib/reports/service";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,7 @@ type Props = {
  */
 export function ReportRooms({ reports, emptyLabel, resolvedLabel, formatDateTime }: Props) {
   if (reports.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
+    return <ListEmpty>{emptyLabel}</ListEmpty>;
   }
 
   return (

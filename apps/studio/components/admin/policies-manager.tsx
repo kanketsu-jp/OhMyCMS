@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { RowOptions } from "@/components/admin/row-options";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,7 +161,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
       {/* 1 件も無いことを、表の枠だけで伝えない。
           （読み込めていないのか、まだ無いのかが分からない） */}
       {policies.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        <ListEmpty>{t("empty")}</ListEmpty>
       ) : null}
       <form id="policy-create-form" action={create.run} className="space-y-4">
         <FormDraft formId="policy-create-form" />

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CollectionResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { Plus } from "lucide-react";
@@ -108,7 +109,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
             {/* 1 件も無いことを、表の枠だけで伝えない。
                 （読み込めていないのか、まだ無いのかが分からない） */}
             {result.data.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("empty")}</p>
+              <ListEmpty>{t("empty")}</ListEmpty>
             ) : null}
           </>
         ) : null}

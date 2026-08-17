@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
+import { ListEmpty } from "@/components/admin/list-empty";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
@@ -153,7 +154,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
       {/* 1 件も無いことを、表の枠だけで伝えない。
           （読み込めていないのか、まだ無いのかが分からない） */}
       {roles.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        <ListEmpty>{t("empty")}</ListEmpty>
       ) : null}
       <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
         <FormDraft formId="role-create-form" />
