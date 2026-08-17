@@ -251,11 +251,29 @@ export default async function AdminLayout({
             「メニュー開閉・戻る・パンくず｜アクション・info」だけ、と原典が列挙している。
             ブランドはパンくずの**根**として残っており（押すと /admin へ戻る）、
             行き先を失ってはいない。 */}
-        <header className="flex min-h-14 items-center justify-between gap-2 border-b px-4 md:px-6">
+        {/* 🚨 **ヘッダーの操作は、ヘッダーの高さいっぱいに立てる**（堀池・2026-08-17・C2）。
+            原文:「パディングをなくし、各ボタンの高さがヘッダーいっぱいになるようにしてください。
+                  アイコンのサイズやクリック範囲が広がるはずです（高さ自体は今のままで構いません）。」
+
+            🚨 **「パディング」の実体は縦余白ではない。**【測った 2026-08-17・PC 1280・/admin/files】
+              header の padding-y は **既に 0/0**。それでも余白に見えていたのは
+              `items-center` ＋ ボタン側の固定高（32 が 2 件・36 が 4 件・**56 は 0 件**）のため。
+              → 直すのは padding ではなく **`items-stretch` と、配下の高さの上書き**。
+
+            🚨 **他レーンの部品ファイルを 1 つも触らずに済ませる**ため、高さは
+            **ここ（header）に閉じた入れ子セレクタ**で当てる。左サイドバーの開閉ボタンは L1、
+            右パネルの開閉ボタンは L2 の持ち場なので、あちらの `size-*` は書き換えない
+            （入れ子セレクタは詳細度 (0,2,0) で `.size-8` (0,1,0) に勝つので、上書きは効く）。
+            🚨 **`h-full` が効くには、間の器も残らず伸びていること**が要る
+              （器のどれか 1 つが `items-center` だと、そこで高さが auto に戻って 100% の基準が消える）。 */}
+        <header
+          data-slot="app-header"
+          className="flex min-h-14 items-stretch justify-between gap-2 border-b px-4 md:px-6 [&_[data-slot=button-group]]:h-full [&_a]:h-full [&_button]:h-full"
+        >
           {/* 左: 戻る → パンくず。
               🚨 メニュー開閉ボタン（一番左・常に固定）は**左サイドバーの開閉状態**を持つので、
                  左サイドバーを3分割する回で入れる（TODO: A群③）。 */}
-          <div className="flex min-w-0 flex-1 items-center gap-1">
+          <div className="flex min-w-0 flex-1 items-stretch gap-1">
             {/* 一番左は**常に固定**のメニュー開閉（堀池・2026-08-15）。 */}
             <LeftSidebarToggle />
             <HeaderBack />
@@ -268,11 +286,11 @@ export default async function AdminLayout({
           <div className="hidden min-w-0 shrink items-center md:flex" />
 
           {/* 右: そのページの主要アクション → info（右サイドバーの開閉）。 */}
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-stretch gap-2">
             {/* 🚨 **PC の主要アクションの行き先**。中身はページごとに違うので器だけ置く。
                 埋めるのは `components/admin/page-action.tsx` の portal（SP の
                 `#mobile-primary-action` と対になる）。**空でも消さないこと。** */}
-            <div id="header-primary-action" data-slot="header-primary-action" className="flex items-center" />
+            <div id="header-primary-action" data-slot="header-primary-action" className="flex items-stretch" />
             {/* 🚨 検索は**ヘッダーから左サイドバーの上部へ移した**（堀池・2026-08-15）。
                 ここには戻さないこと。 */}
             {/* 一番右。押すと右サイドバー（このページの説明）が開く。 */}
