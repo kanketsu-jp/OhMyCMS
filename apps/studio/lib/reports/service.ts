@@ -83,6 +83,23 @@ export type MailStatus = "skipped" | "sent" | "failed";
 const MAX_TITLE = 255;
 const MAX_BODY = 20_000;
 
+/**
+ * 🚨 見出しは本文の 1 行目から作る（堀池さん 2026-08-17・原文「件名入力は不要です」）。
+ * **画面から欄を消したので、来ないのが普通**。
+ * 値そのものは残す（一覧の見出し・メールの件名・お知らせの差し込みが読む）。
+ */
+export function titleFromBody(body: string): string {
+  const title = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  if (!title) return "";
+  if (title.length <= MAX_TITLE) return title;
+
+  return `${title.slice(0, MAX_TITLE - 1)}…`;
+}
+
 /** 報告が保存される表の名前。**権限の宛先としても使う**ので 1 箇所に置く。 */
 export const BUG_REPORTS_COLLECTION = "ohmycms_bug_reports";
 
@@ -204,17 +221,18 @@ function validate(input: Record<string, unknown>): {
   viewport: string | null;
   locale: string | null;
 } {
-  const title = typeof input.title === "string" ? input.title.trim() : "";
+  let title = typeof input.title === "string" ? input.title.trim() : "";
   const body = typeof input.body === "string" ? input.body.trim() : "";
 
-  if (!title) throw new ApiError(400, "INVALID_FIELD", "title を入力してください");
   if (!body) throw new ApiError(400, "INVALID_FIELD", "body を入力してください");
-  if (title.length > MAX_TITLE) {
+  if (title && title.length > MAX_TITLE) {
     throw new ApiError(400, "INVALID_FIELD", `title は${MAX_TITLE}文字までです`);
   }
   if (body.length > MAX_BODY) {
     throw new ApiError(400, "INVALID_FIELD", `body は${MAX_BODY}文字までです`);
   }
+  if (!title) title = titleFromBody(body);
+  if (!title) throw new ApiError(400, "INVALID_FIELD", "title を入力してください");
 
   // 開いていた画面はアプリ内の相対パスだけ受け取る（外部URLを report に貯めない）。
   const rawPath = typeof input.page_path === "string" ? input.page_path.trim() : "";

@@ -1,8 +1,6 @@
 {
   "title": "不具合の報告",
   "description": "動かないところや気づいたことを送ってください。",
-  "report_title_label": "件名",
-  "report_title_placeholder": "何が起きましたか",
   "report_body_label": "詳しい内容",
   "report_body_placeholder": "どの画面で、何をしたら、どうなったかを書いてください。",
   "submit_button": "送信",
@@ -17,7 +15,6 @@
   "column_created": "日時",
   "column_mail": "メール",
   "error_submit_failed": "送信できませんでした。",
-  "error_title_required": "件名を入力してください。",
   "error_body_required": "詳しい内容を入力してください。",
   "nav_group": "不具合報告",
   "nav_create": "報告する",

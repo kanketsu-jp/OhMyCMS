@@ -10,7 +10,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
@@ -31,7 +30,7 @@ type Props = {
  * > 「報告する時は、そのページのパスなどがメタ情報として入る。**5W1H を担保する**。
  * >   報告自体は入力しやすいように、**自動で取得できる情報以外**の内容などを入れさせる。」
  *
- * → **人に書かせるのは 3 つだけ**（件名 / 何が起きたか / 本来どうなるはずだったか）。
+ * → **人に書かせるのは 2 つだけ**（何が起きたか / 本来どうなるはずだったか）。
  *   Who・When・Where は自動で埋まる。
  *
  * 🚨 **自動で集めるものを増やさない。**（守り手: `scripts/check-report-body-keys.mjs`。
@@ -54,11 +53,10 @@ export function BugReportComposer({ onDone }: Props) {
   const locale = useLocale();
   const pathname = usePathname();
 
-  const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [expected, setExpected] = useState("");
   // 🚨 入力の不足は**その欄の近く**に出す（消えると直せなくなるのでトーストにしない）。
-  const [fieldError, setFieldError] = useState<"title" | "body" | null>(null);
+  const [fieldError, setFieldError] = useState<"body" | null>(null);
 
   // 画面の大きさはサーバでは分からないので、水和のあとに読む。
   //
@@ -76,12 +74,7 @@ export function BugReportComposer({ onDone }: Props) {
   );
 
   const submit = useSubmitOnce(async () => {
-    const trimmedTitle = title.trim();
     const trimmedBody = body.trim();
-    if (!trimmedTitle) {
-      setFieldError("title");
-      return;
-    }
     if (!trimmedBody) {
       setFieldError("body");
       return;
@@ -92,7 +85,6 @@ export function BugReportComposer({ onDone }: Props) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        title: trimmedTitle,
         body: trimmedBody,
         expected: expected.trim() || undefined,
         page_path: pathname,
@@ -129,7 +121,6 @@ export function BugReportComposer({ onDone }: Props) {
             : t("mail_skipped"),
     });
 
-    setTitle("");
     setBody("");
     setExpected("");
     onDone?.();
@@ -148,22 +139,6 @@ export function BugReportComposer({ onDone }: Props) {
       }}
     >
       <FormDraft formId="bug-report-form" />
-      <div className="grid gap-2">
-        <Label htmlFor="report-title">{t("report_title_label")}</Label>
-        <Input
-          id="report-title"
-          name="title"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder={t("report_title_placeholder")}
-          maxLength={255}
-          aria-invalid={fieldError === "title" || undefined}
-        />
-        {fieldError === "title" ? (
-          <p className="text-sm text-destructive">{t("error_title_required")}</p>
-        ) : null}
-      </div>
-
       <div className="grid gap-2">
         <Label htmlFor="report-body">{t("report_body_label")}</Label>
         <Textarea

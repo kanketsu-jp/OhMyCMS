@@ -1,8 +1,6 @@
 {
   "title": "Report a problem",
   "description": "Tell us what is not working or what you noticed.",
-  "report_title_label": "Subject",
-  "report_title_placeholder": "What happened?",
   "report_body_label": "Details",
   "report_body_placeholder": "Describe the screen you were on, what you did, and what happened.",
   "submit_button": "Send",
@@ -17,7 +15,6 @@
   "column_created": "Date",
   "column_mail": "Email",
   "error_submit_failed": "Could not send.",
-  "error_title_required": "Enter a subject.",
   "error_body_required": "Enter the details.",
   "nav_group": "Bug reports",
   "nav_create": "Report a problem",
