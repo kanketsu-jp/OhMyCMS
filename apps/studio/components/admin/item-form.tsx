@@ -136,6 +136,10 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
                   value={ui === "json" ? valueForInput(value) : inputValue}
                   selectTargetId={fieldName}
                   data-copy-target={fieldName}
+                  // 🚨 **何をコピーするかをボタン自身が言う**（DESIGN.md §2-12・堀池 2026-08-17 AM1。
+                  //    原文:「これはボタン自体が「IDをコピー」と表示するべき。」）。
+                  //    隣の `<Label>` と同じ表示名を渡す——**ボタンだけを見た人に伝わる**ようにする。
+                  what={fieldLabel(field, locale)}
                 />
               ) : null}
             </div>

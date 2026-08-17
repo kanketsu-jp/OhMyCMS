@@ -8,6 +8,7 @@
   "back": "もどる",
   "close": "閉じる",
   "copy_button": "コピー",
+  "copy_button_what": "{what} をコピー",
   "copy_button_copied": "コピー済み",
   "copy_button_failed": "コピー失敗",
   "copy_button_failed_selected": "コピーできませんでした。値を選択したので手でコピーしてください。",
