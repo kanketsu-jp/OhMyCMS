@@ -120,7 +120,7 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
           手本が開いた中でも同じものを出すのは、**畳めるレール**だと引き金に文字が無いため。
           このリポジトリのサイドバーは畳めないので、再掲は重複でしかない。
         */}
-        <DropdownMenuContent side="top" align="end">
+        <DropdownMenuContent side="top" align="end" className="min-w-44">
           <DropdownMenuItem asChild>
             <Link href="/admin/profile">
               <Settings />

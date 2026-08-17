@@ -71,7 +71,7 @@ export function RowOptions({ label, options }: { label: string; options: RowOpti
           <ChevronDown />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="min-w-44">
         {options.map((option) => (
           <DropdownMenuItem
             key={option.label}

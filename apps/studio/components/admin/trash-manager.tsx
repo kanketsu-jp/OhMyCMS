@@ -302,7 +302,7 @@ export function TrashManager({
                             <ChevronDown />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="min-w-44">
                           <DropdownMenuItem
                             variant="destructive"
                             onSelect={() => setPendingDelete(item)}
@@ -380,7 +380,7 @@ export function TrashManager({
                   <span>{plan?.trashedReferences.length ? t("restore_only") : t("cancel")}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="min-w-44">
                 {plan?.trashedReferences.length ? (
                   <DropdownMenuItem onSelect={() => void confirmRestore.run("only")}>
                     {t("restore_only")}
