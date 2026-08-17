@@ -226,6 +226,7 @@ type FileRow = {
   blur_data_url: string | null;
   /** 配信用の圧縮版のキー。null なら圧縮版なし（元をそのまま配信する）。 */
   compressed_key: string | null;
+  is_public: boolean;
   /**
    * ゴミ箱に入れた時刻。**null なら生きている**（283 A・2026-08-16）。
    * 🚨 読むときは必ず `liveFiles()` を通す。素の `db("directus_files")` を書かない。
@@ -483,8 +484,10 @@ async function findFile(
   rowFilter: FilterObject | null,
   schemaOverview: SchemaOverview,
   relations: RelationMeta[],
+  publicOnly = false,
 ): Promise<FileRow> {
   const query = liveFiles().where({ id });
+  if (publicOnly) query.where({ is_public: true });
   applyRowFilter(query, rowFilter, "directus_files", schemaOverview, relations);
   // 🚨 **id の形が uuid でないと、DB が 22P02 を投げて 500 になる**（実測 2026-08-17:
   //    /api/files/zz-not-an-id が 500 INTERNAL_ERROR。
@@ -634,6 +637,7 @@ export async function uploadFile(actor: Actor | null, input: UploadFileInput): P
         metadata: input.metadata === undefined ? null : JSON.stringify(input.metadata),
         blur_data_url: blurDataUrl,
         compressed_key: storedCompressedKey,
+        is_public: true,
       })
       .returning("*");
     return toPublicFile(row);
@@ -1033,11 +1037,17 @@ async function bufferFromStorage(storage: StorageDriver, key: string): Promise<B
   return Buffer.from(await new Response(body).arrayBuffer());
 }
 
-export async function getAsset(actor: Actor, id: string, input: TransformInput): Promise<AssetResult> {
+export async function getAsset(actor: Actor | null, id: string, input: TransformInput): Promise<AssetResult> {
   const schemaOverview = await getSchemaOverview();
-  const permission = await permissionForAction(actor, "directus_files", "read");
-  const relations = permission.rowFilter ? await relationRows() : [];
-  const row = await findFile(id, permission.rowFilter, schemaOverview, relations);
+  const permission = actor ? await permissionForAction(actor, "directus_files", "read") : null;
+  const relations = permission?.rowFilter ? await relationRows() : [];
+  const row = await findFile(
+    id,
+    permission?.rowFilter ?? null,
+    schemaOverview,
+    relations,
+    actor === null,
+  );
   const originalKey = ensureStoredFile(row);
   const originalHeaders = safeDeliveryHeaders(row.type, row.filename_download);
 

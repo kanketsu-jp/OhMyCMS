@@ -1,4 +1,4 @@
-import { requireActor } from "@/lib/auth/context";
+import { resolveActor } from "@/lib/auth/context";
 import { getAsset } from "@/lib/files/service";
 import { errorResponse } from "@/lib/schema/api";
 
@@ -10,7 +10,7 @@ type Context = {
 
 export async function GET(request: Request, ctx: Context) {
   try {
-    const actor = await requireActor(request);
+    const actor = await resolveActor(request);
     const { id } = await ctx.params;
     const url = new URL(request.url);
     const asset = await getAsset(actor, id, {
@@ -21,7 +21,7 @@ export async function GET(request: Request, ctx: Context) {
       quality: url.searchParams.get("quality"),
     });
     const headers = new Headers({
-      "Cache-Control": "private, max-age=3600",
+      "Cache-Control": actor ? "private, max-age=3600" : "public, max-age=3600",
       "Content-Length": String(asset.contentLength),
       "Content-Type": asset.contentType,
       // ブラウザの MIME 推測を止める。Content-Disposition: attachment は

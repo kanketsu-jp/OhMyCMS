@@ -214,13 +214,13 @@ export async function check(context) {
       //     （Chrome では画像ドキュメント扱いになり script は実行されないことを、当時実測済み）
     }
 
-    // 【否定形⑤】認証なしでアセットを取れない
+    // 【肯定形⑤】新規アップロードしたアセットは認証なしで取れる
     const anon = new Session(baseUrl, "anon");
     const anonAsset = await anon.get(`/api/assets/${svg.id}`);
     assertions.push(
-      assertion("negative", "認証なしでアセットを取れない",
-        anonAsset.status === 401 || anonAsset.status === 403 || anonAsset.status === 404,
-        anonAsset.status, "401/403/404"),
+      assertion("positive", "新規アップロードしたアセットを認証なしで取れる",
+        anonAsset.status === 200,
+        anonAsset.status, 200),
     );
 
     const verdict = statusFromAssertions(assertions);
