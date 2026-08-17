@@ -15,6 +15,7 @@
   "error_invalid_input": "入力が不正です",
   "error_invalid_json_for_field": "{field} は正しいJSONで入力してください",
   "filter_unavailable": "この一覧は絞り込めません。出している項目に文字の欄がありません。",
+  "clear_filter": "絞りを外す",
   "list_title": "一覧",
   "layout_calendar": "カレンダー",
   "layout_cards": "カード",

@@ -15,6 +15,7 @@
   "error_invalid_input": "Invalid input.",
   "error_invalid_json_for_field": "Enter valid JSON for {field}.",
   "filter_unavailable": "This list cannot be filtered because the visible columns do not include text fields.",
+  "clear_filter": "Clear filter",
   "list_title": "List",
   "layout_calendar": "Calendar",
   "layout_cards": "Cards",

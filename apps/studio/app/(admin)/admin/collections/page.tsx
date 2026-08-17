@@ -169,7 +169,13 @@ export default async function CollectionsPage({ searchParams }: Props) {
               </Link>
             </ListEmpty>
           ) : (
-            <ListEmpty>{t("empty")}</ListEmpty>
+            <ListEmpty>
+              {t("empty")}{" "}
+              <Link href="/admin/collections/new" className={cn(buttonVariants({ size: "sm" }))}>
+                <Plus data-icon="inline-start" />
+                {t("empty_create_action")}
+              </Link>
+            </ListEmpty>
           )
         ) : null}
       </div>

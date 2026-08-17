@@ -284,7 +284,13 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                 </TableBody>
               </Table>
             ) : (
-              <ListEmpty>{tFields("empty")}</ListEmpty>
+              <ListEmpty>
+                {tFields("empty")}{" "}
+                <Link href={`/admin/collections/${encoded}/fields/new`} className={cn(buttonVariants({ size: "sm" }))}>
+                  <Plus data-icon="inline-start" />
+                  {tFields("add_title")}
+                </Link>
+              </ListEmpty>
             )}
           </>
         ) : null}

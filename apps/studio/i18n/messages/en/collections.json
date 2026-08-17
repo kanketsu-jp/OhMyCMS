@@ -24,6 +24,7 @@
   "icon_help": "Shown in the left sidebar. Defaults to the table icon when not chosen.",
   "icon_save": "Save icon",
   "icon_none": "None",
+  "empty_create_action": "Create collection",
   "empty_filtered": "No collections match this filter.",
   "clear_filter": "Clear filter"
 }

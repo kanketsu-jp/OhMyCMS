@@ -203,6 +203,17 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const encoded = encodeURIComponent(collection);
   const searchQuery = (query.q ?? "").trim();
   const fieldsResult = await apiFetch<FieldResult[]>(`/api/fields/${encoded}`);
+  const clearQueryHref = (() => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (key === "q" || value === undefined) continue;
+      for (const one of Array.isArray(value) ? value : [value]) {
+        if (one !== "") params.append(key, one);
+      }
+    }
+    const search = params.toString();
+    return search ? `/admin/content/${encoded}?${search}` : `/admin/content/${encoded}`;
+  })();
 
   if (hasApiCode(fieldsResult, "COLLECTION_NOT_FOUND")) {
     return <ContentNotFound t={t} />;
@@ -444,7 +455,19 @@ export default async function ContentPage({ params, searchParams }: Props) {
               {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
                   読み込めていないのか、まだ無いのかが分からない。 */}
               {itemsResult.data.data.length === 0 && !(layout === "calendar" && calendarField === null) ? (
-                <ListEmpty>{emptyMessage}</ListEmpty>
+                <ListEmpty>
+                  {emptyMessage}{" "}
+                  {!cannotFilter && searchQuery !== "" ? (
+                    <Link href={clearQueryHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      {t("clear_filter")}
+                    </Link>
+                  ) : searchQuery === "" ? (
+                    <Link href={`/admin/content/${encoded}/new`} className={cn(buttonVariants({ size: "sm" }))}>
+                      <Plus data-icon="inline-start" />
+                      {t("new_item")}
+                    </Link>
+                  ) : null}
+                </ListEmpty>
               ) : null}
               <div className="mt-4 flex items-center justify-between text-sm">
                 <span>{t("pagination_summary", { total, from: paginationFrom, to: paginationTo })}</span>
