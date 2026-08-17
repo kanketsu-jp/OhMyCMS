@@ -10,6 +10,7 @@
   "delete_confirm_title": "この項目を削除しますか",
   "edit_button": "編集",
   "edit_item_title": "アイテム編集",
+  "edit_description": "項目の内容を編集して保存します。表示と編集はボタンで切り替えられます。",
   "empty": "まだ 1 件もありません。",
   "empty_filtered": "この条件に合うアイテムはありません。",
   "error_invalid_input": "入力が不正です",
@@ -33,6 +34,7 @@
   "row_options": "行の操作",
   "save_button": "保存",
   "title_for_collection": "{collection} のアイテム",
+  "list_description": "このコレクションの項目を一覧・検索し、開いて編集できます。",
   "value_fields_count": "{count} 項目",
   "value_list_count": "{count} 件"
 }

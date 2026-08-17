@@ -20,6 +20,7 @@
   "note_label": "Note",
   "subtitle": "Create a table and proceed to define its fields.",
   "title": "Collections",
+  "detail_description": "Set up this collection's fields and its relations to other collections.",
   "icon_heading": "Icon",
   "icon_help": "Shown in the left sidebar. Defaults to the table icon when not chosen.",
   "icon_save": "Save icon",

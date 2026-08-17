@@ -85,6 +85,8 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   "/admin/collections/new": { titleKey: "collections.create_title" },
   "/admin/collections/[collection]": {
     titleKey: "collections.title",
+    // 🚨 居座る画面（DESIGN.md §1-11）。動的な名前が入るので、**名前でなく「何ができる画面か」**を書く。
+    descriptionKey: "collections.detail_description",
     titleFromData: true,
     sectionKeys: ["fields.list_title", "relations.list_title", "relations.add_title"],
   },
@@ -94,14 +96,22 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   "/admin/content": { titleKey: "nav.content_heading" },
   "/admin/content/[collection]": {
     titleKey: "items.title_for_collection",
+    // 🚨 居座る画面（§1-11）。いちばん長く居る一覧なので、ここが無いのがいちばん効いていた。
+    descriptionKey: "items.list_description",
     titleFromData: true,
     sectionKeys: ["items.list_title"],
   },
   "/admin/content/[collection]/new": { titleKey: "items.new_item" },
-  "/admin/content/[collection]/[id]": { titleKey: "items.edit_item_title" },
+  // 🚨 居座る画面（§1-11）。司令塔の名指しには無いが、上の一覧と対で作業が続くので足した。
+  "/admin/content/[collection]/[id]": {
+    titleKey: "items.edit_item_title",
+    descriptionKey: "items.edit_description",
+  },
 
-  // 🚨 files には概要の文言が無い（`description` キーが存在しない）。
-  //    **推測で辞書へ足さない**（**守り手: 無し＝願望**）。概要が要ると決まったら、そのとき書く。
+  // 🚨 【反転済み・2026-08-17 D5】ここには「files には概要の文言が無いので推測で足さない」と
+  //    書いてあったが、**その下の行で D5 が `files.description` を足したので、もう当てはまらない**。
+  //    残す理由は経緯: **「無い＝まだ決まっていない」と「無い＝要らない」を混ぜない**という判断で、
+  //    決まってから書いた、という順番だったこと（この順番自体は今も正しい）。
   // 🚨 sectionKeys を持たせない（堀池・2026-08-17 D3 原文）:
   //    「admin/files の右サイドバーにある『項目一覧』アコーディオンは、
   //      現状『一覧』という文字しかなく機能していないため廃止してください」
@@ -115,7 +125,12 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   "/admin/files/new": { titleKey: "files.upload_title" },
   "/admin/files/new-folder": { titleKey: "folders.title" },
   "/admin/labels": { titleKey: "labels.title", descriptionKey: "labels.description" },
-  "/admin/files/[id]": { titleKey: "files.detail_fallback_title", titleFromData: true },
+  // 🚨 居座る画面（§1-11）。実際にできること（題・説明・タグ・置き場所）を実装から読んで書いた。
+  "/admin/files/[id]": {
+    titleKey: "files.detail_fallback_title",
+    descriptionKey: "files.detail_description",
+    titleFromData: true,
+  },
 
   "/admin/notifications": {
     titleKey: "notifications.title",
@@ -132,9 +147,21 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   //    `nav.page_title_with_context`＝`{name}（{context}）` に流す。
   //    葉も区画も `/admin/reports` の名前だと、**同じ語が 2 回出る**。
   //    ＝ ここは「その報告のやりとり」なので、葉には別の名前を与える。
-  "/admin/reports/[id]": { titleKey: "reports.thread_title" },
+  // 🚨 説明を足した（`DESIGN.md` §1-11「居座る画面には『この画面は何か』を出す」）。
+  //    実測（2026-08-17・pages）: 右パネルの概要が、私の 5 画面のうちここだけ空だった
+  //    （他の 4 つは「概要」＋ 1 文が出る。ここは「やりとり / API・MCP」だけ）。
+  //    🚨 §1-11 の「動的な名前が入る画面は、名前ではなく**何ができる画面か**を書く」に従い、
+  //    報告の題名ではなく「返信を書ける」を書いている。
+  //    🚨 「解決済みにできます」とは書かない——**それができるのは管理できる人だけ**で、
+  //    できない人に約束することになる。
+  "/admin/reports/[id]": {
+    titleKey: "reports.thread_title",
+    descriptionKey: "reports.thread_description",
+  },
 
-  "/admin/profile": { titleKey: "nav.profile" },
+  // 🚨 居座る画面（§1-11）。ここは節が「API・MCP」1 つしか無く、説明が無いと
+  //    右サイドバーを開いてもプロンプトの話しか出ない（実測: 節 1・開いている 0）。
+  "/admin/profile": { titleKey: "nav.profile", descriptionKey: "nav.profile_description" },
 
   // 🚨 ここが無いと、`buildTrail` は**生の URL 区間**を名前にする（＝ パンくずに `trash` と英字で出る）。
   //    2026-08-17 に実測して気づいた（`<h1>` を足したら、その中身が「ゴミ箱」ではなく `trash` だった）。

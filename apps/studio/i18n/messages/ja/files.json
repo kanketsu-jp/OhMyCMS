@@ -6,6 +6,7 @@
   "delete_button": "ゴミ箱へ入れる",
   "description_label": "説明",
   "detail_fallback_title": "ファイル詳細",
+  "detail_description": "このファイルの題・説明・タグ・置き場所を変えられます。",
   "dimensions_label": "寸法",
   "drop_active": "離すと追加されます",
   "drop_hint": "またはタップして選ぶ",

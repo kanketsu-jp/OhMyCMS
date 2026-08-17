@@ -22,6 +22,7 @@
   "notifications": "Notifications",
   "page_title_with_context": "{name} ({context})",
   "profile": "Personal settings",
+  "profile_description": "Change your own account settings, such as your name and avatar.",
   "profile_icon_section": "Icon",
   "profile_language_section": "Language",
   "profile_load_error": "Could not load personal settings",

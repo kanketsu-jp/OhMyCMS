@@ -10,6 +10,7 @@
   "delete_confirm_title": "Delete this item?",
   "edit_button": "Edit",
   "edit_item_title": "Edit Item",
+  "edit_description": "Edit an item's contents and save. Switch between viewing and editing with the button.",
   "empty": "No items yet.",
   "empty_filtered": "No items match this filter.",
   "error_invalid_input": "Invalid input.",
@@ -33,6 +34,7 @@
   "row_options": "Row actions",
   "save_button": "Save",
   "title_for_collection": "Items in {collection}",
+  "list_description": "Browse and search this collection's items, and open one to edit it.",
   "value_fields_count": "{count} fields",
   "value_list_count": "{count} items"
 }

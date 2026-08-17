@@ -22,6 +22,7 @@
   "notifications": "通知",
   "page_title_with_context": "{name}（{context}）",
   "profile": "個人設定",
+  "profile_description": "名前やアイコンなど、自分のアカウントの設定を変えられます。",
   "profile_icon_section": "アイコン",
   "profile_language_section": "言語",
   "profile_load_error": "個人設定を取得できません",

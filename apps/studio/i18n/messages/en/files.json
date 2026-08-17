@@ -6,6 +6,7 @@
   "delete_button": "Move to trash",
   "description_label": "Description",
   "detail_fallback_title": "File details",
+  "detail_description": "Change this file's title, description, tags, and folder.",
   "dimensions_label": "Dimensions",
   "drop_active": "Release to add",
   "drop_hint": "or tap to choose",

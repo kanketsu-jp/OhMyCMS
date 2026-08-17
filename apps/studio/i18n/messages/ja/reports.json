@@ -48,5 +48,6 @@
   "attach_too_many": "画像は 5 枚までです。",
   "attach_failed": "画像 {total} 枚のうち {failed} 枚を送れませんでした。",
   "attach_section": "添付した画像",
-  "thread_title": "やりとり"
+  "thread_title": "やりとり",
+  "thread_description": "この報告のやりとりです。返信を書けます。"
 }
