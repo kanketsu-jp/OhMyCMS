@@ -1,7 +1,7 @@
 import { requireActor } from "@/lib/auth/context";
-import { uploadFile, listFiles } from "@/lib/files/service";
+import { uploadFile, listFiles, deleteFiles } from "@/lib/files/service";
 import { maxUploadMb, proxyBodyLimitBytes } from "@/lib/files/upload-limit";
-import { errorResponse, ok } from "@/lib/schema/api";
+import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 
 export const runtime = "nodejs";
@@ -93,6 +93,32 @@ export async function POST(request: Request) {
       compress: formData.get("compress") === "false" ? false : undefined,
     });
     return ok({ data: row }, 201);
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+/**
+ * まとめてゴミ箱へ入れる。`{ "ids": ["…", "…"] }`
+ *
+ * 🚨 **204 を返さない。** 「成功」とだけ返すと、**利用者は全部消えたと読む**。
+ *    30 件のうち 3 件が権限で弾かれることが実際に起きるので、
+ *    **200 ＋ `{ deleted, failed }`** で、**何件入って、どれがなぜ入らなかったか**を必ず返す。
+ * 🚨 **1 件も入らなくても 200**。**「失敗」を状態コードで表さない**——
+ *    `failed` が全件という**事実**は本文に在り、状態コードにすると
+ *    「どれが失敗したか」を呼ぶ側が読まずに済ませてしまう。
+ * 🚨 **1 件ずつの口（`DELETE /api/files/<id>`）は 204 のまま**。あちらは対象が 1 つなので
+ *    「入ったか / 入らなかったか」が状態コードで足りる。**形を揃えるために変えない**。
+ */
+export async function DELETE(request: Request) {
+  try {
+    const actor = await requireActor(request);
+    const body = await readJsonObject(request);
+    const ids = body.ids;
+    if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string" || id === "")) {
+      throw new ApiError(400, "IDS_REQUIRED", "idsに1件以上のidを指定してください");
+    }
+    return ok({ data: await deleteFiles(actor, ids as string[]) });
   } catch (error) {
     return errorResponse(error);
   }

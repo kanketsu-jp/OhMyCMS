@@ -11,7 +11,7 @@ import {
   type PermissionAction,
   type PermissionResolution,
 } from "@/lib/permissions/resolve";
-import { ApiError } from "@/lib/schema/errors";
+import { ApiError, isApiError } from "@/lib/schema/errors";
 import { maxUploadBytes, maxUploadMb } from "@/lib/files/upload-limit";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { RelationMeta } from "@/lib/schema/models";
@@ -709,6 +709,74 @@ export async function deleteFile(actor: Actor, id: string): Promise<void> {
   const softDelete = liveFiles().where({ id });
   applyRowFilter(softDelete, permission.rowFilter, "directus_files", schemaOverview, relations);
   await softDelete.update({ deleted_at: db.fn.now() });
+}
+
+export type BulkDeleteResult = {
+  /** ゴミ箱へ入れられた id。 */
+  deleted: string[];
+  /** 入れられなかった id と、その理由（API のコード）。 */
+  failed: { id: string; code: string }[];
+};
+
+/**
+ * 一度に指定できる件数の上限。
+ *
+ * 🚨 **上限を置く理由は速さではなく「返事が返ること」**。1 件につき
+ *    権限の解決・行の取得・更新で問い合わせが複数走るので、件数に比例して伸びる。
+ *    前段（Traefik / Dokploy）の時間切れに当たると、**どこまで消えたか誰にも分からない**
+ *    （＝ 一番困る壊れ方）。**打ち切りは呼ぶ側に見せる**（400 で断る）。
+ */
+export const MAX_BULK_DELETE = 100;
+
+/**
+ * まとめてゴミ箱へ入れる。
+ *
+ * 🚨 **1 件ずつの `deleteFile` をそのまま呼ぶ。** 速さのために権限の解決をまとめたり、
+ *    `whereIn` で 1 本の UPDATE にしたりしない——**入口が 2 つになると、権限・行フィルタ・
+ *    ラベルの認可の扱いが 2 箇所に割れ、片方が腐る**
+ *    （`knowledge/decisions/user-tables-have-one-entrance.md` と同じ考え方）。
+ *    ＝ **行ごとに権限が判定される**ことが、実装の形から保証される。
+ *
+ * 🚨 **部分的な失敗で全部やめない。** ゴミ箱へ入れるのは**戻せる**操作なので、
+ *    27 件だけ入っても害が無く、**1 件の失敗で 29 件を巻き戻すほうが利用者を困らせる**
+ *    （消えない理由が分からないまま、全部やり直しになる）。
+ * 🚨 **その代わり「成功」とだけ返さない。** 呼ぶ側が
+ *    「**何件入って、どれがなぜ入らなかったか**」を必ず受け取る形にする
+ *    （`deleted` / `failed` を両方返す。**片方だけ見ても嘘にならない**）。
+ *
+ * 🚨 **活動ログは書かない。** 1 件ずつの削除も書いていない（実測 2026-08-17:
+ *    `directus_activity` に `collection='directus_files'` の行は **0 件**。
+ *    🟢 対照 活動ログ全体は 39 件＝ 表そのものは動いている）。
+ *    ここだけ書くと **1 件ずつとまとめてで監査の粒度が変わる**ので、
+ *    **ファイルの操作を記録するかどうかは、この口とは別に決める**。
+ */
+export async function deleteFiles(actor: Actor, ids: string[]): Promise<BulkDeleteResult> {
+  if (ids.length === 0) {
+    throw new ApiError(400, "IDS_REQUIRED", "idsに1件以上のidを指定してください");
+  }
+  if (ids.length > MAX_BULK_DELETE) {
+    throw new ApiError(
+      400,
+      "TOO_MANY_ITEMS",
+      `一度に指定できるのは${MAX_BULK_DELETE}件までです`,
+    );
+  }
+
+  const deleted: string[] = [];
+  const failed: { id: string; code: string }[] = [];
+  // 🚨 同じ id が 2 回来ても 2 回目は 404 になる（1 回目でゴミ箱に入り、`liveFiles()` から外れる）。
+  //    **重複は先に畳む**——利用者が選び直しただけで「失敗 1 件」と出るのは嘘に近い。
+  for (const id of [...new Set(ids)]) {
+    try {
+      await deleteFile(actor, id);
+      deleted.push(id);
+    } catch (error) {
+      // 🚨 **理由を捨てない。** ここで握り潰すと「消えなかったのに理由が無い」になる。
+      //    コードだけ返す（文言は呼ぶ側が辞書から引く。`AGENTS.md` §3.8）。
+      failed.push({ id, code: isApiError(error) ? error.code : "UNEXPECTED" });
+    }
+  }
+  return { deleted, failed };
 }
 
 /**
