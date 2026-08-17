@@ -262,7 +262,14 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           その人に紐づく**全ポリシーを合わせたもの**（`filter_json_help_combination` のとおり）。
           🚨 **1 つの格子を見て「この人はこう見える」と読むと外れます。**
           合成結果を出す画面を作るかは、堀池さん判断として板に出ている（2026-08-17）。 */}
-      <p className="text-sm text-muted-foreground">{t("grid_scope_note")}</p>
+      <div className="space-y-1 text-sm text-muted-foreground">
+        <p>{t("grid_scope_note")}</p>
+        {/* 🚨 **いま効く範囲を必ず添える**（security・2026-08-17）。
+            **管理画面は `admin_access` で二値**なので、ここを絞っても
+            「管理画面に入る非 admin 利用者の見える範囲」は今日は変わらない。
+            書かないと、堀池さんが**いま見えている画面の話**として読む。 */}
+        <p>{t("grid_scope_where")}</p>
+      </div>
       {/* 🚨 コレクション × 操作 の**格子**。堀池指示「権限の設定変更などどんなふうに ui を作っているか」。
           それまでは**平らな一覧**で、「このコレクションの read は許可されているか」を
           **行を目で探して**確かめる形だった（＝ 見えていない組み合わせが分からない）。
@@ -343,13 +350,26 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           {confirming !== null
             ? (() => {
                 const row = permissions.find((one) => one.id === confirming);
-                const json = row ? jsonText(row.permissions) : "";
-                return json ? (
-                  <div className="space-y-1">
+                if (!row) return null;
+                const json = jsonText(row.permissions);
+                const fieldList = (row.fields ?? "").trim();
+                const hasFieldLimit = fieldList !== "" && fieldList !== "*";
+                // 🚨 **失う 2 軸を両方出す**（security・2026-08-17）。
+                //    行を物理削除すると **行フィルタ JSON と 欄の指定が同時に消える**。
+                //    🚨 片方だけ見せると、**隠していた欄を晒すことに管理者が気づけない**。
+                if (!json && !hasFieldLimit) return null;
+                return (
+                  <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">{t("permission_delete_lost")}</p>
-                    <FilterBlock value={json} targetId={`policy-filter-lost-${confirming}`} />
+                    {json ? <FilterBlock value={json} targetId={`policy-filter-lost-${confirming}`} /> : null}
+                    {hasFieldLimit ? (
+                      <p className="text-xs">
+                        <span className="text-muted-foreground">{t("permission_delete_lost_fields")}</span>{" "}
+                        <span className="font-mono">{fieldList}</span>
+                      </p>
+                    ) : null}
                   </div>
-                ) : null;
+                );
               })()
             : null}
           <AlertDialogFooter>
@@ -382,6 +402,38 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
               {bulk2?.mode === "none" ? t("row_none_confirm") : t("row_all_confirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* 🚨 **件数だけでなく中身を列挙する**（security・2026-08-17）。
+              一括の「全部なし」は**複数行を一度に物理削除しうる**ので、
+              **何が消えるのかを 1 つずつ見せる**。 */}
+          {bulk2?.mode === "none"
+            ? (() => {
+                const lost = actions
+                  .map((act) => ({ act, row: cellRow(bulk2.collection, act) }))
+                  .filter((one) => one.row && cellStateOf(one.row) === "conditional");
+                if (lost.length === 0) return null;
+                return (
+                  <ul className="space-y-2 text-xs">
+                    {lost.map(({ act, row }) => {
+                      const json = jsonText(row?.permissions);
+                      const fieldList = (row?.fields ?? "").trim();
+                      const hasFieldLimit = fieldList !== "" && fieldList !== "*";
+                      return (
+                        <li key={act} className="space-y-1">
+                          <span className="font-medium">{actionLabelOf(act)}</span>
+                          {json ? <FilterBlock value={json} targetId={`policy-bulk-lost-${bulk2.collection}-${act}`} /> : null}
+                          {hasFieldLimit ? (
+                            <p>
+                              <span className="text-muted-foreground">{t("permission_delete_lost_fields")}</span>{" "}
+                              <span className="font-mono">{fieldList}</span>
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                );
+              })()
+            : null}
           <AlertDialogFooter>
             <AlertDialogCancel />
             <AlertDialogAction
