@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Plus, Trash2 } from "lucide-react";
 import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch, hasApiCode } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
@@ -59,6 +59,7 @@ type Props = {
     layout?: string | string[];
     "cal.field"?: string | string[];
     "cal.month"?: string | string[];
+    sort?: string;
   }>;
 };
 
@@ -94,6 +95,23 @@ function isSearchableTextField(field: FieldResult): boolean {
   return field.type === "string";
 }
 
+type ListSort = { field: string; direction: "asc" | "desc" };
+
+function parseListSort(value: string | undefined): ListSort | null {
+  if (!value) return null;
+  const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length !== 1) return null;
+  const part = parts[0];
+  const direction = part.startsWith("-") ? "desc" : "asc";
+  const field = direction === "desc" ? part.slice(1) : part;
+  return field ? { field, direction } : null;
+}
+
+function isSortableField(field: FieldResult): boolean {
+  const dataType = field.schema?.data_type.toLowerCase();
+  return dataType !== "json" && dataType !== "jsonb";
+}
+
 // 🚨 **URL の組み立てはここ。ただし `/api/items/` の部分は呼び出し側に残す。**
 //    門 `check-api-envelope` の囮が `apiFetch<ItemsPayload>(` の直後の
 //    **`` `/api/items/ ``** を的にしていて、ここへ畳むと**囮が届かず検査が止まる**
@@ -104,6 +122,7 @@ function itemsQuery(
   searchableColumns: FieldResult[],
   query: string,
   filter?: string,
+  sort?: string,
 ): string {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -123,6 +142,7 @@ function itemsQuery(
       }),
     );
   }
+  if (sort) params.set("sort", sort);
 
   return params.toString();
 }
@@ -137,10 +157,12 @@ function pageHref(
   searchQuery: string,
   filter?: string,
   calendar?: { field: string | null; month: { year: number; month: number } },
+  sort?: string,
 ): string {
   const query = new URLSearchParams({ page: String(page) });
   if (searchQuery !== "") query.set("q", searchQuery);
   if (filter) query.set("filter", filter);
+  if (sort) query.set("sort", sort);
   if (layout !== DEFAULT_LIST_LAYOUT) query.set("layout", layout);
   const defaultColumns = fields.slice(0, DEFAULT_COLUMN_COUNT).map((field) => field.field);
   const selectedColumns = columns.map((field) => field.field);
@@ -156,6 +178,27 @@ function pageHref(
     query.set("cal.month", `${calendar.month.year}-${String(calendar.month.month).padStart(2, "0")}`);
   }
   return `/admin/content/${encoded}?${query.toString()}`;
+}
+
+function sortHref(
+  encoded: string,
+  layout: ListLayoutId,
+  field: FieldResult,
+  activeSort: ListSort | null,
+  columns: FieldResult[],
+  limit: number,
+  fields: FieldResult[],
+  searchQuery: string,
+  filter: string | undefined,
+  calendar: { field: string | null; month: { year: number; month: number } },
+): string {
+  const direction = activeSort?.field !== field.field
+    ? "asc"
+    : activeSort.direction === "asc"
+      ? "desc"
+      : null;
+  const sort = direction === null ? undefined : direction === "desc" ? `-${field.field}` : field.field;
+  return pageHref(encoded, layout, 1, columns, limit, fields, searchQuery, filter, calendar, sort);
 }
 
 /**
@@ -190,6 +233,31 @@ function columnToggleHref(
   return pageHref(encoded, layout, 1, next, limit, fields, searchQuery, filter, calendar);
 }
 
+function exportHref(
+  encoded: string,
+  columns: FieldResult[],
+  searchableColumns: FieldResult[],
+  searchQuery: string,
+  filter: string | undefined,
+  sort: string | undefined,
+): string {
+  const params = new URLSearchParams({ fields: columns.map((field) => field.field).join(",") });
+  if (filter) {
+    params.set("filter", filter);
+  } else if (searchQuery !== "" && searchableColumns.length > 0) {
+    params.set(
+      "filter",
+      JSON.stringify({
+        _or: searchableColumns.map((field) => ({
+          [field.field]: { _icontains: searchQuery },
+        })),
+      }),
+    );
+  }
+  if (sort) params.set("sort", sort);
+  return `/api/items/${encoded}/export?${params.toString()}`;
+}
+
 export default async function ContentPage({ params, searchParams }: Props) {
   const locale = await getLocale();
   const t = await getT("items");
@@ -207,6 +275,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const offset = (page - 1) * limit;
   const encoded = encodeURIComponent(collection);
   const searchQuery = (query.q ?? "").trim();
+  const activeSort = parseListSort(query.sort);
   const filterState = parseFilter(query.filter);
   const fieldsResult = await apiFetch<FieldResult[]>(`/api/fields/${encoded}`);
   const clearQueryHref = (() => {
@@ -245,7 +314,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   //    門 `check-api-envelope` は `apiFetch<ItemsPayload>(...)` の形を囮の的にしていて、
   //    条件式へ畳むと **囮が届かなくなり、検査が「的が動いた」と言って止まる**（2026-08-17 実測）。
   //    絞り込めないときは「0 件を返す URL」を作って、**同じ 1 本を通す**。
-  const itemsSearch = itemsQuery(limit, offset, cannotFilter ? [] : searchableColumns, cannotFilter ? "" : searchQuery, filterState.invalid ? undefined : query.filter);
+  const itemsSearch = itemsQuery(limit, offset, cannotFilter ? [] : searchableColumns, cannotFilter ? "" : searchQuery, filterState.invalid ? undefined : query.filter, query.sort);
   // 🚨 **この 1 行を折り返さない。** 門 `check-api-envelope` の囮が
   //    `apiFetch<ItemsPayload>(` の**直後の** `` `/api/items/ `` を的にしているので、
   //    改行を挟むと囮が届かず、検査が「的が動いた」と言って止まる（2026-08-17 実測）。
@@ -327,6 +396,12 @@ export default async function ContentPage({ params, searchParams }: Props) {
         label={t("new_item")}
         icon={<Plus />}
       />
+      <PageAction
+        href={exportHref(encoded, columns, searchableColumns, cannotFilter ? "" : searchQuery, filterState.invalid ? undefined : query.filter, query.sort)}
+        role="secondary"
+        label={t("export_csv")}
+        icon={<Download />}
+      />
       <HeaderSearch />
       <div className="max-w-7xl space-y-6">
         <div>
@@ -400,9 +475,43 @@ export default async function ContentPage({ params, searchParams }: Props) {
                           {/* 🚨 欄名は辞書を通す（設問286 A）。辞書が無ければ fieldLabel が
                               生の識別子に落ちるので、名前を付けるまで表示は変わらない。
                               各所で `?? field.field` と書くと必ず割れるので、必ずこの関数を通す。 */}
-                          {columns.map((field) => (
-                            <TableHead key={field.field}>{fieldLabel(field, locale)}</TableHead>
-                          ))}
+                          {columns.map((field) => {
+                            const sortable = isSortableField(field);
+                            const active = activeSort?.field === field.field ? activeSort.direction : null;
+                            return (
+                              <TableHead
+                                key={field.field}
+                                aria-sort={active === "asc" ? "ascending" : active === "desc" ? "descending" : undefined}
+                              >
+                                {sortable ? (
+                                  <Link
+                                    href={sortHref(
+                                      encoded,
+                                      layout,
+                                      field,
+                                      activeSort,
+                                      columns,
+                                      limit,
+                                      fields,
+                                      searchQuery,
+                                      query.filter,
+                                      calendarState,
+                                    )}
+                                    title={active === "asc" ? t("sort_descending") : active === "desc" ? t("sort_clear") : t("sort_ascending")}
+                                    className="inline-flex items-center gap-1"
+                                  >
+                                    {fieldLabel(field, locale)}
+                                    {active === "asc" ? <ArrowUp className="size-3.5" aria-hidden /> : active === "desc" ? <ArrowDown className="size-3.5" aria-hidden /> : <ArrowUpDown className="size-3.5 text-muted-foreground" aria-hidden />}
+                                  </Link>
+                                ) : (
+                                  <span title={t("sort_unavailable")} className="inline-flex items-center gap-1 text-muted-foreground">
+                                    {fieldLabel(field, locale)}
+                                    <ArrowUpDown className="size-3.5" aria-hidden />
+                                  </span>
+                                )}
+                              </TableHead>
+                            );
+                          })}
                           <TableHead className="w-44">{t("actions_header")}</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -489,13 +598,13 @@ export default async function ContentPage({ params, searchParams }: Props) {
                 <span>{t("pagination_summary", { total, from: paginationFrom, to: paginationTo })}</span>
                 <div className="flex gap-2">
                   <Link
-                    href={pageHref(encoded, layout, Math.max(1, page - 1), columns, limit, fields, searchQuery, query.filter, calendarState)}
+                    href={pageHref(encoded, layout, Math.max(1, page - 1), columns, limit, fields, searchQuery, query.filter, calendarState, query.sort)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
                   >
                     {t("prev_page")}
                   </Link>
                   <Link
-                    href={pageHref(encoded, layout, Math.min(pageCount, page + 1), columns, limit, fields, searchQuery, query.filter, calendarState)}
+                    href={pageHref(encoded, layout, Math.min(pageCount, page + 1), columns, limit, fields, searchQuery, query.filter, calendarState, query.sort)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
                   >
                     {t("next_page")}
