@@ -310,7 +310,7 @@ export default async function AdminLayout({
           {/* 左: 戻る → パンくず。
               🚨 メニュー開閉ボタン（一番左・常に固定）は**左サイドバーの開閉状態**を持つので、
                  左サイドバーを3分割する回で入れる（TODO: A群③）。 */}
-          <div className="flex min-w-0 flex-1 items-stretch divide-x">
+          <div className="flex min-w-0 shrink items-stretch divide-x">
             {/* 一番左は**常に固定**のメニュー開閉（堀池・2026-08-15）。 */}
             <LeftSidebarToggle />
             <HeaderBack />
@@ -328,7 +328,12 @@ export default async function AdminLayout({
           <div
             id="header-search"
             data-slot="header-search"
-            className="flex min-w-0 shrink items-stretch"
+            // 🚨 **余った幅はここが取る**（堀池・2026-08-17・AQ1「検索窓の横幅が狭い」／
+            //    `DESIGN.md` §2-2「操作は横幅を確保する。小さくしない」）。
+            //    【測った・PC 1280】直す前は**左の塊が `flex-1`** で、中身が約 300px しか
+            //    無いのに **729〜784px** を抱えており、検索は **216px**（入力 176px）だった。
+            //    ＝ 幅が足りないのではなく、**隣が空のまま抱えていた**。
+            className="flex min-w-0 flex-1 items-stretch"
           />
 
           {/* 右: そのページの主要アクション → info（右サイドバーの開閉）。 */}
