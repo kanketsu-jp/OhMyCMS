@@ -275,70 +275,73 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           **行を目で探して**確かめる形だった（＝ 見えていない組み合わせが分からない）。
           🚨 **行が増えたときの手当ては入れていない**（いま 15 本）。
              100 本を超えたら**絞り込み**が要る。**入れていないことをここに書いておく**。 */}
-      <div className="w-full overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("collection_label")}</TableHead>
-              {actions.map((act) => (
-                <TableHead key={act} className="w-28">{actionLabelOf(act)}</TableHead>
-              ))}
-              <TableHead className="w-40 text-right">
-                <span className="sr-only">{t("row_options")}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {collections.map((item) => {
-              const states = actions.map((act) => cellStateOf(cellRow(item.collection, act)));
-              const hasConditional = states.includes("conditional");
-              const allOn = states.every((s) => s !== "none");
-              const allOff = states.every((s) => s === "none");
-              return (
-                <TableRow key={item.collection}>
-                  <TableCell className="font-medium">{item.collection}</TableCell>
-                  {actions.map((act, index) => (
-                    <TableCell key={act}>
-                      <PermissionCell
-                        state={states[index]}
-                        label={`${item.collection} / ${actionLabelOf(act)}`}
-                        stateLabel={stateLabelOf(states[index])}
-                        onOpen={() => openCell(item.collection, act)}
-                      />
+      {collections.length === 0 ? (
+        <ListEmpty>{t("no_collections")}</ListEmpty>
+      ) : (
+        <div className="w-full overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("collection_label")}</TableHead>
+                {actions.map((act) => (
+                  <TableHead key={act} className="w-28">{actionLabelOf(act)}</TableHead>
+                ))}
+                <TableHead className="w-40 text-right">
+                  <span className="sr-only">{t("row_options")}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {collections.map((item) => {
+                const states = actions.map((act) => cellStateOf(cellRow(item.collection, act)));
+                const hasConditional = states.includes("conditional");
+                const allOn = states.every((s) => s !== "none");
+                const allOff = states.every((s) => s === "none");
+                return (
+                  <TableRow key={item.collection}>
+                    <TableCell className="font-medium">{item.collection}</TableCell>
+                    {actions.map((act, index) => (
+                      <TableCell key={act}>
+                        <PermissionCell
+                          state={states[index]}
+                          label={`${item.collection} / ${actionLabelOf(act)}`}
+                          stateLabel={stateLabelOf(states[index])}
+                          onOpen={() => openCell(item.collection, act)}
+                        />
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right">
+                      {/* 🚨 行の一括。**条件つきが 1 つでも在れば確認する**——
+                          どちらの向きでも**書いた行フィルタが消える**ため
+                          （`confirm-by-reversibility-and-reach` §2.5）。 */}
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={allOn || bulk.pending}
+                          onClick={() => (hasConditional ? setBulk2({ collection: item.collection, mode: "all" }) : void applyBulk(item.collection, "all"))}
+                        >
+                          {t("row_all_button")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={allOff || bulk.pending}
+                          onClick={() => (hasConditional ? setBulk2({ collection: item.collection, mode: "none" }) : void applyBulk(item.collection, "none"))}
+                        >
+                          {t("row_none_button")}
+                        </Button>
+                      </div>
                     </TableCell>
-                  ))}
-                  <TableCell className="text-right">
-                    {/* 🚨 行の一括。**条件つきが 1 つでも在れば確認する**——
-                        どちらの向きでも**書いた行フィルタが消える**ため
-                        （`confirm-by-reversibility-and-reach` §2.5）。 */}
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={allOn || bulk.pending}
-                        onClick={() => (hasConditional ? setBulk2({ collection: item.collection, mode: "all" }) : void applyBulk(item.collection, "all"))}
-                      >
-                        {t("row_all_button")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={allOff || bulk.pending}
-                        onClick={() => (hasConditional ? setBulk2({ collection: item.collection, mode: "none" }) : void applyBulk(item.collection, "none"))}
-                      >
-                        {t("row_none_button")}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-      {collections.length === 0 ? <ListEmpty>{t("no_collections")}</ListEmpty> : null}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
 import { Label } from "@/components/ui/label";
+import { SurfaceDivider } from "@/components/ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
@@ -109,65 +110,64 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
           {error}
         </div>
       ) : null}
-      {/* 名前・説明・親ロール・操作の複数列を読む一覧なので table にする。 */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("description_label")}</TableHead>
-            <TableHead>{t("parent_label")}</TableHead>
-            <TableHead className="text-right">
-              <span className="sr-only">{t("delete_button")}</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {roles.map((role) => (
-            <TableRow
-              key={role.id}
-              className="cursor-pointer"
-              // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
-              onClick={(event) => {
-                if ((event.target as HTMLElement).closest("button, a")) return;
-                router.push(`/admin/settings/roles/${role.id}`);
-              }}
-            >
-              {/* 🚨 一覧から 1 件へ開ける（`decisions/list-views-are-switchable-layouts` §3）。
-                  名前をリンクにするのは `files-table` と同じ形——**行の識別子が入口**。 */}
-              <TableCell className="font-medium">
-                <Link href={`/admin/settings/roles/${role.id}`} className="hover:underline">
-                  {role.name}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{role.description || t("no_description")}</TableCell>
-              <TableCell>
-                {t("parent_colon_label")}
-                {roles.find((item) => item.id === role.parent)?.name ?? t("none_option")}
-              </TableCell>
-              <TableCell>
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    variant="destructive-ghost"
-                    size="sm"
-                    aria-label={t("delete_button")}
-                    disabled={remove.isPending(role.id)}
-                    onClick={() => setConfirming(role.id)}
-                  >
-                    <Trash2 />
-                    <span className="hidden md:inline">{t("delete_button")}</span>
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      {/* 1 件も無いことを、表の枠だけで伝えない。
-          （読み込めていないのか、まだ無いのかが分からない） */}
       {roles.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
-      ) : null}
+      ) : (
+        // 名前・説明・親ロール・操作の複数列を読む一覧なので table にする。
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("name_label")}</TableHead>
+              <TableHead>{t("description_label")}</TableHead>
+              <TableHead>{t("parent_label")}</TableHead>
+              <TableHead className="text-right">
+                <span className="sr-only">{t("delete_button")}</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {roles.map((role) => (
+              <TableRow
+                key={role.id}
+                className="cursor-pointer"
+                // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest("button, a")) return;
+                  router.push(`/admin/settings/roles/${role.id}`);
+                }}
+              >
+                {/* 🚨 一覧から 1 件へ開ける（`decisions/list-views-are-switchable-layouts` §3）。
+                    名前をリンクにするのは `files-table` と同じ形——**行の識別子が入口**。 */}
+                <TableCell className="font-medium">
+                  <Link href={`/admin/settings/roles/${role.id}`} className="hover:underline">
+                    {role.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{role.description || t("no_description")}</TableCell>
+                <TableCell>
+                  {t("parent_colon_label")}
+                  {roles.find((item) => item.id === role.parent)?.name ?? t("none_option")}
+                </TableCell>
+                <TableCell>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="destructive-ghost"
+                      size="sm"
+                      aria-label={t("delete_button")}
+                      disabled={remove.isPending(role.id)}
+                      onClick={() => setConfirming(role.id)}
+                    >
+                      <Trash2 />
+                      <span className="hidden md:inline">{t("delete_button")}</span>
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -190,6 +190,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <SurfaceDivider />
       <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
         <FormDraft formId="role-create-form" />
         <div className="space-y-1.5">

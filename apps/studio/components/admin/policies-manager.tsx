@@ -22,6 +22,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SurfaceDivider } from "@/components/ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
@@ -114,68 +115,67 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           {error}
         </div>
       ) : null}
-      {/* 名前・説明・アクセス種別・操作の複数列を読む一覧なので table にする。 */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("description_label")}</TableHead>
-            <TableHead>{t("app_access_label")}</TableHead>
-            <TableHead>{t("admin_access_label")}</TableHead>
-            <TableHead className="text-right">{t("action_label")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {policies.map((policy) => (
-            <TableRow
-              key={policy.id}
-              className="cursor-pointer"
-              // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
-              onClick={(event) => {
-                if ((event.target as HTMLElement).closest("button, a")) return;
-                router.push(`/admin/settings/policies/${policy.id}`);
-              }}
-            >
-              <TableCell className="font-medium">
-                <span className="flex items-center gap-2">
-                  {policy.name}
-                  {policy.admin_access ? <ShieldAlert className="size-4 text-destructive" /> : null}
-                </span>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{policy.description || t("no_description")}</TableCell>
-              <TableCell>{policy.app_access ? t("app_access_label") : null}</TableCell>
-              <TableCell>{policy.admin_access ? t("admin_access_label") : null}</TableCell>
-              <TableCell>
-                {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
-                    （`knowledge/decisions/action-button-and-edit-mode.md`。283 A を行へ延ばしたもの）。
-                    形はゴミ箱（`trash-manager.tsx`）に合わせている。新しい形を作らない。 */}
-                <ButtonGroup className="ml-auto justify-end [&>*]:rounded-none">
-                  <Link href={`/admin/settings/policies/${policy.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
-                    {t("edit_permissions_link")}
-                  </Link>
-                  <RowOptions
-                    label={t("row_options")}
-                    options={[
-                      {
-                        label: t("delete_button"),
-                        icon: <Trash2 />,
-                        destructive: true,
-                        disabled: remove.isPending(policy.id),
-                        onSelect: () => setConfirming(policy.id),
-                      },
-                    ]}
-                  />
-                </ButtonGroup>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      {/* 1 件も無いことを、表の枠だけで伝えない。
-          （読み込めていないのか、まだ無いのかが分からない） */}
       {policies.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
-      ) : null}
+      ) : (
+        // 名前・説明・アクセス種別・操作の複数列を読む一覧なので table にする。
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("name_label")}</TableHead>
+              <TableHead>{t("description_label")}</TableHead>
+              <TableHead>{t("app_access_label")}</TableHead>
+              <TableHead>{t("admin_access_label")}</TableHead>
+              <TableHead className="text-right">{t("action_label")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {policies.map((policy) => (
+              <TableRow
+                key={policy.id}
+                className="cursor-pointer"
+                // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest("button, a")) return;
+                  router.push(`/admin/settings/policies/${policy.id}`);
+                }}
+              >
+                <TableCell className="font-medium">
+                  <span className="flex items-center gap-2">
+                    {policy.name}
+                    {policy.admin_access ? <ShieldAlert className="size-4 text-destructive" /> : null}
+                  </span>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{policy.description || t("no_description")}</TableCell>
+                <TableCell>{policy.app_access ? t("app_access_label") : null}</TableCell>
+                <TableCell>{policy.admin_access ? t("admin_access_label") : null}</TableCell>
+                <TableCell>
+                  {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
+                      （`knowledge/decisions/action-button-and-edit-mode.md`。283 A を行へ延ばしたもの）。
+                      形はゴミ箱（`trash-manager.tsx`）に合わせている。新しい形を作らない。 */}
+                  <ButtonGroup className="ml-auto justify-end [&>*]:rounded-none">
+                    <Link href={`/admin/settings/policies/${policy.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
+                      {t("edit_permissions_link")}
+                    </Link>
+                    <RowOptions
+                      label={t("row_options")}
+                      options={[
+                        {
+                          label: t("delete_button"),
+                          icon: <Trash2 />,
+                          destructive: true,
+                          disabled: remove.isPending(policy.id),
+                          onSelect: () => setConfirming(policy.id),
+                        },
+                      ]}
+                    />
+                  </ButtonGroup>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -198,6 +198,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <SurfaceDivider />
       <form id="policy-create-form" action={create.run} className="space-y-4">
         <FormDraft formId="policy-create-form" />
         <div className="grid gap-4 md:grid-cols-2">

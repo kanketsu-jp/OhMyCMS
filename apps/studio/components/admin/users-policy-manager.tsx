@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { SurfaceDivider } from "@/components/ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
@@ -130,68 +131,69 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           {error}
         </div>
       ) : null}
-      {/* ユーザーとポリシーを別列で照合する一覧なので table にする。 */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("user_label")}</TableHead>
-            <TableHead>{t("policy_label")}</TableHead>
-            <TableHead className="text-right">
-              <span className="sr-only">{t("remove_button")}</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {access.map((row) => (
-            <TableRow
-              key={row.id}
-              className="cursor-pointer"
-              // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
-              onClick={(event) => {
-                if ((event.target as HTMLElement).closest("button, a")) return;
-                router.push(`/admin/settings/users/${row.user}`);
-              }}
-            >
-              {/* 🚨 **利用者の行だけ**、1 件のページへ開ける
-                  （`decisions/list-views-are-switchable-layouts` §3。**役割には 1 件のページが別に在る**）。
-                  🚨 **役割の行をここからリンクしない**——**役割の一覧が別に在るのに、
-                  同じものへの入口を 2 箇所に作ると、どちらが正か分からなくなる**。 */}
-              <TableCell className="font-medium">
-                {row.user ? (
-                  <Link href={`/admin/settings/users/${row.user}`} className="hover:underline">
-                    {row.user_email ?? row.user}
-                  </Link>
-                ) : (
-                  (row.role_name ?? row.role)
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {t("policy_prefix", { policy: row.policy_name ?? row.policy })}
-              </TableCell>
-              <TableCell>
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    variant="destructive-ghost"
-                    size="sm"
-                    aria-label={t("remove_button")}
-                    disabled={remove.isPending(row.id)}
-                    onClick={() => setConfirming(row.id)}
-                  >
-                    {/* 🚨 ゴミ箱にしない。**割り当てを外す**操作で、ユーザーが消えるわけではない
-                        （ゴミ箱だと「ユーザーごと消える」と誤解される。design ⑬） */}
-                    <UserMinus />
-                    <span className="hidden md:inline">{t("remove_button")}</span>
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
       {access.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
-      ) : null}
+      ) : (
+        // ユーザーとポリシーを別列で照合する一覧なので table にする。
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("user_label")}</TableHead>
+              <TableHead>{t("policy_label")}</TableHead>
+              <TableHead className="text-right">
+                <span className="sr-only">{t("remove_button")}</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {access.map((row) => (
+              <TableRow
+                key={row.id}
+                className="cursor-pointer"
+                // 行のどこを押しても開ける。行内のボタン・リンクを押したときは遷移しない。
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest("button, a")) return;
+                  router.push(`/admin/settings/users/${row.user}`);
+                }}
+              >
+                {/* 🚨 **利用者の行だけ**、1 件のページへ開ける
+                    （`decisions/list-views-are-switchable-layouts` §3。**役割には 1 件のページが別に在る**）。
+                    🚨 **役割の行をここからリンクしない**——**役割の一覧が別に在るのに、
+                    同じものへの入口を 2 箇所に作ると、どちらが正か分からなくなる**。 */}
+                <TableCell className="font-medium">
+                  {row.user ? (
+                    <Link href={`/admin/settings/users/${row.user}`} className="hover:underline">
+                      {row.user_email ?? row.user}
+                    </Link>
+                  ) : (
+                    (row.role_name ?? row.role)
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {t("policy_prefix", { policy: row.policy_name ?? row.policy })}
+                </TableCell>
+                <TableCell>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="destructive-ghost"
+                      size="sm"
+                      aria-label={t("remove_button")}
+                      disabled={remove.isPending(row.id)}
+                      onClick={() => setConfirming(row.id)}
+                    >
+                      {/* 🚨 ゴミ箱にしない。**割り当てを外す**操作で、ユーザーが消えるわけではない
+                          （ゴミ箱だと「ユーザーごと消える」と誤解される。design ⑬） */}
+                      <UserMinus />
+                      <span className="hidden md:inline">{t("remove_button")}</span>
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -214,6 +216,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <SurfaceDivider />
       <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <FormDraft formId="user-policy-assign-form" />
         <div className="space-y-1.5">
