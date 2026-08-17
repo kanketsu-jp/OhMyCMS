@@ -123,7 +123,10 @@ const PAGE_ENTRIES: StaticEntry[] = [
   // 🚨 ナビと同じ 1 行にする。**ナビの href が PAGE_ENTRIES に無いと check-search-entries が落ちる**ので、
   //    layout.tsx とここと nav/search の辞書は**同じコミットで動かす**（片方だけ入れると必ず赤くなる）。
   { labelKey: "page_settings_ai", href: "/admin/settings/ai" },
-  { labelKey: "page_settings_version", href: "/admin/settings/version" },
+  // 🚨 **入口はナビと同じ `/admin/version` に寄せる**（堀池・2026-08-17 AH1）。
+  //    `/admin/settings/version` は転送だけの 11 行で、本体は `/admin/version`（93 行）。
+  //    検索から転送を挟むと、1 回よけいに待つうえ、履歴に転送元が残る。
+  { labelKey: "page_settings_version", href: "/admin/version" },
 ];
 
 /**

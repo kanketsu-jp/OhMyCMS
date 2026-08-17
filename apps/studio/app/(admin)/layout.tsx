@@ -32,6 +32,13 @@ const navItems: { href: string; labelKey: string }[] = [];
 const bottomNavItems = [
   { href: "/admin/notifications", labelKey: "nav.notifications" },
   { href: "/admin/trash", labelKey: "trash.title" },
+  // 🚨 **設定の中から出して、ゴミ箱の下へ**（堀池・2026-08-17 AH1 原文
+  //    「https://ohmycms.kanketsu.app/admin/version は、左サイドバーにて、ゴミ箱の下に移動」）。
+  // 🚨 行き先は `/admin/version`（**本体はこちら**・93 行）。
+  //    `/admin/settings/version` は転送だけの 11 行で、ユーザーメニュー（G1）も
+  //    `/admin/version` を指している。**入口を 2 つの経路に割らない。**
+  // 🚨 ユーザーメニューの「バージョン」は**残す**（別の導線・司令塔の指示）。
+  { href: "/admin/version", labelKey: "nav.settings_child_version" },
 ];
 
 // 「ファイルはアコーディオンにする。その中に「ストレージ」「ラベル」」（堀池・2026-08-15）
@@ -74,7 +81,6 @@ const settingsItems = [
   //    🚨 `settings_child_agents` と `settings_child_mcp` の鍵は**消していない**——
   //    その 2 つは `/admin/settings/ai` の**タブの見出し**として今も使っている（実測: ai/page.tsx:48,53）。
   { href: "/admin/settings/ai", labelKey: "settings_child_ai" },
-  { href: "/admin/settings/version", labelKey: "settings_child_version" },
   // 🚨 I4（堀池さん 2026-08-17）「管理者は設定の中に不具合報告管理のメニューを 1 つ」。
   //    **新しいページは作らない**。J1 で 1 ページに統合済みの `/admin/reports` へ、
   //    範囲を指定して入るだけ（`?scope=all`）。辞書 `report_manage` は既に在る。
