@@ -1,3 +1,4 @@
+import { MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
 
 import { ListEmpty } from "@/components/admin/list-empty";
@@ -38,8 +39,18 @@ export function ReportRooms({ reports, emptyLabel, resolvedLabel, formatDateTime
         <li key={report.id}>
           <Link
             href={`/admin/reports/${report.id}`}
-            className="flex min-w-0 items-baseline gap-3 py-3 hover:bg-muted/50 active:bg-muted/50"
+            className="flex min-w-0 items-center gap-3 py-3 hover:bg-muted/50 active:bg-muted/50"
           >
+            {/* 🚨 `DESIGN.md` §3-4「一覧にもアイコンを添える」。
+                §3-3 で報告は**もの**なので線画。
+                §3-2「新しい絵を選ばない」に従い、**既にこのリポジトリで報告に使っている**
+                `MessageSquarePlus`（`bug-report-trigger` / `bug-report-action` の 2 箇所）を採った。
+                🚨 `items-baseline` から `items-center` に変えた——アイコンを baseline に載せると
+                文字の下端に合って**沈む**（アイコンは字ではない）。 */}
+            {/* 🚨 状態で色を変えていない。**弱めるのは題名側だけ**にした——
+                アイコンも弱めると、解決済みの行が「行ごと薄い」1 枚の面に見えて、
+                どこが押せるのか分からなくなる（実測ではなく私の判断・2026-08-17 pages）。 */}
+            <MessageSquarePlus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
             <span
               className={cn(
                 "min-w-0 flex-1 truncate text-sm",
