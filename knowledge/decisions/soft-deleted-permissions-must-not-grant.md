@@ -72,6 +72,36 @@ const rows = await db<PermissionRow>("directus_permissions")
 `database "cms" does not exist` → `the database system is shutting down`（**初期化の途中だった**）。
 **本物のクエリ（`select 1`）が通るまで待つこと。**
 
+### 🚨 なぜ「嘘の ready」が出るか（機構・shell が特定）
+
+公式 image の `docker-entrypoint.sh` の `docker_temp_server_start()` は
+`-c listen_addresses=''` で一時サーバを起こす（原文コメント: *does not listen on external TCP/IP*）。
+**つまり初期化中のサーバは unix socket にしか出ない。**
+
+- 🚨 **`docker exec` で叩くと、その一時サーバが見える** → `pg_isready` は ready と言う
+- 🟢 host の TCP からは見えない
+- ＝ **「ready」という名前の道具が、`docker exec` では別のサーバを見ている**
+
+窓の長さ（shell の実測・`postgres:17-alpine`・各 5 回・コンテナのログの時刻で計測）:
+
+| 条件 | 窓の中央値 |
+|---|---|
+| `POSTGRES_DB` あり | **0.159 秒**（範囲 0.157〜0.169） |
+| `POSTGRES_DB` なし | **0.115 秒**（範囲 0.099〜0.123） |
+
+**範囲が重ならない。差は約 +0.044 秒（+38%）**で、ログの並びから
+**`CREATE DATABASE` がその窓の中に在る**（＝ `POSTGRES_DB` を指定すると段が 1 つ増える）。
+
+🚨 **この機構が説明するのは「窓の側」だけ**（shell が自分で射程を狭めた）。
+**「叩く側がその窓に入るか」は競走**で、**そちらは誰も測っていない**。
+実際 schema の機械では、**同じ形が 20 分の間に 3/3 通る → 3/3 落ちる へ反転した**。
+
+🚨 **したがって「うちでは通る」は根拠にならない。**
+観測（何回通った／落ちた）は**その時刻のもの**で、**機構だけが時刻に依存しない。**
+
+- ✅ **`pg_isready` を `docker exec` から叩かない**
+- ✅ **本物のクエリが通るまで待つ**（回数を増やしても、見る対象が同じなら意味がない）
+
 ## 🚨 まだ塞いでいないもの（**落とさない**）
 
 - **`lib/admin/permissions-api.ts`** … 一覧・更新。`deleted_at` **0 箇所**
