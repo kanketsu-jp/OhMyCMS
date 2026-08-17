@@ -44,7 +44,18 @@ export default async function VersionPage() {
               </div>
           </Surface>
 
-          <Surface className="text-sm">
+          {/*
+            🚨 **区切り線の前後に余白を取る**（堀池・2026-08-17 AI1 原文
+               「『更新の確認』の真上にボーダーがあり、余白という概念がないので、ちゃんと考えて。
+                 ルールにも追加。どう考えても近すぎる」／DESIGN.md §1-9）。
+            🚨 実測（2026-08-17）: 線を持つ section は padding-top 0px / margin-top 0px で、
+               線のすぐ下に見出しが来ていた（線が出ているのはこの 2 つ目の面だけ・n=1）。
+            🚨 **共有部品（components/ui/surface.tsx）は触らない**——29 画面に及ぶ（実測）。
+               `className` は線を持つ section へ届くので、**呼び出し側で余白を足す**。
+            🚨 上下を非対称にしない … 面と面の間隔は親の `space-y-6`（24px）が持ち、
+               線の下も `pt-6`（24px）。**線がその間隔の中央に来る**。
+          */}
+          <Surface className="pt-6 text-sm">
             <SurfaceTitle>{t("update_heading")}</SurfaceTitle>
             <UpdateStatus update={result.data.data.update} t={t} />
           </Surface>
