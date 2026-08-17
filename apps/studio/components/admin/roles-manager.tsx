@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
@@ -110,7 +111,13 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
         <TableBody>
           {roles.map((role) => (
             <TableRow key={role.id}>
-              <TableCell className="font-medium">{role.name}</TableCell>
+              {/* 🚨 一覧から 1 件へ開ける（`decisions/list-views-are-switchable-layouts` §3）。
+                  名前をリンクにするのは `files-table` と同じ形——**行の識別子が入口**。 */}
+              <TableCell className="font-medium">
+                <Link href={`/admin/settings/roles/${role.id}`} className="hover:underline">
+                  {role.name}
+                </Link>
+              </TableCell>
               <TableCell className="text-muted-foreground">{role.description || t("no_description")}</TableCell>
               <TableCell>
                 {t("parent_colon_label")}

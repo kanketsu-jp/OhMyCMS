@@ -13,5 +13,7 @@
   "none_option": "None",
   "parent_colon_label": "Parent: ",
   "parent_label": "Parent Role",
-  "title": "Roles"
+  "title": "Roles",
+  "back_to_list": "Back to roles",
+  "detail_read_only_note": "This page only shows the role. Editing the name or description is not available yet."
 }

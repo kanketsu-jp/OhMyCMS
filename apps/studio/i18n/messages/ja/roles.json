@@ -13,5 +13,7 @@
   "none_option": "なし",
   "parent_colon_label": "親: ",
   "parent_label": "親ロール",
-  "title": "ロール"
+  "title": "ロール",
+  "back_to_list": "役割の一覧へ戻る",
+  "detail_read_only_note": "このページは内容を見るだけです。名前や説明の変更は、まだできません。"
 }

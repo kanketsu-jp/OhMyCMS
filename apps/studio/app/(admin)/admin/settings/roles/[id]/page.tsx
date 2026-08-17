@@ -1,0 +1,73 @@
+import Link from "next/link";
+
+import { ErrorBanner } from "@/components/admin/error-banner";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
+import { getT } from "@/i18n/server";
+import { apiFetch } from "@/lib/admin/api";
+
+/**
+ * 役割の **1 件**のページ。
+ *
+ * 🚨 **なぜ作ったか**（`decisions/list-views-are-switchable-layouts` §3）:
+ *    各領域は「**一覧 / 1 件 / 新規**」の 3 つに揃える、と決めた。
+ *    【測った・2026-08-17】`settings/roles` は **一覧しか無く**、
+ *    一覧の中に編集も無かった（`form` / `Dialog` / `Sheet` が **0 件**）。
+ *    ＝ **役割を作れるのに、開いて確かめる場所が無い**状態だった。
+ *
+ * 🚨 **ここでは編集しない。** いまは「**何が在るか**」を見せるだけにしてある。
+ *    理由: **役割に何を紐づけるか（方針・利用者）が未決**（board の判断待ち）で、
+ *    先に編集を付けると **決まる前の形が既成事実になる**。
+ *    ＝ **開けるようにするのと、変えられるようにするのは別の段**。
+ */
+
+type Props = {
+  params: Promise<{ id: string }>;
+};
+
+type RoleRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  parent: string | null;
+};
+
+export default async function RoleDetailPage({ params }: Props) {
+  const { id } = await params;
+  const t = await getT("roles");
+  const tError = await getT("errors");
+
+  const result = await apiFetch<{ data: RoleRow }>(`/api/roles/${id}`);
+  const role = result.ok ? result.data.data : null;
+
+  return (
+    <div className="max-w-5xl space-y-6">
+      <div>
+        {/* 🚨 戻る導線を必ず置く（`policies/[id]` と同じ形）。
+            下層に入って戻れないと、利用者はブラウザの戻るに頼ることになる。 */}
+        <Link
+          href="/admin/settings/roles"
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          {t("back_to_list")}
+        </Link>
+      </div>
+      <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
+      {role ? (
+        <Surface>
+          <SurfaceTitle>{role.name}</SurfaceTitle>
+          <dl className="grid gap-3 text-sm sm:grid-cols-[10rem_1fr]">
+            <dt className="text-muted-foreground">{t("name_label")}</dt>
+            <dd>{role.name}</dd>
+            <dt className="text-muted-foreground">{t("description_label")}</dt>
+            {/* 🚨 空を空白で出さない。「無い」と書く（`no_description` は既に辞書に在る）。 */}
+            <dd>{role.description ?? t("no_description")}</dd>
+            <dt className="text-muted-foreground">{t("parent_label")}</dt>
+            <dd>{role.parent ?? t("none_option")}</dd>
+          </dl>
+          {/* 🚨 **できないことを、その場に書く。** 編集の場所を探させない。 */}
+          <p className="mt-4 text-sm text-muted-foreground">{t("detail_read_only_note")}</p>
+        </Surface>
+      ) : null}
+    </div>
+  );
+}
