@@ -1,6 +1,6 @@
 import { MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { ReactElement } from "react";
 
 import { ListEmpty } from "@/components/admin/list-empty";
 import type { BugReport } from "@/lib/reports/service";
@@ -23,7 +23,9 @@ type Props = {
    *    （実測 2026-08-17: `?status=resolved` で「解決済みの報告はありません。」＋「報告する」）。
    *    どの行き先が正しいかは**画面（いまの絞り込み）しか知らない**ので、呼ぶ側が決める。
    */
-  emptyAction: ReactNode;
+  // 🚨 型は `ReactElement`（`ReactNode` だと `null` が通り、必須にした意味が消える。
+  //    実測 2026-08-17: `emptyAction={null}` で型エラー 0 件だった）
+  emptyAction: ReactElement;
   /** 解決済みの印に使う文 */
   resolvedLabel: string;
   /** 日時の整形。呼ぶ側（サーバ側）が `getFormat()` から渡す */

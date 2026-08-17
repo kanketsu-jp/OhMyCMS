@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,8 +16,13 @@ type Props = {
    * 🚨 **省略できるようにしない**（`DESIGN.md` §3-1「アイコンは既定に落とさない」）。
    *    共有化の 1 回目でここを外し、やりとり画面の `<Send />` が**黙って消えた**
    *    （作業者が自分で見つけて申告した）。**渡す口が無いと、寄せた瞬間に落ちる。**
+   *
+   * 🚨 **型は `ReactNode` ではなく `ReactElement`。** `ReactNode` は `null` を含むので、
+   *    **必須にしても `submitIcon={null}` で通ってしまう**（実測 2026-08-17: 台を作って
+   *    `null` を渡したら型エラー **0 件**）。＝ **必須という宣言だけでは守れていなかった。**
+   *    規約 §7-5（数を合わせに来る）と同じ形——**文字の上では満たせる抜け道を残さない。**
    */
-  submitIcon: ReactNode;
+  submitIcon: ReactElement;
   pending: boolean;
   /** 送信ボタンの左に置くもの。 */
   before?: ReactNode;
