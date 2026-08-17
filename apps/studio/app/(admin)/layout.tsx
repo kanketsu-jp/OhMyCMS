@@ -65,6 +65,10 @@ const settingsItems = [
   { href: "/admin/settings/agents", labelKey: "settings_child_agents" },
   { href: "/admin/settings/mcp", labelKey: "settings_child_mcp" },
   { href: "/admin/settings/version", labelKey: "settings_child_version" },
+  // 🚨 I4（堀池さん 2026-08-17）「管理者は設定の中に不具合報告管理のメニューを 1 つ」。
+  //    **新しいページは作らない**。J1 で 1 ページに統合済みの `/admin/reports` へ、
+  //    範囲を指定して入るだけ（`?scope=all`）。辞書 `report_manage` は既に在る。
+  { href: "/admin/reports?scope=all", labelKey: "report_manage" },
 ];
 
 export default async function AdminLayout({
