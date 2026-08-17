@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 import { Accordion } from "@/components/ui/accordion";
+import { PanelFileDetail } from "@/components/admin/panel-file-detail";
 import { PanelSection } from "@/components/admin/panel-section";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { PanelDisplay } from "@/components/admin/panel-display";
@@ -100,6 +101,10 @@ export function PageInfoPanel() {
             </ul>
         </PanelSection>
       ) : null}
+
+      {/* ファイルの詳細（B6）。🚨 選んでいるときだけ出る（選択が 0 なら null を返す）。
+          値は lib/admin/files-selection.ts（L4 の持ち物）から読むだけ。 */}
+      <PanelFileDetail />
 
       {/* ③ 表示・切り替え。中身は `components/admin/panel-display.tsx`。
           🚨 **一覧ページ以外では `null` を返す**ので、ここに枠は残らない（①概要と同じ規律）。 */}

@@ -1,0 +1,128 @@
+"use client";
+
+import Link from "next/link";
+
+import { PanelSection } from "@/components/admin/panel-section";
+import { CopyButton } from "@/components/ui/copy-button";
+import { useFormat, useT } from "@/i18n/client";
+import { useSelectedFiles, requestPreview } from "@/lib/admin/files-selection";
+
+/**
+ * 右サイドバーの「ファイルの詳細」（B6）。
+ *
+ * 堀池さん（2026-08-17 B6 原文）:
+ * > 「詳細アコーディオン：ファイルをクリックした際、右サイドバーが展開されている場合は、
+ * >   その中に「ファイルの詳細」というアコーディオンを追加して表示してください。
+ * >   そのままファイルがある場所に遷移できるようにするなど、Googleドライブの操作感を
+ * >   参考にしてください」
+ *
+ * 参照した実物: Directus の `app/src/modules/files/components/file-info-sidebar-detail.vue`。
+ * 向こうも右サイドバーの節として出し、フォルダの行に「そのフォルダを開く」リンクを置いている。
+ * 🚨 **写経していない。** 出す項目と、フォルダへの導線という考え方だけを採った。
+ *
+ * 🚨 **選択は読むだけ。** 値は `lib/admin/files-selection.ts`（L4 の持ち物）から来る。
+ *    `setSelection` / `clearSelection` はここから呼ばない（書くのは一覧側の役目）。
+ *    Context ではなく外部ストアなのは、右サイドバーの中身が `{children}` の**兄弟**として
+ *    描かれるため（`right-panel.tsx:148-149`）。ページ側に Provider を置いても包めない。
+ *
+ * 🚨 **`folder` は uuid なので画面に出さない**（`decisions/synthetic-ids-are-not-contacts`）。
+ *    出すのは `folder_name`。根に在るファイルは両方 null なので、そのときの文言はここが持つ。
+ */
+
+/**
+ * バイト数を読みやすい形にする。
+ *
+ * 🚨 **同じ処理が `files-table.tsx` にもある**（あちらが先）。共有の関数がまだ無いので、
+ *    いまは 2 箇所に在る。片方だけ直すと見た目が割れるので、**直すときは両方**。
+ *    まとめるなら `lib/admin/files-view.ts`（一覧側の持ち物）へ出すのが筋で、
+ *    それは L4 に相談済み（返事待ち）。
+ */
+function formatSize(value: string | number | null): string | null {
+  if (value === null) return null;
+  const bytes = typeof value === "string" ? Number(value) : value;
+  if (!Number.isFinite(bytes)) return null;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right text-sm">{children}</dd>
+    </div>
+  );
+}
+
+export function PanelFileDetail() {
+  const t = useT("panel");
+  const format = useFormat();
+  const files = useSelectedFiles();
+
+  // 🚨 選んでいないときは枠ごと出さない（①概要・②項目一覧と同じ規律）。
+  //    「選択なし」と書くと、出す物が無い状態と、壊れている状態の区別が付かない。
+  if (files.length === 0) return null;
+
+  if (files.length > 1) {
+    return (
+      <PanelSection value="file-detail" title={t("file_detail")}>
+        <p className="text-sm text-muted-foreground">
+          {t("file_detail_selected", { count: String(files.length) })}
+        </p>
+      </PanelSection>
+    );
+  }
+
+  const file = files[0]!;
+  const size = formatSize(file.filesize);
+  const dimensions =
+    file.width !== null && file.height !== null ? `${file.width} x ${file.height}` : null;
+
+  return (
+    <PanelSection value="file-detail" title={t("file_detail")}>
+      <dl className="flex flex-col gap-1.5">
+        <Row label={t("file_detail_name")}>{file.filename_download || file.title}</Row>
+        {file.type ? <Row label={t("file_detail_type")}>{file.type}</Row> : null}
+        {dimensions ? <Row label={t("file_detail_dimensions")}>{dimensions}</Row> : null}
+        {size ? <Row label={t("file_detail_size")}>{size}</Row> : null}
+        {file.duration !== null ? (
+          <Row label={t("file_detail_duration")}>
+            {`${file.duration}${t("file_detail_seconds")}`}
+          </Row>
+        ) : null}
+        <Row label={t("file_detail_uploaded")}>{format.dateTime(file.uploaded_on)}</Row>
+        {file.modified_on ? (
+          <Row label={t("file_detail_modified")}>{format.dateTime(file.modified_on)}</Row>
+        ) : null}
+        {/*
+          🚨 堀池さんの「そのままファイルがある場所に遷移できるように」はこの行。
+             フォルダの移動は `?folder=` なので **pathname が変わらない** ＝ 右サイドバーは開いたまま。
+        */}
+        <Row label={t("file_detail_folder")}>
+          <Link
+            href={file.folder ? `/admin/files?folder=${file.folder}` : "/admin/files"}
+            className="underline-offset-2 hover:underline active:underline"
+          >
+            {file.folder_name ?? t("file_detail_root")}
+          </Link>
+        </Row>
+      </dl>
+
+      <div className="mt-2 flex items-center gap-2">
+        {/*
+          🚨 拡大は**ページ遷移ではない**（堀池さんの B5「詳細アコーディオン内の拡大ボタンから」）。
+             一覧側のライトボックスを開く。画像でない / 一覧に無い id では L4 が false を返す。
+        */}
+        <button
+          type="button"
+          onClick={() => requestPreview(file.id)}
+          className="flex min-h-(--control-h) items-center rounded-md px-2 text-sm hover:bg-muted active:bg-muted md:min-h-(--control-h-pc)"
+        >
+          {t("file_detail_preview")}
+        </button>
+        <CopyButton value={file.id} />
+      </div>
+    </PanelSection>
+  );
+}
