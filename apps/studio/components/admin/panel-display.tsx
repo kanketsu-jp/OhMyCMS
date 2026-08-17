@@ -11,11 +11,7 @@ import {
   resolveColumns,
   resolveLimit,
 } from "@/lib/admin/list-view";
-import {
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { PanelSection } from "@/components/admin/panel-section";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useLocale, useT } from "@/i18n/client";
@@ -77,12 +73,9 @@ export function PanelDisplay() {
   if (collection === null) return null;
 
   return (
-    <AccordionItem value="display">
-      <AccordionTrigger>{t("display")}</AccordionTrigger>
-      <AccordionContent>
-        <PanelDisplayControls collection={collection} pathname={pathname} />
-      </AccordionContent>
-    </AccordionItem>
+    <PanelSection value="display" title={t("display")}>
+      <PanelDisplayControls collection={collection} pathname={pathname} />
+    </PanelSection>
   );
 }
 

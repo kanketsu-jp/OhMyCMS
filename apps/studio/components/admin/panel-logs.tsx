@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-import {
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { PanelSection } from "@/components/admin/panel-section";
 import { useFormat, useT } from "@/i18n/client";
 import type { Translator } from "@/i18n/translator";
 
@@ -142,9 +138,7 @@ function PanelLogsAccordionItem({
   if (current.status === "forbidden") return null;
 
   return (
-    <AccordionItem value="history">
-      <AccordionTrigger>{t("history")}</AccordionTrigger>
-      <AccordionContent>
+    <PanelSection value="history" title={t("history")}>
         {current.status === "loading" ? (
           <p className="text-sm text-muted-foreground">{t("history_loading")}</p>
         ) : current.status === "error" ? (
@@ -169,7 +163,6 @@ function PanelLogsAccordionItem({
             ))}
           </ul>
         )}
-      </AccordionContent>
-    </AccordionItem>
+    </PanelSection>
   );
 }

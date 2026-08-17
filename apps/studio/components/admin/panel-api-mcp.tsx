@@ -3,11 +3,7 @@
 import { useMemo } from "react";
 import { usePathname, useParams } from "next/navigation";
 
-import {
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { PanelSection } from "@/components/admin/panel-section";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -123,9 +119,7 @@ export function PanelApiMcp() {
     .join("\n");
 
   return (
-    <AccordionItem value="api">
-      <AccordionTrigger>{t("api_mcp")}</AccordionTrigger>
-      <AccordionContent className="space-y-4 text-sm">
+    <PanelSection value="api" title={t("api_mcp")} contentClassName="space-y-4 text-sm">
         {/* ── LLM へ渡すプロンプト（原典が名指しした中心機能なので先頭） ── */}
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -185,7 +179,6 @@ export function PanelApiMcp() {
           </ul>
           <p className="text-xs text-muted-foreground">{t("api_mcp_source")}</p>
         </section>
-      </AccordionContent>
-    </AccordionItem>
+    </PanelSection>
   );
 }

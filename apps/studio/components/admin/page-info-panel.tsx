@@ -3,12 +3,8 @@
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Accordion } from "@/components/ui/accordion";
+import { PanelSection } from "@/components/admin/panel-section";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { PanelDisplay } from "@/components/admin/panel-display";
 import { PanelApiMcp } from "@/components/admin/panel-api-mcp";
@@ -67,21 +63,16 @@ export function PageInfoPanel() {
       {/* ① 概要。🚨 説明が**無いページでは枠ごと出さない**。
           「準備中です」を出すと、説明が要らないページと、書き忘れたページの区別が付かない。 */}
       {meta?.descriptionKey ? (
-        <AccordionItem value="overview">
-          <AccordionTrigger>{t("overview")}</AccordionTrigger>
-          <AccordionContent className="text-muted-foreground">
-            {tKey(meta.descriptionKey)}
-          </AccordionContent>
-        </AccordionItem>
+        <PanelSection value="overview" title={t("overview")} contentClassName="text-muted-foreground">
+          {tKey(meta.descriptionKey)}
+        </PanelSection>
       ) : null}
 
       {/* ② 項目一覧。ページの中の節へ飛ぶ。
           🚨 id の作り方は `page-sections.ts` に1つだけ置いてある。ここで組み立てない。 */}
+      {/* 下線は消す。堀池（原文）:「意味がわからない＋デザインとしてノイズ」 */}
       {sections.length > 0 ? (
-        <AccordionItem value="sections">
-          <AccordionTrigger>{t("sections")}</AccordionTrigger>
-          {/* 下線は消す。堀池（原文）:「意味がわからない＋デザインとしてノイズ」 */}
-          <AccordionContent>
+        <PanelSection value="sections" title={t("sections")}>
             <ul className="flex flex-col">
               {sections.map((key) => {
                 const id = sectionAnchorId(key);
@@ -107,8 +98,7 @@ export function PageInfoPanel() {
                 );
               })}
             </ul>
-          </AccordionContent>
-        </AccordionItem>
+        </PanelSection>
       ) : null}
 
       {/* ③ 表示・切り替え。中身は `components/admin/panel-display.tsx`。
