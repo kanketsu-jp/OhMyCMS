@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { usePageTrail } from "@/components/admin/page-trail";
 import { Undo2Icon } from "lucide-react";
 
@@ -44,7 +45,32 @@ export function HeaderBack() {
    *   🚨 **押せない区画（`navigable: false`）は行き先にしない**——`/admin/settings` は
    *     ページが無く、行くと 404 になる（`page-trail.ts` の申し送り）。
    */
-  const entryLength = useRef<number | null>(null);
+  /**
+   * 🚨 **履歴の長さは「どこから来たか」を教えない**（files の実測・2026-08-17）。
+   *
+   * 直す前はここで `window.history.length > 2` を「アプリの中から来た」の目印にしていた。
+   * files が反例を測って出した:
+   * ```
+   * 履歴の長さ **5** ／ 直前の入口は **アプリの外（about:blank）**
+   *    → `router.back()` が走り、**アプリの外へ出た**
+   * ＝ 「別のサイトを見たあと、URL を直接開いた人」は**いまも外へ出る**
+   * ```
+   * 🚨 長さは「何回動いたか」であって「**どこから来たか**」ではない。**別の問いだった。**
+   *
+   * → **自分で数える。** この文書が読み込まれてから、**アプリの中で経路が変わった回数**を持つ。
+   *   1 回でも変わっていれば「中を歩いてきた」ので `router.back()` が安全。
+   *   0 回なら、戻ると**この文書より前＝アプリの外**へ出るので、階層の親へ行く。
+   * 🚨 `document.referrer` は使わない。**クライアント側の遷移では変わらない**ので、
+   *   外から来て中を歩いた人を「外から来た」と誤って読む。
+   */
+  const inAppMoves = useRef(0);
+  const lastPath = useRef<string | null>(null);
+  const pathname = usePathname();
+  useEffect(() => {
+    // 🚨 state を持たない（効果の中の同期 setState は lint が拒む。`page-action.tsx` と同じ理由）。
+    if (lastPath.current !== null && lastPath.current !== pathname) inAppMoves.current += 1;
+    lastPath.current = pathname;
+  }, [pathname]);
   // 🚨 サーバでは `history` が無いので、描くたびではなく**最初に押されたとき**に基準を採る。
   //    `useEffect` で採らないのは、効果の中の同期 setState を lint が拒むため（`page-action.tsx` と同じ理由）。
   const crumbs = usePageTrail("");
@@ -73,10 +99,8 @@ export function HeaderBack() {
     .find((c) => c.navigable && !REDIRECT_ONLY.includes(c.href));
 
   const goBack = useCallback(() => {
-    if (entryLength.current === null) entryLength.current = window.history.length;
-    // 🚨 **この画面へ来る前にアプリの中で動いていれば**、履歴を戻すのが正しい。
-    //    そうでなければ、戻ると**アプリの外**（about:blank や別のサイト）へ出る。
-    const cameFromInsideApp = window.history.length > 2;
+    // 🚨 **この文書の中でアプリの経路が変わったか**だけを見る。履歴の長さは見ない（上の申し送り）。
+    const cameFromInsideApp = inAppMoves.current > 0;
     if (cameFromInsideApp) {
       router.back();
       return;
