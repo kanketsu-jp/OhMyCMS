@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { PanelSection } from "@/components/admin/panel-section";
+import { PanelError } from "@/components/admin/panel-error";
 import { useFormat, useT } from "@/i18n/client";
 import type { Translator } from "@/i18n/translator";
 
@@ -97,6 +98,8 @@ function PanelLogsAccordionItem({
   const format = useFormat();
   const key = activityKey(collection, item);
   const [state, setState] = useState<LogsState>({ status: "loading", key });
+  // 🚨 **もう一度読み込めるようにする**（司令塔の「途中で失敗したとき」②）。
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -129,7 +132,7 @@ function PanelLogsAccordionItem({
       });
 
     return () => controller.abort();
-  }, [collection, item, key]);
+  }, [collection, item, key, reload]);
 
   // 🚨 pathname が切り替わった直後、前の collection/item の結果が一瞬残らないよう、
   //    key が食い違うあいだは loading 扱いにする（panel-display.tsx の isCurrent と同じ考え方）。
@@ -142,7 +145,7 @@ function PanelLogsAccordionItem({
         {current.status === "loading" ? (
           <p className="text-sm text-muted-foreground">{t("history_loading")}</p>
         ) : current.status === "error" ? (
-          <p className="text-sm text-muted-foreground">{t("history_error")}</p>
+          <PanelError message={t("history_error")} onRetry={() => setReload((n) => n + 1)} />
         ) : current.status === "empty" ? (
           <p className="text-sm text-muted-foreground">{t("history_empty")}</p>
         ) : (

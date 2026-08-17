@@ -47,6 +47,8 @@
   "storage_bucket": "バケット",
   "storage_configure": "ストレージを設定",
   "storage_driver": "保管先",
+  "storage_error": "いまの保管先を読み込めませんでした",
+  "retry": "もう一度読み込む",
   "storage_driver_local": "このサーバ",
   "storage_driver_s3": "S3 互換ストレージ",
   "storage_endpoint": "エンドポイント",

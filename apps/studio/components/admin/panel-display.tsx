@@ -12,6 +12,7 @@ import {
   resolveLimit,
 } from "@/lib/admin/list-view";
 import { PanelSection } from "@/components/admin/panel-section";
+import { PanelError } from "@/components/admin/panel-error";
 import { Button } from "@/components/ui/button";
 import { useLocale, useT } from "@/i18n/client";
 import { fieldLabel } from "@/lib/schema/labels";
@@ -90,6 +91,8 @@ function PanelDisplayControls({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [state, setState] = useState<FieldsState>({ status: "loading", collection });
+  // 🚨 **もう一度読み込めるようにする**（司令塔の「途中で失敗したとき」②）。
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -117,7 +120,7 @@ function PanelDisplayControls({
       });
 
     return () => controller.abort();
-  }, [collection]);
+  }, [collection, reload]);
 
   const isCurrent = state.collection === collection;
   const fields = isCurrent && state.status === "ready" ? state.fields : EMPTY_FIELDS;
@@ -162,7 +165,7 @@ function PanelDisplayControls({
         <p className="text-sm text-muted-foreground">{t("display_loading")}</p>
       ) : status === "error" ? (
         // 🚨 **取れなかった**とき。実際に出ることを実測済み（セッションが切れた状態でパネルを開くと 401）。
-        <p className="text-sm text-muted-foreground">{t("display_error")}</p>
+        <PanelError message={t("display_error")} onRetry={() => setReload((n) => n + 1)} />
       ) : fields.length === 0 ? (
         // 🚨 **取れたが候補が無い**とき。上の「取れなかった」と**別の文言**にする。
         //    同じ見た目にすると「列が無い」と「列を取りに行けていない」が区別できない

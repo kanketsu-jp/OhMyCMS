@@ -47,6 +47,8 @@
   "storage_bucket": "Bucket",
   "storage_configure": "Configure storage",
   "storage_driver": "Storage",
+  "storage_error": "Could not load the current storage",
+  "retry": "Reload",
   "storage_driver_local": "This server",
   "storage_driver_s3": "S3-compatible",
   "storage_endpoint": "Endpoint",

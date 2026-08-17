@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { PanelError } from "@/components/admin/panel-error";
 import { useT } from "@/i18n/client";
 
 /**
@@ -38,6 +39,9 @@ export function PanelStorage() {
   const pathname = usePathname();
   const [status, setStatus] = useState<StorageStatus | null>(null);
   const [failed, setFailed] = useState(false);
+  // 🚨 **もう一度読み込めるようにする**（司令塔の「途中で失敗したとき」②「次に何をすればよいか」）。
+  //    この値が変わると下の効果が走り直す。失敗したまま何もできない画面にしない。
+  const [reload, setReload] = useState(0);
 
   // 🚨 `/admin/files` 以外では読みに行かない（他のページの負荷を増やさない）。
   const enabled = pathname === "/admin/files";
@@ -63,9 +67,26 @@ export function PanelStorage() {
     return () => {
       alive = false;
     };
-  }, [enabled]);
+  }, [enabled, reload]);
 
-  if (!enabled || failed || status === null) return null;
+  // 🚨 **この画面ではない**（＝ 出す物が無い）ときだけ、何も出さない。
+  if (!enabled) return null;
+  // 🚨 **取りに行けなかった**ときは、そう言う（2026-08-17 実測で、ここが `null` だったため
+  //    「無い」「読み込み中」「失敗」が全部同じ見た目になっていた）。
+  // 🚨 失敗の印は**押した手の中で**戻す（効果の中で戻すと `react-hooks/set-state-in-effect` が error。
+  //    実測: 効果の先頭に置いたら lint が落ちた。**押した瞬間はイベントなので通る**）。
+  if (failed)
+    return (
+      <PanelError
+        message={t("storage_error")}
+        onRetry={() => {
+          setFailed(false);
+          setReload((n) => n + 1);
+        }}
+      />
+    );
+  // 🚨 読み込み中は何も出さない（すぐ終わるので、出すとちらつく）。
+  if (status === null) return null;
 
   return (
     <div className="mt-2 flex flex-col gap-1.5">
