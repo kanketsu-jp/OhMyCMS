@@ -124,10 +124,20 @@ export function GlobalSearchButton({ className }: { className?: string }) {
           type="button"
           onClick={open}
           aria-label={t("open_hint")}
-          className={`flex h-(--control-h) w-full items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted active:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
+          // 🚨 **入力欄に見せない**（堀池・2026-08-17 Z1 原文
+          //    「検索窓は検索窓としての機能ではない。モーダルを開くだけ。
+          //      ならば、検索する みたいなボタンにして。…いまは背景色と同化してわかりずらいので修正」）。
+          //    🚨 決めたのは 🅐（ボタンにする）。**打てるようにする案は採らない**——
+          //    打つ窓はヘッダー側（L1 の 4 つ目・画面の中を絞る）で、
+          //    サイドバーは**入口**、という分担にしたため（header と合意済み）。
+          //    直したのは 3 つ:
+          //      ① 塗り（bg-muted/60）をやめ、**枠**にした（背景と同化しない）
+          //      ② 角丸をやめた（DESIGN.md §1-1 クロームは平ら）
+          //      ③ 文字を左いっぱいに伸ばさない（伸ばすと入力欄の形になる）
+          className={`flex h-(--control-h) w-full items-center gap-2 border px-2.5 text-sm text-foreground transition-colors hover:bg-muted active:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
         >
           <SearchIcon className="size-4 shrink-0" />
-          <span className="flex-1 text-left">{t("placeholder")}</span>
+          <span className="text-left">{t("placeholder")}</span>
         </button>
       </TooltipTrigger>
       {/* 記号は環境で変わるので辞書に持たせない（mac は ⌘K / それ以外は Ctrl+K）。 */}
