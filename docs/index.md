@@ -25,3 +25,4 @@
 - [OhMyCMS 一次調査: AGENTS.md 運用 と Next.js 16 知識ベース](./research/nextjs16-and-agents-md.md) — AGENTS.md 運用と Next.js 16 の一次情報調査
 - [手で確かめるもの（admin/files）— 実機・ブラウザ・実クライアント ID が要る分](./verify/files-manual-checks.md) — 誰でも使える手動検証手順（一部は道具を知れば機械でも測れた）
 - [初回起動の環境を立てる — 共有環境では誰も到達できない経路を踏むために](./verify/first-run-environment.md) — 共有ポート(3101/3102/3103/5436)に触れない初回起動環境の作り方
+- [Directus の項目編集画面には何が在るか](./research/directus-item-edit-screen.md) — oc による実測（根拠のファイル・行番号つき）。編集画面の差分を測る素材
