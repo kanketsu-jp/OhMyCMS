@@ -8,6 +8,7 @@ import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
 import { FileThumbnail } from "@/components/admin/file-thumbnail";
 import { FileTileMenu } from "@/components/admin/file-tile-menu";
 import { ImageLightbox } from "@/components/admin/image-lightbox";
+import { useRightPanel } from "@/components/admin/right-panel";
 import { useT } from "@/i18n/client";
 import {
   clearSelection,
@@ -71,6 +72,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   const selectedFiles = useSelectedFiles();
   const previewRequest = usePreviewRequest();
   const lastClickedIdRef = useRef<string | null>(null);
+  const panel = useRightPanel();
   const imageFiles = useMemo(() => files.filter(isImage), [files]);
   const imageIdsKey = useMemo(() => imageFiles.map((file) => file.id).join("\u0000"), [imageFiles]);
   const images = useMemo(
@@ -126,12 +128,26 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     setOpen(true);
   }
 
+  /**
+   * 選択を差し替える。
+   *
+   * 🚨 **1 件でも選ばれたら、右サイドバーを開く**（堀池・2026-08-17 AJ1 原文:
+   *    「ファイルを選択したら、閉じていても右サイドバーを出すし、ファイル詳細も出す。」）。
+   *    開く役は**ここ**にある。理由: 右サイドバーの中身は**開いている間しか描かれない**ので、
+   *    閉じているあいだ、向こう側には選択を見ている人が 1 人も居ない。
+   *    ＝ 「選ばれた」を知っているのは一覧だけなので、**一覧が開ける**。
+   *    🚨 節（「ファイルの詳細」）を開くのは右サイドバー側（L2）の仕事。
+   *       こちらは `useSelectedFiles()` に流すだけで、節の開閉には触らない。
+   * 🚨 効果（useEffect）の中ではなく、**押した手の中で呼ぶ**
+   *    （この repo の lint は効果の中の同期 setState を error にする）。
+   */
   function replaceSelection(next: readonly FileRow[]): void {
     if (next.length === 0) {
       clearSelection();
       return;
     }
     setSelection(next);
+    panel.open();
   }
 
   function toggle(file: FileRow): void {
