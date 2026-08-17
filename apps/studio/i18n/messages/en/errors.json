@@ -13,6 +13,7 @@
   "conflict": "Something with that name already exists. Use a different name and try again.",
   "already_exists": "That already exists.",
   "item_exists_trashed": "An item with that ID is in Trash. Restore it, or delete it permanently from Trash.",
+  "primary_key_cannot_be_deleted": "The primary key field cannot be deleted. Delete the whole collection instead.",
   "unexpected": "Could not complete the request. Please try again later.",
   "relation_partial_failure": "The column was created, but the relation could not be created.",
   "unauthenticated": "Please sign in again.",

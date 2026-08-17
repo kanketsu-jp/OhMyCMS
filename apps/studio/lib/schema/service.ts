@@ -318,6 +318,31 @@ async function columnExists(
   return result.rows[0]?.exists === true;
 }
 
+async function isPrimaryKeyColumn(
+  trx: Knex.Transaction,
+  table: string,
+  column: string,
+): Promise<boolean> {
+  const result = await trx.raw<{ rows: { exists: boolean }[] }>(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON kcu.constraint_name = tc.constraint_name
+          AND kcu.table_schema = tc.table_schema
+          AND kcu.table_name = tc.table_name
+        WHERE tc.table_schema = 'public'
+          AND tc.constraint_type = 'PRIMARY KEY'
+          AND tc.table_name = ?
+          AND kcu.column_name = ?
+      ) AS exists
+    `,
+    [table, column],
+  );
+  return result.rows[0]?.exists === true;
+}
+
 function composeCollection(
   collection: string,
   metaByCollection: Map<string, CollectionMeta>,
@@ -910,6 +935,14 @@ export async function deleteField(
 
     if (!(await tableExists(trx, collection))) {
       throw new ApiError(404, "COLLECTION_NOT_FOUND", "コレクションが見つかりません");
+    }
+
+    if (await isPrimaryKeyColumn(trx, collection, field)) {
+      throw new ApiError(
+        409,
+        "PRIMARY_KEY_CANNOT_BE_DELETED",
+        "主キーの欄は消せません。",
+      );
     }
 
     const existingMeta = await trx<FieldMeta>("directus_fields")

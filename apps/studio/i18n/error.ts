@@ -40,6 +40,7 @@ export const ERROR_KEYS = [
   //    （＝ 利用者には「処理できませんでした」しか出ていなかった。schema の変更より前から）。
   "already_exists",
   "item_exists_trashed",
+  "primary_key_cannot_be_deleted",
   // 🚨 401。以前は lib/admin/api.ts が「認証が必要です」という日本語を直接持っていた。
   //    鍵にしないと permission_denied（403）へ潰れ、**入り直せば直る**ことが伝わらない。
   "unauthenticated",
@@ -136,6 +137,7 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   //    **いまの画面からは起きない**（作成フォームに主キーの欄が無い・schema が実測）。
   //    API / SDK を直に叩く経路でだけ返るので、**画面の鍵としては `already_exists` が本命**。
   ITEM_EXISTS_TRASHED: "item_exists_trashed",
+  PRIMARY_KEY_CANNOT_BE_DELETED: "primary_key_cannot_be_deleted",
   COLLECTION_NOT_FOUND: "not_found",
   FIELD_NOT_FOUND: "not_found",
   ITEM_NOT_FOUND: "not_found",

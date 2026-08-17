@@ -13,6 +13,7 @@
   "conflict": "すでに同じ名前のものがあります。名前を変えてやり直してください。",
   "already_exists": "すでに同じものがあります。",
   "item_exists_trashed": "同じ ID の項目がゴミ箱にあります。戻すか、ゴミ箱から完全に削除してください。",
+  "primary_key_cannot_be_deleted": "主キーの欄は消せません。コレクションを消す場合は、コレクションごと削除してください。",
   "unexpected": "処理できませんでした。時間をおいてもう一度お試しください。",
   "relation_partial_failure": "列は作成されましたが、リレーションの作成に失敗しました。",
   "unauthenticated": "ログインし直してください。",
