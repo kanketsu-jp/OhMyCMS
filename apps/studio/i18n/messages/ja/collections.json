@@ -5,6 +5,7 @@
   "create_button": "作成",
   "create_title": "新規作成",
   "delete_button": "コレクション削除",
+  "empty": "コレクションはまだありません。",
   "field_count_header": "フィールド数",
   "fields_link": "フィールド",
   "items_link": "アイテム",

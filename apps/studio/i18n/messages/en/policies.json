@@ -14,6 +14,7 @@
   "deleted": "Deleted",
   "description": "Manage policies that group permission rules.",
   "description_label": "Description",
+  "empty": "No policies yet.",
   "detail_description": "Edit the permission row's collection / action / fields / row filter.",
   "detail_fallback_title": "Policy detail",
   "edit_button": "Edit",

@@ -14,6 +14,7 @@
   "deleted": "削除しました",
   "description": "権限ルールをまとめるポリシーを管理します。",
   "description_label": "説明",
+  "empty": "ポリシーはまだありません。",
   "detail_description": "permission行の collection / action / fields / 行フィルタを編集します。",
   "detail_fallback_title": "ポリシー詳細",
   "edit_button": "編集",

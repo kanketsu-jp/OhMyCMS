@@ -4,6 +4,7 @@
   "deleted": "削除しました",
   "description": "ロール階層と親ロールを管理します。",
   "description_label": "説明",
+  "empty": "ロールはまだありません。",
   "error_create_failed": "作成できません",
   "error_forbidden": "権限がありません",
   "error_remove_failed": "削除できません",

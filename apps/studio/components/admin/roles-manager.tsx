@@ -150,6 +150,11 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
           ))}
         </TableBody>
       </Table>
+      {/* 1 件も無いことを、表の枠だけで伝えない。
+          （読み込めていないのか、まだ無いのかが分からない） */}
+      {roles.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+      ) : null}
       <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
         <FormDraft formId="role-create-form" />
         <div className="space-y-1.5">

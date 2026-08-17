@@ -69,41 +69,48 @@ export default async function CollectionsPage({ searchParams }: Props) {
              `lib/admin/page-meta.ts` の `sectionKeys` に残してある。 */}
       <div id={sectionAnchorId("collections.list_title")}>
         {result.ok ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("title")}</TableHead>
-                <TableHead>{t("field_count_header")}</TableHead>
-                <TableHead>{t("note_label")}</TableHead>
-                <TableHead className="w-56">{t("actions_header")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {result.data.map((collection) => (
-                <TableRow key={collection.collection}>
-                  <TableCell className="font-medium">{collection.collection}</TableCell>
-                  <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>
-                  <TableCell>{collection.meta?.note ?? ""}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Link
-                        href={`/admin/collections/${collection.collection}`}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                      >
-                        {t("fields_link")}
-                      </Link>
-                      <Link
-                        href={`/admin/content/${collection.collection}`}
-                        className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-                      >
-                        {t("items_link")}
-                      </Link>
-                    </div>
-                  </TableCell>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("title")}</TableHead>
+                  <TableHead>{t("field_count_header")}</TableHead>
+                  <TableHead>{t("note_label")}</TableHead>
+                  <TableHead className="w-56">{t("actions_header")}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {result.data.map((collection) => (
+                  <TableRow key={collection.collection}>
+                    <TableCell className="font-medium">{collection.collection}</TableCell>
+                    <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>
+                    <TableCell>{collection.meta?.note ?? ""}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/admin/collections/${collection.collection}`}
+                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                        >
+                          {t("fields_link")}
+                        </Link>
+                        <Link
+                          href={`/admin/content/${collection.collection}`}
+                          className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                        >
+                          {t("items_link")}
+                        </Link>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {/* 1 件も無いことを、表の枠だけで伝えない。
+                （読み込めていないのか、まだ無いのかが分からない） */}
+            {result.data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("empty")}</p>
+            ) : null}
+          </>
         ) : null}
       </div>
     </div>

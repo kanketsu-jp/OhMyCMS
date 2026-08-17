@@ -5,6 +5,7 @@
   "create_button": "Create",
   "create_title": "Create New",
   "delete_button": "Delete Collection",
+  "empty": "No collections yet.",
   "field_count_header": "Fields",
   "fields_link": "Fields",
   "items_link": "Items",

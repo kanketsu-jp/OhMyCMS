@@ -4,6 +4,7 @@
   "deleted": "Deleted",
   "description": "Manage the role hierarchy and parent roles.",
   "description_label": "Description",
+  "empty": "No roles yet.",
   "error_create_failed": "Failed to create",
   "error_forbidden": "You don't have permission",
   "error_remove_failed": "Failed to remove",

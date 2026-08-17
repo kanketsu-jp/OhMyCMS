@@ -157,6 +157,11 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           ))}
         </TableBody>
       </Table>
+      {/* 1 件も無いことを、表の枠だけで伝えない。
+          （読み込めていないのか、まだ無いのかが分からない） */}
+      {policies.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+      ) : null}
       <form id="policy-create-form" action={create.run} className="space-y-4">
         <FormDraft formId="policy-create-form" />
         <div className="grid gap-4 md:grid-cols-2">
