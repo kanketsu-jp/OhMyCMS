@@ -51,28 +51,30 @@ export function FilesViewSwitch({
 
   return (
     <div className="inline-flex items-center gap-1">
-      <Select
-        value={String(cardColumns)}
-        onValueChange={(next) => router.push(gridCardColumnsHref[Number(next) as CardColumns])}
-      >
-        <SelectTrigger
-          aria-current={view === "grid" ? "true" : undefined}
-          aria-label={cardColumnsLabel}
-          title={cardColumnsLabel}
-          size="sm"
+      <span className="sm:hidden">
+        <Select
+          value={String(cardColumns)}
+          onValueChange={(next) => router.push(gridCardColumnsHref[Number(next) as CardColumns])}
         >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent align="end">
-          <SelectGroup>
-            {CARD_COLUMN_CHOICES.map((count) => (
-              <SelectItem key={count} value={String(count)}>
-                {t("options_columns_count", { count })}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+          <SelectTrigger
+            aria-current={view === "grid" ? "true" : undefined}
+            aria-label={cardColumnsLabel}
+            title={cardColumnsLabel}
+            size="sm"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectGroup>
+              {CARD_COLUMN_CHOICES.map((count) => (
+                <SelectItem key={count} value={String(count)}>
+                  {t("options_columns_count", { count })}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </span>
       <Link
         href={tableHref}
         // 🚨 いまの見え方を読み上げにも伝える。見た目の色だけだと、目で見ない人に分からない。

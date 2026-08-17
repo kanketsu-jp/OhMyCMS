@@ -37,10 +37,20 @@ export const ALWAYS_ON_COLUMN = null;
 /** 何も指定が無いときに出す列。 */
 export const DEFAULT_COLUMNS: readonly FileColumn[] = FILE_COLUMNS;
 
-/** カードを 1 行に並べる数。🚨 既定 5（堀池・2026-08-17「デフォルトは5にしてください」）。以前は 3（設問 316 の備考）。 */
-export const CARD_COLUMN_CHOICES = [1, 2, 3, 4, 5] as const;
+/**
+ * カードを 1 行に並べる数。🚨 **SP でだけ選ぶ**（PC は幅で自動的に折り返す）。
+ *
+ * 🚨 **既定 5 だった経緯を消さない**（堀池・2026-08-17「デフォルトは5にしてください」）。
+ *    その後 AR1（同日）で「MaxWidth を適応して勝手に改行されるように。SP なら 3 列と 2 列で選べる」
+ *    となったので、**PC は列を選ばない**（幅で決まる）。5 は「1 枚の最大幅 243px」として残っている
+ *    （`CARD_MAX_WIDTH_PX`）＝ **5 列指定が消えたのではなく、幅の形に変わった。**
+ */
+export const CARD_COLUMN_CHOICES = [2, 3] as const;
 export type CardColumns = (typeof CARD_COLUMN_CHOICES)[number];
-export const DEFAULT_CARD_COLUMNS: CardColumns = 5;
+export const DEFAULT_CARD_COLUMNS: CardColumns = 3;
+
+/** タイルの最大幅（px）。🚨 「5 列のときの 1 枚」＝ (1280 − 16×4) ÷ 5 = 243.2 の実測から。 */
+export const CARD_MAX_WIDTH_PX = 243;
 
 /**
  * `?cols=type,size` を読む。
@@ -58,7 +68,7 @@ export function readColumns(raw: string | string[] | undefined): readonly FileCo
   return FILE_COLUMNS.filter((column) => wanted.has(column));
 }
 
-/** `?cards=4` を読む。🚨 1〜5 の外は既定へ落とす。 */
+/** `?cards=3` を読む。🚨 2 / 3 の外は既定へ落とす。 */
 export function readCardColumns(raw: string | string[] | undefined): CardColumns {
   const value = Array.isArray(raw) ? raw[0] : raw;
   const parsed = Number(value);
@@ -72,21 +82,15 @@ export function readCardColumns(raw: string | string[] | undefined): CardColumns
  *
  * 🚨 **文字列を組み立てない**（`grid-cols-${n}` は Tailwind が拾えず、**無言で効かない**）。
  *    ここに全部書いておくのは冗長に見えるが、**書かないと動かない**。
- * 🚨 狭い画面では **1 列**に落とす。指定の列数は `sm:` から効かせる
- *    （**指定どおりに 5 列を狭い画面へ出すと、1 枚が読めない大きさになる**）。
  */
 export function cardGridClass(columns: CardColumns): string {
+  // 🚨 sm 以上は **幅で決める**（列数ではない）。1 枚は最大 243px で、入るだけ並んで折り返す。
+  //    sm 未満だけ列数を選ぶ（原文: 「SP なら３列と２列で選べる」）。
   switch (columns) {
-    case 1:
-      return "grid-cols-1";
     case 2:
-      return "grid-cols-1 sm:grid-cols-2";
+      return "grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(0,243px))]";
     case 3:
-      return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3";
-    case 4:
-      return "grid-cols-1 sm:grid-cols-2 md:grid-cols-4";
-    case 5:
-      return "grid-cols-1 sm:grid-cols-2 md:grid-cols-5";
+      return "grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(0,243px))]";
   }
 }
 
