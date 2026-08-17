@@ -108,7 +108,10 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   //    節が 1 つだけで、その名前が「一覧」だった。飛び先の一覧として意味を成していない。
   //    🚨 0 件のときに枠ごと消す動きは page-info-panel.tsx:80 に既に在るので、
   //       ここを空にするだけで枠は出なくなる（新しい分岐を足していない）。
-  "/admin/files": { titleKey: "files.title" },
+  // 🚨 descriptionKey を持たせる（堀池・2026-08-17 D5）。**概要の枠はこれが在るときだけ出る**
+  //    （`page-info-panel.tsx` が `meta?.descriptionKey` で囲っている）。
+  //    ＝ 「ストレージ情報を概要に出す」は、**枠を出すことと中身を入れることの 2 つ**だった。
+  "/admin/files": { titleKey: "files.title", descriptionKey: "files.description" },
   "/admin/files/new": { titleKey: "files.upload_title" },
   "/admin/files/new-folder": { titleKey: "folders.title" },
   "/admin/labels": { titleKey: "labels.title", descriptionKey: "labels.description" },
@@ -123,7 +126,13 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   // **まず完全一致を見る**（`PAGE_META[pathname]`）ので `[id]` に吸われない。
   // 🚨 並び順で守られているのではない。順序を入れ替えても解決先は変わらないことを実測した
   //    （最初「先に置かないと吸われる」と書いたが、**それは誤り**だった）。
-  "/admin/reports/[id]": { titleKey: "reports.title" },
+  // 🚨 **一覧と同じ `reports.title` を使わない。** 使うと見出しが
+  //    「不具合の報告（不具合の報告）」になる（実測 2026-08-17）。
+  //    `page-heading.tsx` は **葉の名前（{name}）と、その上の区画（{context}）**を
+  //    `nav.page_title_with_context`＝`{name}（{context}）` に流す。
+  //    葉も区画も `/admin/reports` の名前だと、**同じ語が 2 回出る**。
+  //    ＝ ここは「その報告のやりとり」なので、葉には別の名前を与える。
+  "/admin/reports/[id]": { titleKey: "reports.thread_title" },
 
   "/admin/profile": { titleKey: "nav.profile" },
 

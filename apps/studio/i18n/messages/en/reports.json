@@ -47,5 +47,6 @@
   "attach_remove": "Remove",
   "attach_too_many": "You can attach up to 5 images.",
   "attach_failed": "{failed} of {total} images could not be sent.",
-  "attach_section": "Attached images"
+  "attach_section": "Attached images",
+  "thread_title": "Thread"
 }
