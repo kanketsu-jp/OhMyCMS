@@ -72,7 +72,23 @@ export function HeaderSearch({ placeholder }: { placeholder?: string }) {
     // 🚨 **1024px 未満では出さない**（堀池さんの注記「横幅が十分にある時のみ表示」）。
     //    ヘッダーは狭いときパンくずと主操作で埋まるので、足すと**パンくずが潰れる**
     //    （2026-08-15 に同じ形で実際に潰れた記録が `breadcrumbs.tsx` に在る）。
-    <div className="hidden min-w-0 flex-1 items-center px-3 lg:flex">
+    // 🚨 **区画ごと地の色を敷く**（`DESIGN.md` §2-8「入力欄に見えるものは、打てること。
+    //    あわせて**地の色と同化させない**」）。
+    //    【測った 2026-08-17】直す前は入力の地が `rgba(0,0,0,0)`・枠 `0px` で、
+    //    **在ることを示すのはアイコンと placeholder だけ**だった
+    //    ＝ 堀池さんが最初に「背景色と同化してわかりずらい」と言った形と同じ。
+    //    🚨 **入力そのものに面を付けない。** ヘッダーは平ら（角丸なし・区画が隙間なく並ぶ）なので、
+    //      入力に箱を作ると**区画の中に箱**という二重の面になる（`no-nested-surfaces`）。
+    //      代わりに**区画いっぱいに地を敷く**ので、角も隙間も生まれない。
+    //    🚨 **色は `--input`（229）を使う。新しい色を作らない。**
+    //      【測った】白（--background = 255）に重ねた差:
+    //         `bg-muted/50` … 250 ＝ **差 5 / 255**（schema が「差 2 は見えない」と測った範囲と同じ）
+    //         `bg-input` ……… 229 ＝ **差 26 / 255**
+    //      schema の AN1 が「**編集できる欄 = `--input`**」に寄せているので、それに合わせた
+    //      （ここは実際に打てる欄なので、同じ語彙で正しい）。
+    //    🚨 **AN1 はここには届かない。** この入力は `bg-transparent` を自分で指定しており、
+    //      `components/ui/input.tsx` を変えても上書きされる（だから区画側に敷いている）。
+    <div className="hidden min-w-0 flex-1 items-center bg-input px-3 lg:flex">
       <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <Input
         type="search"
