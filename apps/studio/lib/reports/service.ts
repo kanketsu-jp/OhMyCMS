@@ -459,10 +459,32 @@ export async function listBugReports({
  * 🚨 **他人の報告は「無い」と同じ応答にする**（存在を漏らさない）。
  *    通知の `markRead` が他人の ID に 404 を返すのと同じ扱い。
  */
+/**
+ * 主キーは uuid なので、**その形でない id は DB へ渡さない**。
+ *
+ * 🚨 渡すと Postgres が `invalid input syntax for type uuid` を投げ、
+ *    画面には「処理できませんでした。時間をおいてもう一度お試しください。」が出る。
+ *    ＝ **利用者は「壊れている」と読む**が、実際は「その報告が無い」だけ。
+ *
+ * 実測（2026-08-17・pages）: J1 で `/admin/reports/manage` を消したあと、
+ * その URL が `[id]` に吸われて **HTTP 200 ＋「処理できませんでした」**になっていた。
+ * `/admin/reports/zz-not-an-id` も同じ。
+ *
+ * 🚨 **同じ形を schema が content 側で先に直している**（`d2a45e0`・`isPostgresUuidInput`）。
+ *    ここは報告の主キーが必ず uuid なので、**その 1 種類だけを見る**（型を引く必要が無い）。
+ */
+function looksLikeUuid(value: string): boolean {
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
+}
+
 export async function getBugReportThread(
   id: string,
   { viewer, isManager }: { viewer: string | null; isManager: boolean },
 ): Promise<BugReportThread> {
+  // 🚨 「無い」と「壊れた id」を同じ 404 にする。403 を作らないのと同じ考え方で、
+  //    **その id の報告が在るかどうかを、形の違いで漏らさない**。
+  if (!looksLikeUuid(id)) throw new ApiError(404, "NOT_FOUND", "報告が見つかりません");
+
   const query = db("ohmycms_bug_reports").select(...REPORT_COLUMNS).where({ id });
   // 管理者でないなら、**自分が出した報告だけ**。WHERE に入れる（取ってから捨てない）。
   if (!isManager) {
