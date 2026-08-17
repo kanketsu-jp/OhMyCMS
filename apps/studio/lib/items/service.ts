@@ -7,7 +7,7 @@ import {
   type PermissionAction,
   type PermissionResolution,
 } from "@/lib/permissions/resolve";
-import { ApiError, rethrowAsConflict } from "@/lib/schema/errors";
+import { ApiError, rethrowAsConflict, type FieldIssue } from "@/lib/schema/errors";
 import { getSchemaOverview } from "@/lib/schema/introspect";
 import type { ColumnInfo, RelationMeta } from "@/lib/schema/models";
 import { assertSafeIdentifier, isSystemTableName } from "@/lib/schema/validate";
@@ -1071,11 +1071,40 @@ async function assertPayloadWritable(payload: Item, collection: string): Promise
  * DB が投げたエラーを、意味のある 4xx へ翻訳してから投げ直す。
  * 表に無いものはそのまま（原因不明の 500 は 500 のまま出す）。
  */
+/**
+ * 23505（一意制約違反）が指している**制約名を、列名へ落とす**。
+ *
+ * 🚨 **PostgreSQL は 23505 で列名を返さない**（実測 2026-08-17: `column` は undefined で、
+ *    在るのは `constraint`＝ 制約名だけ）。だから**カタログへ 1 往復して引き直す**。
+ * 🚨 **名前で当てない。** `pg_constraint.conname` で行を引き、`conkey`（列番号の配列）から
+ *    `pg_attribute` で実際の列名を取る。**綴りの一致に賭けていない**
+ *    （`guards-keyed-by-name-break-silently` の形にしない）。
+ * 🚨 **引けなければ空を返す**（**推測で欄を作らない**）。欄が無くても応答は今までどおり。
+ */
+async function columnsOfConstraint(constraint: unknown): Promise<FieldIssue[]> {
+  if (typeof constraint !== "string" || constraint === "") return [];
+  try {
+    const rows = await db
+      .select<{ attname: string }[]>("a.attname")
+      .from({ c: "pg_constraint" })
+      .joinRaw('join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)')
+      .where("c.conname", constraint);
+    return rows.map((row) => ({ field: row.attname, code: "ALREADY_EXISTS" }));
+  } catch {
+    // 🚨 引けなかったことを失敗にしない。**欄が言えないだけ**で、元の 409 は返る。
+    return [];
+  }
+}
+
 async function runTranslatingDbErrors<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (error) {
-    rethrowAsConflict(error);
+    // 🚨 23505 のときだけ、制約名から列名を引いて渡す（DB へ 1 往復するので、失敗した時だけ）。
+    const code = (error as { code?: unknown } | null)?.code;
+    const extra =
+      code === "23505" ? await columnsOfConstraint((error as { constraint?: unknown }).constraint) : [];
+    rethrowAsConflict(error, extra);
     throw error;
   }
 }

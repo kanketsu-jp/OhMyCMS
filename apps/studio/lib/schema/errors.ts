@@ -81,13 +81,42 @@ const PG_STATE_TO_API: Record<string, { status: number; code: string; message: s
  * 載っていなければ**何もしない**（呼び出し側がそのまま投げ直す）。
  * 🚨 知らないエラーを握り潰さないこと。原因不明の 500 は 500 のまま出す。
  */
-export function rethrowAsConflict(error: unknown): void {
+export function rethrowAsConflict(error: unknown, extraFields?: readonly FieldIssue[]): void {
   // 🚨 ApiError も `code` を持つ（"COLLECTION_NOT_FOUND" 等）。先に外さないと表を引きに行ってしまう。
   if (isApiError(error)) return;
   const code = (error as { code?: unknown } | null)?.code;
   if (typeof code !== "string") return;
   const mapped = PG_STATE_TO_API[code];
   if (!mapped) return;
-  throw new ApiError(mapped.status, mapped.code, mapped.message);
+  throw new ApiError(mapped.status, mapped.code, mapped.message, [
+    ...(fieldsFromPgError(code, error) ?? []),
+    ...(extraFields ?? []),
+  ]);
+}
+
+/**
+ * PostgreSQL のエラーが**自分で持っている**列名だけを `FieldIssue` にする。
+ *
+ * 🚨 **推測しない。** 使い捨ての Postgres で savepoint を挟んで測った結果（2026-08-17）:
+ *
+ * | SQLSTATE | `column` | `constraint` |
+ * |---|---|---|
+ * | **23502** not_null    | 🟢 **在る**（例 `"need"`） | — |
+ * | 22P02 invalid_text    | 🚨 **undefined** | — |
+ * | 23505 unique          | 🚨 undefined | 🚨 **制約名だけ**（列ではない） |
+ *
+ * 🚨 したがってここで欄を言えるのは **23502 だけ**。
+ * - **22P02** は、DB に聞いても分からない。言いたければ**投入の前にアプリが型を検証する**しかない
+ *   （＝ いま「文字列の欄に何でも入る」問題と**同じ 1 つの直し**。判断待ち）。
+ * - **23505** は `pg_constraint` を引けば列へ落とせるが、**DB へ 1 往復要る**ので
+ *   ここ（同期・db 非依存）ではやらない。**db を持つ呼び手が `extraFields` で渡す**。
+ *
+ * 決定: `knowledge/decisions/field-errors-need-a-container.md`
+ */
+function fieldsFromPgError(code: string, error: unknown): FieldIssue[] | null {
+  if (code !== "23502") return null;
+  const column = (error as { column?: unknown }).column;
+  if (typeof column !== "string" || column === "") return null;
+  return [{ field: column, code: "REQUIRED_FIELD" }];
 }
 
