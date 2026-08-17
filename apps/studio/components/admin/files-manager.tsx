@@ -75,7 +75,7 @@ export function FileUploadForm({
           placeholder={t("filename_help")}
           aria-label={t("filename_label")}
         />
-        <select name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={initialFolder === "root" ? "" : initialFolder ?? ""}>
+        <select name="folder" className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={initialFolder === "root" ? "" : initialFolder ?? ""}>
           <option value="">{t("no_folder_option")}</option>
           {folders.map((folder) => (
             <option key={folder.id} value={folder.id}>{folder.name}</option>

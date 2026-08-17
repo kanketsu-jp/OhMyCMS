@@ -126,7 +126,7 @@ export default async function FileDetailPage({ params }: Props) {
                 <dt className="text-muted-foreground">{t("id_label")}</dt>
                 <dd className="mt-1 flex flex-wrap items-center gap-2">
                   <span id="file-detail-id" className="break-all">{file.id}</span>
-                  <CopyButton value={file.id} selectTargetId="file-detail-id" data-copy-target="file-detail-id" />
+                  <CopyButton what={t("id_label")} value={file.id} selectTargetId="file-detail-id" data-copy-target="file-detail-id" />
                 </dd>
               </div>
               <div><dt className="text-muted-foreground">{t("type_label")}</dt><dd>{file.type ?? ""}</dd></div>

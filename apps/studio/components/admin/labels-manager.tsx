@@ -296,7 +296,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
                           color: event.target.value === "" ? null : event.target.value,
                         })
                       }
-                      className="h-(--control-h) rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
+                      className="h-(--control-h) rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
                     >
                       {colorOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -370,7 +370,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
               id="label-color"
               value={color}
               onChange={(event) => setColor(event.target.value)}
-              className="h-(--control-h) rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
+              className="h-(--control-h) rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
             >
               {colorOptions.map((option) => (
                 <option key={option.value} value={option.value}>

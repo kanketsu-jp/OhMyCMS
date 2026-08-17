@@ -124,7 +124,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
           {/* 🚨 `<select>` は `readOnly` という性質を**そもそも持たない**（実測 2026-08-16）。
               表示モードでは**要素ごと置き換えて、選ばれている値を文字で出す**（§2-1・案 2）。 */}
           {editing ? (
-            <select id="folder" name="folder" className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={file.folder ?? ""}>
+            <select id="folder" name="folder" className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm" defaultValue={file.folder ?? ""}>
               <option value="">{t("no_folder_option")}</option>
               {folders.map((folder) => (
                 <option key={folder.id} value={folder.id}>{folder.name}</option>
