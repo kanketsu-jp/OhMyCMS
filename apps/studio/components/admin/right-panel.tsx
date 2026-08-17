@@ -18,8 +18,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { PageInfoPanel } from "@/components/admin/page-info-panel";
 import { usePageTrail } from "@/components/admin/page-trail";
-import { SHORTCUTS } from "@/components/admin/shortcuts";
-import { useShortcut } from "@/components/admin/use-shortcut";
+import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
+import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useT } from "@/i18n/client";
 
 /**
@@ -154,26 +155,44 @@ export function RightPanelProvider({
 /** ヘッダー右の info。押すと開閉する。 */
 export function RightPanelToggle() {
   const t = useT("panel");
+  const isMac = useIsMac();
   const { toggle, isOpen } = useRightPanel();
 
   useShortcut(SHORTCUTS.toggleRightSidebar, toggle);
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      onClick={toggle}
-      aria-label={t("open")}
-      aria-expanded={isOpen}
-      // 🚨 `aria-expanded` だけでは名指しできない。同じヘッダーの中でパンくずの
-      //    ドロップダウンも `aria-expanded` を持つので、検証が**別のボタンを押していた**
-      //    （実測: info を押したつもりでパンくずが開き、「開かない」と誤診しかけた）。
-      data-slot="right-panel-toggle"
-      className="text-muted-foreground"
-    >
-      <InfoIcon />
-    </Button>
+    // 🚨 **アイコンだけのボタンなので、目で見る人には名前が 1 文字も出ていなかった**
+    //    （2026-08-17 実測: 3 画面とも「見えている true・押せる true」だが、
+    //      文字は無く `aria-label` だけ ＝ 読み上げでは読めるが、見る人には ⓘ の絵だけ）。
+    // 🚨 これは §1-11（居座る画面には「この画面は何か」を出す）の**実効性の穴**だった。
+    //    説明は右パネルの「概要」に在るが、**右パネルは既定で閉じ、遷移でも閉じる**
+    //    （実測: 開いた直後 aside 0 → ⌘J で 1 → 遷移で 0 → 戻っても 0）。
+    //    ＝ 説明へ入る道はこのボタン 1 つで、その名前が見えていなかった。
+    // 🚨 **名前も出す**（header-back は「名前は既にボタンに見えている」ので鍵だけにしている。
+    //    こちらは名前が見えていないので、**名前 ＋ 鍵**。同じ語を 2 回出す形にはならない）。
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={toggle}
+          aria-label={t("open")}
+          aria-expanded={isOpen}
+          // 🚨 `aria-expanded` だけでは名指しできない。同じヘッダーの中でパンくずの
+          //    ドロップダウンも `aria-expanded` を持つので、検証が**別のボタンを押していた**
+          //    （実測: info を押したつもりでパンくずが開き、「開かない」と誤診しかけた）。
+          data-slot="right-panel-toggle"
+          className="text-muted-foreground"
+        >
+          <InfoIcon />
+        </Button>
+      </TooltipTrigger>
+      {/* 🚨 記号は環境で変わるので辞書に入れない（header-back と同じ作法）。 */}
+      <TooltipContent side="bottom">
+        {`${t("open")}  ${formatShortcut(SHORTCUTS.toggleRightSidebar, isMac)}`}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
