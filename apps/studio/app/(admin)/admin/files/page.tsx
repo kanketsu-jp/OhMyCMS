@@ -351,7 +351,28 @@ export default async function FilesPage({ searchParams }: Props) {
               {/* 表示形式の外に置く。カードと表で伝わる情報が変わっていたため。
                   「元から空」と「絞り込んだ結果 0 件」では、次にする操作が違う。 */}
               {childFolders.length === 0 && files.length === 0 ? (
-                <ListEmpty>{activeLabel || activeQuery ? t("empty_filtered") : t("empty_folder")}</ListEmpty>
+                <ListEmpty>
+                  {activeLabel || activeQuery ? (
+                    // 🚨 絞った結果の 0 件は、**次にできることが既に本文に在る**
+                    //    （上の「絞り込みを解除」）。ここに足すと同じ出口が 2 つになる。
+                    t("empty_filtered")
+                  ) : (
+                    <>
+                      {t("empty_folder")}{" "}
+                      {/* 🚨 空のときは「無い」で終わらせない（DESIGN.md §1-10）。
+                          主ボタンはヘッダーへ portal で出ているが、**本文にも置いてよい**。
+                          🚨 行き先は `newFileHref` / `newFolderHref` を使う。
+                             直書きすると `?folder=` が落ちて、**空のフォルダを開いたまま
+                             追加したのに根に作られる**（この画面で前に踏んだ形）。 */}
+                      <Link href={newFileHref} className="underline">
+                        {t("new_file_button")}
+                      </Link>{" "}
+                      <Link href={newFolderHref} className="underline">
+                        {t("new_folder_button")}
+                      </Link>
+                    </>
+                  )}
+                </ListEmpty>
               ) : null}
               {view === "table" ? (
                 <FilesTable folders={childFolders} files={files} columns={columns} />
