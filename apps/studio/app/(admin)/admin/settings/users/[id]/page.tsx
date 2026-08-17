@@ -33,6 +33,7 @@ type UserRow = {
   last_name: string | null;
   status: string;
   role: string | null;
+  avatar_emoji: string | null;
   last_access: string | null;
   provider: string | null;
   external_identifier: string | null;

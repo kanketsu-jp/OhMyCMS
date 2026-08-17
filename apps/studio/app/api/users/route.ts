@@ -17,6 +17,7 @@ export async function GET(request: Request) {
         "email",
         "status",
         "role",
+        "avatar_emoji",
         "last_access",
         "provider",
         "external_identifier",

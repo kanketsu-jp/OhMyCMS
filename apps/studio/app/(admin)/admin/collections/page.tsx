@@ -3,6 +3,7 @@ import type { CollectionResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { CollectionIconFor } from "@/components/admin/left-sidebar";
 import { HeaderSearch } from "@/components/admin/header-search";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
@@ -108,9 +109,17 @@ export default async function CollectionsPage({ searchParams }: Props) {
                   return (
                     <TableRow key={collection.collection}>
                       <TableCell>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium">{collectionLabel(collection, locale)}</span>
-                          <span className="text-xs text-muted-foreground">{collection.collection}</span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
+                            <CollectionIconFor
+                              icon={collection.meta?.icon ?? null}
+                              collection={collection.collection}
+                            />
+                          </span>
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span className="font-medium">{collectionLabel(collection, locale)}</span>
+                            <span className="text-xs text-muted-foreground">{collection.collection}</span>
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>

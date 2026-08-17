@@ -31,6 +31,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         "email",
         "status",
         "role",
+        "avatar_emoji",
         "last_access",
         "provider",
         "external_identifier",

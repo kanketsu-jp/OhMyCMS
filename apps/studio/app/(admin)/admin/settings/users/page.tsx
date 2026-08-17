@@ -18,6 +18,7 @@ type UserRow = {
   last_name: string | null;
   status: string;
   role: string | null;
+  avatar_emoji: string | null;
 };
 
 type PolicyRow = {
