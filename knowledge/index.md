@@ -27,6 +27,7 @@ x_rag_okf:
 - [権限と認可（permissions）](./areas/permissions.md) — `areas/permissions`
 - [v1 として何を約束しているか（V1-A〜E）](./areas/v1-scope.md) — `areas/v1-scope`
 - [アクションボタンは1つ。表示モードと編集モードを分ける](./decisions/action-button-and-edit-mode.md) — `decisions/action-button-and-edit-mode`
+- [管理画面は「全部見える」か「何も見えない」の二値](./decisions/admin-ui-is-all-or-nothing.md) — `decisions/admin-ui-is-all-or-nothing`
 - [指示書は AGENTS.md を正本にする](./decisions/agents-md-as-canonical.md) — `decisions/agents-md-as-canonical`
 - [認証は SAML → メール OTP → パスワードの順に使う](./decisions/auth-methods.md) — `decisions/auth-methods`
 - [アバターは絵文字にする。メールの頭文字を出さない](./decisions/avatar-is-emoji-not-initials.md) — `knowledge/decisions/avatar-is-emoji-not-initials.md`
