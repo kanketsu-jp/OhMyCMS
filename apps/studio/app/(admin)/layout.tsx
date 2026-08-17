@@ -51,6 +51,16 @@ const fileItems = [
 
 // 子は「設定 / 一般」ではなく**「一般」**。親が「設定」なので繰り返さない。
 // 🚨 `settings_*`（長い方）の辞書キーは消していない。他で使われている可能性があるため。
+// 🚨 G2（堀池さん 2026-08-17）「ロール・ポリシー・ユーザーの 3 つは、似た概念なので
+//    『ユーザー』という 1 つのセクションにまとめてください」。
+//    🚨 `NavGroup.children` は `NavLink[]` で**入れ子を持てない**ので、
+//    設定の中の入れ子ではなく**並びの組**にした（実測: nav-links.tsx:16-26）。
+const userItems = [
+  { href: "/admin/settings/users", labelKey: "settings_child_users" },
+  { href: "/admin/settings/roles", labelKey: "settings_child_roles" },
+  { href: "/admin/settings/policies", labelKey: "settings_child_policies" },
+];
+
 const settingsItems = [
   { href: "/admin/collections", labelKey: "collections" },
   { href: "/admin/settings/general", labelKey: "settings_child_general" },
@@ -59,9 +69,6 @@ const settingsItems = [
   // （🚨 一度、ページが git に入る前にリンクだけが入って「押すと 404」になった。
   //  リンク・文言・ページは**必ず同じコミットで**揃える）。
   { href: "/admin/settings/sso", labelKey: "settings_child_sso" },
-  { href: "/admin/settings/roles", labelKey: "settings_child_roles" },
-  { href: "/admin/settings/policies", labelKey: "settings_child_policies" },
-  { href: "/admin/settings/users", labelKey: "settings_child_users" },
   { href: "/admin/settings/agents", labelKey: "settings_child_agents" },
   { href: "/admin/settings/mcp", labelKey: "settings_child_mcp" },
   { href: "/admin/settings/version", labelKey: "settings_child_version" },
@@ -169,6 +176,12 @@ export default async function AdminLayout({
       label: t("files"),
       match: "/admin/files",
       children: fileItems.map((item) => ({ href: item.href, label: t(item.labelKey) })),
+    },
+    {
+      key: "users",
+      label: t("settings_child_users"),
+      match: ["/admin/settings/users", "/admin/settings/roles", "/admin/settings/policies"],
+      children: userItems.map((item) => ({ href: item.href, label: t(item.labelKey) })),
     },
     {
       key: "settings",
