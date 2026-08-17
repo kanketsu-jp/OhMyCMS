@@ -13,6 +13,8 @@
   "api_prompt_line_tools": "使えるツール: {tools}",
   "api_rest_heading": "この画面を API で叩く",
   "api_rest_none": "この画面に対応する API はありません。",
+  "file_detail_url_what": "ファイルの URL",
+  "api_rest_what": "curl コマンド",
   "display": "表示・切り替え",
   "display_columns_heading": "表示する列",
   "display_empty": "表示できる列がありません",

@@ -13,6 +13,8 @@
   "api_prompt_line_tools": "Available tools: {tools}",
   "api_rest_heading": "Call this screen from the API",
   "api_rest_none": "There is no API for this screen.",
+  "file_detail_url_what": "the file URL",
+  "api_rest_what": "the curl command",
   "display": "Display",
   "display_columns_heading": "Visible columns",
   "display_empty": "No columns to show",

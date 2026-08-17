@@ -123,7 +123,7 @@ export function PanelApiMcp() {
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium">{t("api_prompt_heading")}</h3>
-            <CopyButton value={prompt} selectTargetId="panel-api-prompt" />
+            <CopyButton value={prompt} selectTargetId="panel-api-prompt" what={t("api_prompt_heading")} />
           </div>
           <ScrollArea className="w-full max-w-full rounded-md bg-muted [&>[data-slot=scroll-area-viewport]]:max-w-full">
             <pre id="panel-api-prompt" className="w-max p-2 text-sm whitespace-pre text-muted-foreground">
@@ -150,7 +150,7 @@ export function PanelApiMcp() {
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium">{t("api_rest_heading")}</h3>
-            {curl ? <CopyButton value={curl} selectTargetId="panel-api-curl" /> : null}
+            {curl ? <CopyButton value={curl} selectTargetId="panel-api-curl" what={t("api_rest_what")} /> : null}
           </div>
           {curl ? (
             <ScrollArea className="w-full max-w-full rounded-md bg-muted [&>[data-slot=scroll-area-viewport]]:max-w-full">

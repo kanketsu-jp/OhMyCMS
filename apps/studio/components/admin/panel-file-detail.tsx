@@ -142,6 +142,10 @@ export function PanelFileDetail() {
         */}
         <CopyButton
           className="rounded-none"
+          // 🚨 何をコピーするか言う（DESIGN.md §2-12・堀池 AM1「ボタン自体が『ID をコピー』と
+          //    表示するべき」）。🚨 ここが渡すのは **id ではなく URL** なので、そう言う
+          //    （AL1 で id → URL に変えてある。**ボタンの文言だけ id のままにしない**）。
+          what={t("file_detail_url_what")}
           value={new URL(`/api/assets/${file.id}`, typeof window === "undefined" ? "http://localhost" : window.location.origin).toString()}
         />
       </div>
