@@ -195,6 +195,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
         readOnly={!editing}
         value={attributes[key]}
         onChange={(event) => setAttributes({ ...attributes, [key]: event.target.value })}
+        placeholder={!editing ? tCommon("not_set") : undefined}
       />
       {helpKey ? <p className="text-xs text-muted-foreground">{t(helpKey)}</p> : null}
     </div>
@@ -227,7 +228,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
             <Label htmlFor="saml-sp-entity-id">{t("sp_entity_id_label")}</Label>
             <CopyButton value={settings.sp.entityId} selectTargetId="saml-sp-entity-id" />
           </div>
-          <Input id="saml-sp-entity-id" readOnly value={settings.sp.entityId} />
+          <Input id="saml-sp-entity-id" readOnly value={settings.sp.entityId} placeholder={tCommon("not_set")} />
           <p className="text-xs text-muted-foreground">{t("sp_entity_id_help")}</p>
         </div>
 
@@ -236,7 +237,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
             <Label htmlFor="saml-acs-url">{t("acs_url_label")}</Label>
             <CopyButton value={settings.sp.acsUrl} selectTargetId="saml-acs-url" />
           </div>
-          <Input id="saml-acs-url" readOnly value={settings.sp.acsUrl} />
+          <Input id="saml-acs-url" readOnly value={settings.sp.acsUrl} placeholder={tCommon("not_set")} />
           <p className="text-xs text-muted-foreground">{t("acs_url_help")}</p>
         </div>
 
@@ -311,6 +312,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
               readOnly={!editing}
               value={metadataXml}
               onChange={(event) => setMetadataXml(event.target.value)}
+              placeholder={!editing ? tCommon("not_set") : undefined}
             />
             <p className="text-xs text-muted-foreground">{t("metadata_help")}</p>
           </div>
@@ -323,6 +325,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
                 readOnly={!editing}
                 value={entityId}
                 onChange={(event) => setEntityId(event.target.value)}
+                placeholder={!editing ? tCommon("not_set") : undefined}
               />
               <p className="text-xs text-muted-foreground">{t("idp_entity_id_help")}</p>
             </div>
@@ -334,6 +337,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
                 readOnly={!editing}
                 value={ssoUrl}
                 onChange={(event) => setSsoUrl(event.target.value)}
+                placeholder={!editing ? tCommon("not_set") : undefined}
               />
               <p className="text-xs text-muted-foreground">{t("idp_sso_url_help")}</p>
             </div>
@@ -346,6 +350,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
                 readOnly={!editing}
                 value={certificate}
                 onChange={(event) => setCertificate(event.target.value)}
+                placeholder={!editing ? tCommon("not_set") : undefined}
               />
               <p className="text-xs text-muted-foreground">{t("certificate_help")}</p>
             </div>

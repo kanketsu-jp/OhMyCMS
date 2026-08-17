@@ -158,8 +158,14 @@ export function SettingsManager({ settings }: { settings: Settings }) {
         // 🚨 表示モードは `readOnly`。`disabled` にしない
         //    （規約 §2「読めるが変えられない」。`disabled` だと読み上げから外れ、
         //     値をコピーすることもできなくなる）
+        // 🚨 **表示モードで値が空なら「未設定」を出す**（堀池・2026-08-17・AE1/D6
+        //    「フィールドの枠がないので、わからない」）。空のままだと**ラベルと説明のあいだが
+        //    完全な空白**になり、欄が在ることすら分からない。schema が storage / profile で
+        //    採った形（`common.not_set`）に**揃えている**——同じことを 2 通りで書かない。
+        //    🚨 編集モードでは出さない（`undefined`）。本物の入力の邪魔になる。
         readOnly={!editing}
         defaultValue={defaultValue}
+        placeholder={!editing ? tCommon("not_set") : undefined}
       />
       <p className="text-xs text-muted-foreground">
         {t(helpKey)}
@@ -306,6 +312,7 @@ export function SettingsManager({ settings }: { settings: Settings }) {
           readOnly={!editing}
           defaultValue={settings.public_note}
           rows={3}
+          placeholder={!editing ? tCommon("not_set") : undefined}
         />
         <p className="text-xs text-muted-foreground">
           {t("public_note_help")}
