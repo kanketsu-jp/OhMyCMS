@@ -2,25 +2,45 @@
 
 import Link from "next/link";
 import { FileIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
 import { FileThumbnail } from "@/components/admin/file-thumbnail";
 import { FileTileMenu } from "@/components/admin/file-tile-menu";
 import { ImageLightbox } from "@/components/admin/image-lightbox";
 import { useT } from "@/i18n/client";
+import {
+  clearSelection,
+  setSelection,
+  usePreviewRequest,
+  useSelectedFiles,
+  type SelectedFile,
+} from "@/lib/admin/files-selection";
+import { cn } from "@/lib/utils";
 
-type FileRow = {
+/**
+ * 一覧が扱うファイル 1 件。
+ *
+ * 🚨 **`lib/admin/files-selection.ts` の `SelectedFile` と同じ形にしてある**
+ *    （右サイドバーへ渡すのがこの型そのものなので、2 つ書くと片方だけ直る）。
+ *
+ * 🚨 **`width` / `height` を落とさないこと。** 無いと**拡大が黙って効かない**
+ *    （ボタンは出るが最大倍率が 1 と評価される。エラーも出ない。
+ *    `image-lightbox.tsx` の注意書きに実例が残っている）。
+ *    画像でないものや、読めなかった画像では null。
+ */
+type FileRow = SelectedFile;
+
+type TileEvent = {
+  detail: number;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  preventDefault: () => void;
+};
+
+type FileDragProps = {
   id: string;
-  filename_download: string;
-  title: string | null;
-  type: string | null;
-  /**
-   * 🚨 拡大に要る。**無いと拡大が黙って効かない**（`image-lightbox.tsx` の注意書き参照）。
-   * 画像でないものや、読めなかった画像では null。
-   */
-  width: number | null;
-  height: number | null;
 };
 
 function isImage(file: FileRow): boolean {
@@ -31,10 +51,25 @@ function extension(file: FileRow, fallback: string): string {
   return file.filename_download.split(".").pop()?.toUpperCase() ?? fallback;
 }
 
+function fileDragProps(file: FileDragProps) {
+  return {
+    draggable: true,
+    onDragStart: (event: React.DragEvent) => {
+      // 🚨 種類を分けて載せる。素の text/plain だと、外から来たテキストと区別が付かない。
+      event.dataTransfer.setData(DRAG_FILE_MIME, JSON.stringify([file.id]));
+      event.dataTransfer.effectAllowed = "move";
+    },
+  };
+}
+
 export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   const t = useT("files");
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
+  const [closedPreviewNonce, setClosedPreviewNonce] = useState<number | null>(null);
+  const selectedFiles = useSelectedFiles();
+  const previewRequest = usePreviewRequest();
+  const lastClickedIdRef = useRef<string | null>(null);
   const imageFiles = useMemo(() => files.filter(isImage), [files]);
   const images = useMemo(
     () =>
@@ -50,6 +85,26 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     () => new Map(imageFiles.map((file, imageIndex) => [file.id, imageIndex])),
     [imageFiles],
   );
+  const fileById = useMemo(
+    () => new Map(files.map((file) => [file.id, file])),
+    [files],
+  );
+  const selectedIds = useMemo(
+    () => new Set(selectedFiles.map((file) => file.id)),
+    [selectedFiles],
+  );
+  const previewImageIndex = (() => {
+    if (!previewRequest) return null;
+    const file = fileById.get(previewRequest.id);
+    if (!file || !isImage(file)) return null;
+    return imageIndexById.get(file.id) ?? null;
+  })();
+  const previewOpen =
+    previewRequest !== null &&
+    previewImageIndex !== null &&
+    closedPreviewNonce !== previewRequest.nonce;
+  const lightboxIndex = previewOpen ? previewImageIndex : index;
+  const lightboxOpen = previewOpen || open;
 
   function openImage(file: FileRow) {
     const imageIndex = imageIndexById.get(file.id);
@@ -58,8 +113,62 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     setOpen(true);
   }
 
+  function replaceSelection(next: readonly FileRow[]): void {
+    if (next.length === 0) {
+      clearSelection();
+      return;
+    }
+    setSelection(next);
+  }
+
+  function toggle(file: FileRow): void {
+    const next = selectedIds.has(file.id)
+      ? selectedFiles.filter((selected) => selected.id !== file.id)
+      : [...selectedFiles, file];
+    lastClickedIdRef.current = file.id;
+    replaceSelection(next);
+  }
+
+  function selectRange(file: FileRow): void {
+    const startId = lastClickedIdRef.current;
+    if (!startId) {
+      replaceSelection([file]);
+      return;
+    }
+    const startIndex = files.findIndex((one) => one.id === startId);
+    const endIndex = files.findIndex((one) => one.id === file.id);
+    if (startIndex === -1 || endIndex === -1) {
+      replaceSelection([file]);
+      return;
+    }
+    const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+    const byId = new Map(selectedFiles.map((selected) => [selected.id, selected]));
+    for (const selected of files.slice(from, to + 1)) byId.set(selected.id, selected);
+    replaceSelection([...byId.values()]);
+  }
+
+  function selectFromEvent(event: TileEvent, file: FileRow): void {
+    if (event.metaKey || event.ctrlKey) return;
+    if (event.detail > 1) return;
+    event.preventDefault();
+    if (event.shiftKey) {
+      selectRange(file);
+      return;
+    }
+    toggle(file);
+  }
+
+  useEffect(() => {
+    const clearOnEscape = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.key !== "Escape") return;
+      clearSelection();
+    };
+    document.addEventListener("keydown", clearOnEscape);
+    return () => document.removeEventListener("keydown", clearOnEscape);
+  }, []);
+
   return (
-    <>
+    <div className="contents">
       {files.map((file) => {
         const label = file.title ?? file.filename_download;
         /**
@@ -67,14 +176,12 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
          * 🚨 **画像の `<img>` には `draggable={false}` が要る**（既定で画像だけが
          *    単独でドラッグされ、こちらの荷物が載らないため）。ここでは外側に持たせる。
          */
-        const dragProps = {
-          draggable: true,
-          onDragStart: (event: React.DragEvent) => {
-            // 🚨 種類を分けて載せる。素の text/plain だと、外から来たテキストと区別が付かない。
-            event.dataTransfer.setData(DRAG_FILE_MIME, JSON.stringify([file.id]));
-            event.dataTransfer.effectAllowed = "move";
-          },
-        };
+        const dragProps = fileDragProps(file);
+        const selected = selectedIds.has(file.id);
+        const tileClassName = cn(
+          "min-w-0 rounded-md p-3 transition-colors hover:bg-muted active:bg-muted/80",
+          selected && "ring-2 ring-ring",
+        );
 
         if (isImage(file)) {
           return (
@@ -82,6 +189,14 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
             <button
               {...dragProps}
               type="button"
+              data-selected={selected ? "true" : undefined}
+              /* 🚨 **`aria-selected` は使えない。** `role=button`（`<button>` の暗黙の役）は
+                 この属性を持てず、lint が名指しで警告した（`jsx-a11y/role-supports-aria-props`）。
+                 選んでいる状態を読み上げに伝えるのは **`aria-pressed`**（押している/いない）。
+                 🚨 **「見える」「押せる」「読み上げられる」は 3 つ別の問い。**
+                 見た目のリング（`ring-2`）だけ足して読み上げを足さないと、
+                 目で見ない人には**選択が起きていないのと同じ**になる。 */
+              aria-pressed={selected}
               /* 🚨 `hover:` には必ず `active:` を対で置く（堀池さん指示・2026-08-15）。
                  **タッチの端末には hover がありません**（実測: sp で
                  `matchMedia("(hover: hover)")` → false / `(pointer: coarse)` → true）。
@@ -89,8 +204,9 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
                  🚨 だから **hover と同じ濃さにしない**——`/80` と一段濃くしてある。
                  同じ濃さだと、押しても「触れただけ」と見分けが付きません。
                  🚨 **SP の実機で押した手応えは、まだ測っていません**（本来の目的はそこ）。 */
-              className="min-w-0 rounded-md p-3 text-left transition-colors hover:bg-muted active:bg-muted/80"
-              onClick={() => openImage(file)}
+              className={cn(tileClassName, "text-left")}
+              onClick={(event) => selectFromEvent(event, file)}
+              onDoubleClick={() => openImage(file)}
             >
               <FileThumbnail id={file.id} alt={label} />
               <p className="mt-3 truncate text-sm font-medium">{label}</p>
@@ -100,12 +216,24 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
           );
         }
 
+        /**
+         * 🚨 **画像でないタイルは、選択を読み上げに伝えられていない**（未解決・2026-08-17）。
+         *    `aria-selected` は `role=link` が持てない属性で（lint が名指しで警告する）、
+         *    `aria-pressed` もリンクには載らない（押す部品ではないため）。
+         *    正しく伝えるには並び全体を `role="listbox"`・各タイルを `role="option"` にする——
+         *    それは**並びの器（`page.tsx` の grid）を作り替える話で、フォルダのタイルも巻き込む**ので、
+         *    この項目では手を付けない。
+         *    🚨 **見た目のリングは出るが、目で見ない人にはこのタイルの選択が届かない。**
+         *    画像のタイル（`<button>`）は `aria-pressed` で伝えている。差は司令塔へ上げた。
+         */
         return (
           <FileTileMenu key={file.id} fileId={file.id}>
           <Link
             {...dragProps}
             href={`/admin/files/${file.id}`}
-            className="min-w-0 rounded-md p-3 hover:bg-muted active:bg-muted/80"
+            data-selected={selected ? "true" : undefined}
+            className={tileClassName}
+            onClick={(event) => selectFromEvent(event, file)}
           >
             <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
               <div className="text-center text-muted-foreground">
@@ -119,7 +247,16 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
           </FileTileMenu>
         );
       })}
-      <ImageLightbox images={images} index={index} open={open} onClose={() => setOpen(false)} confineToContent />
-    </>
+      <ImageLightbox
+        images={images}
+        index={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => {
+          if (previewRequest) setClosedPreviewNonce(previewRequest.nonce);
+          setOpen(false);
+        }}
+        confineToContent
+      />
+    </div>
   );
 }
