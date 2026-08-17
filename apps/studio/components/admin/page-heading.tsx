@@ -1,5 +1,6 @@
 "use client";
 
+import { useCrumbLabel } from "@/components/admin/crumb-label";
 import { usePageTrail } from "@/components/admin/page-trail";
 import { useT } from "@/i18n/client";
 
@@ -54,14 +55,21 @@ import { useT } from "@/i18n/client";
 export function PageHeading({ brand }: { brand: string }) {
   const t = useT("nav");
   const crumbs = usePageTrail(brand);
+  // 🚨 **パンくずと同じ変換を通す**（schema の契約 eb24c2d・司令塔の「出す側」の役）。
+  //    ここで別の解き方をすると、**見出しとパンくずで名前が食い違う**
+  //    （この冒頭が「同じ出どころから取る」と言っているのと同じ理由）。
+  //    条件は `crumb-label.ts` に 1 つだけ置いてある。
+  const labelOfCrumb = useCrumbLabel();
 
   const current = crumbs[crumbs.length - 1];
   // 🚨 先頭（ブランド）と葉を除いた真ん中が「区画」。`/admin` 自身では空になる。
-  const context = crumbs.slice(1, -1).map((crumb) => crumb.label).join(" / ");
-  const heading = current?.label
+  const context = crumbs.slice(1, -1).map(labelOfCrumb).join(" / ");
+  // 🚨 **`current.label` を直に使わない**（訳す前の識別子が見出しに残る）。
+  const currentLabel = current ? labelOfCrumb(current) : "";
+  const heading = currentLabel
     ? context
-      ? t("page_title_with_context").replace("{name}", current.label).replace("{context}", context)
-      : current.label
+      ? t("page_title_with_context").replace("{name}", currentLabel).replace("{context}", context)
+      : currentLabel
     : "";
 
   // 🚨 道筋が取れないとき（`crumbs` が空）は**何も出さない**。

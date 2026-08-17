@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tree, TreeItem } from "@/components/ui/tree";
+import { useCrumbLabel } from "@/components/admin/crumb-label";
 import { usePageTrail } from "@/components/admin/page-trail";
 import { useT } from "@/i18n/client";
 
@@ -44,11 +45,18 @@ function shorten(label: string): string {
 export function Breadcrumbs({ brand }: { brand: string }) {
   const t = useT();
   const crumbs = usePageTrail(brand);
+  // 🚨 コレクションの表示名を当てる（schema の契約 eb24c2d・司令塔の「出す側」の役）。
+  //    条件と、翻訳が黙って止まる形は `crumb-label.ts` に書いてある。
+  const labelOfCrumb = useCrumbLabel();
 
   const current = crumbs[crumbs.length - 1];
   const parents = crumbs.slice(0, -1);
 
   if (!current) return null;
+
+  // 🚨 現在地の名前は **2 か所**で使う（畳んだ表示と、畳む前を残す `title`）。
+  //    ここで 1 回だけ解いて両方へ渡す（別々に解くと、片方だけ識別子のまま残る）。
+  const currentLabel = labelOfCrumb(current);
 
   return (
     // 🚨 **ここに `flex-1` を足さないこと。**（**守り手: 無し＝これは願望**。足しても何も止めない）
@@ -88,8 +96,8 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                       🚨 **ボタンの中に置く**。外に出すと押せる範囲が2つに割れて見える。 */}
                   <SlashIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
                   {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
-                  <BreadcrumbPage title={current.label} className="block min-w-0 truncate">
-                    {shorten(current.label)}
+                  <BreadcrumbPage title={currentLabel} className="block min-w-0 truncate">
+                    {shorten(currentLabel)}
                   </BreadcrumbPage>
                 </Button>
               </DropdownMenuTrigger>
@@ -146,7 +154,7 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                               行の高さは `tree-item` が持つので、縦の余白は指定しない
                               （指定すると肘の位置が行の中央からずれる）。 */}
                           <div className="flex items-center px-2 text-sm text-muted-foreground">
-                            <span className="truncate">{crumb.label}</span>
+                            <span className="truncate">{labelOfCrumb(crumb)}</span>
                           </div>
                         </TreeItem>
                       );
@@ -155,7 +163,7 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                       <TreeItem key={crumb.href} role="none">
                         <DropdownMenuItem asChild>
                           <Link href={crumb.href}>
-                            <span className="truncate">{crumb.label}</span>
+                            <span className="truncate">{labelOfCrumb(crumb)}</span>
                           </Link>
                         </DropdownMenuItem>
                       </TreeItem>
@@ -178,8 +186,8 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                 正しい振る舞い**だから。消すと、開くものが無いのにボタンを出すことになる。
                 （転送をやめた時・`/admin` 以外でパンくずを使った時に、そのまま表に出る） */}
             {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
-            <BreadcrumbPage title={current.label} className="truncate">
-              {shorten(current.label)}
+            <BreadcrumbPage title={currentLabel} className="truncate">
+              {shorten(currentLabel)}
             </BreadcrumbPage>
           </BreadcrumbItem>
         )}
