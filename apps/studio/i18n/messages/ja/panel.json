@@ -44,5 +44,12 @@
   "open": "このページの説明",
   "overview": "概要",
   "sections": "項目一覧",
+  "storage_bucket": "バケット",
+  "storage_configure": "ストレージを設定",
+  "storage_driver": "保管先",
+  "storage_driver_local": "このサーバ",
+  "storage_driver_s3": "S3 互換ストレージ",
+  "storage_endpoint": "エンドポイント",
+  "storage_misconfigured": "S3 の設定が足りないため、このサーバに保存しています（{names}）",
   "todo": "準備中です"
 }

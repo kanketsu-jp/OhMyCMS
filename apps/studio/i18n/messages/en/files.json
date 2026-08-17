@@ -101,5 +101,6 @@
   "no_file_selected": "Not selected",
   "options_columns": "Columns",
   "options_card_columns": "Cards per row",
-  "options_columns_count": "{count} columns"
+  "options_columns_count": "{count} columns",
+  "description": "Uploaded files. Organize them into folders and find them with labels."
 }

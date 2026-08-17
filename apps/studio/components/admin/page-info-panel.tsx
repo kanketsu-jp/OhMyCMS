@@ -5,6 +5,7 @@ import { useSyncExternalStore } from "react";
 
 import { Accordion } from "@/components/ui/accordion";
 import { PanelFileDetail } from "@/components/admin/panel-file-detail";
+import { PanelStorage } from "@/components/admin/panel-storage";
 import { PanelSection } from "@/components/admin/panel-section";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { PanelDisplay } from "@/components/admin/panel-display";
@@ -66,6 +67,8 @@ export function PageInfoPanel() {
       {meta?.descriptionKey ? (
         <PanelSection value="overview" title={t("overview")} contentClassName="text-muted-foreground">
           {tKey(meta.descriptionKey)}
+          {/* 🚨 いまの保管先（D5）。`/admin/files` 以外では null を返すので、他のページには出ない。 */}
+          <PanelStorage />
         </PanelSection>
       ) : null}
 

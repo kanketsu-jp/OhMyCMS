@@ -44,5 +44,12 @@
   "open": "About this page",
   "overview": "Overview",
   "sections": "Contents",
+  "storage_bucket": "Bucket",
+  "storage_configure": "Configure storage",
+  "storage_driver": "Storage",
+  "storage_driver_local": "This server",
+  "storage_driver_s3": "S3-compatible",
+  "storage_endpoint": "Endpoint",
+  "storage_misconfigured": "Saving to this server because the S3 settings are incomplete ({names})",
   "todo": "Coming soon"
 }

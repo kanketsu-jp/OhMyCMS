@@ -101,5 +101,6 @@
   "no_file_selected": "選ばれていません",
   "options_columns": "出す項目",
   "options_card_columns": "1 行に並べる数",
-  "options_columns_count": "{count} 列"
+  "options_columns_count": "{count} 列",
+  "description": "アップロードしたファイルの一覧です。フォルダで整理し、ラベルで探せます。"
 }
