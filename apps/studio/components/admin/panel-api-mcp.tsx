@@ -9,6 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { CopyButton } from "@/components/ui/copy-button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useT } from "@/i18n/client";
 import TOOL_CATALOG from "@/lib/mcp/tool-catalog.json";
@@ -131,12 +132,12 @@ export function PanelApiMcp() {
             <h3 className="text-xs font-medium">{t("api_prompt_heading")}</h3>
             <CopyButton value={prompt} selectTargetId="panel-api-prompt" />
           </div>
-          <pre
-            id="panel-api-prompt"
-            className="overflow-x-auto text-xs whitespace-pre text-muted-foreground rounded-md bg-muted p-2"
-          >
-            {prompt}
-          </pre>
+          <ScrollArea className="rounded-md bg-muted">
+            <pre id="panel-api-prompt" className="w-max p-2 text-xs whitespace-pre text-muted-foreground">
+              {prompt}
+            </pre>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </section>
 
         <Separator />
@@ -148,9 +149,12 @@ export function PanelApiMcp() {
             {curl ? <CopyButton value={curl} selectTargetId="panel-api-curl" /> : null}
           </div>
           {curl ? (
-            <pre id="panel-api-curl" className="overflow-x-auto text-xs whitespace-pre text-muted-foreground rounded-md bg-muted p-2">
-              {curl}
-            </pre>
+            <ScrollArea className="rounded-md bg-muted">
+              <pre id="panel-api-curl" className="w-max p-2 text-xs whitespace-pre text-muted-foreground">
+                {curl}
+              </pre>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
           ) : (
             <p className="text-xs text-muted-foreground">{t("api_rest_none")}</p>
           )}
