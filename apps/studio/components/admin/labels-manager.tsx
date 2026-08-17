@@ -402,7 +402,11 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              disabled={remove.pending}
+              // 🚨 `disabled` ではなく `loading`（`components/ui/button.tsx` の設計）。
+              //    `loading` にするとスピナー・`aria-disabled`・押せなくする CSS が同時に付く。
+              //    由来: 2026-08-17。files-table で「確認側のボタンに印が無い」を実測で見つけ、
+              //    **同じ文言のボタンが 2 つ在る画面では印も両方に要る**と分かった。
+              loading={remove.pending}
               onClick={() => {
                 if (pendingDelete) void remove.run(pendingDelete);
               }}
