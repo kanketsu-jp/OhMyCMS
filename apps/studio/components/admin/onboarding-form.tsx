@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/admin/field-label";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -161,7 +162,7 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
         >
           <p className="text-xs text-muted-foreground">{t("step_password_progress")}</p>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="new-password">{t("new_password_label")}</Label>
+            <FieldLabel htmlFor="new-password" required>{t("new_password_label")}</FieldLabel>
             {/* 入口サイズ（--control-h-entry）を使う段。規約は `globals.css` の `--control-h-entry` の宣言（とその直前のコメント）
                 （「入口の画面＝操作が1つだけの画面」専用）。
                 🚨 以前ここは `globals.css` の**別の行**を指していたが、そこは別の話

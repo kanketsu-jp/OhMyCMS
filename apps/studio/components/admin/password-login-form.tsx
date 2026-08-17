@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FieldLabel } from "@/components/admin/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -40,9 +40,9 @@ export function PasswordLoginForm() {
   return (
     <form onSubmit={submit.run} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label className="sr-only" htmlFor="email">
+        <FieldLabel className="sr-only" htmlFor="email" required>
           {t("email_label")}
-        </Label>
+        </FieldLabel>
         <Input
           id="email"
           variant="entry"
@@ -53,9 +53,9 @@ export function PasswordLoginForm() {
           required
           autoComplete="email"
         />
-        <Label className="sr-only" htmlFor="password">
+        <FieldLabel className="sr-only" htmlFor="password" required>
           {t("password_label")}
-        </Label>
+        </FieldLabel>
         <Input
           id="password"
           variant="entry"

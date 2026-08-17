@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FieldLabel } from "@/components/admin/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -41,7 +41,7 @@ export function SetupForm() {
       <div className="flex flex-col gap-2">
         {/* ラベルは可視で置く（design 確定）。プレースホルダだけだと
             入力を始めた瞬間に何の欄か分からなくなる。 */}
-        <Label htmlFor="setup-password">{t("password_label")}</Label>
+        <FieldLabel htmlFor="setup-password" required>{t("password_label")}</FieldLabel>
         <Input
           id="setup-password"
           type="password"

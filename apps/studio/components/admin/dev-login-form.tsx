@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY } from "@/i18n/error";
+import { FieldLabel } from "@/components/admin/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 
 export function DevLoginForm() {
@@ -54,7 +54,7 @@ export function DevLoginForm() {
   return (
     <form onSubmit={submit.run} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="dev-email">{t("email_label")}</Label>
+        <FieldLabel htmlFor="dev-email" required>{t("email_label")}</FieldLabel>
         <Input
           id="dev-email"
           type="email"

@@ -18,6 +18,7 @@
   "pagination_next": "Next",
   "pagination_page": "Page {page}",
   "pagination_previous": "Previous",
+  "required": "Required",
   "scroll_to_end": "Scroll to end",
   "scroll_to_start": "Scroll to start",
   "shortcut_back": "Back",

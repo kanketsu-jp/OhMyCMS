@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { FieldLabel } from "@/components/admin/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useT } from "@/i18n/client";
 
@@ -42,7 +42,7 @@ export function RelationForm({ collection, collectionNames }: Props) {
       className="grid gap-4 md:grid-cols-[140px_1fr_1fr_1fr_1fr_auto] md:items-end"
     >
       <div className="space-y-1.5">
-        <Label htmlFor="relation-kind">{t("kind_label")}</Label>
+        <FieldLabel htmlFor="relation-kind" required>{t("kind_label")}</FieldLabel>
         <select
           id="relation-kind"
           name="kind"
@@ -56,7 +56,7 @@ export function RelationForm({ collection, collectionNames }: Props) {
         </select>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="relation-field">{t("field_label")}</Label>
+        <FieldLabel htmlFor="relation-field" required={isManyToOne}>{t("field_label")}</FieldLabel>
         <Input
           id="relation-field"
           name="field"
@@ -66,7 +66,7 @@ export function RelationForm({ collection, collectionNames }: Props) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="related-collection">{t("related_collection_label")}</Label>
+        <FieldLabel htmlFor="related-collection" required>{t("related_collection_label")}</FieldLabel>
         <select
           id="related-collection"
           name="related_collection"
@@ -79,7 +79,7 @@ export function RelationForm({ collection, collectionNames }: Props) {
         </select>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="related-field">{t("related_field_label")}</Label>
+        <FieldLabel htmlFor="related-field" required={!isManyToOne}>{t("related_field_label")}</FieldLabel>
         <Input
           id="related-field"
           name="related_field"
@@ -89,7 +89,7 @@ export function RelationForm({ collection, collectionNames }: Props) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="one-field">{t("one_field_label")}</Label>
+        <FieldLabel htmlFor="one-field" required={!isManyToOne}>{t("one_field_label")}</FieldLabel>
         <Input
           id="one-field"
           name="one_field"

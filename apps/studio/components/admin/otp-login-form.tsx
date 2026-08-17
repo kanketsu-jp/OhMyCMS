@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FieldLabel } from "@/components/admin/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
@@ -83,7 +83,7 @@ export function OtpLoginForm() {
     return (
       <form onSubmit={requestCode.run} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="otp-email">{t("otp_email_label")}</Label>
+          <FieldLabel htmlFor="otp-email" required>{t("otp_email_label")}</FieldLabel>
           <Input
             id="otp-email"
             type="email"
@@ -110,7 +110,7 @@ export function OtpLoginForm() {
     <form onSubmit={verifyCode.run} className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">{t("otp_sent")}</p>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="otp-code">{t("otp_code_label")}</Label>
+        <FieldLabel htmlFor="otp-code" required>{t("otp_code_label")}</FieldLabel>
         <Input
           id="otp-code"
           type="text"

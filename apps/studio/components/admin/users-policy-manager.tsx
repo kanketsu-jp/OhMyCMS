@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, UserMinus } from "lucide-react";
+import { FieldLabel } from "@/components/admin/field-label";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
 import {
@@ -216,7 +217,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
       <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <FormDraft formId="user-policy-assign-form" />
         <div className="space-y-1.5">
-          <label htmlFor="user" className="text-sm font-medium">{t("user_label")}</label>
+          <FieldLabel htmlFor="user" required>{t("user_label")}</FieldLabel>
           <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
             {users.map((user) => (
               <option key={user.id} value={user.id}>{user.email}</option>
@@ -224,7 +225,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           </select>
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="policy" className="text-sm font-medium">{t("policy_label")}</label>
+          <FieldLabel htmlFor="policy" required>{t("policy_label")}</FieldLabel>
           <select id="policy" name="policy" required className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
             {policies.map((policy) => (
               <option key={policy.id} value={policy.id}>{policy.name}</option>

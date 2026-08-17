@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { KeyRound, Ban, Plus } from "lucide-react";
+import { FieldLabel } from "@/components/admin/field-label";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
 import {
@@ -374,11 +375,11 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         <FormDraft formId="agent-issue-form" />
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="name">{t("name_label")}</Label>
+            <FieldLabel htmlFor="name" required>{t("name_label")}</FieldLabel>
             <Input id="name" name="name" required />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="expires_in_days">{t("expires_in_days_label")}</Label>
+            <FieldLabel htmlFor="expires_in_days" required>{t("expires_in_days_label")}</FieldLabel>
             <Input id="expires_in_days" name="expires_in_days" type="number" min="1" max="365" required />
           </div>
         </div>

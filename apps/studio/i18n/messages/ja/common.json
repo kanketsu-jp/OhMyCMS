@@ -18,6 +18,7 @@
   "pagination_next": "次へ",
   "pagination_page": "{page} ページ目",
   "pagination_previous": "前へ",
+  "required": "必須",
   "scroll_to_end": "末尾へ移動",
   "scroll_to_start": "先頭へ移動",
   "shortcut_back": "戻る",
