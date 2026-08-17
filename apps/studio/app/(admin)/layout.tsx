@@ -6,11 +6,13 @@ import { displayUserAvatarEmoji, displayUserLabel, displayUserName, displayUserP
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import { PageHeading } from "@/components/admin/page-heading";
 import { BugReportNav } from "@/components/admin/bug-report-nav";
+import { CollectionLabelsProvider } from "@/components/admin/collection-labels";
 import { GlobalSearchProvider } from "@/components/admin/global-search";
 import { HeaderBack } from "@/components/admin/header-back";
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { LeftSidebar, LeftSidebarProvider, LeftSidebarToggle } from "@/components/admin/left-sidebar";
 import { RightPanelProvider, RightPanelToggle } from "@/components/admin/right-panel";
+import { collectionLabelMap } from "@/lib/schema/collection-labels";
 import { getLocale, getT } from "@/i18n/server";
 import { projectColor } from "@/lib/settings/project-color";
 import { projectLogo } from "@/lib/settings/project-logo";
@@ -105,7 +107,9 @@ export default async function AdminLayout({
   // 🚨 サイドバーは名前しか描かない。全列のスキーマを引くと、
   // 管理画面のどのページを開いても information_schema の全走査が走る（?names=true で避ける）。
   const collections = me.ok
-    ? await apiFetch<{ collection: string }[]>("/api/collections?names=true")
+    ? await apiFetch<{ collection: string; translations: Record<string, string> | null }[]>(
+        "/api/collections?names=true",
+      )
     : null;
   // 🚨 **「管理画面に入れない」だけを拾う。403 で一括りにしない。**
   //    【実測 2026-08-16】未許可の利用者は `/api/auth/me` が **200** を返す（`me` では分からない）。
@@ -119,6 +123,14 @@ export default async function AdminLayout({
       !collections.ok &&
       collections.status === 403 &&
       collections.code === "ADMIN_ACCESS_REQUIRED");
+
+  // 🚨 コレクションの表示名を、クライアント側（パンくず・見出し・左サイドバー）へ渡す。
+  //    `page-trail` はクライアントなので自分では引けない（schema の契約・2026-08-17）。
+  //    🚨 表示名が無い識別子は、識別子がそのまま返る（空にしない・推測で訳さない）。
+  const collectionLabels = collectionLabelMap(
+    collections?.ok ? collections.data : [],
+    locale,
+  );
   if (notAllowed) {
     return <NotAllowedScreen brand={brand} logo={logo} />;
   }
@@ -210,6 +222,7 @@ export default async function AdminLayout({
       {/* 🚨 検索の本体（ダイアログと ⌘K）は**ここで1つだけ**描く。
           起動ボタンは左サイドバーと SP のドロワーの2箇所に置くので、
           部品ごとに本体を持たせるとダイアログも ⌘K の購読も2つになる。 */}
+      <CollectionLabelsProvider value={collectionLabels}>
       <GlobalSearchProvider>
       <LeftSidebarProvider defaultOpen={leftSidebarDefaultOpen}>
       <RightPanelProvider brand={brand}>
@@ -226,7 +239,9 @@ export default async function AdminLayout({
           collections?.ok
             ? collections.data.map((row) => ({
                 href: `/admin/content/${row.collection}`,
-                label: row.collection,
+                // 🚨 表示名が在れば出す。無ければ識別子のまま（司令塔の決め・2026-08-17）。
+                //    ここはサーバなので、対応表から直に引く（`useCollectionLabel` は client 用）。
+                label: collectionLabels[row.collection] ?? row.collection,
               }))
             : []
         }
@@ -332,7 +347,9 @@ export default async function AdminLayout({
           collections?.ok
             ? collections.data.map((row) => ({
                 href: `/admin/content/${row.collection}`,
-                label: row.collection,
+                // 🚨 表示名が在れば出す。無ければ識別子のまま（司令塔の決め・2026-08-17）。
+                //    ここはサーバなので、対応表から直に引く（`useCollectionLabel` は client 用）。
+                label: collectionLabels[row.collection] ?? row.collection,
               }))
             : []
         }
@@ -350,6 +367,7 @@ export default async function AdminLayout({
       </RightPanelProvider>
       </LeftSidebarProvider>
       </GlobalSearchProvider>
+      </CollectionLabelsProvider>
     </div>
   );
 }
