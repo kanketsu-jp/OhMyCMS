@@ -8,6 +8,7 @@ import { CollectionIconFor } from "@/components/admin/left-sidebar";
 import { HeaderSearch } from "@/components/admin/header-search";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
+import { ClickableRow } from "@/components/admin/clickable-row";
 import { Plus } from "lucide-react";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getLocale, getT } from "@/i18n/server";
@@ -119,7 +120,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
                   {rows.map((collection) => {
                     const encoded = encodeURIComponent(collection.collection);
                     return (
-                      <TableRow key={collection.collection}>
+                      <ClickableRow key={collection.collection} href={`/admin/content/${encoded}`}>
                         <TableCell>
                           <div className="flex min-w-0 items-center gap-2">
                             <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
@@ -152,7 +153,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
                             </Link>
                           </div>
                         </TableCell>
-                      </TableRow>
+                      </ClickableRow>
                     );
                   })}
                 </TableBody>
