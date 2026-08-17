@@ -39,8 +39,9 @@ export async function POST(request: Request, ctx: Context) {
   );
 
   const path = `/admin/collections/${encodeURIComponent(collection)}`;
+  const formPath = `${path}/fields/new`;
   if (!response.ok) {
-    return redirectWithMessage(request, path, "error", await apiErrorKey(response));
+    return redirectWithMessage(request, formPath, "error", await apiErrorKey(response));
   }
 
   const url = new URL(path, publicBaseUrl(request));
