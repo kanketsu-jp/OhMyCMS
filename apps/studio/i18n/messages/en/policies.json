@@ -43,6 +43,7 @@
   "manage_title": "Policy management",
   "name_label": "Policy name",
   "no_collections": "No collections yet.",
+  "no_collections_action": "Create a collection",
   "no_description": "No description",
   "no_filter": "No row filter",
   "no_permissions": "No permission rows yet.",

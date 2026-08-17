@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PermissionCell, cellStateOf, type CellState } from "@/components/admin/permission-grid";
@@ -16,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -276,7 +277,23 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           🚨 **行が増えたときの手当ては入れていない**（いま 15 本）。
              100 本を超えたら**絞り込み**が要る。**入れていないことをここに書いておく**。 */}
       {collections.length === 0 ? (
-        <ListEmpty>{t("no_collections")}</ListEmpty>
+        // 🚨 **空のときに「無い」で終わらせない**（DESIGN.md §1-10）。
+        //    この画面は同じ規約を見た他の 4 本と違い、**空のとき本文の操作が 1 つも無い**:
+        //    下にある `<form>` は**格子のマスから開くダイアログの中**なので、
+        //    コレクションが 0 件だと格子ごと出ず、**開く道が無い**（実測: form の直前 40 行に <Dialog> 4）。
+        //    ＝ ここでできることは「権限を付ける」ではなく「先にコレクションを作る」。
+        // 🚨 形は**既に §1-10 を満たしていた 1 本**（app/(admin)/admin/content/page.tsx）に合わせた。
+        //    新しい並べ方を発明しない（15 本が各自の形を作ると、空の画面だけ画面ごとに違う顔になる）。
+        // 🚨 権限で出し分けていないのは、**管理画面が二値**だから
+        //    （`knowledge/decisions/admin-ui-is-all-or-nothing.md`）。
+        //    ここが見えている人は管理者で、コレクションを作れる。
+        <div className="flex flex-col items-start gap-4">
+          <ListEmpty>{t("no_collections")}</ListEmpty>
+          <Link href="/admin/collections/new" className={buttonVariants()}>
+            <Plus data-icon="inline-start" />
+            {t("no_collections_action")}
+          </Link>
+        </div>
       ) : (
         <div className="w-full overflow-x-auto">
           <Table>

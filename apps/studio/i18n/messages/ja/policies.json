@@ -43,6 +43,7 @@
   "manage_title": "ポリシー管理",
   "name_label": "ポリシー名",
   "no_collections": "コレクションがまだありません。",
+  "no_collections_action": "コレクションを作る",
   "no_description": "説明なし",
   "no_filter": "行フィルタなし",
   "no_permissions": "permission行はまだありません。",
