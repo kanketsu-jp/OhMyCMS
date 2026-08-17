@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
+import { ItemCards } from "@/components/admin/item-cards";
 import { isFileField } from "@/lib/schema/interfaces";
 import { ColumnPicker } from "@/components/admin/column-picker";
 import { ClickableRow } from "@/components/admin/clickable-row";
@@ -14,7 +15,7 @@ import { RowOptions } from "@/components/admin/row-options";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getLocale, getT } from "@/i18n/server";
 import { fieldLabel } from "@/lib/schema/labels";
-import { resolveLayout } from "@/lib/admin/list-layouts";
+import { DEFAULT_LIST_LAYOUT, resolveLayout, type ListLayoutId } from "@/lib/admin/list-layouts";
 import {
   DEFAULT_COLUMN_COUNT,
   DEFAULT_LIST_LIMIT,
@@ -65,12 +66,14 @@ function primaryKey(fields: FieldResult[]): string {
 
 function pageHref(
   encoded: string,
+  layout: ListLayoutId,
   page: number,
   columns: FieldResult[],
   limit: number,
   fields: FieldResult[],
 ): string {
   const query = new URLSearchParams({ page: String(page) });
+  if (layout !== DEFAULT_LIST_LAYOUT) query.set("layout", layout);
   const defaultColumns = fields.slice(0, DEFAULT_COLUMN_COUNT).map((field) => field.field);
   const selectedColumns = columns.map((field) => field.field);
   if (
@@ -96,6 +99,7 @@ function pageHref(
  */
 function columnToggleHref(
   encoded: string,
+  layout: ListLayoutId,
   field: FieldResult,
   columns: FieldResult[],
   limit: number,
@@ -108,7 +112,7 @@ function columnToggleHref(
   const next = on
     ? columns.filter((one) => one.field !== field.field)
     : fields.filter((one) => one.field === field.field || columns.some((c) => c.field === one.field));
-  return pageHref(encoded, 1, next, limit, fields);
+  return pageHref(encoded, layout, 1, next, limit, fields);
 }
 
 export default async function ContentPage({ params, searchParams }: Props) {
@@ -152,7 +156,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
   const columnChoices = fields.map((field) => ({
     key: field.field,
     label: fieldLabel(field, locale),
-    href: columnToggleHref(encoded, field, columns, limit, fields),
+    href: columnToggleHref(encoded, layout, field, columns, limit, fields),
     checked: columns.some((one) => one.field === field.field),
   }));
   const softDeletes = fieldsResult.ok
@@ -215,7 +219,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
           }
         />
         <Surface id={sectionAnchorId("items.list_title")}>
-        {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
+          {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
             見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
           {/* 🚨 「出す項目」。堀池指示「**また列が選択できないし**」（files では直したが、
@@ -245,79 +249,89 @@ export default async function ContentPage({ params, searchParams }: Props) {
           {itemsResult.ok ? (
             <>
               <div data-list-layout={layout}>
-                <WideTable>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {/* 🚨 欄名は辞書を通す（設問286 A）。辞書が無ければ fieldLabel が
-                            生の識別子に落ちるので、名前を付けるまで表示は変わらない。
-                            各所で `?? field.field` と書くと必ず割れるので、必ずこの関数を通す。 */}
-                        {columns.map((field) => (
-                          <TableHead key={field.field}>{fieldLabel(field, locale)}</TableHead>
-                        ))}
-                        <TableHead className="w-44">{t("actions_header")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {itemsResult.data.data.map((item, index) => {
-                        const id = String(item[pk] ?? "");
-                        return (
-                          <ClickableRow key={id || index} href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}>
-                            {columns.map((field) => (
-                              <TableCell key={field.field} className="max-w-64 truncate">
-                                <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
-                              </TableCell>
-                            ))}
-                            <TableCell>
-                              {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
-                                  （`knowledge/decisions/action-button-and-edit-mode.md`）。
-                                  🚨 form は**残す**。`RowOptions` の `formId` が指す相手そのもので、
-                                     消すと削除が黙って効かなくなる（中身は隠し項目だけでよい）。 */}
-                              <div className="flex gap-1">
-                                <Link
-                                  href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
-                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                                >
-                                  {t("edit_button")}
-                                </Link>
-                                <form
-                                  id={`item-delete-${id}`}
-                                  action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`}
-                                  method="post"
-                                >
-                                  <input type="hidden" name="_method" value="delete" />
-                                </form>
-                                <RowOptions
-                                  label={t("row_options")}
-                                  options={[
-                                    {
-                                      label: t("delete_button"),
-                                      icon: <Trash2 />,
-                                      destructive: true,
-                                      formId: `item-delete-${id}`,
-                                      // 🚨 **戻せるかが表によって違う**ので、文面も色も分ける
-                                      //    （`knowledge/decisions/confirm-by-reversibility-and-reach`）。
-                                      //    【測った 2026-08-17】15 コレクション中 14 本に `deleted_at` が在り、
-                                      //    **1 本（`zz_probe_dialog`）には無い** ＝ **同じボタンが物理削除に落ちる**。
-                                      confirm: {
-                                        title: t("delete_confirm_title"),
-                                        description: softDeletes
-                                          ? t("delete_confirm_soft")
-                                          : t("delete_confirm_hard"),
-                                        confirmLabel: t("delete_button"),
-                                        tone: softDeletes ? "default" : "danger",
+                {layout === "cards" ? (
+                  <ItemCards
+                    items={itemsResult.data.data}
+                    columns={columns}
+                    pk={pk}
+                    collection={collection}
+                    lookup={lookup}
+                  />
+                ) : (
+                  <WideTable>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {/* 🚨 欄名は辞書を通す（設問286 A）。辞書が無ければ fieldLabel が
+                              生の識別子に落ちるので、名前を付けるまで表示は変わらない。
+                              各所で `?? field.field` と書くと必ず割れるので、必ずこの関数を通す。 */}
+                          {columns.map((field) => (
+                            <TableHead key={field.field}>{fieldLabel(field, locale)}</TableHead>
+                          ))}
+                          <TableHead className="w-44">{t("actions_header")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {itemsResult.data.data.map((item, index) => {
+                          const id = String(item[pk] ?? "");
+                          return (
+                            <ClickableRow key={id || index} href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}>
+                              {columns.map((field) => (
+                                <TableCell key={field.field} className="max-w-64 truncate">
+                                  <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
+                                </TableCell>
+                              ))}
+                              <TableCell>
+                                {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
+                                    （`knowledge/decisions/action-button-and-edit-mode.md`）。
+                                    🚨 form は**残す**。`RowOptions` の `formId` が指す相手そのもので、
+                                       消すと削除が黙って効かなくなる（中身は隠し項目だけでよい）。 */}
+                                <div className="flex gap-1">
+                                  <Link
+                                    href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}
+                                    className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                                  >
+                                    {t("edit_button")}
+                                  </Link>
+                                  <form
+                                    id={`item-delete-${id}`}
+                                    action={`/admin/actions/items/${encoded}/${encodeURIComponent(id)}`}
+                                    method="post"
+                                  >
+                                    <input type="hidden" name="_method" value="delete" />
+                                  </form>
+                                  <RowOptions
+                                    label={t("row_options")}
+                                    options={[
+                                      {
+                                        label: t("delete_button"),
+                                        icon: <Trash2 />,
+                                        destructive: true,
+                                        formId: `item-delete-${id}`,
+                                        // 🚨 **戻せるかが表によって違う**ので、文面も色も分ける
+                                        //    （`knowledge/decisions/confirm-by-reversibility-and-reach`）。
+                                        //    【測った 2026-08-17】15 コレクション中 14 本に `deleted_at` が在り、
+                                        //    **1 本（`zz_probe_dialog`）には無い** ＝ **同じボタンが物理削除に落ちる**。
+                                        confirm: {
+                                          title: t("delete_confirm_title"),
+                                          description: softDeletes
+                                            ? t("delete_confirm_soft")
+                                            : t("delete_confirm_hard"),
+                                          confirmLabel: t("delete_button"),
+                                          tone: softDeletes ? "default" : "danger",
+                                        },
                                       },
-                                    },
-                                  ]}
-                                />
-                              </div>
-                            </TableCell>
-                          </ClickableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </WideTable>
+                                    ]}
+                                  />
+                                </div>
+                              </TableCell>
+                            </ClickableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </WideTable>
+                )}
               </div>
               {/* 🚨 1 件も無いことを、表の枠だけで伝えない。
                   読み込めていないのか、まだ無いのかが分からない。 */}
@@ -326,13 +340,13 @@ export default async function ContentPage({ params, searchParams }: Props) {
                 <span>{t("pagination_summary", { total, from: offset + 1, to: Math.min(offset + limit, total) })}</span>
                 <div className="flex gap-2">
                   <Link
-                    href={pageHref(encoded, Math.max(1, page - 1), columns, limit, fields)}
+                    href={pageHref(encoded, layout, Math.max(1, page - 1), columns, limit, fields)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page <= 1 && "pointer-events-none opacity-50")}
                   >
                     {t("prev_page")}
                   </Link>
                   <Link
-                    href={pageHref(encoded, Math.min(pageCount, page + 1), columns, limit, fields)}
+                    href={pageHref(encoded, layout, Math.min(pageCount, page + 1), columns, limit, fields)}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), page >= pageCount && "pointer-events-none opacity-50")}
                   >
                     {t("next_page")}
