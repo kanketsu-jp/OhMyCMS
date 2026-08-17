@@ -6,11 +6,41 @@ import { ItemForm } from "@/components/admin/item-form";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ collection: string; id: string }>;
   searchParams: Promise<{ error?: string }>;
 };
+
+function hasApiCode(result: { ok: boolean; code?: string }, code: string): boolean {
+  return !result.ok && result.code === code;
+}
+
+function ItemNotFound({
+  title,
+  body,
+  back,
+}: {
+  title: string;
+  body: string;
+  back: string;
+}) {
+  return (
+    <div className="max-w-3xl space-y-6">
+      <Surface>
+        <SurfaceTitle>{title}</SurfaceTitle>
+        <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+        <div className="mt-6">
+          <Link href="/admin/content" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+            {back}
+          </Link>
+        </div>
+      </Surface>
+    </div>
+  );
+}
 
 export default async function EditItemPage({ params, searchParams }: Props) {
   const query = await searchParams;
@@ -26,6 +56,23 @@ export default async function EditItemPage({ params, searchParams }: Props) {
     apiFetch<FieldResult[]>(`/api/fields/${encoded}`),
     apiFetch<{ data: Record<string, unknown> }>(`/api/items/${encoded}/${encodedId}`),
   ]);
+  if (
+    hasApiCode(fieldsResult, "COLLECTION_NOT_FOUND") ||
+    hasApiCode(itemResult, "COLLECTION_NOT_FOUND") ||
+    hasApiCode(itemResult, "ITEM_NOT_FOUND")
+  ) {
+    return (
+      <ItemNotFound
+        title={
+          hasApiCode(itemResult, "ITEM_NOT_FOUND")
+            ? t("not_found_item_title")
+            : t("not_found_collection_title")
+        }
+        body={t("not_found_body")}
+        back={t("not_found_back")}
+      />
+    );
+  }
   const fields = fieldsResult.ok ? fieldsResult.data : [];
 
   return (

@@ -25,7 +25,7 @@ import {
   resolveLimit,
 } from "@/lib/admin/list-view";
 import { buttonVariants } from "@/components/ui/button";
-import { Surface } from "@/components/ui/surface";
+import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { WideTable } from "@/components/admin/wide-table";
 import {
   Table,
@@ -55,6 +55,26 @@ type Props = {
     "cal.month"?: string | string[];
   }>;
 };
+
+function hasApiCode(result: { ok: boolean; code?: string }, code: string): boolean {
+  return !result.ok && result.code === code;
+}
+
+function ContentNotFound({ t }: { t: Awaited<ReturnType<typeof getT>> }) {
+  return (
+    <div className="max-w-3xl space-y-6">
+      <Surface>
+        <SurfaceTitle>{t("not_found_collection_title")}</SurfaceTitle>
+        <p className="mt-2 text-sm text-muted-foreground">{t("not_found_body")}</p>
+        <div className="mt-6">
+          <Link href="/admin/content" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+            {t("not_found_back")}
+          </Link>
+        </div>
+      </Surface>
+    </div>
+  );
+}
 
 /**
  * 🚨 かつてここに `renderValue()` があり、**オブジェクトなら JSON.stringify** していた。
@@ -145,6 +165,13 @@ export default async function ContentPage({ params, searchParams }: Props) {
     apiFetch<FieldResult[]>(`/api/fields/${encoded}`),
     apiFetch<ItemsPayload>(`/api/items/${encoded}?limit=${limit}&offset=${offset}&meta=filter_count`),
   ]);
+
+  if (
+    hasApiCode(fieldsResult, "COLLECTION_NOT_FOUND") ||
+    hasApiCode(itemsResult, "COLLECTION_NOT_FOUND")
+  ) {
+    return <ContentNotFound t={t} />;
+  }
 
   const fields = fieldsResult.ok
     // 🚨 hidden の列を一覧に出さない。本文の検索用の相方（`<field>_plain`）が

@@ -110,6 +110,63 @@ function assertUserCollection(
   return columns;
 }
 
+function throwItemNotFound(): never {
+  throw new ApiError(404, "ITEM_NOT_FOUND", "アイテムが見つかりません");
+}
+
+function isPostgresUuidInput(value: string): boolean {
+  const wrapped = value.startsWith("{") || value.endsWith("}");
+  if (wrapped && !(value.startsWith("{") && value.endsWith("}"))) return false;
+  const body = wrapped ? value.slice(1, -1) : value;
+  let hex = 0;
+  for (const char of body) {
+    if (/^[0-9a-fA-F]$/.test(char)) {
+      hex += 1;
+      continue;
+    }
+    if (char === "-") {
+      if (hex === 0 || hex === 32 || hex % 4 !== 0) return false;
+      continue;
+    }
+    return false;
+  }
+  return hex === 32;
+}
+
+function isPostgresIntegerInput(value: string, column: ColumnInfo): boolean {
+  const text = value.trim();
+  if (!/^[+-]?\d+$/.test(text)) return false;
+  const number = BigInt(text);
+  if (column.data_type === "smallint") {
+    return number >= BigInt("-32768") && number <= BigInt("32767");
+  }
+  if (column.data_type === "integer") {
+    return number >= BigInt("-2147483648") && number <= BigInt("2147483647");
+  }
+  if (column.data_type === "bigint") {
+    return (
+      number >= BigInt("-9223372036854775808") &&
+      number <= BigInt("9223372036854775807")
+    );
+  }
+  return true;
+}
+
+function assertPrimaryKeyIdMatchesType(id: string, primaryKey: ColumnInfo | undefined): void {
+  if (!primaryKey) return;
+  if (primaryKey.data_type === "uuid" && !isPostgresUuidInput(id)) {
+    throwItemNotFound();
+  }
+  if (
+    (primaryKey.data_type === "smallint" ||
+      primaryKey.data_type === "integer" ||
+      primaryKey.data_type === "bigint") &&
+    !isPostgresIntegerInput(id, primaryKey)
+  ) {
+    throwItemNotFound();
+  }
+}
+
 function queryInputFromUrl(url: URL): ItemsQueryInput {
   return {
     fields: url.searchParams.get("fields"),
@@ -904,8 +961,12 @@ export async function getItem(
 ): Promise<Item> {
   await ensureDeletedAtColumn(db, collection);
   const schemaOverview = await getSchemaOverview();
-  assertUserCollection(collection, schemaOverview);
+  const columns = assertUserCollection(collection, schemaOverview);
   const primaryKey = getPrimaryKey(schemaOverview, collection);
+  assertPrimaryKeyIdMatchesType(
+    id,
+    columns.find((column) => column.name === primaryKey),
+  );
   const permission = await permissionForAction(actor, collection, "read");
   const options = parseQueryOptions({
     ...queryWithDefaultAllowedFields(query, permission, primaryKey),
@@ -961,7 +1022,7 @@ export async function getItem(
   }
   const row = (await itemQuery.first()) as Item | undefined;
   if (!row) {
-    throw new ApiError(404, "ITEM_NOT_FOUND", "アイテムが見つかりません");
+    throwItemNotFound();
   }
 
   const [item] = await itemsWithRelations(
@@ -1270,6 +1331,10 @@ export async function updateItem(
   assertPrimaryKeyNotChanged(body, columns);
   await assertPayloadWritable(body, collection);
   const primaryKey = getPrimaryKey(schemaOverview, collection);
+  assertPrimaryKeyIdMatchesType(
+    id,
+    columns.find((column) => column.name === primaryKey),
+  );
   const relations = permission.rowFilter ? await relationRows() : [];
   // 🚨 本文は保存前にサーバ側でも落とす（クライアントの検証を当てにしない）
   const safeBody = await sanitizeRichTextFields(collection, body);
@@ -1281,7 +1346,7 @@ export async function updateItem(
     }
     const rows = await updateQuery.update(safeBody).returning("*");
     if (rows.length === 0) {
-      throw new ApiError(404, "ITEM_NOT_FOUND", "アイテムが見つかりません");
+      throwItemNotFound();
     }
     await assertRowsVisibleAfterWrite(
       trx,
@@ -1307,9 +1372,13 @@ export async function deleteItem(
 ): Promise<void> {
   await ensureDeletedAtColumn(db, collection);
   const schemaOverview = await getSchemaOverview();
-  assertUserCollection(collection, schemaOverview);
+  const columns = assertUserCollection(collection, schemaOverview);
   const permission = await permissionForAction(actor, collection, "delete");
   const primaryKey = getPrimaryKey(schemaOverview, collection);
+  assertPrimaryKeyIdMatchesType(
+    id,
+    columns.find((column) => column.name === primaryKey),
+  );
   const relations = permission.rowFilter ? await relationRows() : [];
 
   await db.transaction(async (trx) => {
@@ -1339,7 +1408,7 @@ export async function deleteItem(
       ? await deleteQuery.update({ [DELETED_AT_COLUMN]: trx.fn.now() })
       : await deleteQuery.delete();
     if (deleted === 0) {
-      throw new ApiError(404, "ITEM_NOT_FOUND", "アイテムが見つかりません");
+      throwItemNotFound();
     }
     await recordActivity(trx, actor, "delete", collection, id, context);
   });
