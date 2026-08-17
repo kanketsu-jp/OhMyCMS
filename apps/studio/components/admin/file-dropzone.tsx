@@ -114,6 +114,31 @@ export function FileDropzone({
   const [sizes, setSizes] = useState<Record<string, { width: number; height: number }>>({});
 
   /**
+   * 🚨 **フォームが reset されたら、こちらの表示も消す。**
+   *
+   * この部品は選んだファイルを **2 箇所**に持っている:
+   *   ① `files`（この state。**画面に名前とプレビューを出しているのはこちら**）
+   *   ② `inputRef.current.files`（**実際に送られるのはこちら**）
+   *
+   * 🚨 **React 19 は `<form action={…}>` の action が終わるとフォームを reset する。**
+   *   そのとき②は空になるが、**①は残る**——＝ **画面は「1 件を選びました」と言い、入力欄は空**。
+   *   利用者は「まだ送っていない」と読んでもう一度押し、**中身の無いファイルが送られる**
+   *   （2026-08-17 実測・storage が :3102 で再現。本番の「アップロードできませんとあるのに
+   *   実際はアップできている」の原因の一つ）。
+   *
+   * 🚨 **①を消すだけでは足りない**（成功を伝える・遷移する側は `files-manager.tsx`）。
+   *   ここが直すのは「**画面と入力欄が食い違う**」ことだけ。
+   *   ＝ **成功でも失敗でも reset は起きる**ので、**失敗して同じ画面に留まる場合にも効く**。
+   */
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) return;
+    const clear = () => setFiles([]);
+    form.addEventListener("reset", clear);
+    return () => form.removeEventListener("reset", clear);
+  }, []);
+
+  /**
    * 選んだ画像を見せるための一時 URL。
    *
    * 🚨 **描画のたびに `URL.createObjectURL` を呼ばないこと。** 以前はそうなっていて、
