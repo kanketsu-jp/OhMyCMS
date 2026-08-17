@@ -79,7 +79,14 @@ export function FilesTable({
               key={folder.id}
               // 🚨 **行のどこをクリックしても開ける**（2026-08-17）。
               //    これを入れたので、**名前の列を消せる**ようになった（Directus と同じ形）。
-              onClick={() => router.push(`/admin/files?folder=${folder.id}`)}
+              // 🚨 **押した先がボタン・リンクなら遷移しない。**
+              //    いまこの行にボタンは無いので、この守りは何も変えない。
+              //    在るのは、**選択のチェック欄が入った瞬間に「チェックを押したら詳細へ飛ぶ」になる**から。
+              //    settings の 4 つの一覧では、削除ボタンが在るので既に必要だった（`120c16c`）。
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("button, a, input")) return;
+                router.push(`/admin/files?folder=${folder.id}`);
+              }}
               className="cursor-pointer border-b last:border-0 hover:bg-muted active:bg-muted/80"
             >
               {shows("name") ? (
@@ -108,7 +115,11 @@ export function FilesTable({
               }}
               // 🚨 **行のどこをクリックしても開ける**（2026-08-17）。
               //    これを入れたので、**名前の列を消せる**ようになった（Directus と同じ形）。
-              onClick={() => router.push(`/admin/files/${file.id}`)}
+              // 🚨 守りの理由は上のフォルダの行と同じ（**先に入れておく**）。
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("button, a, input")) return;
+                router.push(`/admin/files/${file.id}`);
+              }}
               className="cursor-pointer border-b last:border-0 hover:bg-muted active:bg-muted/80"
             >
               {shows("name") ? (
