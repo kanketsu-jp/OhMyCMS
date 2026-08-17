@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Folder, FileIcon } from "lucide-react";
 
 import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
@@ -39,13 +40,14 @@ export function FilesTable({
   folders: FolderRow[];
   files: FileRow[];
   /**
-   * 出す項目。🚨 **名前は含まれない**（消せない列なので、選択の対象にしていない。
-   * 理由は `lib/admin/files-view.ts` の `ALWAYS_ON_COLUMN`）。
+   * 出す項目。🚨 **名前も含む**（2026-08-17 から消せる。
+   * `lib/admin/files-view.ts` の `ALWAYS_ON_COLUMN` に経緯）。
    */
   columns: readonly FileColumn[];
 }) {
   const t = useT("files");
   const format = useFormat();
+  const router = useRouter();
   const shows = (column: FileColumn): boolean => columns.includes(column);
 
   const size = (value: string | number | null): string => {
@@ -65,7 +67,7 @@ export function FilesTable({
       <table className="w-full min-w-xl border-collapse text-sm">
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
-            <th scope="col" className="py-2 pr-4 font-medium">{t("column_name")}</th>
+            {shows("name") ? <th scope="col" className="py-2 pr-4 font-medium">{t("column_name")}</th> : null}
             {shows("type") ? <th scope="col" className="py-2 pr-4 font-medium">{t("column_type")}</th> : null}
             {shows("size") ? <th scope="col" className="py-2 pr-4 font-medium">{t("column_size")}</th> : null}
             {shows("uploaded") ? <th scope="col" className="py-2 font-medium">{t("column_uploaded")}</th> : null}
@@ -73,13 +75,23 @@ export function FilesTable({
         </thead>
         <tbody>
           {folders.map((folder) => (
-            <tr key={folder.id} className="border-b last:border-0 hover:bg-muted active:bg-muted/80">
-              <td className="py-2 pr-4">
-                <Link href={`/admin/files?folder=${folder.id}`} className="flex min-w-0 items-center gap-2">
-                  <Folder className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{folder.name}</span>
-                </Link>
-              </td>
+            <tr
+              key={folder.id}
+              // 🚨 **行のどこをクリックしても開ける**（2026-08-17）。
+              //    これを入れたので、**名前の列を消せる**ようになった（Directus と同じ形）。
+              onClick={() => router.push(`/admin/files?folder=${folder.id}`)}
+              className="cursor-pointer border-b last:border-0 hover:bg-muted active:bg-muted/80"
+            >
+              {shows("name") ? (
+                <td className="py-2 pr-4">
+                  {/* 🚨 リンクは残す。**行のクリックだけにすると、
+                      新しいタブで開く・キーボードで辿る、が全部できなくなる**。 */}
+                  <Link href={`/admin/files?folder=${folder.id}`} className="flex min-w-0 items-center gap-2">
+                    <Folder className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{folder.name}</span>
+                  </Link>
+                </td>
+              ) : null}
               {shows("type") ? <td className="py-2 pr-4 text-muted-foreground">{t("row_folder")}</td> : null}
               {shows("size") ? <td className="py-2 pr-4 text-muted-foreground">—</td> : null}
               {shows("uploaded") ? <td className="py-2 text-muted-foreground">—</td> : null}
@@ -94,14 +106,21 @@ export function FilesTable({
                 event.dataTransfer.setData(DRAG_FILE_MIME, JSON.stringify([file.id]));
                 event.dataTransfer.effectAllowed = "move";
               }}
-              className="border-b last:border-0 hover:bg-muted active:bg-muted/80"
+              // 🚨 **行のどこをクリックしても開ける**（2026-08-17）。
+              //    これを入れたので、**名前の列を消せる**ようになった（Directus と同じ形）。
+              onClick={() => router.push(`/admin/files/${file.id}`)}
+              className="cursor-pointer border-b last:border-0 hover:bg-muted active:bg-muted/80"
             >
-              <td className="py-2 pr-4">
-                <Link href={`/admin/files/${file.id}`} className="flex min-w-0 items-center gap-2">
-                  <FileIcon className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{file.title ?? file.filename_download}</span>
-                </Link>
-              </td>
+              {shows("name") ? (
+                <td className="py-2 pr-4">
+                  {/* 🚨 リンクは残す。**行のクリックだけにすると、
+                      新しいタブで開く・キーボードで辿る、が全部できなくなる**。 */}
+                  <Link href={`/admin/files/${file.id}`} className="flex min-w-0 items-center gap-2">
+                    <FileIcon className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{file.title ?? file.filename_download}</span>
+                  </Link>
+                </td>
+              ) : null}
               {shows("type") ? <td className="py-2 pr-4 text-muted-foreground">{file.type ?? "—"}</td> : null}
               {shows("size") ? <td className="py-2 pr-4 text-muted-foreground">{size(file.filesize)}</td> : null}
               {shows("uploaded") ? (

@@ -15,15 +15,24 @@
  *    見え方が壊れているだけで、中身は見せられる（`page.tsx` の `view` と同じ扱い）。
  */
 
-/** 表に出せる項目。🚨 `name` は含めない（下記）。 */
-export const FILE_COLUMNS = ["type", "size", "uploaded"] as const;
+/** 表に出せる項目。 */
+export const FILE_COLUMNS = ["name", "type", "size", "uploaded"] as const;
 export type FileColumn = (typeof FILE_COLUMNS)[number];
 
 /**
- * 🚨 **名前の列は選べない。** 名前を消すと、どの行が何なのか言えなくなる
- * （行を選ぶ・開く・掴む、が全部できなくなる）。**消せる列と消せない列は別物**。
+ * 🚨 **名前も消せる**（2026-08-17 に変えた）。
+ *
+ * それまでは「名前を消すと、どの行が何なのか言えなくなる（開く手段が無くなる）」として
+ * 消せなくしていた。**その理由は正しかったが、原因は名前ではなく『行が開けないこと』**だった。
+ *
+ * 🚨 base2 の実測（Directus・`layouts/tabular`）:
+ *    **Directus には「消せない列」が無い。** 行のどこをクリックしても詳細へ行けるから。
+ *    ＝ **消せなかったのは、私たちが「名前のリンクからしか開けなかった」から**。
+ *
+ * ✅ 同じ日に**行のどこでもクリックで開ける**ようにしたので、名前も消せるようになった。
+ *    ＝ 🚨 **「見習えない」ではなく「順番が在った」**。
  */
-export const ALWAYS_ON_COLUMN = "name" as const;
+export const ALWAYS_ON_COLUMN = null;
 
 /** 何も指定が無いときに出す列。 */
 export const DEFAULT_COLUMNS: readonly FileColumn[] = FILE_COLUMNS;
