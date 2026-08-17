@@ -123,7 +123,6 @@ export const PAGE_META: Readonly<Record<string, PageMeta>> = {
   // **まず完全一致を見る**（`PAGE_META[pathname]`）ので `[id]` に吸われない。
   // 🚨 並び順で守られているのではない。順序を入れ替えても解決先は変わらないことを実測した
   //    （最初「先に置かないと吸われる」と書いたが、**それは誤り**だった）。
-  "/admin/reports/manage": { titleKey: "reports.nav_manage" },
   "/admin/reports/[id]": { titleKey: "reports.title" },
 
   "/admin/profile": { titleKey: "nav.profile" },

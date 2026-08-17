@@ -19,7 +19,6 @@
   "nav_group": "Bug reports",
   "nav_create": "Report a problem",
   "nav_list": "My reports",
-  "nav_manage": "Manage reports",
   "create_title": "Report a problem",
   "report_expected_label": "What should have happened? (optional)",
   "report_expected_placeholder": "e.g. \"It should save and return to the list\"",

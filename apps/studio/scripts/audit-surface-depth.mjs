@@ -160,7 +160,6 @@ const DEFAULT_PATHS = [
   //    守り手: scripts/check-audit-coverage.mjs（実在するのに巡回外なら落ちる）。
   "/admin/labels",
   "/admin/profile",
-  "/admin/reports/manage",
   "/admin/settings/storage",
   "/admin/trash",
   "/admin/notifications",

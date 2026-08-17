@@ -19,7 +19,6 @@
   "nav_group": "不具合報告",
   "nav_create": "報告する",
   "nav_list": "報告一覧",
-  "nav_manage": "報告管理",
   "create_title": "報告する",
   "report_expected_label": "本来どうなるはずでしたか（任意）",
   "report_expected_placeholder": "「保存されて一覧に戻るはず」など",

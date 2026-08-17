@@ -231,6 +231,101 @@ if (!対照は拾えた) {
 }
 checked.push(`🟢 対照(+) 拾う入力は拾えた（＝ 下の「見逃し」は本物）`);
 
+// ── ④ 🚨 罫線文字（├ └ ┣ ┗ │ ─）を**実コードに書かない**（2026-08-17 追加）
+//
+// 由来: 堀池さん 2026-08-17（C4）原文「パンくずリスト：現在の罫線はただの記号のようなので、
+//   デザインとしてあしらいを加えてください」。規約 `knowledge/decisions/tree-connector-lines.md` は
+//   これを **2026-08-15 の時点で既に禁じていた**（「罫線文字（├ └ ┣）を使わない。
+//   読み上げに乗り、字幅がフォントで変わる」）。
+//   🚨 **それでも守り手が居なかった**ので、規約と `components/ui/tree.tsx` が在るのに
+//   このファイルだけ繋がっていなかった。**同じ形は次の人が素直に踏み直す。**
+//
+// 🚨 **単純な grep では作れない。** 実測（2026-08-17）:
+//   直す前 5 件 → 直した後 **12 件**（**直した方が多い**）。
+//   申し送りのコメントが ├ └ に言及しているため。**コメントを外してから見る。**
+function stripComments(source) {
+  let out = "";
+  let inBlock = false;
+  for (const line of source.split("\n")) {
+    let rest = line;
+    let kept = "";
+    while (rest.length > 0) {
+      if (inBlock) {
+        const end = rest.indexOf("*/");
+        if (end === -1) { rest = ""; break; }
+        rest = rest.slice(end + 2);
+        inBlock = false;
+        continue;
+      }
+      const block = rest.indexOf("/*");
+      const lineC = rest.indexOf("//");
+      if (block === -1 && lineC === -1) { kept += rest; break; }
+      if (lineC !== -1 && (block === -1 || lineC < block)) { kept += rest.slice(0, lineC); break; }
+      kept += rest.slice(0, block);
+      rest = rest.slice(block + 2);
+      inBlock = true;
+    }
+    out += kept + "\n";
+  }
+  return out;
+}
+
+const BOX_CHARS = /[─-╿]/g;
+
+/** 実コード（コメントを外した後）に罫線文字が在るか。**行番号つきで返す**。 */
+function boxCharViolations(source, where) {
+  const stripped = stripComments(source).split("\n");
+  const found = [];
+  stripped.forEach((line, index) => {
+    const hits = line.match(BOX_CHARS);
+    if (!hits) return;
+    found.push(
+      `${where}: ${index + 1} 行目の**実コード**に罫線文字 ${[...new Set(hits)].join(" ")} があります。\n` +
+        `    規約 knowledge/decisions/tree-connector-lines.md:「罫線文字（├ └ ┣）を使わない。\n` +
+        `    読み上げに乗り、字幅がフォントで変わる」。線は components/ui/tree.tsx の\n` +
+        `    <Tree> / <TreeItem> が CSS で描きます（擬似要素）。\n` +
+        `    実物: ${line.replace(/\s+/g, " ").trim().slice(0, 80)}`,
+    );
+  });
+  return found;
+}
+
+// 🚨 囮（自己検査）。**コメントの中は発火してはいけない／実コードは発火しなければならない**。
+//    🚨 **文字列リテラルだけでなく JSX のテキストも**入れる——
+//    `const b = "├"` より `<span>├{name}</span>` の方が、次に書かれやすい形だから。
+const BOX_DECOYS = [
+  ["きれいな形（発火してはいけない）", 'const branch = "";\n<span>{crumb.label}</span>\n', 0],
+  ["行コメントの中の ├（発火してはいけない）", '// 以前は「├XXX」で描いていた\nconst x = 1;\n', 0],
+  ["ブロックコメントの中の └（発火してはいけない）", '/**\n * 2026-08-15 の原文は「└XXX」だった\n */\nconst x = 1;\n', 0],
+  ["JSX コメントの中の ├（発火してはいけない）", '{/* ├ と └ をやめた理由 */}\n<span>{x}</span>\n', 0],
+  ["文字列リテラルの └（発火する）", 'const branch = "└";\n', 1],
+  ["JSX のテキストの ├（発火する）", '<span className="truncate">├{crumb.label}</span>\n', 1],
+  ["ブロックコメントを閉じた後の ─（発火する）", '/* 説明 */ const line = "─";\n', 1],
+];
+let boxDecoyFailed = false;
+for (const [name, source, want] of BOX_DECOYS) {
+  const got = boxCharViolations(source, "囮").length;
+  const ok = want === 0 ? got === 0 : got >= 1;
+  if (!ok) {
+    boxDecoyFailed = true;
+    console.error(`🚨 囮④が期待どおりに動きません: ${name} → 検出 ${got} 件（期待 ${want === 0 ? "0" : "1 以上"}）`);
+  }
+}
+if (boxDecoyFailed) {
+  console.error("\n🚨 **規則④が壊れています。この検査の結果は信用できません**（緑でも意味を持たない）。");
+  process.exit(1);
+}
+checked.push(`囮④ ${BOX_DECOYS.length} 件すべてが期待どおり（コメントは通す／実コードは拾う）`);
+
+// 🚨 **規則④の死角（`decisions/checks-must-declare-blind-spots.md`）**
+//    ・**文字列の中の `//` を行コメントとして扱う**（例 `"https://…"` の後ろに罫線文字が在ると見逃す）。
+//      塞いでいないのは、文字列の状態まで追うと**この検査自体が壊れやすくなる**ため。
+//      外れる向きは**見逃す側**なので、緑を根拠に「1 件も無い」と言わないこと。
+//    ・**このファイル 1 本しか見ていない**（`breadcrumbs.tsx`）。他のファイルの罫線文字は対象外。
+checked.push("規則④の死角を出力に書いた（文字列中の // ／ このファイル 1 本のみ）");
+
+problems.push(...boxCharViolations(src, FILE));
+
 problems.push(...inspect(trigger[1], buttonTag[0], FILE));
 
 console.log(`対象: ${FILE}`);
