@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
+import { isRedirectOnlySection } from "@/components/admin/redirect-only-sections";
 import { usePageTrail } from "@/components/admin/page-trail";
 import { Undo2Icon } from "lucide-react";
 
@@ -92,11 +93,10 @@ export function HeaderBack() {
    * 🚨 **ここに並ぶのは「転送するだけの区画」だけ**。ページを持つ区画（`/admin/files` など）を
    *   足さないこと——足すと、一覧へ戻れずに根まで飛ぶ（実測で確かめた悪化の形）。
    */
-  const REDIRECT_ONLY = ["/admin/content"];
   const parent = [...crumbs]
     .slice(0, -1)
     .reverse()
-    .find((c) => c.navigable && !REDIRECT_ONLY.includes(c.href));
+    .find((c) => c.navigable && !isRedirectOnlySection(c.href));
 
   const goBack = useCallback(() => {
     // 🚨 **この文書の中でアプリの経路が変わったか**だけを見る。履歴の長さは見ない（上の申し送り）。

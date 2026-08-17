@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tree, TreeItem } from "@/components/ui/tree";
 import { useCrumbLabel } from "@/components/admin/crumb-label";
+import { isRedirectOnlySection } from "@/components/admin/redirect-only-sections";
 import { usePageTrail } from "@/components/admin/page-trail";
 import { useT } from "@/i18n/client";
 
@@ -155,7 +156,12 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                     // 🚨 枝は **CSS が描く**（`li` の擬似要素）。ここでは印を付けるだけ。
                     //    どの行が └ になるかは `:last-child` が決めるので、
                     //    **添字で分岐しない**（分岐を 2 箇所に持つと、片方だけ直したときに割れる）。
-                    if (!crumb.navigable) {
+                    // 🚨 **転送するだけの区画は押させない**（司令塔の決定・案 A の続き）。
+                    //    押すと**無関係なコレクション**へ着く（`/admin/content` は最初の 1 つへ転送する）。
+                    //    🚨 「もどる」だけ直して**ここを直さなかった**ので、
+                    //      **もどるとパンくずで行き先が食い違っていた**（私が作った不整合）。
+                    //    名前は出す。押せないだけ（`/admin/settings` と同じ扱い）。
+                    if (!crumb.navigable || isRedirectOnlySection(crumb.href)) {
                       return (
                         <TreeItem key={crumb.href} role="none">
                           {/* 🚨 **ページが無い区画は押させない**（上の申し送りと同じ理由）。
