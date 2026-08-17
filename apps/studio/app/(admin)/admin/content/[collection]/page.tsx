@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/admin/api";
 import { FieldDisplay, type DisplayLookup } from "@/components/admin/field-display";
 import { isFileField } from "@/lib/schema/interfaces";
 import { ColumnPicker } from "@/components/admin/column-picker";
+import { ClickableRow } from "@/components/admin/clickable-row";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
@@ -244,7 +245,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                   {itemsResult.data.data.map((item, index) => {
                     const id = String(item[pk] ?? "");
                     return (
-                      <TableRow key={id || index}>
+                      <ClickableRow key={id || index} href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}>
                         {columns.map((field) => (
                           <TableCell key={field.field} className="max-w-64 truncate">
                             <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
@@ -294,7 +295,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                             />
                           </div>
                         </TableCell>
-                      </TableRow>
+                      </ClickableRow>
                     );
                   })}
                 </TableBody>
