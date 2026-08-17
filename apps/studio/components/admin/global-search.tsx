@@ -21,7 +21,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Kbd } from "@/components/ui/kbd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
 import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
 import { useT } from "@/i18n/client";
@@ -112,17 +112,27 @@ export function GlobalSearchButton({ className }: { className?: string }) {
   const isMac = useIsMac();
 
   return (
-    <button
-      type="button"
-      onClick={open}
-      aria-label={t("open_hint")}
-      className={`flex h-(--control-h) w-full items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted active:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
-    >
-      <SearchIcon className="size-4 shrink-0" />
-      <span className="flex-1 text-left">{t("placeholder")}</span>
+    // 🚨 **ショートカットはバッジで出さない。ツールチップで見せる**
+    //    （堀池・2026-08-17・Y1「ショートカットバッジは窮屈なので、**すべて廃止**。
+    //      代わりにツールチップにする」／`DESIGN.md` §2-4）。
+    //    🚨 **「すべて」なので、ここも対象**。実測（2026-08-17）: バッジは画面全体で 3 件在り、
+    //      ヘッダーの 2 件（もどる・保存）は 0d42cc1 で外した。**残っていたのがここ 1 件**。
+    //    🚨 これは header(L3) が shell(L1) の持ち場へ入って直した分。1 行だけで、検索の中身は触っていない。
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={open}
+          aria-label={t("open_hint")}
+          className={`flex h-(--control-h) w-full items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted active:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
+        >
+          <SearchIcon className="size-4 shrink-0" />
+          <span className="flex-1 text-left">{t("placeholder")}</span>
+        </button>
+      </TooltipTrigger>
       {/* 記号は環境で変わるので辞書に持たせない（mac は ⌘K / それ以外は Ctrl+K）。 */}
-      <Kbd className="hidden sm:inline-flex">{formatShortcut(SHORTCUTS.search, isMac)}</Kbd>
-    </button>
+      <TooltipContent side="right">{formatShortcut(SHORTCUTS.search, isMac)}</TooltipContent>
+    </Tooltip>
   );
 }
 
