@@ -28,5 +28,6 @@
   "local_admin_not_linked": "設定が壊れています。もう一度初期設定からやり直すか、この画面のことを管理者に伝えてください。",
   "page_not_found_title": "このページはありません",
   "page_not_found_body": "URL が変わったか、削除された可能性があります。",
-  "page_not_found_home": "管理画面のトップへ"
+  "page_not_found_home": "管理画面のトップへ",
+  "network": "通信できませんでした。つながりを確かめて、もう一度送ってください。"
 }

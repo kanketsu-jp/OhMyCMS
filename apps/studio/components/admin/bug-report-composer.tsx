@@ -58,6 +58,19 @@ const ATTACHMENT_ACCEPT = "image/png,image/jpeg,image/gif,image/webp";
  *   送信の完了は「起きて終わったこと」なのでトースト。入力の不足は
  *   「まだ直す必要があること」なので、その場に出す。
  *   決定: knowledge/decisions/toast-for-events-page-for-what-needs-fixing.md
+ *
+ * 🚨 **通信そのものが失敗したとき**（機内モード・サーバが落ちている）を必ず受ける。
+ *    実測 2026-08-17（pages・失敗の道の走査）で、直す前は
+ *    **トースト 0 件・その場のエラー 0 件**＝**画面に何も出なかった**
+ *    （🟢 対照 403 / 404 / 500 は「権限がありません」「送信できませんでした」が出ていた）。
+ *    ＝ **応答が返る失敗だけを見ていて、応答が返らない失敗を見ていなかった。**
+ *
+ * 🚨 **`try`/`catch` で囲まず `.catch(() => null)` で受ける。**
+ *    `check-submit-once` は `useSubmitOnce(` の行から **60 行** しか遡らずに
+ *    入れ物の関数を探す（`scripts/check-submit-once.mjs` の `i - j < 60`）。
+ *    ここに説明を 17 行書いたら、下の添付送信が **63 行目**になって窓から出て、
+ *    「二重送信の防御がありません（関数 **不明**）」になった（実測 2026-08-17）。
+ *    ＝ **検査を緩めるのではなく、長い説明は関数の外（ここ）へ出す。**
  */
 export function BugReportComposer({ onDone }: Props) {
   const t = useT("reports");
@@ -96,6 +109,7 @@ export function BugReportComposer({ onDone }: Props) {
     }
     setFieldError(null);
 
+    // 🚨 通信が落ちたときを受ける（理由と実測はこの部品の冒頭）。
     const response = await fetch("/api/reports", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -106,7 +120,13 @@ export function BugReportComposer({ onDone }: Props) {
         viewport,
         locale,
       }),
-    });
+    }).catch(() => null);
+
+    if (!response) {
+      // 🚨 本文は消さない（`setBody("")` は成功したときだけ）。そのまま押し直せる。
+      toast.error(tError("network"));
+      return;
+    }
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as

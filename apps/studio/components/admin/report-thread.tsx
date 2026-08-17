@@ -65,11 +65,19 @@ export function ReportThread({ report, attachments, messages, viewerId, canManag
     const text = draft.trim();
     if (!text) return;
 
+    // 🚨 **通信そのものが失敗したときを受ける**（報告フォーム側と同じ穴が在った。
+    //    実測 2026-08-17: fetch が reject すると**画面に何も出ない**）。
+    //    🚨 書いた本文（draft）は消さない。`setDraft("")` は成功したときだけ。
+    //    🚨 `.catch()` で受ける（`try` で囲むと check-submit-once が入れ物の関数を見失う）。
     const response = await fetch(`/api/reports/${report.id}/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ body: text }),
-    });
+    }).catch(() => null);
+    if (!response) {
+      toast.error(tError("network"));
+      return;
+    }
     if (!response.ok) {
       toast.error(tError(await apiErrorKey(response)));
       return;
@@ -98,11 +106,16 @@ export function ReportThread({ report, attachments, messages, viewerId, canManag
   //    呼び出しは 1 箇所）。**鍵を分けても分ける先が無い**ので、共有の鍵のままが正しい。
   //    決定: 2026-08-16 / shell / **要らない**（未決ではありません）。
   const changeStatus = useSubmitOnce(async (next: "open" | "resolved") => {
+    // 🚨 ここも同じ（解決済み／未解決に戻す）。通信が落ちたら黙らない。
     const response = await fetch(`/api/reports/${report.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: next }),
-    });
+    }).catch(() => null);
+    if (!response) {
+      toast.error(tError("network"));
+      return;
+    }
     if (!response.ok) {
       toast.error(tError(await apiErrorKey(response)));
       return;

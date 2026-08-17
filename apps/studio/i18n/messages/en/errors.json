@@ -28,5 +28,6 @@
   "local_admin_not_linked": "Something is wrong with the setup. Start over from the initial setup, or tell your administrator about this screen.",
   "page_not_found_title": "This page does not exist",
   "page_not_found_body": "The URL may have changed, or the page may have been deleted.",
-  "page_not_found_home": "Go to the admin home"
+  "page_not_found_home": "Go to the admin home",
+  "network": "Could not reach the server. Check your connection and try again."
 }
