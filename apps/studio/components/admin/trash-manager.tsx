@@ -28,6 +28,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
@@ -149,6 +159,13 @@ export function TrashManager({
   const router = useRouter();
   const [items, setItems] = useState(initial);
   const [plan, setPlan] = useState<RestorePlan | null>(null);
+  /**
+   * 🚨 **完全削除の確認は `window.confirm` をやめた**（2026-08-17）。
+   *   本文は辞書を通っていたが、**「OK / キャンセル」は OS の言語**で出ていた
+   *   ＝ **辞書の外に、変えられない UI 文言が 2 つ**（AGENTS.md §3.8）。
+   *   ＝ 押す対象を state に持ち、`AlertDialog` で聞く。
+   */
+  const [pendingDelete, setPendingDelete] = useState<TrashItem | null>(null);
 
   // 🚨 `useSubmitOnce` で包む。**呼び出し元が既に包んでいても、ここも包む**（2026-08-16）。
   //    `restoreNow` は下の `previewRestore` / `confirmRestore`（どちらも useSubmitOnce）
@@ -198,7 +215,7 @@ export function TrashManager({
   });
 
   const remove = useSubmitOnce(async (item: TrashItem) => {
-    if (!window.confirm(t("delete_confirm", { name: item.displayName }))) return;
+    setPendingDelete(null);
     const response = await fetch("/api/trash", {
       method: "DELETE",
       headers: { "content-type": "application/json" },
@@ -282,7 +299,7 @@ export function TrashManager({
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             variant="destructive"
-                            onSelect={() => void remove.run(item)}
+                            onSelect={() => setPendingDelete(item)}
                           >
                             <Trash2 />
                             <span>{t("delete_permanently")}</span>
@@ -301,6 +318,34 @@ export function TrashManager({
           </TableBody>
         </Table>
       )}
+
+      {/* 🚨 **完全削除の確認**。`window.confirm` の置き換え（2026-08-17）。
+          `tone="danger"` … **この 3 箇所で危険なのはここだけ**（他はラベル削除と離脱確認）。 */}
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("delete_permanently")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete ? t("delete_confirm", { name: pendingDelete.displayName }) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              tone="danger"
+              disabled={remove.pending}
+              onClick={() => {
+                if (pendingDelete) void remove.run(pendingDelete);
+              }}
+            >
+              {t("delete_permanently")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={plan !== null} onOpenChange={(open) => !open && setPlan(null)}>
         <DialogContent>

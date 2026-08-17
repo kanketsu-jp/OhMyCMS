@@ -2,5 +2,8 @@
   "restore_prompt": "前回の入力が残っています。",
   "restore_button": "復元する",
   "discard_button": "破棄する",
-  "leave_confirm": "入力した内容が保存されていません。移動しますか？"
+  "leave_confirm": "入力した内容が保存されていません。移動しますか？",
+  "leave_title": "移動しますか",
+  "leave_stay": "このページに残る",
+  "leave_go": "移動する"
 }

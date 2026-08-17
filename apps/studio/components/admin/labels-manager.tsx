@@ -6,6 +6,16 @@ import { Lock, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { labelDisplayName } from "@/components/admin/label-display-name";
@@ -191,9 +201,22 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
     toast.success(t("saved"));
   });
 
+  /**
+   * 🚨 確認は `AlertDialog` で出す（2026-08-17 に `window.confirm` から替えた）。
+   *   `window.confirm` は本文だけ辞書を通り、**「OK / キャンセル」は OS の言語**だった
+   *   （AGENTS.md §3.8 の穴）。
+   *
+   * 🚨 **`tone="danger"` にしない。** ここは**論理削除**で、ゴミ箱へ入る
+   *   （【引いた】`lib/labels/service.ts:370` … `update({ deleted_at: now() })`／
+   *     `lib/trash/service.ts:118` … ゴミ箱の種類に `ohmycms_labels` が在る）
+   *   ＝ **戻せる**。危険色は「完全削除」に取っておく。
+   *   🚨 かつてここには「**取り返せない**」と書いてあったが、**ゴミ箱ができた後は正しくない**。
+   *     （**付いていた関連が戻るかは別の項目**〔`label_assignments`〕**で、私は確かめていない**）
+   */
+  const [pendingDelete, setPendingDelete] = useState<LabelRow | null>(null);
+
   const remove = useSubmitOnce(async (label: LabelRow) => {
-    // 🚨 消すと、付いているファイル・フォルダからも外れる。取り返せないので必ず尋ねる。
-    if (!window.confirm(t("delete_confirm", { name: labelDisplayName(t, label) }))) return;
+    setPendingDelete(null);
     const response = await send(`/api/labels/${label.id}`, { method: "DELETE" });
     if (!response) return;
     if (!response.ok) {
@@ -300,7 +323,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
                         size="sm"
                         variant="ghost"
                         disabled={remove.pending}
-                        onClick={() => void remove.run(label)}
+                        onClick={() => setPendingDelete(label)}
                       >
                         {t("delete")}
                       </Button>
@@ -360,6 +383,34 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
           </Button>
         </form>
       </section>
+
+      {/* 確認は AlertDialog。理由は remove の上に書いた（辞書の外に OS の文言を出さない）。 */}
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("delete")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete
+                ? t("delete_confirm", { name: labelDisplayName(t, pendingDelete) })
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={remove.pending}
+              onClick={() => {
+                if (pendingDelete) void remove.run(pendingDelete);
+              }}
+            >
+              {t("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

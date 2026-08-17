@@ -2,5 +2,8 @@
   "restore_prompt": "You have unsaved input from before.",
   "restore_button": "Restore",
   "discard_button": "Discard",
-  "leave_confirm": "Your changes are not saved. Leave this page?"
+  "leave_confirm": "Your changes are not saved. Leave this page?",
+  "leave_title": "Leave this page?",
+  "leave_stay": "Stay on this page",
+  "leave_go": "Leave"
 }

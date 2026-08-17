@@ -3,6 +3,16 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type MutableRefObject } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useT } from "@/i18n/client";
 
 type Props = {
@@ -19,6 +29,18 @@ const SECRET_FIELD_PATTERN = /password|secret|token|key/i;
 const SAVE_DELAY_MS = 300;
 
 export function FormDraft({ formId }: Props) {
+  /**
+   * 🚨 **離脱の確認から `window.confirm` を外した**（2026-08-17）。
+   *   本文は辞書を通っていたが、**「OK / キャンセル」は OS の言語**だった（AGENTS.md §3.8）。
+   *
+   * 🚨 **ここは他の 2 箇所と作りが違う。** クリックを**その場で止めなければならない**ので、
+   *   「聞いてから止める」ができない。→ **常に止めてから聞き、進むと言われたら自分で移る**。
+   *
+   * 🚨 **`beforeunload`（タブを閉じる・再読み込み）は置き換えられない。**
+   *   あれはブラウザが出す確認で、**文言もボタンも私たちには変えられない**。
+   *   ＝ **辞書の外に文言が出る箇所が 1 つ残る**が、**代わりが無い**（消すと警告自体が消える）。
+   */
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const t = useT("drafts");
   const rawDraft = useSyncExternalStore(
     () => () => {},
@@ -85,9 +107,10 @@ export function FormDraft({ formId }: Props) {
       if (!(target instanceof Element)) return;
       const link = target.closest("a[href]");
       if (!(link instanceof HTMLAnchorElement) || !shouldConfirmLink(link)) return;
-      if (window.confirm(t("leave_confirm"))) return;
+      // 🚨 **先に止める。** 聞いてから止めることはできない（クリックは待ってくれない）。
       event.preventDefault();
       event.stopPropagation();
+      setPendingHref(link.href);
     };
 
     form.addEventListener("input", scheduleSave);
@@ -106,13 +129,41 @@ export function FormDraft({ formId }: Props) {
     };
   }, [formId, t]);
 
-  if (!rawDraft || !draft || rawDraft === hiddenDraft) return null;
+  // 🚨 **ダイアログは、下書きの帯が出ていなくても要る**（離脱の確認は下書きと無関係）。
+  //    ＝ 早期 return の前に切り出して、両方の枝で描く。
+  const leaveDialog = (
+    <AlertDialog open={pendingHref !== null} onOpenChange={(open) => !open && setPendingHref(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("leave_title")}</AlertDialogTitle>
+          <AlertDialogDescription>{t("leave_confirm")}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("leave_stay")}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              const href = pendingHref;
+              setPendingHref(null);
+              // 🚨 **自分で移る。** 止めたのは自分なので、進むのも自分の仕事。
+              if (href) window.location.assign(href);
+            }}
+          >
+            {t("leave_go")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  if (!rawDraft || !draft || rawDraft === hiddenDraft) return leaveDialog;
 
   return (
-    // 🚨 罫線を持たない。面（Surface）の**中**に描かれるので、`rounded-* + border` を足すと
-    //    面が2段になる（`knowledge/decisions/no-nested-surfaces.md` §2-1・`check-surface-nesting` が検出）。
-    //    区別は塗り（`bg-muted`）だけで付ける。`bug-report-composer` の注記欄と同じ作り。
-    <div className="col-span-full flex flex-wrap items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">
+    <>
+      {leaveDialog}
+      {/* 🚨 罫線を持たない。面（Surface）の**中**に描かれるので、`rounded-* + border` を足すと
+          面が2段になる（`knowledge/decisions/no-nested-surfaces.md` §2-1・`check-surface-nesting` が検出）。
+          区別は塗り（`bg-muted`）だけで付ける。`bug-report-composer` の注記欄と同じ作り。 */}
+      <div className="col-span-full flex flex-wrap items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">
       <span className="mr-auto text-muted-foreground">{t("restore_prompt")}</span>
       <Button type="button" variant="outline" size="sm" onClick={() => restoreDraft(formId, draft, rawDraft, setHiddenDraft, dirtyRef)}>
         {t("restore_button")}
@@ -121,6 +172,7 @@ export function FormDraft({ formId }: Props) {
         {t("discard_button")}
       </Button>
     </div>
+    </>
   );
 }
 
