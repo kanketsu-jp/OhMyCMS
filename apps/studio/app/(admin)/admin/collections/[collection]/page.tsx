@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
@@ -10,8 +10,11 @@ import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RelationForm } from "@/components/admin/relation-form";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { fieldLabel } from "@/lib/schema/labels";
+import { collectionLabel } from "@/lib/schema/collection-labels";
 import { getLocale, getT } from "@/i18n/server";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import {
   Accordion,
@@ -81,6 +84,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
   const errorKey = errorKeyFromQuery(query.error);
   const errorMessage = errorKey ? tError(errorKey) : null;
   const tCollections = await getT("collections");
+  const tCommon = await getT("common");
   const tFields = await getT("fields");
   const tItems = await getT("items");
   const locale = await getLocale();
@@ -108,6 +112,13 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
   const collectionNames = collectionsResult.ok
     ? collectionsResult.data.map((item) => item.collection)
     : [];
+  const collectionLabelByName = new Map(
+    collectionsResult.ok
+      ? collectionsResult.data.map((item) => [item.collection, collectionLabel(item, locale)])
+      : [],
+  );
+  const labelForCollectionName = (name: string) =>
+    collectionLabelByName.get(name) ?? collectionLabel({ collection: name, meta: null }, locale);
 
   // 対象が無いときは、中身を描かない。『無い』と『在るが空』を同じ場所で混ぜない。
   // 『対象が無い』は『中身が空』より前に判定する。
@@ -123,6 +134,8 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       </div>
     );
   }
+
+  const currentTranslations = collectionResult.data.meta?.translations ?? null;
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -253,6 +266,40 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           </Link>
         </div>
       </Surface>
+      <Surface>
+        <SurfaceTitle>{tCollections("display_name_heading")}</SurfaceTitle>
+        <p className="text-sm text-muted-foreground">{tCollections("display_name_help")}</p>
+        <form
+          action={`/admin/actions/collections/${encoded}/translations`}
+          method="post"
+          className="flex flex-col gap-4"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="collection-name-ja">{tCommon("locale_ja")}</Label>
+              <Input
+                id="collection-name-ja"
+                name="name_ja"
+                defaultValue={currentTranslations?.ja ?? ""}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="collection-name-en">{tCommon("locale_en")}</Label>
+              <Input
+                id="collection-name-en"
+                name="name_en"
+                defaultValue={currentTranslations?.en ?? ""}
+              />
+            </div>
+          </div>
+          <div>
+            <Button type="submit">
+              <Save data-icon="inline-start" />
+              {tCollections("display_name_save")}
+            </Button>
+          </div>
+        </form>
+      </Surface>
       <Surface id={sectionAnchorId("relations.list_title")}>
         {relationsResult.ok ? (
           collectionRelations.length > 0 ? (
@@ -271,7 +318,14 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                   <TableRow key={row.key}>
                     <TableCell>{tRelations(row.kind === "m2o" ? "kind_m2o" : "kind_o2m")}</TableCell>
                     <TableCell className="font-medium">{row.currentField}</TableCell>
-                    <TableCell>{row.relatedCollection}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">
+                          {labelForCollectionName(row.relatedCollection)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{row.relatedCollection}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>{row.relatedField}</TableCell>
                     <TableCell className="text-right">
                       {/* 🚨 関連の削除は**戻せない**（`lib/schema/service.ts:1143` が `.delete()`）。

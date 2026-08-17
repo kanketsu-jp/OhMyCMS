@@ -7,7 +7,8 @@ import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { Plus } from "lucide-react";
 import { errorKeyFromQuery } from "@/i18n/error";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
+import { collectionLabel } from "@/lib/schema/collection-labels";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Table,
@@ -30,6 +31,7 @@ export default async function CollectionsPage({ searchParams }: Props) {
   const errorKey = errorKeyFromQuery(params.error);
   const errorMessage = errorKey ? tError(errorKey) : null;
   const t = await getT("collections");
+  const locale = await getLocale();
   const result = await apiFetch<CollectionResult[]>("/api/collections");
 
   return (
@@ -81,29 +83,37 @@ export default async function CollectionsPage({ searchParams }: Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {result.data.map((collection) => (
-                  <TableRow key={collection.collection}>
-                    <TableCell className="font-medium">{collection.collection}</TableCell>
-                    <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>
-                    <TableCell>{collection.meta?.note ?? ""}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/admin/collections/${collection.collection}`}
-                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                        >
-                          {t("fields_link")}
-                        </Link>
-                        <Link
-                          href={`/admin/content/${collection.collection}`}
-                          className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-                        >
-                          {t("items_link")}
-                        </Link>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {result.data.map((collection) => {
+                  const encoded = encodeURIComponent(collection.collection);
+                  return (
+                    <TableRow key={collection.collection}>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium">{collectionLabel(collection, locale)}</span>
+                          <span className="text-xs text-muted-foreground">{collection.collection}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{collection.schema?.columns.length ?? 0}</TableCell>
+                      <TableCell>{collection.meta?.note ?? ""}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/admin/collections/${encoded}`}
+                            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                          >
+                            {t("fields_link")}
+                          </Link>
+                          <Link
+                            href={`/admin/content/${encoded}`}
+                            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                          >
+                            {t("items_link")}
+                          </Link>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             {/* 1 件も無いことを、表の枠だけで伝えない。
