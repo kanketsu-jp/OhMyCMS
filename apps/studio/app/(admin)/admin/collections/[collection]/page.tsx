@@ -328,7 +328,8 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           </Link>
         </div>
       </Surface>
-      <Surface>
+      {/* 🚨 面の上の線と見出しがくっつかないよう、線の下に 24px（DESIGN.md §1-9・/admin/version と同じ形）。 */}
+      <Surface className="pt-6">
         <SurfaceTitle>{tCollections("display_name_heading")}</SurfaceTitle>
         <p className="text-sm text-muted-foreground">{tCollections("display_name_help")}</p>
         <form
@@ -367,7 +368,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           🚨 **一覧は `lib/admin/collection-icons.ts` の 1 本だけが決める。**
              ここへ配列を写経しない（写経すると、画面に出るのに API が弾く／その逆が必ず起きる）。
           🚨 選ばない（`""`）も**必ず出す**。一度選んだ人が**戻せなくなる**ため。 */}
-      <Surface>
+      <Surface className="pt-6">
         <SurfaceTitle>{tCollections("icon_heading")}</SurfaceTitle>
         <p className="text-sm text-muted-foreground">{tCollections("icon_help")}</p>
         <form
@@ -418,7 +419,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           </div>
         </form>
       </Surface>
-      <Surface id={sectionAnchorId("relations.list_title")}>
+      <Surface id={sectionAnchorId("relations.list_title")} className="pt-6">
         {relationsResult.ok ? (
           collectionRelations.length > 0 ? (
             <Table>
@@ -481,7 +482,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           )
         ) : null}
       </Surface>
-      <Surface id={sectionAnchorId("relations.add_title")}>
+      <Surface id={sectionAnchorId("relations.add_title")} className="pt-6">
         <SurfaceTitle>{tRelations("add_title")}</SurfaceTitle>
         <RelationForm collection={collection} collectionNames={collectionNames} />
       </Surface>
