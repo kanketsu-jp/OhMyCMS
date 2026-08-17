@@ -39,6 +39,7 @@ x_rag_okf:
 - [DB は PostgreSQL（Cloudflare D1 は撤回）](./decisions/db-postgres.md) — `decisions/db-postgres`
 - [ファイルの削除は 2 回消す。順番は「実体 → 行」](./decisions/deleting-a-file-is-two-deletes.md) — `knowledge/decisions/deleting-a-file-is-two-deletes.md`
 - [画面に置くものには理由が要る（枠・常設・背景・寸法）](./decisions/every-element-must-earn-its-place.md) — `decisions/every-element-must-earn-its-place`
+- [「どの欄が悪いか」は入れ物で運ぶ（code → 文言の写像はその上に載せる）](./decisions/field-errors-need-a-container.md) — `decisions/field-errors-need-a-container`
 - [フォルダは「誰かの持ち物」にしない](./decisions/folders-are-not-owned.md) — `decisions/folders-are-not-owned`
 - [フォルダは独立した画面を持たない（ファイルの中に畳む）](./decisions/folders-live-inside-files.md) — `decisions/folders-live-inside-files`
 - [欄の名前で効く守りは、名前を変えた瞬間に黙って外れる](./decisions/guards-keyed-by-name-break-silently.md) — `decisions/guards-keyed-by-name-break-silently`
