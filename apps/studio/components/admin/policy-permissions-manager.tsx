@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Save, Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
-import { RowOptions } from "@/components/admin/row-options";
+import { ListEmpty } from "@/components/admin/list-empty";
+import { PermissionCell, cellStateOf, type CellState } from "@/components/admin/permission-grid";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -113,8 +115,90 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
   const [editing, setEditing] = useState<PermissionRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<number | null>(null);
+  /** ポップアップで開いているマス。`null` なら閉じている。 */
+  const [openName, setOpenName] = useState<string | null>(null);
+  const [openAction, setOpenAction] = useState<(typeof actions)[number] | null>(null);
   const columns = useMemo(() => fieldsFor(collections, collection), [collections, collection]);
   const saveDisabled = !collection;
+
+  /**
+   * 格子の索引。`コレクション\u0000操作` → 権限の行。
+   * 🚨 **1 回だけ組む**。マスごとに `permissions.find(...)` を回すと 15×4 = 60 回走る。
+   */
+  const byCell = useMemo(() => {
+    const map = new Map<string, PermissionRow>();
+    for (const row of permissions) map.set(`${row.collection}\u0000${row.action}`, row);
+    return map;
+  }, [permissions]);
+  const cellRow = (name: string, act: (typeof actions)[number]) => byCell.get(`${name}\u0000${act}`);
+  const stateLabelOf = (state: CellState) =>
+    state === "all" ? t("cell_all") : state === "conditional" ? t("cell_conditional") : t("cell_none");
+  const actionLabelOf = (act: (typeof actions)[number]) =>
+    act === "read" ? t("action_read") : act === "create" ? t("action_create") : act === "update" ? t("action_update") : t("action_delete");
+
+  /** 行の一括の確認待ち。`null` なら確認していない。 */
+  const [bulk2, setBulk2] = useState<{ collection: string; mode: "all" | "none" } | null>(null);
+
+  /**
+   * 行（コレクション）の 4 マスをまとめて変える。
+   *
+   * 🚨 **`all` は「なし」のマスだけ足す**（既に在る行は触らない）。
+   *   触ると **書いた行フィルタを黙って上書きする**ことになる——
+   *   条件つきを含む行では、**先に確認を出してから**ここへ来る（`bulk2`）。
+   * 🚨 **`none` は行を消す**。**物理削除**なので、条件つきを含むなら確認が要る。
+   * 🚨 **1 本でも失敗したら、そこで止めて出す**（**残りを黙って続けない**）。
+   */
+  const bulk = useSubmitOnce(async (name: string, mode: "all" | "none") => {
+    setError(null);
+    for (const act of actions) {
+      const row = cellRow(name, act);
+      if (mode === "all") {
+        if (row) continue;
+        const response = await fetch("/api/permissions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ policy: policyId, collection: name, action: act, permissions: null, fields: "*" }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          setError(messageFrom(payload, t("error_save_failed")));
+          return;
+        }
+      } else {
+        if (!row) continue;
+        const response = await fetch(`/api/permissions/${row.id}`, { method: "DELETE" });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          setError(messageFrom(payload, t("error_delete_failed")));
+          return;
+        }
+      }
+    }
+    router.refresh();
+  }, (name, mode) => `${name}:${mode}`);
+  const applyBulk = (name: string, mode: "all" | "none") => bulk.run(name, mode);
+
+  /** そのマスを開く（**新規でも編集でも、同じポップアップ**）。 */
+  function openCell(name: string, act: (typeof actions)[number]) {
+    const row = cellRow(name, act);
+    setError(null);
+    setCollection(name);
+    setAction(act);
+    if (row) {
+      const parsedFields = (row.fields ?? "").split(",").map((field) => field.trim()).filter(Boolean);
+      setEditing(row);
+      setAllFields(parsedFields.includes("*") || parsedFields.length === 0);
+      setSelectedFields(parsedFields.includes("*") ? [] : parsedFields);
+      setFilterJson(jsonText(row.permissions));
+    } else {
+      setEditing(null);
+      setAllFields(true);
+      setSelectedFields([]);
+      setFilterJson("");
+    }
+    setOpenName(name);
+    setOpenAction(act);
+  }
 
   function resetForm() {
     setEditing(null);
@@ -124,15 +208,6 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
     setFilterJson("");
   }
 
-  function startEdit(row: PermissionRow) {
-    const parsedFields = (row.fields ?? "").split(",").map((field) => field.trim()).filter(Boolean);
-    setEditing(row);
-    setCollection(row.collection);
-    setAction(row.action);
-    setAllFields(parsedFields.includes("*") || parsedFields.length === 0);
-    setSelectedFields(parsedFields.includes("*") ? [] : parsedFields);
-    setFilterJson(jsonText(row.permissions));
-  }
 
   const save = useSubmitOnce(async () => {
     setError(null);
@@ -183,63 +258,100 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           {error}
         </div>
       ) : null}
-      {/* collection・action・fields・行フィルタ・操作の複数列を読む一覧なので table にする。 */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("collection_label")}</TableHead>
-            <TableHead>{t("action_label")}</TableHead>
-            <TableHead>{t("fields_list_label")}</TableHead>
-            <TableHead>{t("filter_json_label")}</TableHead>
-            <TableHead className="text-right">
-              <span className="sr-only">{t("edit_button")}</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {permissions.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell className="font-medium">{row.collection}</TableCell>
-              <TableCell>{row.action}</TableCell>
-              <TableCell className="text-muted-foreground">{row.fields || t("fields_unspecified")}</TableCell>
-              <TableCell className="min-w-80 whitespace-normal">
-                <FilterBlock value={jsonText(row.permissions) || t("no_filter")} targetId={`policy-filter-${row.id}`} />
-              </TableCell>
-              <TableCell>
-                {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
-                    （`knowledge/decisions/action-button-and-edit-mode.md`。283 A を行へ延ばしたもの） */}
-                <div className="flex justify-end gap-1">
-                  <Button type="button" variant="outline" size="sm" aria-label={t("edit_button")} onClick={() => startEdit(row)}>
-                    <Pencil />
-                    <span className="hidden md:inline">{t("edit_button")}</span>
-                  </Button>
-                  <RowOptions
-                    label={t("row_options")}
-                    options={[
-                      {
-                        label: t("delete_button"),
-                        icon: <Trash2 />,
-                        destructive: true,
-                        disabled: remove.isPending(String(row.id)),
-                        onSelect: () => setConfirming(row.id),
-                      },
-                    ]}
-                  />
-                </div>
-              </TableCell>
+      {/* 🚨 **これはこのポリシーだけの設定**。利用者に実際に効くのは、
+          その人に紐づく**全ポリシーを合わせたもの**（`filter_json_help_combination` のとおり）。
+          🚨 **1 つの格子を見て「この人はこう見える」と読むと外れます。**
+          合成結果を出す画面を作るかは、堀池さん判断として板に出ている（2026-08-17）。 */}
+      <p className="text-sm text-muted-foreground">{t("grid_scope_note")}</p>
+      {/* 🚨 コレクション × 操作 の**格子**。堀池指示「権限の設定変更などどんなふうに ui を作っているか」。
+          それまでは**平らな一覧**で、「このコレクションの read は許可されているか」を
+          **行を目で探して**確かめる形だった（＝ 見えていない組み合わせが分からない）。
+          🚨 **行が増えたときの手当ては入れていない**（いま 15 本）。
+             100 本を超えたら**絞り込み**が要る。**入れていないことをここに書いておく**。 */}
+      <div className="w-full overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("collection_label")}</TableHead>
+              {actions.map((act) => (
+                <TableHead key={act} className="w-28">{actionLabelOf(act)}</TableHead>
+              ))}
+              <TableHead className="w-40 text-right">
+                <span className="sr-only">{t("row_options")}</span>
+              </TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      {permissions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("no_permissions")}</p>
-      ) : null}
+          </TableHeader>
+          <TableBody>
+            {collections.map((item) => {
+              const states = actions.map((act) => cellStateOf(cellRow(item.collection, act)));
+              const hasConditional = states.includes("conditional");
+              const allOn = states.every((s) => s !== "none");
+              const allOff = states.every((s) => s === "none");
+              return (
+                <TableRow key={item.collection}>
+                  <TableCell className="font-medium">{item.collection}</TableCell>
+                  {actions.map((act, index) => (
+                    <TableCell key={act}>
+                      <PermissionCell
+                        state={states[index]}
+                        label={`${item.collection} / ${actionLabelOf(act)}`}
+                        stateLabel={stateLabelOf(states[index])}
+                        onOpen={() => openCell(item.collection, act)}
+                      />
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right">
+                    {/* 🚨 行の一括。**条件つきが 1 つでも在れば確認する**——
+                        どちらの向きでも**書いた行フィルタが消える**ため
+                        （`confirm-by-reversibility-and-reach` §2.5）。 */}
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={allOn || bulk.pending}
+                        onClick={() => (hasConditional ? setBulk2({ collection: item.collection, mode: "all" }) : void applyBulk(item.collection, "all"))}
+                      >
+                        {t("row_all_button")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={allOff || bulk.pending}
+                        onClick={() => (hasConditional ? setBulk2({ collection: item.collection, mode: "none" }) : void applyBulk(item.collection, "none"))}
+                      >
+                        {t("row_none_button")}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      {collections.length === 0 ? <ListEmpty>{t("no_collections")}</ListEmpty> : null}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("permission_delete_confirm_title")}</AlertDialogTitle>
             <AlertDialogDescription>{t("permission_delete_confirm")}</AlertDialogDescription>
           </AlertDialogHeader>
+          {/* 🚨 **消えるものを見せる**（決定 §4「本文に及ぶ範囲を書く」）。
+              **物理削除**なので、ここに出ている行フィルタは**この後どこにも残りません**。 */}
+          {confirming !== null
+            ? (() => {
+                const row = permissions.find((one) => one.id === confirming);
+                const json = row ? jsonText(row.permissions) : "";
+                return json ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t("permission_delete_lost")}</p>
+                    <FilterBlock value={json} targetId={`policy-filter-lost-${confirming}`} />
+                  </div>
+                ) : null;
+              })()
+            : null}
           <AlertDialogFooter>
             <AlertDialogCancel />
             <AlertDialogAction
@@ -256,6 +368,55 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* 🚨 行の一括の確認。**条件つきが 1 つでも在るときだけ**出る。
+          どちらの向き（All / None）でも、**書いた行フィルタが消える**ため
+          （All は「なし」だけ足すが、**利用者は「全部許可」と読む**——
+           条件つきが残ることを、ここで先に伝える）。 */}
+      <AlertDialog open={bulk2 !== null} onOpenChange={(open) => !open && setBulk2(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulk2?.mode === "none" ? t("row_none_confirm_title") : t("row_all_confirm_title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulk2?.mode === "none" ? t("row_none_confirm") : t("row_all_confirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel />
+            <AlertDialogAction
+              tone={bulk2?.mode === "none" ? "danger" : "default"}
+              loading={bulk2 !== null && bulk.isPending(`${bulk2.collection}:${bulk2.mode}`)}
+              onClick={() => {
+                if (!bulk2) return;
+                void applyBulk(bulk2.collection, bulk2.mode);
+                setBulk2(null);
+              }}
+            >
+              {bulk2?.mode === "none" ? t("row_none_button") : t("row_all_button")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* 🚨 ポップアップの中身は**いまのフォームのまま**。
+          **条件ビルダーは堀池さん待ち**なので、生 JSON の textarea を変えない
+          （**形を変えないほうが、答えが来たとき差し替えやすい**）。 */}
+      <Dialog
+        open={openName !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setOpenName(null);
+            setOpenAction(null);
+            resetForm();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {openName && openAction ? `${openName} / ${actionLabelOf(openAction)}` : ""}
+            </DialogTitle>
+          </DialogHeader>
       <form
         id="policy-permission-form"
         className="space-y-4"
@@ -264,38 +425,8 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
           void save.run();
         }}
       >
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="collection">{t("collection_label")}</Label>
-            <select
-              id="collection"
-              value={collection}
-              onChange={(event) => {
-                setCollection(event.target.value);
-                setSelectedFields([]);
-                setAllFields(true);
-              }}
-              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
-            >
-              {collections.map((item) => (
-                <option key={item.collection} value={item.collection}>{item.collection}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="action">{t("action_label")}</Label>
-            <select
-              id="action"
-              value={action}
-              onChange={(event) => setAction(event.target.value as (typeof actions)[number])}
-              className="h-(--control-h) w-full rounded-lg bg-muted/60 px-2 text-base md:h-(--control-h-pc-field) md:text-sm"
-            >
-              {actions.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        {/* 🚨 コレクションと操作は**マスが決めている**ので、ここでは選ばせない。
+            選べるようにすると、**開いたマスと違うものを保存できてしまう**（格子と食い違う）。 */}
         <div className="space-y-2">
           <Label>{t("fields_list_label")}</Label>
           <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
@@ -342,12 +473,35 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
             {editing ? t("update_button") : t("add_button")}
           </Button>
         </div>
-        {editing ? (
-          <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={resetForm}>{t("cancel_edit_button")}</Button>
-          </div>
-        ) : null}
       </form>
+          {/* 🚨 削除はここだけ（**格子のマスからは消えない**）。
+              🚨 **条件つきなら確認する**——書いた行フィルタと欄の指定が消えるため。
+              **すべて（条件が無い）なら確認しない**（消える情報が無い）。 */}
+          {editing ? (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="destructive-ghost"
+                size="sm"
+                loading={remove.isPending(String(editing.id))}
+                onClick={() => {
+                  if (cellStateOf(editing) === "conditional") {
+                    setConfirming(editing.id);
+                    return;
+                  }
+                  void remove.run(editing.id);
+                  setOpenName(null);
+                  setOpenAction(null);
+                  resetForm();
+                }}
+              >
+                <Trash2 />
+                {t("delete_button")}
+              </Button>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
