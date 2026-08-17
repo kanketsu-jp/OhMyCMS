@@ -1,13 +1,6 @@
 import { NextResponse } from "next/server";
 import { publicBaseUrl } from "@/lib/auth/urls";
-import { errorKeyFromApiCode, type ErrorKey } from "@/i18n/error";
-
-type ApiErrorPayload = {
-  error?: {
-    code?: string;
-    message?: string;
-  };
-};
+import { FALLBACK_ERROR_KEY, errorKeyFromPayload, type ErrorKey } from "@/i18n/error";
 
 export function redirectWithMessage(
   request: Request,
@@ -42,8 +35,12 @@ export function formString(formData: FormData, name: string): string {
  *    見張り: `scripts/check-no-api-message.mjs`
  */
 export async function apiErrorKey(response: Response): Promise<ErrorKey> {
-  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
-  return errorKeyFromApiCode(payload?.error?.code);
+  // 🚨 **取り出しを自分で書かない。** `payload?.error?.code` を各所で書くと、
+  //    形が変わったとき**何箇所直すのか誰も知らない**（実測 2026-08-17: 同じ取り出しが 7 箇所）。
+  //    ここは Response を受ける層なので、**寄せ先へ渡して、表に無い code だけ既定へ落とす**。
+  //    `errorKeyFromPayload` は表に無ければ `null` を返す（呼び出し側の具体的な文言のため）が、
+  //    この関数は「必ず鍵を返す」約束なので、ここで `FALLBACK_ERROR_KEY` にする。
+  return errorKeyFromPayload(await response.json().catch(() => null)) ?? FALLBACK_ERROR_KEY;
 }
 
 export function sameOriginUrl(request: Request, path: string): URL {
