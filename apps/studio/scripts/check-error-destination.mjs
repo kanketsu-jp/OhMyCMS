@@ -24,8 +24,10 @@
  *
  * ## 🚨 この検査が見ていないもの（出力にも同じものを印字する）
  * 1. **`redirectWithMessage` の呼び出しだけ**を見る。ほかの口で `?error=` を付ける経路は見ていない。
- * 2. **`errorKeyFromQuery` を呼んでいるか**しか見ない。**それを画面へ渡しているか**は見ていない
- *    （`ErrorBanner` に渡し忘れても緑）。**画面で見るのは人の仕事**。
+ * 2. 受ける口（`errorKeyFromQuery`）と**出す口**（`<ErrorBanner>`）の**両方**を見る。
+ *    ただし見えるのは「**同じ画面のどこかに在る**」ことだけ——
+ *    別の error を出していても緑になる。**その 1 段は人が画面で見る**。
+ *    🚨 最初の版は受ける口だけを見ていて、**帯を消した版が素通りした**（実測 rc=0）。
  * 3. **索引を見る**ので、まだ `git add` していない変更は見えない。
  * 4. 戻り先が**動的に組み立てられている**（変数を跨ぐ・条件で分かれる）ときは解決できない
  *    → その場合は 1 件として**落とす**（黙って通さない）。
@@ -41,12 +43,25 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROUTES_GLOB = "app/admin/actions/**/route.ts";
 /** 戻り先の画面を探す根。App Router の区画。 */
 const PAGES_ROOT = "app/(admin)";
-/** 戻り先が理由を出せることの合図（許可リストで受ける口）。 */
-const RECEIVER = /\berrorKeyFromQuery\s*\(/;
+/**
+ * 戻り先が理由を出せることの合図。**2 つ揃って初めて「出せる」**。
+ *
+ * 🚨 最初の版は `errorKeyFromQuery(` **だけ**を見ていた。自分で抜け道を通したら**素通りした**
+ *    （実測 2026-08-17: 帯 `<ErrorBanner>` を消し、呼び出しだけ残した版で **rc=0**）。
+ *    ＝ **堀池さんが報告した状態そのもの**（URL に鍵は付くが画面には何も出ない）が通る。
+ *    → **画面へ出している側も見る。**
+ * 規律: pages（w4A:p2F）の 1 行「**必須にした・検査を足した で安心しない。
+ *    抜け道を 1 つ自分で挙げて、それを実際に通してみる**」。
+ */
+const RECEIVERS = [
+  { re: /\berrorKeyFromQuery\s*\(/, what: "URL の鍵を受ける口（errorKeyFromQuery）" },
+  { re: /<ErrorBanner\b/, what: "画面へ出す口（<ErrorBanner>）" },
+];
 
 const BLIND_SPOTS = [
   "redirectWithMessage の呼び出しだけを見る（ほかの口で ?error= を付ける経路は見ていない）",
-  "errorKeyFromQuery を呼んでいるかしか見ない（画面へ渡し忘れても緑。画面で見るのは人の仕事）",
+  "受ける口と <ErrorBanner> の両方が在るかを見る。ただし **同じ画面のどこかに在る** ことしか見ない（別の error を出していても緑）",
+  "ErrorBanner 以外の出し方をしていると落ちる（過検出。人が 1 件見に行く）",
   "索引を見るので、まだ git add していない変更は見えない",
   "戻り先を解決できないときは緑にせず落とす（過検出に倒してある）",
 ];
@@ -226,10 +241,12 @@ for (const rel of routeFiles) {
       failures.push(`${rel} … 戻り先 ${page} が索引に無い（改名・削除・未 add）`);
       continue;
     }
-    if (RECEIVER.test(stripComments(pageSource))) passed.push(`${rel} → ${urlPath}（${page}）`);
+    const clean = stripComments(pageSource);
+    const missing = RECEIVERS.filter((r) => !r.re.test(clean));
+    if (missing.length === 0) passed.push(`${rel} → ${urlPath}（${page}）`);
     else {
       failures.push(
-        `${rel} … 戻り先 ${urlPath} が理由を出せません（${page} に errorKeyFromQuery が無い）\n` +
+        `${rel} … 戻り先 ${urlPath} が理由を出せません（${page} に ${missing.map((m) => m.what).join(" と ")} が無い）\n` +
           "      🚨 URL に ?error= が付いても、画面には何も出ません（実測 2026-08-17: 文言 0 行）",
       );
     }
