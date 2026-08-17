@@ -73,6 +73,7 @@ x_rag_okf:
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
 - [ショートカットはエディタのキーバインドと衝突しない](./decisions/shortcuts-must-not-collide-with-editor.md) — `decisions/shortcuts-must-not-collide-with-editor`
 - [v0.9 は Next.js 単一アプリ、分離時は Hono](./decisions/single-nextjs-app-then-hono.md) — `decisions/single-nextjs-app-then-hono`
+- [singleton は旗だけ在って中身が無い。v1 では作らない](./decisions/singleton-is-a-flag-without-behavior.md) — `decisions/singleton-is-a-flag-without-behavior`
 - [ゴミ箱に入れた権限は、許可を出さない（入り口より先に読み手を塞ぐ）](./decisions/soft-deleted-permissions-must-not-grant.md) — `decisions/soft-deleted-permissions-must-not-grant`
 - [ゴミ箱に在るものの名前は、空けない](./decisions/soft-deleted-names-stay-taken.md) — `decisions/soft-deleted-names-stay-taken`
 - [手順ドキュメントはステップ式で書く。前提を独立させ、スクリーンショットを使わない](./decisions/stepwise-docs.md) — `decisions/stepwise-docs`
