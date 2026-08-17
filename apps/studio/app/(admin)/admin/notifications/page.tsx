@@ -79,6 +79,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
           <ReportRooms
             reports={result.data.data}
             emptyLabel={status === "open" ? tR("empty_open") : tR("empty_resolved")}
+          emptyActionLabel={tR("nav_create")}
             resolvedLabel={tR("tab_resolved")}
             formatDateTime={(value) => format.dateTime(value)}
           />
@@ -104,6 +105,9 @@ export default async function NotificationsPage({ searchParams }: Props) {
           category={tab}
           // 🚨 空の理由をタブごとに書き分ける。「あなた宛が無い」と
           //    「システムからのお知らせが無い」は読む人にとって別のこと。
+          // 🚨 §1-10 の「次にできること」は**ここには置かない**。
+          //    通知は利用者が作るものではないので、**この画面でできることが無い**
+          //    （司令塔 2026-08-17:「無い画面は『無い』と報告してください。それも結果です」）。
           emptyLabel={tab === "system" ? t("empty_system") : t("empty")}
         />
       ) : (

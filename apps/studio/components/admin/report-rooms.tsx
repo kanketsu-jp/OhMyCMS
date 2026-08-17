@@ -1,14 +1,22 @@
 import { MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
 
+import { BugReportTrigger } from "@/components/admin/bug-report-trigger";
 import { ListEmpty } from "@/components/admin/list-empty";
 import type { BugReport } from "@/lib/reports/service";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
   reports: BugReport[];
   /** 「まだ 1 件も無い」ときに出す文 */
   emptyLabel: string;
+  /**
+   * 空のときに隣へ置く「次にできること」の文字（`DESIGN.md` §1-10）。
+   * 🚨 **省略できるようにしない。** 省略できると、次に使う画面が
+   * 「無い」で終わる形へ簡単に戻る（16 本のうち 15 本がそうなっていた）。
+   */
+  emptyActionLabel: string;
   /** 解決済みの印に使う文 */
   resolvedLabel: string;
   /** 日時の整形。呼ぶ側（サーバ側）が `getFormat()` から渡す */
@@ -28,9 +36,19 @@ type Props = {
  * 🚨 **枠で囲まない**（堀池さん「ボーダー＋Padding はいらない…カードコンポーネントを
  *    多用するのはデザインスキルが低い」）。行の区切りは罫線 1 本だけにする。
  */
-export function ReportRooms({ reports, emptyLabel, resolvedLabel, formatDateTime }: Props) {
+export function ReportRooms({ reports, emptyLabel, emptyActionLabel, resolvedLabel, formatDateTime }: Props) {
   if (reports.length === 0) {
-    return <ListEmpty>{emptyLabel}</ListEmpty>;
+    // 🚨 `DESIGN.md` §1-10「空のときは『無い』と言うだけで終わらせない」。
+    //    実測（2026-08-17・pages）: この画面は空の文だけで、**本文の中の操作が 0** だった。
+    //    「報告する」はヘッダーにも在るが、**空の本文を見た人はそこで止まる**。
+    //    🚨 ヘッダーと重複してよい（§1-10 にそう書いてある）。
+    //    🚨 部品は新しく作らない（§0-1）。ユーザーメニューと同じ `BugReportTrigger` を使う。
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <ListEmpty>{emptyLabel}</ListEmpty>
+        <BugReportTrigger label={emptyActionLabel} className={buttonVariants()} />
+      </div>
+    );
   }
 
   return (

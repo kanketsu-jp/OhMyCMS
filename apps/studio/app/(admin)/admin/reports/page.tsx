@@ -95,6 +95,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           // 🚨 空の理由をタブごとに書き分ける。「未解決が無い」と「解決済みが無い」は
           //    利用者にとって意味が違う（前者は良い知らせ）。
           emptyLabel={status === "open" ? t("empty_open") : t("empty_resolved")}
+          emptyActionLabel={t("nav_create")}
           resolvedLabel={t("tab_resolved")}
           formatDateTime={(value) => format.dateTime(value)}
         />
