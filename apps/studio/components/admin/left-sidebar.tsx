@@ -13,6 +13,7 @@ import {
   FolderIcon,
   SettingsIcon,
   TableIcon,
+  Trash2Icon,
 } from "lucide-react";
 
 import { GlobalSearchButton } from "@/components/admin/global-search";
@@ -106,6 +107,15 @@ function isCurrent(pathname: string, href: string): boolean {
 
 function NavItemIcon({ href }: { href: string }) {
   if (href === "/admin/notifications") return <BellIcon />;
+  // 🚨 ゴミ箱に**表のアイコン**が出ていた（堀池・2026-08-17・K1「ゴミ箱のアイコンが不自然」）。
+  //    ここに分岐が無く、`/admin/trash` が既定の `<TableIcon />` に落ちていたため。
+  //    【測った】直す前: この行の svg は `lucide lucide-table`（d は表の罫線）。
+  //    🟢 対照 `/admin/notifications` は `lucide-bell` が取れていた ＝ 取り出し方は動いていた
+  //    ＝ **「ゴミ箱が 0 件」は見ていない 0 ではなく、表アイコンが入っていた**。
+  // 🚨 `Trash2` はこのリポジトリで既に **8 ファイル**が使っている標準のゴミ箱
+  //    （`git grep -l Trash2 -- components app`）。**新しい絵を選ばないこと**——
+  //    同じ意味に 2 つの絵が出る。
+  if (href === "/admin/trash") return <Trash2Icon />;
   return <TableIcon />;
 }
 
