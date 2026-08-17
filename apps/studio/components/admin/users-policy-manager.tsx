@@ -8,7 +8,7 @@ import { FieldLabel } from "@/components/admin/field-label";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { WideTable } from "@/components/admin/wide-table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,7 @@ import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { errorKeyFromPayload } from "@/i18n/error";
 import { AVATAR_EMOJIS } from "@/lib/admin/avatar-emojis";
+import { identiconDataUri } from "@/lib/admin/identicon";
 
 type UserRow = {
   id: string;
@@ -151,6 +152,9 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
                         className="inline-flex min-w-0 items-center gap-2 hover:underline"
                       >
                         <Avatar size="sm" aria-hidden="true">
+                          {!usersById.get(row.user)?.avatar_emoji ? (
+                            <AvatarImage src={identiconDataUri(row.user)} alt="" />
+                          ) : null}
                           <AvatarFallback>
                             {usersById.get(row.user)?.avatar_emoji ?? AVATAR_EMOJIS[0]}
                           </AvatarFallback>

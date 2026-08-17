@@ -5,6 +5,7 @@ import { ChevronsUpDown, Info, LogOut, Settings } from "lucide-react";
 
 import { BugReportTrigger } from "@/components/admin/bug-report-trigger";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { identiconDataUri } from "@/lib/admin/identicon";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +24,7 @@ type Props = {
    * 渡し忘れた呼び出し側で `tsc` が黙って通り、画面だけ変わらない事故になる。
    */
   userName: string | null;
+  userId: string | null;
   /** いま入っている人のメールアドレス（2行目）。取れなければ null（その行ごと出さない） */
   userLabel: string | null;
   /** SSO のプロフィール画像。取れなければ null */
@@ -32,7 +34,7 @@ type Props = {
    * 🚨 省略可（`?`）にしない。省略できると渡し忘れた呼び出し側で `tsc` が黙って通り、
    * 画面だけ変わらない事故になる。
    */
-  userAvatarEmoji: string;
+  userAvatarEmoji: string | null;
 };
 
 /**
@@ -50,7 +52,7 @@ type Props = {
  *
  * 🚨 PC のサイドバー末尾も SP のドロワー末尾も画面の下端なので、メニューは常に上へ開く。
  */
-export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: Props) {
+export function UserMenu({ userName, userId, userLabel, userPicture, userAvatarEmoji }: Props) {
   const t = useT("nav");
   // 🚨 名前が出せないときの控えは「メニュー」ではなく「アカウント」。
   //    この行は**人のアカウントの行**なので、器の名前（メニュー）を出すと何の行か分からない。
@@ -92,6 +94,8 @@ export function UserMenu({ userName, userLabel, userPicture, userAvatarEmoji }: 
             <Avatar size="sm">
               {userPicture ? (
                 <AvatarImage src={userPicture} alt="" referrerPolicy="no-referrer" />
+              ) : !userAvatarEmoji && userId ? (
+                <AvatarImage src={identiconDataUri(userId)} alt="" />
               ) : null}
               <AvatarFallback>{userAvatarEmoji}</AvatarFallback>
             </Avatar>

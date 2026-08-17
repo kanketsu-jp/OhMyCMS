@@ -115,12 +115,13 @@ type Props = {
   collectionsError: string | null;
   /** いま入っている人の表示名。出せないなら null */
   userName: string | null;
+  userId: string | null;
   /** いま入っている人のメールアドレス。出せないなら null */
   userLabel: string | null;
   /** SSO のプロフィール画像。出せないなら null */
   userPicture: string | null;
   /** アバターに出す絵文字。画像が無いときの控え。常に何か入っている */
-  userAvatarEmoji: string;
+  userAvatarEmoji: string | null;
 };
 
 function isCurrent(pathname: string, href: string): boolean {
@@ -400,6 +401,7 @@ export function LeftSidebar({
   userName,
   userLabel,
   userPicture,
+  userId,
   userAvatarEmoji,
 }: Props) {
   const t = useT("nav");
@@ -478,6 +480,7 @@ export function LeftSidebar({
         >
           <UserMenu
             userName={userName}
+            userId={userId}
             userLabel={userLabel}
             userPicture={userPicture}
             userAvatarEmoji={userAvatarEmoji}

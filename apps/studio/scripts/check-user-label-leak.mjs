@@ -812,8 +812,9 @@ const selfTests = [
       const file = "components/admin/left-sidebar.tsx";
       const before = sources[file];
       const needle =
-        "<UserMenu\n            userName={userName}\n            userLabel={userLabel}\n" +
-        "            userPicture={userPicture}\n            userAvatarEmoji={userAvatarEmoji}\n          />";
+        "<UserMenu\n            userName={userName}\n            userId={userId}\n" +
+        "            userLabel={userLabel}\n            userPicture={userPicture}\n" +
+        "            userAvatarEmoji={userAvatarEmoji}\n          />";
       const count = countOccurrences(before, needle);
       const after = before.replace(needle, "<UserMenu {...userMenuProps} />");
       return { sources: { ...sources, [file]: after }, count };
@@ -937,11 +938,13 @@ const greenTests = [
       const file = "components/admin/left-sidebar.tsx";
       const before = sources[file];
       const needle =
-        "<UserMenu\n            userName={userName}\n            userLabel={userLabel}\n" +
-        "            userPicture={userPicture}\n            userAvatarEmoji={userAvatarEmoji}\n          />";
+        "<UserMenu\n            userName={userName}\n            userId={userId}\n" +
+        "            userLabel={userLabel}\n            userPicture={userPicture}\n" +
+        "            userAvatarEmoji={userAvatarEmoji}\n          />";
       const replacement =
-        "<UserMenu\n            userName={userName}\n            userLabel={userLabel}\n" +
-        "            userPicture={userPicture}\n            userAvatarEmoji={userAvatarEmoji}\n" +
+        "<UserMenu\n            userName={userName}\n            userId={userId}\n" +
+        "            userLabel={userLabel}\n            userPicture={userPicture}\n" +
+        "            userAvatarEmoji={userAvatarEmoji}\n" +
         '            {...{ "data-zz": 1 }}\n          />';
       const count = countOccurrences(before, needle);
       const after = before.replace(needle, replacement);

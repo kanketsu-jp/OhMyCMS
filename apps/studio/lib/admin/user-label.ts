@@ -3,11 +3,6 @@ import type { Locale } from "@/i18n/config";
 import { LOCAL_ADMIN_EMAIL } from "@/lib/settings/local-admin";
 import { isSamlPlaceholderEmail } from "@/lib/auth/saml/placeholder-email";
 
-// アバターに何も無いときの既定の絵文字。
-// 🚨 辞書に入れない: `components/admin/shortcuts.ts` の `MOD_SYMBOL` と同じ理由で、
-// 記号は言語で変わらない（日本語版と英語版で違う絵文字にする理由が無い）。
-const DEFAULT_AVATAR_EMOJI = "🙂";
-
 /**
  * 画面に出してよい「人」だけを通す。出せないなら null。
  *
@@ -74,16 +69,15 @@ export function displayUserPicture(
 }
 
 /**
- * アバターに出す絵文字。SSO の画像が無いときの控え。
+ * 利用者が選んだアバター絵文字。未選択なら表示側で identicon に落とす。
  *
- * 優先順位: SSO の画像（`displayUserPicture` が別途優先される）→ 利用者が選んだ絵文字 → 既定の絵文字。
- * 🚨 戻り値は必ず文字列。アバターは常に何かを出すため、null にしない。
+ * SSO の画像は表示側で優先し、絵文字も未選択なら表示側で identicon に落とす。
  */
 export function displayUserAvatarEmoji(
   me: MeResult | null,
   localAdminUserId: string | null,
-): string {
-  return visibleHuman(me, localAdminUserId)?.avatarEmoji ?? DEFAULT_AVATAR_EMOJI;
+): string | null {
+  return visibleHuman(me, localAdminUserId)?.avatarEmoji ?? null;
 }
 
 /**

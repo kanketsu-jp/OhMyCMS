@@ -252,6 +252,7 @@ export default async function AdminLayout({
         // 🚨 auth が `displayUserName(me, locale)` を供えたので、null から差し替え済み。
         //    1行目には本名が出る（無ければ `UserMenu` 側の「表示名 → 無ければ辞書の控え」で埋まる）。
         userName={displayUserName(me.ok ? me.data : null, locale, localAdminId)}
+        userId={me.ok && me.data.type === "human" ? me.data.userId : null}
         userLabel={displayUserLabel(me.ok ? me.data : null, localAdminId)}
         userPicture={displayUserPicture(me.ok ? me.data : null, localAdminId)}
         userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null, localAdminId)}
@@ -400,6 +401,7 @@ export default async function AdminLayout({
         // 🚨 auth が `displayUserName(me, locale)` を供えたので、null から差し替え済み。
         //    1行目には本名が出る（無ければ `UserMenu` 側の「表示名 → 無ければ辞書の控え」で埋まる）。
         userName={displayUserName(me.ok ? me.data : null, locale, localAdminId)}
+        userId={me.ok && me.data.type === "human" ? me.data.userId : null}
         userLabel={displayUserLabel(me.ok ? me.data : null, localAdminId)}
         userPicture={displayUserPicture(me.ok ? me.data : null, localAdminId)}
         userAvatarEmoji={displayUserAvatarEmoji(me.ok ? me.data : null, localAdminId)}

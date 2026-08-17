@@ -38,12 +38,13 @@ type Props = {
   contentHeading: string;
   /** メニュー最下部に出す、いま入っている人の表示名。取れなければ null */
   userName: string | null;
+  userId: string | null;
   /** メニュー最下部に出す、いま入っている人のメールアドレス。取れなければ null */
   userLabel: string | null;
   /** SSO のプロフィール画像。出せなければ null */
   userPicture: string | null;
   /** アバターに出す絵文字。画像が無いときの控え。常に何か入っている */
-  userAvatarEmoji: string;
+  userAvatarEmoji: string | null;
   /** SP のメニューボタンに出す、自分宛の未読通知数 */
   personalUnreadNotifications: number;
 };
@@ -81,6 +82,7 @@ export function MobileNav({
   userName,
   userLabel,
   userPicture,
+  userId,
   userAvatarEmoji,
   personalUnreadNotifications,
 }: Props) {
@@ -210,6 +212,7 @@ export function MobileNav({
             </div>
             <UserMenu
               userName={userName}
+              userId={userId}
               userLabel={userLabel}
               userPicture={userPicture}
               userAvatarEmoji={userAvatarEmoji}
