@@ -46,7 +46,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
         // 🚨 **`input.tsx` だけ直しても半分しか直らない**。実測（2026-08-17）:
         //    `/admin/settings/sso` の読み取り専用 9 欄のうち **5 欄が textarea** で、
         //    input だけ直した時点では **その 5 欄が透明のまま**だった。
-        "read-only:border-transparent read-only:bg-muted/40 read-only:px-3 read-only:cursor-default read-only:focus-visible:ring-0",
+        "read-only:border-transparent read-only:bg-muted read-only:px-3 read-only:cursor-default read-only:focus-visible:ring-0",
         className
       )}
       {...props}
