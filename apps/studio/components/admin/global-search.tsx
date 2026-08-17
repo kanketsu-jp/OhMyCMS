@@ -34,6 +34,7 @@ type SearchResult = {
   collections: SearchHit[];
   settings: SearchHit[];
   pages: SearchHit[];
+  users: SearchHit[];
 };
 
 const EMPTY: SearchResult = {
@@ -42,6 +43,7 @@ const EMPTY: SearchResult = {
   collections: [],
   settings: [],
   pages: [],
+  users: [],
 };
 
 /** 表示する順番。仕様 §2-1 の並びに合わせる。 */
@@ -51,6 +53,7 @@ const GROUPS: { key: keyof SearchResult; labelKey: string }[] = [
   { key: "collections", labelKey: "group_collections" },
   { key: "settings", labelKey: "group_settings" },
   { key: "pages", labelKey: "group_pages" },
+  { key: "users", labelKey: "group_users" },
 ];
 
 /**

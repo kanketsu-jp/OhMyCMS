@@ -28,6 +28,7 @@
  */
 
 import type { Actor } from "@/lib/auth/context";
+import { db } from "@/lib/db/knex";
 import { listFiles } from "@/lib/files/service";
 import { targetIdsByLabelName } from "@/lib/labels/service";
 import { listItems } from "@/lib/items/service";
@@ -59,6 +60,7 @@ export type SearchResult = {
   collections: SearchHit[];
   settings: SearchHit[];
   pages: SearchHit[];
+  users: SearchHit[];
 };
 
 const EMPTY: SearchResult = {
@@ -67,6 +69,7 @@ const EMPTY: SearchResult = {
   collections: [],
   settings: [],
   pages: [],
+  users: [],
 };
 
 /**
@@ -165,9 +168,12 @@ export async function search(
     if (permission.allowed) readable.push(collection);
   }
 
-  const [items, files] = await Promise.all([
+  const [items, files, settings, pages, users] = await Promise.all([
     searchItems(actor, readable, overview, q),
     searchFiles(actor, q),
+    searchStatic(actor, SETTINGS_ENTRIES, q, translate, "settings:read"),
+    searchStatic(actor, PAGE_ENTRIES, q, translate, "settings:read"),
+    searchUsers(actor, q),
   ]);
 
   return {
@@ -179,8 +185,9 @@ export async function search(
       .slice(0, PER_KIND_LIMIT)
       .map((name) => ({ label: name, href: `/admin/collections/${name}` })),
     // 設定と画面は管理操作の権限が要る。無ければ**キーごと空**にして存在を示さない。
-    settings: await searchStatic(actor, SETTINGS_ENTRIES, q, translate, "settings:read"),
-    pages: await searchStatic(actor, PAGE_ENTRIES, q, translate, "settings:read"),
+    settings,
+    pages,
+    users,
   };
 }
 
@@ -285,6 +292,51 @@ async function searchFiles(actor: Actor, q: string): Promise<SearchHit[]> {
         String(record.id);
       return { label: name, href: `/admin/files/${String(record.id)}` };
     });
+}
+
+/**
+ * 利用者を探す。
+ * 🚨 **管理操作の権限が無ければ、1件も返さない。** 名前を見せるだけでも
+ *    「そういう利用者がいる」という情報になるため。
+ */
+async function searchUsers(actor: Actor, q: string): Promise<SearchHit[]> {
+  // 🚨 既存の管理権限チェックをそのまま使う（検索用の判定を作らない）。
+  //    権限が無ければ throw されるので、**空配列で返して存在を示さない**。
+  try {
+    await requireAdminAccess(actor, "settings:read");
+  } catch {
+    return [];
+  }
+
+  const pattern = `%${q}%`;
+  const rows = await db("directus_users")
+    // 🚨 **`external_identifier` を取らない・探さない**（2026-08-17 実測で外した）。
+    //    この列は dev の利用者で `dev:<メールアドレス>` になっており、
+    //    **名前の代わりに出すと、そのままメールアドレスが画面へ出る**
+    //    （実測: 5 件中 5 件が `dev:...@example.com` の形だった）。
+    //    探す対象に入れるのも同じ理由で駄目——**メールで人を引けてしまう**。
+    //    司令塔の決め: 返すのは「表示名と id だけ」。
+    .select("id", "first_name", "last_name")
+    .where((builder) => {
+      builder
+        .whereILike("first_name", pattern)
+        .orWhereILike("last_name", pattern);
+    })
+    .limit(PER_KIND_LIMIT);
+
+  return rows.map((row) => {
+    const record = row as Record<string, unknown>;
+    const firstName = typeof record.first_name === "string" ? record.first_name.trim() : "";
+    const lastName = typeof record.last_name === "string" ? record.last_name.trim() : "";
+    const id = String(record.id);
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
+    return {
+      // 🚨 名前が無ければ **id**。`external_identifier` へは落とさない（上の注記）。
+      label: fullName || id,
+      href: `/admin/settings/users/${id}`,
+    };
+  });
 }
 
 /**
