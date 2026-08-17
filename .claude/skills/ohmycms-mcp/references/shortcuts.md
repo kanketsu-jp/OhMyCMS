@@ -71,7 +71,9 @@
   {
     "key": "mod+shift+enter",
     "action": "submit",
-    "scope": "global",
+    "scope": [
+      "page:/admin/reports/[id]"
+    ],
     "label_key": "common.shortcut_submit",
     "editor": {
       "conflicts": false

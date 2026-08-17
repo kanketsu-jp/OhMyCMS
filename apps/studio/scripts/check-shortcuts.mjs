@@ -233,7 +233,9 @@ const TIPTAP_CONFLICT_EXCEPTIONS = {
       "（`page-action.tsx` の `useShortcut(SHORTCUTS.save, …)`。**2026-08-16 訂正: ここには " +
       "`bug-report-composer.tsx` / `report-thread.tsx` も並べていたが、その 2 本が登録しているのは " +
       "`SHORTCUTS.submit` ＝ `mod+shift+enter` で、**別の鍵**。`mod+enter` を登録しているのは " +
-      "`page-action.tsx` **1 本だけ**）ため、" +
+      "`page-action.tsx` **1 本だけ**。🚨 **2026-08-17 追記: `SHORTCUTS.submit` を登録しているのは " +
+      "`report-thread.tsx` 1 本になった**——堀池さんの指示で `bug-report-composer.tsx` から外した。" +
+      "詳細と実測は `knowledge/decisions/shortcuts-must-not-collide-with-editor.md`）ため、" +
       "**Tiptap の編集中でも発火する**。Tiptap 側の Mod-Enter は `exitCode`（@tiptap/core）と " +
       "`setHardBreak`（@tiptap/extension-hard-break）。**同時に動くかどうかは未測定**で、" +
       "WYSIWYG を実際に置いた画面での実測が要る。ここで承認しているのは「鍵を動かさない」ことだけで、" +

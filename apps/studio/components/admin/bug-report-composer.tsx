@@ -1,16 +1,20 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { FormDraft } from "@/components/admin/form-draft";
-import { SHORTCUTS } from "@/components/admin/shortcuts";
-import { useShortcut } from "@/components/admin/use-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useLocale, useT } from "@/i18n/client";
 import { errorKeyFromApiCode } from "@/i18n/error";
@@ -53,7 +57,6 @@ export function BugReportComposer({ onDone }: Props) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [expected, setExpected] = useState("");
-  const formRef = useRef<HTMLFormElement>(null);
   // 🚨 入力の不足は**その欄の近く**に出す（消えると直せなくなるのでトーストにしない）。
   const [fieldError, setFieldError] = useState<"title" | "body" | null>(null);
 
@@ -132,20 +135,11 @@ export function BugReportComposer({ onDone }: Props) {
     onDone?.();
   });
 
-  useShortcut(
-    SHORTCUTS.submit,
-    () => {
-      // useShortcut は document に付くので、同じ組み合わせを持つ部品が
-      // 2つ載っていると両方動く。いま入力している欄のフォームだけ送る。
-      if (!formRef.current?.contains(document.activeElement)) return;
-      void submit.run();
-    },
-    { whileTyping: true },
-  );
+  // 🚨 送信のショートカットは付けない（堀池さん 2026-08-17・原文「他の画面とキーが
+  // 被ってしまうため、今回は設定なしにしてください」）。他の画面の submit ショートカット定義は残す。
 
   return (
     <form
-      ref={formRef}
       id="bug-report-form"
       className="flex flex-col gap-4"
       onSubmit={(event) => {
@@ -203,17 +197,21 @@ export function BugReportComposer({ onDone }: Props) {
 
       {/* 🚨 「何が自動で付くか」を**実際の値で**見せる。
           「パスなどを送ります」と書くだけだと、何が送られるか分からないまま送ることになる。 */}
-      <div className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-        <p>{t("privacy_note")}</p>
-        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-          <dt>{t("meta_page")}</dt>
-          <dd className="truncate font-mono">{pathname}</dd>
-          <dt>{t("meta_viewport")}</dt>
-          <dd className="font-mono">{viewport ?? "—"}</dd>
-          <dt>{t("meta_locale")}</dt>
-          <dd className="font-mono">{locale}</dd>
-        </dl>
-      </div>
+      <Accordion>
+        <AccordionItem value="meta">
+          <AccordionTrigger>{t("meta_accordion_label")}</AccordionTrigger>
+          <AccordionContent>
+            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+              <dt>{t("meta_page")}</dt>
+              <dd className="truncate font-mono">{pathname}</dd>
+              <dt>{t("meta_viewport")}</dt>
+              <dd className="font-mono">{viewport ?? "—"}</dd>
+              <dt>{t("meta_locale")}</dt>
+              <dd className="font-mono">{locale}</dd>
+            </dl>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <Button type="submit" loading={submit.pending} className="w-full">
         {t("submit_button")}
