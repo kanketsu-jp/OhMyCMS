@@ -34,6 +34,7 @@ x_rag_okf:
 - [検査は「何を見ていないか」を言えて初めて検査になる](./decisions/checks-must-declare-blind-spots.md) — `decisions/checks-must-declare-blind-spots`
 - [検査は索引を見る。ただし「走査」と「照合」で直し方が違う](./decisions/checks-read-the-index-not-the-worktree.md) — `decisions/checks-read-the-index-not-the-worktree`
 - [CLI と MCP は REST API 経由（DB 直接アクセス禁止）](./decisions/cli-mcp-over-rest.md) — `decisions/cli-mcp-over-rest`
+- [確認を出す基準は「戻せない」か「一度に多数へ及ぶ」](./decisions/confirm-by-reversibility-and-reach.md) — `decisions/confirm-by-reversibility-and-reach`
 - [落ちた走行は、跡ではなく記録で見つける](./decisions/crashed-runs-are-found-by-record-not-by-leftovers.md) — `decisions/crashed-runs-are-found-by-record-not-by-leftovers`
 - [DB は PostgreSQL（Cloudflare D1 は撤回）](./decisions/db-postgres.md) — `decisions/db-postgres`
 - [ファイルの削除は 2 回消す。順番は「実体 → 行」](./decisions/deleting-a-file-is-two-deletes.md) — `knowledge/decisions/deleting-a-file-is-two-deletes.md`
