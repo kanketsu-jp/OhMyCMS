@@ -392,7 +392,10 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("delete")}</AlertDialogTitle>
+            {/* 🚨 **題は問いにする**（決定 `confirm-by-reversibility-and-reach` §4）。
+                確定ボタンと同じ語にしない——**`files-table` は「ゴミ箱へ入れますか」／
+                確定は「ゴミ箱へ入れる」**で、ここだけ形が違うと揃わない。 */}
+            <AlertDialogTitle>{t("delete_confirm_title")}</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDelete
                 ? t("delete_confirm", { name: labelDisplayName(t, pendingDelete) })
