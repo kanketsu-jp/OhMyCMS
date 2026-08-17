@@ -26,6 +26,7 @@ import type { Actor } from "@/lib/auth/context";
 import { db } from "@/lib/db/knex";
 import { createNotification } from "@/lib/notifications/service";
 import { resolvePermission, type PermissionAction } from "@/lib/permissions/resolve";
+import { listAttachments, type BugReportAttachment } from "@/lib/reports/attachments";
 import { ApiError } from "@/lib/schema/errors";
 import { getSecretSetting, getSettings } from "@/lib/settings/service";
 
@@ -74,6 +75,7 @@ export type BugReportMessageKind = "message" | "resolved" | "reopened";
 /** 報告そのもの（1 通目）＋ それ以降のやりとり。 */
 export type BugReportThread = {
   report: BugReport;
+  attachments: BugReportAttachment[];
   messages: BugReportMessage[];
 };
 
@@ -471,12 +473,15 @@ export async function getBugReportThread(
   const row = await query.first();
   if (!row) throw new ApiError(404, "NOT_FOUND", "報告が見つかりません");
 
-  const messages = await db("ohmycms_bug_report_messages")
-    .select("id", "report", "author", "body", "kind", "created_at")
-    .where({ report: id })
-    .orderBy("created_at", "asc");
+  const [messages, attachments] = await Promise.all([
+    db("ohmycms_bug_report_messages")
+      .select("id", "report", "author", "body", "kind", "created_at")
+      .where({ report: id })
+      .orderBy("created_at", "asc"),
+    listAttachments(id),
+  ]);
 
-  return { report: presentReport(row), messages: messages.map(presentMessage) };
+  return { report: presentReport(row), attachments, messages: messages.map(presentMessage) };
 }
 
 /**
