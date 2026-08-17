@@ -14,6 +14,7 @@ import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { useLongPressMenu } from "@/components/admin/use-long-press-menu";
+import { TileLabelsMenu } from "@/components/admin/tile-labels-menu";
 
 /**
  * ファイル1件ぶんの「右クリック / 長押し」メニュー。
@@ -84,6 +85,7 @@ export function FileTileMenu({
             <ExternalLink />
             {t("menu_open_detail")}
           </DropdownMenuItem>
+          <TileLabelsMenu endpoint={"/api/files/" + fileId + "/labels"} />
           <DropdownMenuItem
             variant="destructive"
             className="text-destructive"

@@ -285,7 +285,11 @@ const DECOYS = [
   },
   {
     name: "生 fetch で素の配列の口を .data で受ける",
-    file: "components/admin/folder-labels-menu.tsx",
+    // 🚨 的が動いたら、ここも動かす。2026-08-17 に `folder-labels-menu.tsx` を
+    //    `tile-labels-menu.tsx` へ改名した（フォルダとファイルの両方で使うため）。
+    //    このとき囮は**黙らずに「置換 0 件・的が動いた可能性があります」と鳴いた**——
+    //    その設計のおかげで、改名した本人がその場で気づけた。
+    file: "components/admin/tile-labels-menu.tsx",
     from: 'fetch("/api/labels")',
     to: 'fetch("/api/collections")',
   },

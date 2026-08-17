@@ -17,16 +17,16 @@ type LabelRow = {
 };
 
 /**
- * フォルダに付けるラベル（メニューの中に置く小さな一覧）。
+ * タイルに付けるラベル（メニューの中に置く小さな一覧）。
  *
- * 🚨 **一覧の描画時には取りに行かない。** フォルダの数だけ問い合わせが飛ぶ（N+1）。
+ * 🚨 **一覧の描画時には取りに行かない。** タイルの数だけ問い合わせが飛ぶ（N+1）。
  *    **メニューを開いた人の分だけ**取る。開く操作の中で呼ぶので、
  *    効果（effect）の中で状態を書くことにもならない。
  *
  * 🚨 ラベルが増えたらメニューが縦に伸びる。**10 個を超えたら**別の画面
  *    （フォルダの設定）へ移すこと。**いまは3件なので、置き場所を増やさない方を選んだ。**
  */
-export function FolderLabelsMenu({ folderId }: { folderId: string }) {
+export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
   const t = useT("files");
   // 🚨 システムラベルの表示名だけは `labels` の辞書から出す（この画面の名前空間とは別）
   const tl = useT("labels");
@@ -36,7 +36,7 @@ export function FolderLabelsMenu({ folderId }: { folderId: string }) {
   const load = useSubmitOnce(async () => {
     const [allResponse, attachedResponse] = await Promise.all([
       fetch("/api/labels"),
-      fetch(`/api/folders/${folderId}/labels`),
+      fetch(endpoint),
     ]);
     if (!allResponse.ok || !attachedResponse.ok) {
       // 🚨 取れなかったことを黙って空一覧にしない。空だと「ラベルが無い」と読める。
@@ -50,7 +50,7 @@ export function FolderLabelsMenu({ folderId }: { folderId: string }) {
   });
 
   const save = useSubmitOnce(async (next: Set<string>) => {
-    const response = await fetch(`/api/folders/${folderId}/labels`, {
+    const response = await fetch(endpoint, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ labelIds: Array.from(next) }),

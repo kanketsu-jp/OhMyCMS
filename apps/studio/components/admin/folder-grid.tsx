@@ -16,7 +16,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { DRAG_FILE_MIME } from "@/components/admin/files-drag";
-import { FolderLabelsMenu } from "@/components/admin/folder-labels-menu";
+import { TileLabelsMenu } from "@/components/admin/tile-labels-menu";
 import { useT } from "@/i18n/client";
 import { errorKeyFromApiCode, FALLBACK_ERROR_KEY, type ErrorKey } from "@/i18n/error";
 
@@ -243,7 +243,7 @@ export function FolderGrid({ folders }: { folders: FolderRow[] }) {
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuGroup>
                   {/* 🚨 開いた人の分だけ取りに行く（一覧の描画で N+1 にしない）。 */}
-                  <FolderLabelsMenu folderId={folder.id} />
+                  <TileLabelsMenu endpoint={"/api/folders/" + folder.id + "/labels"} />
                   {/* 🚨 色は「選ぶ」ものなので、1項目に押し込まず並べる。
                       文字にすると6行になり、削除より目立ってしまう。 */}
                   <div className="flex flex-wrap gap-1 px-2 py-1.5">
