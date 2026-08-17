@@ -6,6 +6,16 @@ import { useRouter } from "next/navigation";
 import { Plus, UserMinus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
@@ -76,6 +86,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
     return key ? tError(key) : fallback;
   };
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
   const assignDisabled = users.length === 0 || policies.length === 0;
 
   const assign = useSubmitOnce(async (formData: FormData) => {
@@ -164,7 +175,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
                     size="sm"
                     aria-label={t("remove_button")}
                     disabled={remove.isPending(row.id)}
-                    onClick={() => void remove.run(row.id)}
+                    onClick={() => setConfirming(row.id)}
                   >
                     {/* 🚨 ゴミ箱にしない。**割り当てを外す**操作で、ユーザーが消えるわけではない
                         （ゴミ箱だと「ユーザーごと消える」と誤解される。design ⑬） */}
@@ -180,6 +191,28 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
       {access.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
       ) : null}
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("delete_confirm_title")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("delete_confirm")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel />
+            <AlertDialogAction
+              tone="danger"
+              loading={confirming !== null && remove.isPending(confirming)}
+              onClick={() => {
+                if (confirming === null) return;
+                void remove.run(confirming);
+                setConfirming(null);
+              }}
+            >
+              {t("delete_confirm_action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
         <FormDraft formId="user-policy-assign-form" />
         <div className="space-y-1.5">

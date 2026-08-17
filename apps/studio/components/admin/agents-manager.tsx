@@ -6,6 +6,16 @@ import { useRouter } from "next/navigation";
 import { KeyRound, Ban, Plus } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Input } from "@/components/ui/input";
@@ -133,6 +143,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
   const [collections, setCollections] = useState<CollectionNameRow[]>([]);
   const [collectionsError, setCollectionsError] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<CapabilitiesState>({ selection: {}, text: "" });
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -323,7 +334,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
                     size="sm"
                     aria-label={t("revoke_button")}
                     disabled={revoke.isPending(agent.id) || Boolean(agent.revoked_at)}
-                    onClick={() => void revoke.run(agent.id)}
+                    onClick={() => setConfirming(agent.id)}
                   >
                     <Ban data-icon="inline-start" />
                     <span className="hidden md:inline">{t("revoke_button")}</span>
@@ -337,6 +348,28 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
       {agents.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
       ) : null}
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("delete_confirm_title")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("delete_confirm")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel />
+            <AlertDialogAction
+              tone="danger"
+              loading={confirming !== null && revoke.isPending(confirming)}
+              onClick={() => {
+                if (confirming === null) return;
+                void revoke.run(confirming);
+                setConfirming(null);
+              }}
+            >
+              {t("delete_confirm_action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <form id="agent-issue-form" action={create.run} className="space-y-4">
         <FormDraft formId="agent-issue-form" />
         <div className="grid gap-4 md:grid-cols-2">

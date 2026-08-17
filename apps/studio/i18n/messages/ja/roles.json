@@ -1,6 +1,9 @@
 {
   "create_button": "作成",
   "delete_button": "削除",
+  "delete_confirm": "元に戻せません。",
+  "delete_confirm_action": "削除する",
+  "delete_confirm_title": "このロールを削除しますか",
   "deleted": "削除しました",
   "description": "ロール階層と親ロールを管理します。",
   "description_label": "説明",

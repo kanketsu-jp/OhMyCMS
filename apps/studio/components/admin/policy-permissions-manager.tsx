@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { Pencil, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
 import { RowOptions } from "@/components/admin/row-options";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Label } from "@/components/ui/label";
@@ -102,6 +112,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
   const [filterJson, setFilterJson] = useState("");
   const [editing, setEditing] = useState<PermissionRow | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<number | null>(null);
   const columns = useMemo(() => fieldsFor(collections, collection), [collections, collection]);
   const saveDisabled = !collection;
 
@@ -210,7 +221,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
                         icon: <Trash2 />,
                         destructive: true,
                         disabled: remove.isPending(String(row.id)),
-                        onSelect: () => void remove.run(row.id),
+                        onSelect: () => setConfirming(row.id),
                       },
                     ]}
                   />
@@ -223,6 +234,28 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
       {permissions.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("no_permissions")}</p>
       ) : null}
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("permission_delete_confirm_title")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("permission_delete_confirm")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel />
+            <AlertDialogAction
+              tone="danger"
+              loading={confirming !== null && remove.isPending(String(confirming))}
+              onClick={() => {
+                if (confirming === null) return;
+                void remove.run(confirming);
+                setConfirming(null);
+              }}
+            >
+              {t("permission_delete_confirm_action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <form
         id="policy-permission-form"
         className="space-y-4"

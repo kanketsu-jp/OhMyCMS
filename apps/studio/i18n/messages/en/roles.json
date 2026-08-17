@@ -1,6 +1,9 @@
 {
   "create_button": "Create",
   "delete_button": "Delete",
+  "delete_confirm": "This cannot be undone.",
+  "delete_confirm_action": "Delete",
+  "delete_confirm_title": "Delete this role?",
   "deleted": "Deleted",
   "description": "Manage the role hierarchy and parent roles.",
   "description_label": "Description",

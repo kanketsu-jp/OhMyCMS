@@ -6,6 +6,16 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
@@ -55,6 +65,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
     return key ? tError(key) : fallback;
   };
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const create = useSubmitOnce(async (formData: FormData) => {
     setError(null);
@@ -140,7 +151,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
                     size="sm"
                     aria-label={t("delete_button")}
                     disabled={remove.isPending(role.id)}
-                    onClick={() => void remove.run(role.id)}
+                    onClick={() => setConfirming(role.id)}
                   >
                     <Trash2 />
                     <span className="hidden md:inline">{t("delete_button")}</span>
@@ -156,6 +167,28 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
       {roles.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
       ) : null}
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("delete_confirm_title")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("delete_confirm")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel />
+            <AlertDialogAction
+              tone="danger"
+              loading={confirming !== null && remove.isPending(confirming)}
+              onClick={() => {
+                if (confirming === null) return;
+                void remove.run(confirming);
+                setConfirming(null);
+              }}
+            >
+              {t("delete_confirm_action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
         <FormDraft formId="role-create-form" />
         <div className="space-y-1.5">
