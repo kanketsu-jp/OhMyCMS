@@ -3,9 +3,11 @@ import { NotFoundScreen } from "@/components/admin/not-found-screen";
 /**
  * 管理画面の中で `notFound()` が呼ばれたときの受け皿。
  *
- * 🚨 **なぜ `app/not-found.tsx` だけでは足りないか**（実測 2026-08-17・pages）:
+ * 🚨 **なぜ `app/not-found.tsx` だけでは足りないか**（実測 2026-08-17・pages）
+ *    ——理由は **status ではなく「出る場所」**（下記）。status は直っていない:
  * ```
- * 置く前 /admin/reports/manage       … HTTP **200**（本文は「このページはありません」）
+ * 置く前も置いた後も /admin/reports/manage … HTTP **200**（本文は「このページはありません」）
+ * 🚨 **status は直っていない**（置いた後も 200。原因は未特定）
  *        /admin/reports/zz-not-an-id … HTTP **200**
  *        🟢 対照 /admin/zz-does-not-exist … 404（どのルートにも当たらないので根の 1 枚が受ける）
  * ```
