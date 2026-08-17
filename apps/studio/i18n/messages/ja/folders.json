@@ -2,7 +2,7 @@
   "actions_label": "フォルダ操作",
   "create_button": "作成",
   "deleted": "削除しました",
-  "delete_button": "削除",
+  "delete_button": "ゴミ箱へ入れる",
   "error_create_failed": "作成できません",
   "error_delete_failed": "削除できません",
   "error_folder_not_empty": "中にファイルかフォルダがあります",

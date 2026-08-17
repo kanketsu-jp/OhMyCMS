@@ -2,7 +2,7 @@
   "actions_label": "Folder actions",
   "create_button": "Create",
   "deleted": "Deleted",
-  "delete_button": "Delete",
+  "delete_button": "Move to trash",
   "error_create_failed": "Failed to create folder",
   "error_delete_failed": "Failed to delete folder",
   "error_folder_not_empty": "This folder is not empty",
