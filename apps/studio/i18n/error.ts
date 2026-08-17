@@ -45,6 +45,11 @@ export const ERROR_KEYS = [
   "unauthenticated",
   // ファイル由来（storage・2026-08-16）
   "file_too_large",
+  // 🚨 中身が 0 バイトのファイル（2026-08-17）。**`field_required` と分ける**——
+  //    「選んでいない」ではなく「**選んだつもりのものが空**」なので、利用者がとる行動が違う
+  //    （**選び直す**）。実測: 1 回目のアップロード成功後にもう一度押すと、
+  //    画面は「選択中」に見えるのに入力欄は空で、**0 バイトの行が無言で増えていた**。
+  "file_empty",
   // 🚨 大きさを言わない鍵。上限より小さくても起きる（9MB 台で落ちた実測）ので、
   //    file_too_large と同じ文言にすると嘘になる。
   "upload_unreadable",
@@ -132,6 +137,7 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   FILE_NOT_FOUND: "not_found",
   FILE_NOT_STORED: "not_found",
   FILE_REQUIRED: "field_required",
+  FILE_EMPTY: "file_empty",
   FILE_TOO_LARGE: "file_too_large",
   UPLOAD_BODY_UNREADABLE: "upload_unreadable",
   ROLE_NOT_FOUND: "not_found",

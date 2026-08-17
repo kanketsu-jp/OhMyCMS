@@ -63,6 +63,22 @@ export async function POST(request: Request) {
     if (!(value instanceof File)) {
       throw new ApiError(400, "FILE_REQUIRED", "fileフィールドにファイルを指定してください");
     }
+    // 🚨 **空の File は「ファイルが在る」ではない。**
+    //    `value instanceof File` は **0 バイト・名前なし**でも true になる。
+    //    実測 2026-08-17（:3102・ブラウザ）: アップロードが 1 回成功したあと、
+    //    画面は「1 件を選びました <名前>」と出したままなのに `<input type=file>` の
+    //    `files.length` は **0**（React 19 が action のあとフォームを reset するため）。
+    //    その状態でもう一度押すと **空の File が飛び、201 で
+    //    「名前が空・0 バイト・title は "file"」の行が無言で増えていた**。
+    //    ＝ 利用者から見ると「アップロードできないのに増えている」。
+    // 🚨 `FILE_REQUIRED` に相乗りさせない——**「選んでいない」と「選んだものが空」は、
+    //    利用者がとる行動が違う**（後者は**選び直す**）。
+    if (value.size === 0) {
+      throw new ApiError(400, "FILE_EMPTY", "中身のないファイルは送れません");
+    }
+    if (value.name.trim() === "") {
+      throw new ApiError(400, "FILE_REQUIRED", "fileフィールドにファイルを指定してください");
+    }
     const body = Buffer.from(await value.arrayBuffer());
     const row = await uploadFile(actor, {
       filename: value.name,
