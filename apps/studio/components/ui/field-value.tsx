@@ -41,6 +41,20 @@ export function FieldValue({
     <p
       className={cn(
         "flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc-field)",
+        // 🚨 **欄の境界を出す**（DESIGN.md §1-8）。堀池さん（2026-08-17 原文）:
+        //    「**フィールドの枠がないので、わからない。**」
+        //    「未入力のフィールドは背景色がないため分かりにくいです」
+        //    実測（2026-08-17・表示モードの /admin/settings 3 枚）: 同じ画面の中で
+        //      <Input readOnly> … bg muted/40 ・ px 12px  → 境界が分かる
+        //      <FieldValue>     … bg 透明     ・ px 0px   → 🚨 境界が無い
+        //    が **並んでいた**（FieldValue の欄 計 7 件）。
+        // 🚨 **値は `input.tsx` の `read-only:` と同じものを使う**（新しい値を作らない）。
+        //    2 通りの見た目を作ると、次に片方だけ直したとき見た目が割れる。
+        // 🚨 **呼び出し側でなく、ここに置く。** 同じ問題を input/textarea は共有部品側で解いており
+        //    （`input.tsx`「prop を増やさず read-only: 修飾子で見た目を切り替える（付け忘れが起きない）」）、
+        //    ここだけ呼び出し側に置くと、次に FieldValue を使う人が必ず忘れる。
+        // 🚨 角丸は付けない（§1-1「フラットに」）。枠は透明のまま＝ 地の色で示す。
+        "border border-transparent bg-muted/40 px-3",
         className,
       )}
       {...props}
