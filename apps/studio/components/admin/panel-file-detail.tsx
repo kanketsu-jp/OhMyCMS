@@ -49,7 +49,7 @@ function formatSize(value: string | number | null): string | null {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
-      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
       <dd className="min-w-0 truncate text-right text-sm">{children}</dd>
     </div>
   );

@@ -123,14 +123,21 @@ export function PanelApiMcp() {
         {/* ── LLM へ渡すプロンプト（原典が名指しした中心機能なので先頭） ── */}
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-medium">{t("api_prompt_heading")}</h3>
+            <h3 className="text-sm font-medium">{t("api_prompt_heading")}</h3>
             <CopyButton value={prompt} selectTargetId="panel-api-prompt" />
           </div>
-          <ScrollArea className="rounded-md bg-muted">
-            <pre id="panel-api-prompt" className="w-max p-2 text-xs whitespace-pre text-muted-foreground">
+          <ScrollArea className="w-full max-w-full rounded-md bg-muted [&>[data-slot=scroll-area-viewport]]:max-w-full">
+            <pre id="panel-api-prompt" className="w-max p-2 text-sm whitespace-pre text-muted-foreground">
               {prompt}
             </pre>
-            <ScrollBar orientation="horizontal" />
+            {/*
+              🚨 **切れているのではなく、流せることが見えていない**（2026-08-17 実測）。
+                 pre の幅 441 / 621px に対して viewport は 279px で、overflow-x は scroll。
+                 ＝ 横に流せてはいる。堀池さんに「右端で切れている」と見えたのは、
+                 **流せる合図が出ていない**ため。
+              🚨 `forceMount` で、指を置かなくてもバーが出る形にする。
+            */}
+            <ScrollBar orientation="horizontal" forceMount />
           </ScrollArea>
         </section>
 
@@ -139,18 +146,25 @@ export function PanelApiMcp() {
         {/* ── REST（このページを叩く形） ── */}
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-medium">{t("api_rest_heading")}</h3>
+            <h3 className="text-sm font-medium">{t("api_rest_heading")}</h3>
             {curl ? <CopyButton value={curl} selectTargetId="panel-api-curl" /> : null}
           </div>
           {curl ? (
-            <ScrollArea className="rounded-md bg-muted">
-              <pre id="panel-api-curl" className="w-max p-2 text-xs whitespace-pre text-muted-foreground">
+            <ScrollArea className="w-full max-w-full rounded-md bg-muted [&>[data-slot=scroll-area-viewport]]:max-w-full">
+              <pre id="panel-api-curl" className="w-max p-2 text-sm whitespace-pre text-muted-foreground">
                 {curl}
               </pre>
-              <ScrollBar orientation="horizontal" />
+              {/*
+              🚨 **切れているのではなく、流せることが見えていない**（2026-08-17 実測）。
+                 pre の幅 441 / 621px に対して viewport は 279px で、overflow-x は scroll。
+                 ＝ 横に流せてはいる。堀池さんに「右端で切れている」と見えたのは、
+                 **流せる合図が出ていない**ため。
+              🚨 `forceMount` で、指を置かなくてもバーが出る形にする。
+            */}
+            <ScrollBar orientation="horizontal" forceMount />
             </ScrollArea>
           ) : (
-            <p className="text-xs text-muted-foreground">{t("api_rest_none")}</p>
+            <p className="text-sm text-muted-foreground">{t("api_rest_none")}</p>
           )}
         </section>
 
@@ -158,26 +172,26 @@ export function PanelApiMcp() {
 
         {/* ── MCP（この画面に効くツール） ── */}
         <section className="space-y-2">
-          <h3 className="text-xs font-medium">{t("api_mcp_heading")}</h3>
+          <h3 className="text-sm font-medium">{t("api_mcp_heading")}</h3>
           {/* 🚨 件数を出す。**一部だけ出して「これで全部」に見せない**（サンプルを母集団にしない）。 */}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {t("api_mcp_count")}: {tools.length} / {TOOLS.length}
           </p>
           <ul className="space-y-2">
             {tools.map((tool) => (
               <li key={tool.name} className="space-y-0.5">
-                <p className="flex flex-wrap items-center gap-x-2 text-xs font-medium">
+                <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium">
                   <span className="font-mono break-all">{tool.name}</span>
                   <span className="text-muted-foreground">
                     {tool.readOnly ? t("api_mcp_read_only") : t("api_mcp_writes")}
                   </span>
                 </p>
                 {/* 🚨 この説明文は MCP の目録（正）から来ている。**ここで書き直さない** */}
-                <p className="text-xs text-muted-foreground">{tool.description}</p>
+                <p className="text-sm text-muted-foreground">{tool.description}</p>
               </li>
             ))}
           </ul>
-          <p className="text-xs text-muted-foreground">{t("api_mcp_source")}</p>
+          <p className="text-sm text-muted-foreground">{t("api_mcp_source")}</p>
         </section>
     </PanelSection>
   );

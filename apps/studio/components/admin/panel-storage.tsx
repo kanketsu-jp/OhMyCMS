@@ -70,20 +70,20 @@ export function PanelStorage() {
   return (
     <div className="mt-2 flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="shrink-0 text-xs text-muted-foreground">{t("storage_driver")}</span>
+        <span className="shrink-0 text-sm text-muted-foreground">{t("storage_driver")}</span>
         <span className="min-w-0 truncate text-right text-sm">
           {status.driver === "s3" ? t("storage_driver_s3") : t("storage_driver_local")}
         </span>
       </div>
       {status.bucket ? (
         <div className="flex items-baseline justify-between gap-2">
-          <span className="shrink-0 text-xs text-muted-foreground">{t("storage_bucket")}</span>
+          <span className="shrink-0 text-sm text-muted-foreground">{t("storage_bucket")}</span>
           <span className="min-w-0 truncate text-right text-sm">{status.bucket}</span>
         </div>
       ) : null}
       {status.endpointHost ? (
         <div className="flex items-baseline justify-between gap-2">
-          <span className="shrink-0 text-xs text-muted-foreground">{t("storage_endpoint")}</span>
+          <span className="shrink-0 text-sm text-muted-foreground">{t("storage_endpoint")}</span>
           <span className="min-w-0 truncate text-right text-sm">{status.endpointHost}</span>
         </div>
       ) : null}
