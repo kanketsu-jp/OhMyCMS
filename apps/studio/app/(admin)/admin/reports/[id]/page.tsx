@@ -4,6 +4,7 @@ import { ErrorBanner } from "@/components/admin/error-banner";
 import { ReportThread } from "@/components/admin/report-thread";
 import { getT } from "@/i18n/server";
 import { apiFetch, currentUser } from "@/lib/admin/api";
+import type { BugReportAttachment } from "@/lib/reports/attachments";
 import type { BugReport, BugReportMessage } from "@/lib/reports/service";
 
 type Props = {
@@ -32,6 +33,7 @@ export default async function ReportThreadPage({ params }: Props) {
 
   const result = await apiFetch<{
     report: BugReport;
+    attachments: BugReportAttachment[];
     messages: BugReportMessage[];
     can_manage: boolean;
   }>(`/api/reports/${id}`);
@@ -55,6 +57,7 @@ export default async function ReportThreadPage({ params }: Props) {
     <div className="flex max-w-3xl flex-col">
       <ReportThread
         report={result.data.report}
+        attachments={result.data.attachments}
         messages={result.data.messages}
         viewerId={viewerId}
         canManage={result.data.can_manage}

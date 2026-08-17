@@ -24,10 +24,12 @@ import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
 import { apiErrorKey } from "@/lib/admin/forms";
+import type { BugReportAttachment } from "@/lib/reports/attachments";
 import type { BugReport, BugReportMessage } from "@/lib/reports/service";
 
 type Props = {
   report: BugReport;
+  attachments: BugReportAttachment[];
   messages: BugReportMessage[];
   /** 見ている人。**自分の発言かどうかの判定だけに使う** */
   viewerId: string | null;
@@ -48,7 +50,7 @@ type Props = {
  *   （新しい行が増えたときに下へ張り付く／上を読んでいるときは動かさない、が要るところ。
  *    ここは自作するとほぼ必ず間違える）。
  */
-export function ReportThread({ report, messages, viewerId, canManage }: Props) {
+export function ReportThread({ report, attachments, messages, viewerId, canManage }: Props) {
   const t = useT("reports");
   // 🚨 API の生文言（error.message）を画面へ出さない。細工したリンクで任意の文章を
   //    アプリ公式のエラー枠に出せる「なりすまし」の経路になるため（司令塔 2026-08-15）。
@@ -133,6 +135,22 @@ export function ReportThread({ report, messages, viewerId, canManage }: Props) {
                         <span className="font-medium">{t("report_expected_label")}: </span>
                         {report.expected}
                       </p>
+                    ) : null}
+                    {attachments.length > 0 ? (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs font-medium text-muted-foreground">{t("attach_section")}</p>
+                        <div className="flex flex-col gap-2">
+                          {attachments.map((attachment) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={attachment.id}
+                              src={`/api/reports/${report.id}/attachments/${attachment.id}`}
+                              alt={attachment.filename}
+                              className="h-auto max-w-full rounded-md"
+                            />
+                          ))}
+                        </div>
+                      </div>
                     ) : null}
                     {/* 自動で付いた情報（5W1H の Where）。**報告を読む側が再現するのに要る**。 */}
                     <dl className="grid grid-cols-[auto_1fr] gap-x-3 text-xs text-muted-foreground">

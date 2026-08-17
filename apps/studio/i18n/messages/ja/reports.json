@@ -42,5 +42,10 @@
   "marked_resolved": "解決済みにしました",
   "marked_reopened": "未解決に戻しました",
   "scope_mine": "自分の報告",
-  "scope_all": "全員の報告"
+  "scope_all": "全員の報告",
+  "attach_label": "画像を付ける（任意・5 枚まで）",
+  "attach_remove": "外す",
+  "attach_too_many": "画像は 5 枚までです。",
+  "attach_failed": "画像 {total} 枚のうち {failed} 枚を送れませんでした。",
+  "attach_section": "添付した画像"
 }

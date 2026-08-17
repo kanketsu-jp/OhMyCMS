@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
@@ -9,19 +10,31 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentGroup,
+  AttachmentTitle,
+} from "@/components/ui/attachment";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { FormDraft } from "@/components/admin/form-draft";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
-import { useLocale, useT } from "@/i18n/client";
+import { useFormat, useLocale, useT } from "@/i18n/client";
 import { errorKeyFromApiCode } from "@/i18n/error";
 
 type Props = {
   /** 送り終わったら呼ぶ。右サイドバーなら 1 つ前へ戻す用 */
   onDone?: () => void;
 };
+
+const MAX_ATTACHMENTS = 5;
+const ATTACHMENT_ACCEPT = "image/png,image/jpeg,image/gif,image/webp";
 
 /**
  * 不具合の報告を書くところ（チャットの 1 通目）。
@@ -50,11 +63,14 @@ type Props = {
 export function BugReportComposer({ onDone }: Props) {
   const t = useT("reports");
   const tError = useT("errors");
+  const format = useFormat();
   const locale = useLocale();
   const pathname = usePathname();
 
   const [body, setBody] = useState("");
   const [expected, setExpected] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState(false);
   // 🚨 入力の不足は**その欄の近く**に出す（消えると直せなくなるのでトーストにしない）。
   const [fieldError, setFieldError] = useState<"body" | null>(null);
 
@@ -106,25 +122,74 @@ export function BugReportComposer({ onDone }: Props) {
     }
 
     const payload = (await response.json().catch(() => null)) as
-      | { data?: { mail_status?: "skipped" | "sent" | "failed" } }
+      | { data?: { id?: string; mail_status?: "skipped" | "sent" | "failed" } }
       | null;
+    const reportId = payload?.data?.id ?? null;
     const mail = payload?.data?.mail_status ?? "skipped";
+    const files = attachments;
+    let failedAttachments = reportId ? 0 : files.length;
+
+    if (reportId) {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.set("file", file);
+
+        try {
+          const attachmentResponse = await fetch(`/api/reports/${reportId}/attachments`, {
+            method: "POST",
+            body: formData,
+          });
+          if (!attachmentResponse.ok) failedAttachments += 1;
+        } catch {
+          failedAttachments += 1;
+        }
+      }
+    }
+    const toastDescription =
+      failedAttachments > 0
+        ? t("attach_failed", {
+            total: format.number(files.length),
+            failed: format.number(failedAttachments),
+          })
+        : mail === "sent"
+          ? t("mail_sent")
+          : mail === "failed"
+            ? t("mail_failed")
+            : t("mail_skipped");
 
     // 受け付けたことが本体。メールの可否は補足なので説明にまわす。
     // 🚨 **メール未設定は失敗ではない**ので、失敗のトーストにしない。
     toast.success(t("submitted"), {
-      description:
-        mail === "sent"
-          ? t("mail_sent")
-          : mail === "failed"
-            ? t("mail_failed")
-            : t("mail_skipped"),
+      description: toastDescription,
     });
 
     setBody("");
     setExpected("");
+    setAttachments([]);
+    setAttachmentError(false);
     onDone?.();
   });
+
+  function addAttachments(fileList: FileList | null): void {
+    const selected = Array.from(fileList ?? []);
+    if (selected.length === 0) return;
+
+    setAttachments((current) => {
+      const available = MAX_ATTACHMENTS - current.length;
+      if (available <= 0) {
+        setAttachmentError(true);
+        return current;
+      }
+      const next = [...current, ...selected.slice(0, available)];
+      setAttachmentError(selected.length > available);
+      return next;
+    });
+  }
+
+  function removeAttachment(index: number): void {
+    setAttachments((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setAttachmentError(false);
+  }
 
   // 🚨 送信のショートカットは付けない（堀池さん 2026-08-17・原文「他の画面とキーが
   // 被ってしまうため、今回は設定なしにしてください」）。他の画面の submit ショートカット定義は残す。
@@ -188,6 +253,45 @@ export function BugReportComposer({ onDone }: Props) {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      <div className="grid gap-2">
+        <Label htmlFor="report-attachments" className="w-fit cursor-pointer">
+          {t("attach_label")}
+        </Label>
+        <input
+          id="report-attachments"
+          type="file"
+          accept={ATTACHMENT_ACCEPT}
+          multiple
+          className="sr-only"
+          onChange={(event) => {
+            addAttachments(event.currentTarget.files);
+            event.currentTarget.value = "";
+          }}
+        />
+        {attachments.length > 0 ? (
+          <AttachmentGroup>
+            {attachments.map((file, index) => (
+              <Attachment key={`${file.name}-${file.lastModified}-${index}`} state="idle">
+                <AttachmentContent>
+                  <AttachmentTitle>{file.name}</AttachmentTitle>
+                  <AttachmentDescription>{format.fileSize(file.size)}</AttachmentDescription>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <AttachmentAction
+                    type="button"
+                    aria-label={t("attach_remove")}
+                    onClick={() => removeAttachment(index)}
+                  >
+                    <X />
+                  </AttachmentAction>
+                </AttachmentActions>
+              </Attachment>
+            ))}
+          </AttachmentGroup>
+        ) : null}
+        {attachmentError ? <p className="text-sm text-destructive">{t("attach_too_many")}</p> : null}
+      </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button type="submit" loading={submit.pending}>

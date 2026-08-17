@@ -42,5 +42,10 @@
   "marked_resolved": "Marked as resolved.",
   "marked_reopened": "Reopened.",
   "scope_mine": "My reports",
-  "scope_all": "All reports"
+  "scope_all": "All reports",
+  "attach_label": "Attach images (optional, up to 5)",
+  "attach_remove": "Remove",
+  "attach_too_many": "You can attach up to 5 images.",
+  "attach_failed": "{failed} of {total} images could not be sent.",
+  "attach_section": "Attached images"
 }
