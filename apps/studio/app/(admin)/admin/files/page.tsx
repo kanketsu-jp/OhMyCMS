@@ -243,17 +243,27 @@ export default async function FilesPage({ searchParams }: Props) {
         options={[{ label: t("new_folder_button"), href: newFolderHref }]}
       />
       <div className="flex max-w-7xl flex-col gap-6">
+        {/* 🚨 **先頭の「ファイル」を落とした**（堀池・2026-08-17・C3）。原文:
+            「admin/files ページ上部の『ファイル』というタイトルは不要です。
+              パンくずリストで表示されているためです。」
+            ＝ ヘッダーのパンくずが既に「ファイル」を出しており、**同じ語が 2 箇所**だった。
+            【測った 2026-08-17】読み上げでも重複していた——`/admin/files` では
+            現在地を名乗るランドマークが **2 つ**露出していた（ヘッダー「現在の場所」＋
+            ここ「ファイルの現在位置」）。PC 1280 でも SP 390 でも 2 つ。
+
+            🚨 **道筋の作りは変えていない**（司令塔の決め・2026-08-17）。
+              ヘッダーのパンくずは `pathname` だけから組み立てるので、
+              **フォルダ（`?folder=` のクエリ）を載せられない**。だからフォルダの階層は
+              ここに残す。載せる仕組みを作る案（page-trail に継ぎ足す口）は、
+              `page-trail.ts` の「2 箇所で組み立てないこと」と正面からぶつかるため採らなかった。
+
+            🚨 **フォルダが 0 件のときは `nav` ごと出さない。**
+              先頭を落とした結果、根に居ると中身が空になる。空の `nav` を残すと
+              **「現在地を名乗るランドマーク」が中身なしで読み上げに出る**。
+              D3（項目一覧がゼロならアコーディオン自体を出さない）と同じ考え方。 */}
+        {breadcrumbs.length > 0 ? (
         <Breadcrumb aria-label={t("breadcrumb_label")}>
           <BreadcrumbList>
-            <BreadcrumbItem>
-              {breadcrumbs.length === 0 ? (
-                <BreadcrumbPage>{t("title")}</BreadcrumbPage>
-              ) : (
-                <Link href="/admin/files" className="transition-colors hover:text-foreground active:text-foreground">
-                  {t("title")}
-                </Link>
-              )}
-            </BreadcrumbItem>
             {breadcrumbs.map((folder, index) => (
               <BreadcrumbItem key={folder.id}>
                 <BreadcrumbSeparator />
@@ -268,6 +278,7 @@ export default async function FilesPage({ searchParams }: Props) {
             ))}
           </BreadcrumbList>
         </Breadcrumb>
+        ) : null}
         <ErrorBanner
           message={
             (!filesResult.ok ? tError(filesResult.messageKey) : null) ??
