@@ -7,8 +7,9 @@ import { createPortal, useFormStatus } from "react-dom";
 
 import { ConfirmDialog, submitFormById, type ConfirmSpec } from "@/components/admin/confirm-dialog";
 
-import { SHORTCUTS } from "@/components/admin/shortcuts";
-import { useShortcut } from "@/components/admin/use-shortcut";
+import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
+import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
+import { Kbd } from "@/components/ui/kbd";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -152,6 +153,23 @@ export function PageAction({
   const formStatus = useFormStatus();
   const busy = pending || formStatus.pending;
 
+  /**
+   * 主ボタンの脇に出す **⌘Enter**（2026-08-17）。
+   *
+   * 【測った・司令塔】`shortcuts.ts` の `save: "mod+enter"` は **18 ルート**で効くのに、
+   * `page-action.tsx` に `Kbd` の参照が **0 件**だった
+   * ＝ 🚨 **効くのに、利用者がそれを知る手段が無い**（今日 3 つ目の「持っているのに触れない」）。
+   *
+   * 🚨 **出す条件を、効く条件と同じにする。** 下の `useShortcut` は
+   *   `!form || role !== "primary"` で降りるので、**ここも同じ条件で出す**。
+   *   ずらすと **効かない鍵を見せる**ことになり、いまの問題の裏返しになる。
+   *
+   * 🚨 **記号は辞書に持たせない**（`global-search.tsx:120` と同じ理由——
+   *   **環境で変わる**。mac は ⌘Enter / それ以外は Ctrl+Enter）。
+   */
+  const isMac = useIsMac();
+  const shortcutHint = form && role === "primary" ? formatShortcut(SHORTCUTS.save, isMac) : null;
+
   // 🚨 **確認待ちの項目は、メニューの外で持つ**（`confirm-dialog.tsx` の申し送り）。
   //    🚨 そして **ダイアログは 1 つだけ描く**——`renderAction` は PC 用と SP 用で
   //    **2 回呼ばれる**ので、あちらに置くと**同じダイアログが 2 つ開く**。
@@ -215,10 +233,14 @@ export function PageAction({
     options,
     optionsLabel: t("action_options"),
     onConfirmRequest: setConfirming,
+    shortcutHint,
   });
   const sp = renderAction({
     href, form, onClick, label, icon, pending: busy, disabled, variant, order, compact: true,
     options, optionsLabel: t("action_options"), onConfirmRequest: setConfirming,
+    // 🚨 SP には出さない。**下部ナビの 3 つ目**に入るもので、幅が無い
+    //    （`header-back.tsx` / `global-search.tsx` も `hidden md:inline-flex` で PC だけに出している）。
+    shortcutHint: null,
   });
 
   return (
@@ -261,6 +283,7 @@ function renderAction({
   options,
   optionsLabel,
   onConfirmRequest,
+  shortcutHint,
 }: {
   href?: string;
   form?: string;
@@ -276,6 +299,8 @@ function renderAction({
   optionsLabel: string;
   /** 確認が要る項目を押したときに、呼び出し元へ知らせる（ダイアログは呼び出し元が 1 つだけ描く）。 */
   onConfirmRequest: (option: ActionOption) => void;
+  /** 主ボタンの脇に出す鍵（`⌘Enter`）。**出さないときは `null`**。 */
+  shortcutHint: string | null;
 }) {
   const size = "sm";
   // 🚨 SP だけ 11px にする（PC のヘッダは触らない。同じ部品から出ているため）。
@@ -321,6 +346,9 @@ function renderAction({
     >
       {icon}
       {text}
+      {/* 🚨 **効く条件と同じときだけ出す**（呼び出し元で `form && primary` を見ている）。
+          🚨 `pointer-events-none` は `Kbd` が持っているので、押し心地は変わらない。 */}
+      {shortcutHint ? <Kbd className="hidden md:inline-flex">{shortcutHint}</Kbd> : null}
     </Button>
   );
   })();
