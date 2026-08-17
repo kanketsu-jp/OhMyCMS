@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
-import { errorKeyFromApiCode, FALLBACK_ERROR_KEY } from "@/i18n/error";
+import { errorKeyFromPayload } from "@/i18n/error";
 
 type SettingsSource = "database" | "environment" | "default";
 
@@ -125,8 +125,12 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       else {
         // 🚨 API の生文言を画面へ出さない（英語の画面に lib/ の日本語が出るため）。
         //    表に無い code は保存の途中なので、この画面の error_save_failed が正確。
-        const key = errorKeyFromApiCode(payload?.error?.code);
-        setError(key === FALLBACK_ERROR_KEY ? t("error_save_failed") : tError(key));
+        // 🚨 **取り出しを自分で書かない**（`payload?.error?.code` を各所で書くと、形が変わったとき
+        //    何箇所直すのか誰も知らない。実測 2026-08-17: 同じ取り出しが 7 箇所在った）。
+        //    `errorKeyFromPayload` は**表に無ければ null** を返すので、`=== FALLBACK` と同じ分岐になる
+        //    （実測: 表に `unexpected` へ写す code は 0 件なので、FALLBACK になるのは未知の code のときだけ）。
+        const key = errorKeyFromPayload(payload);
+        setError(key === null ? t("error_save_failed") : tError(key));
       }
       return;
     }
