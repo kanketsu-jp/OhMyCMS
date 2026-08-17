@@ -40,9 +40,11 @@ const bottomNavItems = [
 //    ページ・文言・リンクが揃ったので繋いだ（下の sso の行と同じ順序を守っている）。
 // 🚨 組の行はリンクにならないので、**ファイル一覧そのものへの行き先を子に入れておく**。
 //    入れないと `/admin/files` へ行けなくなる（SP の下部ナビからしか辿れない）。
+// 🚨 ストレージはここに置かない（D4・堀池さん 2026-08-17）。
+//    実体は `/admin/settings/storage` で、設定の組に既に在る。
+//    両方に置くと、ファイルの組を開いたとき同じ行き先が 2 本出る（実測: 2 本 → 1 本）。
 const fileItems = [
   { href: "/admin/files", labelKey: "files_all" },
-  { href: "/admin/settings/storage", labelKey: "settings_child_storage" },
   { href: "/admin/labels", labelKey: "files_child_labels" },
 ];
 
