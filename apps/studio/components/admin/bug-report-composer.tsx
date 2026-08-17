@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Send, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
@@ -19,10 +19,9 @@ import {
   AttachmentGroup,
   AttachmentTitle,
 } from "@/components/ui/attachment";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { ChatComposer, ChatComposerField } from "@/components/admin/chat-composer";
 import { FormDraft } from "@/components/admin/form-draft";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useLocale, useT } from "@/i18n/client";
@@ -204,100 +203,103 @@ export function BugReportComposer({ onDone }: Props) {
       }}
     >
       <FormDraft formId="bug-report-form" />
-      <div className="grid gap-2">
-        <Label htmlFor="report-body">{t("report_body_label")}</Label>
-        <Textarea
-          id="report-body"
-          name="body"
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          rows={3}
-          maxLength={20000}
-          placeholder={t("report_body_placeholder")}
-          aria-label={t("report_body_label")}
-          aria-invalid={fieldError === "body" || undefined}
-        />
-        {fieldError === "body" ? (
-          <p className="text-sm text-destructive">{t("error_body_required")}</p>
-        ) : null}
-      </div>
+      <ChatComposer
+        textareaId="report-body"
+        textareaName="body"
+        value={body}
+        onChange={setBody}
+        placeholder={t("report_body_placeholder")}
+        submitLabel={t("submit_button")}
+        submitIcon={<Send />}
+        pending={submit.pending}
+        textareaAriaInvalid={fieldError === "body"}
+        below={
+          <div className="flex flex-col gap-2">
+            {fieldError === "body" ? (
+              <p className="text-sm text-destructive">{t("error_body_required")}</p>
+            ) : null}
 
-      {/* 5W1H の Why。**必須にしない**（書けない場面があるし、無くても報告は成立する）。 */}
-      <div className="grid gap-2">
-        <Label htmlFor="report-expected">{t("report_expected_label")}</Label>
-        <Textarea
-          id="report-expected"
-          name="expected"
-          value={expected}
-          onChange={(event) => setExpected(event.target.value)}
-          rows={2}
-          maxLength={20000}
-          placeholder={t("report_expected_placeholder")}
-        />
-      </div>
+            {/* 5W1H の Why。**必須にしない**（書けない場面があるし、無くても報告は成立する）。 */}
+            <Accordion>
+              <AccordionItem value="expected">
+                <AccordionTrigger>{t("expected_accordion_label")}</AccordionTrigger>
+                <AccordionContent>
+                  <div className="mt-2">
+                    <ChatComposerField
+                      id="report-expected"
+                      name="expected"
+                      value={expected}
+                      onChange={setExpected}
+                      rows={2}
+                      placeholder={t("report_expected_placeholder")}
+                      ariaLabel={t("expected_accordion_label")}
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
-      {/* 🚨 「何が自動で付くか」を**実際の値で**見せる。
-          「パスなどを送ります」と書くだけだと、何が送られるか分からないまま送ることになる。 */}
-      <Accordion>
-        <AccordionItem value="meta">
-          <AccordionTrigger>{t("meta_accordion_label")}</AccordionTrigger>
-          <AccordionContent>
-            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-              <dt>{t("meta_page")}</dt>
-              <dd className="truncate font-mono">{pathname}</dd>
-              <dt>{t("meta_viewport")}</dt>
-              <dd className="font-mono">{viewport ?? "—"}</dd>
-              <dt>{t("meta_locale")}</dt>
-              <dd className="font-mono">{locale}</dd>
-            </dl>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+            {/* 🚨 「何が自動で付くか」を**実際の値で**見せる。
+                「パスなどを送ります」と書くだけだと、何が送られるか分からないまま送ることになる。 */}
+            <Accordion>
+              <AccordionItem value="meta">
+                <AccordionTrigger>{t("meta_accordion_label")}</AccordionTrigger>
+                <AccordionContent>
+                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                    <dt>{t("meta_page")}</dt>
+                    <dd className="truncate font-mono">{pathname}</dd>
+                    <dt>{t("meta_viewport")}</dt>
+                    <dd className="font-mono">{viewport ?? "—"}</dd>
+                    <dt>{t("meta_locale")}</dt>
+                    <dd className="font-mono">{locale}</dd>
+                  </dl>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
-      <div className="grid gap-2">
-        <Label htmlFor="report-attachments" className="w-fit cursor-pointer">
-          {t("attach_label")}
-        </Label>
-        <input
-          id="report-attachments"
-          type="file"
-          accept={ATTACHMENT_ACCEPT}
-          multiple
-          className="sr-only"
-          onChange={(event) => {
-            addAttachments(event.currentTarget.files);
-            event.currentTarget.value = "";
-          }}
-        />
-        {attachments.length > 0 ? (
-          <AttachmentGroup>
-            {attachments.map((file, index) => (
-              <Attachment key={`${file.name}-${file.lastModified}-${index}`} state="idle">
-                <AttachmentContent>
-                  <AttachmentTitle>{file.name}</AttachmentTitle>
-                  <AttachmentDescription>{format.fileSize(file.size)}</AttachmentDescription>
-                </AttachmentContent>
-                <AttachmentActions>
-                  <AttachmentAction
-                    type="button"
-                    aria-label={t("attach_remove")}
-                    onClick={() => removeAttachment(index)}
-                  >
-                    <X />
-                  </AttachmentAction>
-                </AttachmentActions>
-              </Attachment>
-            ))}
-          </AttachmentGroup>
-        ) : null}
-        {attachmentError ? <p className="text-sm text-destructive">{t("attach_too_many")}</p> : null}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button type="submit" loading={submit.pending}>
-          {t("submit_button")}
-        </Button>
-      </div>
+            <div className="grid gap-2">
+              <Label htmlFor="report-attachments" className="w-fit cursor-pointer">
+                {t("attach_label")}
+              </Label>
+              <input
+                id="report-attachments"
+                type="file"
+                accept={ATTACHMENT_ACCEPT}
+                multiple
+                className="sr-only"
+                onChange={(event) => {
+                  addAttachments(event.currentTarget.files);
+                  event.currentTarget.value = "";
+                }}
+              />
+              {attachments.length > 0 ? (
+                <AttachmentGroup>
+                  {attachments.map((file, index) => (
+                    <Attachment key={`${file.name}-${file.lastModified}-${index}`} state="idle">
+                      <AttachmentContent>
+                        <AttachmentTitle>{file.name}</AttachmentTitle>
+                        <AttachmentDescription>{format.fileSize(file.size)}</AttachmentDescription>
+                      </AttachmentContent>
+                      <AttachmentActions>
+                        <AttachmentAction
+                          type="button"
+                          aria-label={t("attach_remove")}
+                          onClick={() => removeAttachment(index)}
+                        >
+                          <X />
+                        </AttachmentAction>
+                      </AttachmentActions>
+                    </Attachment>
+                  ))}
+                </AttachmentGroup>
+              ) : null}
+              {attachmentError ? (
+                <p className="text-sm text-destructive">{t("attach_too_many")}</p>
+              ) : null}
+            </div>
+          </div>
+        }
+      />
     </form>
   );
 }

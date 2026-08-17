@@ -1,7 +1,6 @@
 {
   "title": "不具合の報告",
   "description": "動かないところや気づいたことを送ってください。",
-  "report_body_label": "詳しい内容",
   "report_body_placeholder": "どの画面で、何をしたら、どうなったかを書いてください。",
   "submit_button": "送信",
   "submitting": "送信しています…",
@@ -20,6 +19,7 @@
   "nav_create": "報告する",
   "nav_list": "報告一覧",
   "create_title": "報告する",
+  "expected_accordion_label": "本来どうなるはずでしたか（任意）",
   "report_expected_label": "本来どうなるはずでしたか（任意）",
   "report_expected_placeholder": "「保存されて一覧に戻るはず」など",
   "meta_accordion_label": "同時に送られる詳細情報",

@@ -4,6 +4,7 @@ import { CheckCheck, RotateCcw, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { ChatComposer } from "@/components/admin/chat-composer";
 import { Button } from "@/components/ui/button";
 import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
@@ -19,7 +20,6 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
@@ -112,6 +112,19 @@ export function ReportThread({ report, attachments, messages, viewerId, canManag
   });
 
   const isResolved = report.status === "resolved";
+  // 🚨 解決にできるのは**管理できる人だけ**。
+  //    直ったかどうかを決めるのは受け取った側なので、報告者には出さない。
+  const statusButton = canManage ? (
+    <Button
+      type="button"
+      variant="outline"
+      loading={changeStatus.pending}
+      onClick={() => void changeStatus.run(isResolved ? "open" : "resolved")}
+    >
+      {isResolved ? <RotateCcw /> : <CheckCheck />}
+      {isResolved ? t("reopen_button") : t("resolve_button")}
+    </Button>
+  ) : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -233,33 +246,16 @@ export function ReportThread({ report, attachments, messages, viewerId, canManag
           void send.run();
         }}
       >
-        <Textarea
+        <ChatComposer
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          rows={3}
-          maxLength={20000}
+          onChange={setDraft}
           placeholder={t("reply_placeholder")}
-          aria-label={t("reply_placeholder")}
+          submitLabel={t("reply_button")}
+          submitIcon={<Send />}
+          pending={send.pending}
+          disabled={draft.trim() === ""}
+          before={statusButton}
         />
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {/* 🚨 解決にできるのは**管理できる人だけ**。
-              直ったかどうかを決めるのは受け取った側なので、報告者には出さない。 */}
-          {canManage ? (
-            <Button
-              type="button"
-              variant="outline"
-              loading={changeStatus.pending}
-              onClick={() => void changeStatus.run(isResolved ? "open" : "resolved")}
-            >
-              {isResolved ? <RotateCcw /> : <CheckCheck />}
-              {isResolved ? t("reopen_button") : t("resolve_button")}
-            </Button>
-          ) : null}
-          <Button type="submit" loading={send.pending} disabled={draft.trim() === ""}>
-            <Send />
-            {t("reply_button")}
-          </Button>
-        </div>
       </form>
     </div>
   );

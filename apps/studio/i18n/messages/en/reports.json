@@ -1,7 +1,6 @@
 {
   "title": "Report a problem",
   "description": "Tell us what is not working or what you noticed.",
-  "report_body_label": "Details",
   "report_body_placeholder": "Describe the screen you were on, what you did, and what happened.",
   "submit_button": "Send",
   "submitting": "Sending…",
@@ -20,6 +19,7 @@
   "nav_create": "Report a problem",
   "nav_list": "My reports",
   "create_title": "Report a problem",
+  "expected_accordion_label": "What should have happened? (optional)",
   "report_expected_label": "What should have happened? (optional)",
   "report_expected_placeholder": "e.g. \"It should save and return to the list\"",
   "meta_accordion_label": "Details sent with this report",
