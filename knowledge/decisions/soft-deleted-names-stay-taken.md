@@ -174,3 +174,20 @@ scripts/verify-labels-authz.ts の #21
   `DISPLAY_FIELDS`（title / name / filename_download / email / collection / field / id）に
   割り当ての列が 1 つも無いので、**ゴミ箱の「何を」の欄にラベルの UUID が出る**（storage の実測）。
   入り口が無いあいだは誰にも見えないので、**先に直さない**（到達できない状態のための表示コードになる）。
+
+- 🚨 **列は在る。意図して使っていない。**（storage の指摘で追記。**ここがいちばん誤読される**）
+
+  ```
+  【引いた】20260816040000_add_deleted_at_to_system_tables.ts の TABLES … 4 つ
+     directus_files / directus_folders / ohmycms_labels / 🚨 ohmycms_label_assignments
+  【引いた】DB … ohmycms_label_assignments.deleted_at … 1 列 在る
+     🟢 対照 存在しない列名で同じ数え方 … 0
+  ```
+
+  migration のコメントは、この 2 表を足した理由を
+  **「割り当てを消さずに隠す（toast）」**と書いている。**書かせたのは私**。
+  🚨 そのあと実装で採ったのは「**割り当て自身には印を立てず、相手の印で隠す**」なので、
+  **割り当ての列は使われないまま残った**。
+  ＝ **列の存在は「使うつもりだった跡」であって、「使うべき」の証拠ではない。**
+  🚨 消していないのは、**消すと migration を 1 本足すことになり、
+  「使わない列が在る」より「意味の分からない migration が在る」ほうが後で高くつく**ため。
