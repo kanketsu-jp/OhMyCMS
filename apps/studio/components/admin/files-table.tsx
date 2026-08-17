@@ -213,9 +213,12 @@ export function FilesTable({
       ) : null}
 
       {/* 🚨 **件数はヘッダに出さない**（base2 の実測: Directus も出していない）。
-          **選んでいるときだけ、その場に出す**。 */}
+          **選んでいるときだけ、その場に出す**。
+          🚨 `bg-muted/60`（249・差 6）ではなく `bg-muted`（245・差 10）。この帯は選択中の「選択を解除」などの操作を持つので、
+          読み取り専用欄（差 10）より薄いのは逆。2026-08-17 に pages が 14 画面で実測し、2026-08-18 に司令塔が判断。
+          🚨 枠は足さない（§2-2）。 */}
       {selectedIds.length > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
           <span className="mr-auto">{t("bulk_selected", { count: String(selectedIds.length) })}</span>
           <Button type="button" variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
             {t("bulk_clear")}

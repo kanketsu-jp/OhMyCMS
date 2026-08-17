@@ -162,8 +162,11 @@ export function FormDraft({ formId }: Props) {
       {leaveDialog}
       {/* 🚨 罫線を持たない。面（Surface）の**中**に描かれるので、`rounded-* + border` を足すと
           面が2段になる（`knowledge/decisions/no-nested-surfaces.md` §2-1・`check-surface-nesting` が検出）。
-          区別は塗り（`bg-muted`）だけで付ける。`bug-report-composer` の注記欄と同じ作り。 */}
-      <div className="col-span-full flex flex-wrap items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">
+          区別は塗り（`bg-muted`）だけで付ける。`bug-report-composer` の注記欄と同じ作り。
+          🚨 `bg-muted/60`（249・差 6）ではなく `bg-muted`（245・差 10）。この帯は「復元 / 破棄」の操作を持つので、
+          読み取り専用欄（差 10）より薄いのは逆。2026-08-17 に pages が 14 画面で実測し、2026-08-18 に司令塔が判断。
+          🚨 枠は足さない（§2-2）。 */}
+      <div className="col-span-full flex flex-wrap items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
       <span className="mr-auto text-muted-foreground">{t("restore_prompt")}</span>
       <Button type="button" variant="outline" size="sm" onClick={() => restoreDraft(formId, draft, rawDraft, setHiddenDraft, dirtyRef)}>
         {t("restore_button")}
