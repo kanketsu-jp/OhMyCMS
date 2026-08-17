@@ -65,6 +65,16 @@ const ATTACHMENT_ACCEPT = "image/png,image/jpeg,image/gif,image/webp";
  *    （🟢 対照 403 / 404 / 500 は「権限がありません」「送信できませんでした」が出ていた）。
  *    ＝ **応答が返る失敗だけを見ていて、応答が返らない失敗を見ていなかった。**
  *
+ * 🚨 **画像を送る `fetch` を `submit` の外へ出さないこと。**（実測 2026-08-17）
+ *    見やすさのために `uploadAttachments()` という関数へ出したら、`check-submit-once` が
+ *    **「二重送信の防御がありません（関数 不明）」**にした——**入れ物が `useSubmitOnce` でない**ので、
+ *    検査から見ると「素の POST」に見える。正しい。**送信は押した 1 回の中に閉じておく。**
+ *    ＝ 中に置いたまま**短く書く**しかない（下の 60 行の話）。
+ *
+ * 🚨 **落ちた画像は「件数」ではなく「ファイルそのもの」を残す。**
+ *    件数だけ持つと、もう一度押したときに**どれを送り直すか分からない**（成功した分も二重に送る）。
+ *    記録が済んだ id（`recordedReportId`）を持つのも同じ理由——持たないと**報告が 2 件できる**。
+ *
  * 🚨 **`try`/`catch` で囲まず `.catch(() => null)` で受ける。**
  *    `check-submit-once` は `useSubmitOnce(` の行から **60 行** しか遡らずに
  *    入れ物の関数を探す（`scripts/check-submit-once.mjs` の `i - j < 60`）。
@@ -83,6 +93,10 @@ export function BugReportComposer({ onDone }: Props) {
   const [expected, setExpected] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState(false);
+  // 🚨 **記録が済んだ報告の id**。画像だけが送れなかったときに持つ。
+  //    これを持たないと、もう一度押したときに**同じ報告がもう 1 件できる**
+  //    （＝ 受け取る側は「2 件来た。どちらが本物か」を判断させられる）。
+  const [recordedReportId, setRecordedReportId] = useState<string | null>(null);
   // 🚨 入力の不足は**その欄の近く**に出す（消えると直せなくなるのでトーストにしない）。
   const [fieldError, setFieldError] = useState<"body" | null>(null);
 
@@ -109,66 +123,82 @@ export function BugReportComposer({ onDone }: Props) {
     }
     setFieldError(null);
 
-    // 🚨 通信が落ちたときを受ける（理由と実測はこの部品の冒頭）。
-    const response = await fetch("/api/reports", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        body: trimmedBody,
-        expected: expected.trim() || undefined,
-        page_path: pathname,
-        viewport,
-        locale,
-      }),
-    }).catch(() => null);
+    let reportId = recordedReportId;
+    let mail: "skipped" | "sent" | "failed" = "skipped";
 
-    if (!response) {
+    // 🚨 **記録が済んでいるなら、報告は作らない**（画像だけ送り直す）。
+    if (reportId === null) {
+      // 🚨 通信が落ちたときを受ける（理由と実測はこの部品の冒頭）。
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          body: trimmedBody,
+          expected: expected.trim() || undefined,
+          page_path: pathname,
+          viewport,
+          locale,
+        }),
+      }).catch(() => null);
+
       // 🚨 本文は消さない（`setBody("")` は成功したときだけ）。そのまま押し直せる。
-      toast.error(tError("network"));
-      return;
-    }
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: { code?: string } }
-        | null;
-      // API の生文言をそのまま画面へ出さない。細工した応答で任意の文章を公式のエラー枠に出せるため。code を鍵へ写して辞書から出す。
-      const key = errorKeyFromApiCode(payload?.error?.code);
-      // 🚨 code が分からない（unexpected に落ちた）ときは、この画面固有の文言のほうが具体的。
-      //    分かるときは辞書の訳を出す。どちらの経路でも API の生文言は出さない。
-      toast.error(key === "unexpected" ? t("error_submit_failed") : tError(key));
-      return;
-    }
-
-    const payload = (await response.json().catch(() => null)) as
-      | { data?: { id?: string; mail_status?: "skipped" | "sent" | "failed" } }
-      | null;
-    const reportId = payload?.data?.id ?? null;
-    const mail = payload?.data?.mail_status ?? "skipped";
-    const files = attachments;
-    let failedAttachments = reportId ? 0 : files.length;
-
-    if (reportId) {
-      for (const file of files) {
-        const formData = new FormData();
-        formData.set("file", file);
-
-        try {
-          const attachmentResponse = await fetch(`/api/reports/${reportId}/attachments`, {
-            method: "POST",
-            body: formData,
-          });
-          if (!attachmentResponse.ok) failedAttachments += 1;
-        } catch {
-          failedAttachments += 1;
-        }
+      if (!response) {
+        toast.error(tError("network"));
+        return;
       }
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: { code?: string } } | null;
+        // API の生文言は画面へ出さない（code を鍵へ写す）。理由はこの部品の冒頭。
+        const key = errorKeyFromApiCode(payload?.error?.code);
+        toast.error(key === "unexpected" ? t("error_submit_failed") : tError(key));
+        return;
+      }
+
+      const payload = (await response.json().catch(() => null)) as
+        | { data?: { id?: string; mail_status?: "skipped" | "sent" | "failed" } }
+        | null;
+      reportId = payload?.data?.id ?? null;
+      mail = payload?.data?.mail_status ?? "skipped";
     }
+
+    // 🚨 落ちた**ファイルそのもの**を残す（件数だけだと送り直せない）。理由はこの部品の冒頭。
+    const files = attachments;
+    const failed: File[] = reportId === null ? [...files] : [];
+    for (const file of reportId === null ? [] : files) {
+      const formData = new FormData();
+      formData.set("file", file);
+      const sent = await fetch(`/api/reports/${reportId}/attachments`, {
+        method: "POST",
+        body: formData,
+      }).catch(() => null);
+      if (!sent?.ok) failed.push(file);
+    }
+
+    if (failed.length > 0 && reportId !== null) {
+      // 🚨 **記録は残っている。** だから「送信できませんでした」と言わない。
+      //    そして **次に何をすればよいか**を言う（規約 2026-08-17・司令塔:
+      //    「直らないものを『もう一度お試しください』と言わない。直らないなら
+      //     何をすれば直るかを書く」）。ここは**押し直せば直る**side なので、
+      //    「もう一度押すと画像だけ送り直す」と言い切る。
+      // 🚨 送れた分は捨てる（`failed` だけ残す）。残さないと二重に送る。
+      setRecordedReportId(reportId);
+      setAttachments(failed);
+      setAttachmentError(false);
+      toast.error(t("attach_retry_title"), {
+        description: t("attach_retry", {
+          total: format.number(files.length),
+          failed: format.number(failed.length),
+        }),
+      });
+      return;
+    }
+
     const toastDescription =
-      failedAttachments > 0
+      failed.length > 0
         ? t("attach_failed", {
             total: format.number(files.length),
-            failed: format.number(failedAttachments),
+            failed: format.number(failed.length),
           })
         : mail === "sent"
           ? t("mail_sent")
@@ -186,6 +216,7 @@ export function BugReportComposer({ onDone }: Props) {
     setExpected("");
     setAttachments([]);
     setAttachmentError(false);
+    setRecordedReportId(null);
     onDone?.();
   });
 
@@ -229,7 +260,7 @@ export function BugReportComposer({ onDone }: Props) {
         value={body}
         onChange={setBody}
         placeholder={t("report_body_placeholder")}
-        submitLabel={t("submit_button")}
+        submitLabel={recordedReportId === null ? t("submit_button") : t("attach_retry_button")}
         submitIcon={<Send />}
         pending={submit.pending}
         textareaAriaInvalid={fieldError === "body"}
@@ -237,6 +268,13 @@ export function BugReportComposer({ onDone }: Props) {
           <div className="flex flex-col gap-2">
             {fieldError === "body" ? (
               <p className="text-sm text-destructive">{t("error_body_required")}</p>
+            ) : null}
+
+            {/* 🚨 **黙って動きを変えない。** 記録が済んだあとは、押しても報告は増えず
+                画像だけを送り直す。**書き足した本文は反映されない**ので、そこも言う
+                （言わないと「直したのに直っていない」になる）。 */}
+            {recordedReportId !== null ? (
+              <p className="text-sm text-muted-foreground">{t("attach_retry_note")}</p>
             ) : null}
 
             {/* 5W1H の Why。**必須にしない**（書けない場面があるし、無くても報告は成立する）。 */}
