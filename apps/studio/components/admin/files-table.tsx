@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
@@ -91,7 +92,7 @@ export function FilesTable({
    *   チェック欄に焦点を当てれば、**輪が出る・自動で見える位置まで巻かれる・
    *   そのまま選び直せる**の 3 つが同時に済む。
    */
-  const rowChecks = useRef(new Map<string, HTMLInputElement>());
+  const rowChecks = useRef(new Map<string, HTMLElement>());
 
   /**
    * 失敗の理由を書いた行（上の一覧）の id。**行のチェック欄から `aria-describedby` で指す**。
@@ -268,15 +269,12 @@ export function FilesTable({
       <table className="w-full min-w-xl border-collapse text-sm">
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
-            {/* 🚨 見出しの列。**素の input を使う**（`ui/` に Checkbox は無く、
-                この PJ は `agents-manager` などで素の input を使っている＝ 作法を増やさない）。 */}
+            {/* 🚨 見出しの列。共有の shadcn Checkbox を使う。 */}
             <th scope="col" className="w-8 py-2 pr-2">
-              <input
-                type="checkbox"
-                className="size-4"
+              <Checkbox
                 aria-label={t("bulk_select_all")}
                 checked={allSelected}
-                onChange={() =>
+                onCheckedChange={() =>
                   setSelected(allSelected ? new Set() : new Set(files.map((file) => file.id)))
                 }
               />
@@ -346,9 +344,7 @@ export function FilesTable({
             >
               {/* 🚨 ファイルだけ選べる。**まとめて入れる口はファイルの id しか受けない**。 */}
               <td className="w-8 py-2 pr-2">
-                <input
-                  type="checkbox"
-                  className="size-4"
+                <Checkbox
                   aria-label={t("bulk_select_row")}
                   aria-describedby={failedIds.has(file.id) ? failureTextId(file.id) : undefined}
                   ref={(el) => {
@@ -356,7 +352,7 @@ export function FilesTable({
                     else rowChecks.current.delete(file.id);
                   }}
                   checked={selected.has(file.id)}
-                  onChange={() => toggle(file.id)}
+                  onCheckedChange={() => toggle(file.id)}
                 />
               </td>
               {shows("name") ? (

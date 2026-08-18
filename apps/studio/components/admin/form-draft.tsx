@@ -145,7 +145,10 @@ export function FormDraft({ formId }: Props) {
               const href = pendingHref;
               setPendingHref(null);
               // 🚨 **自分で移る。** 止めたのは自分なので、進むのも自分の仕事。
-              if (href) window.location.assign(href);
+              if (href) {
+                submittingRef.current = true;
+                window.location.assign(href);
+              }
             }}
           >
             {t("leave_go")}

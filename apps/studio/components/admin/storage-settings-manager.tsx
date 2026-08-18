@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
 import { errorKeyFromPayload } from "@/i18n/error";
@@ -254,13 +255,11 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
           </FieldValue>
         ) : (
           <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-            <input
+            <Checkbox
               id="storage-s3_force_path_style"
-              type="checkbox"
-              className="size-6"
               checked={draft.s3_force_path_style}
-              onChange={(event) =>
-                setDraft({ ...draft, s3_force_path_style: event.target.checked })
+              onCheckedChange={(checked) =>
+                setDraft({ ...draft, s3_force_path_style: checked === true })
               }
             />
             {t("s3_force_path_style_label")}

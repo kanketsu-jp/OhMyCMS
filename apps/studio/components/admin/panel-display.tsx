@@ -14,6 +14,7 @@ import {
 import { PanelSection } from "@/components/admin/panel-section";
 import { PanelError } from "@/components/admin/panel-error";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useLocale, useT } from "@/i18n/client";
 import { fieldLabel } from "@/lib/schema/labels";
 
@@ -217,12 +218,11 @@ function PanelDisplayControls({
                     key={field.field}
                     className="flex min-h-(--control-h) min-w-0 items-center gap-2 text-sm md:min-h-(--control-h-pc)"
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={checked}
-                      onChange={(event) => {
+                      onCheckedChange={(nextChecked) => {
                         writeColumns(
-                          event.target.checked
+                          nextChecked === true
                             ? [...fieldNames(selectedColumns), field.field]
                             : fieldNames(selectedColumns).filter((item) => item !== field.field),
                         );

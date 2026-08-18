@@ -21,6 +21,7 @@ import { fieldLabel } from "@/lib/schema/labels";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { fieldWidthClass, resolveFieldInterface } from "@/lib/schema/interfaces";
 
 type Props = {
@@ -64,6 +65,7 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
    *    編集じゃない**」。**この部品は `/new` と `/[id]` で共用**なので、ここで分ける。
    */
   const [editing, setEditing] = React.useState(!isEdit);
+  const [booleanValues, setBooleanValues] = React.useState<Record<string, boolean>>({});
   /** 🚨 「やめる」で**入れた値を捨てる**ための鍵（規約 §2-2。欄は uncontrolled）。 */
   const [formKey, setFormKey] = React.useState(0);
   const cancelEditing = React.useCallback(() => {
@@ -194,15 +196,21 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
                   </FieldValue>
                 ) : (
                 <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc-field)">
-                  <input
+                  <Checkbox
                     id={fieldName}
-                    type="checkbox"
-                    name={fieldName}
-                    value="true"
-                    defaultChecked={value === true}
+                    checked={booleanValues[field.field] ?? value === true}
                     disabled={pkReadonly}
-                    className="size-4"
+                    onCheckedChange={(checked) => {
+                      setBooleanValues((current) => ({ ...current, [field.field]: checked === true }));
+                    }}
                   />
+                  {!pkReadonly ? (
+                    <input
+                      type="hidden"
+                      name={fieldName}
+                      value={(booleanValues[field.field] ?? value === true) ? "true" : "false"}
+                    />
+                  ) : null}
                   {t("yes")}
                 </label>
                 )

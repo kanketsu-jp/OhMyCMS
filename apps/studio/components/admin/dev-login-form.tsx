@@ -7,6 +7,7 @@ import { errorKeyFromPayload } from "@/i18n/error";
 import { FieldLabel } from "@/components/admin/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 
 export function DevLoginForm() {
@@ -66,11 +67,9 @@ export function DevLoginForm() {
         />
       </div>
       <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-        <input
-          type="checkbox"
-          className="size-4 rounded border-input"
+        <Checkbox
           checked={admin}
-          onChange={(event) => setAdmin(event.target.checked)}
+          onCheckedChange={(checked) => setAdmin(checked === true)}
         />
         {t("admin_checkbox")}
       </label>

@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useT } from "@/i18n/client";
 import { interfacesForType, type FieldInterfaceId } from "@/lib/schema/interfaces";
 
@@ -70,6 +71,7 @@ export function FieldCreateForm({ collection, inline = false }: Props) {
   const [kindId, setKindId] = useState<FieldKindId>("short_text");
   const [advancedType, setAdvancedType] = useState("");
   const [advancedInterface, setAdvancedInterface] = useState("");
+  const [required, setRequired] = useState(false);
   const selectedKind = fieldKinds[kindId];
   const resolvedType = advancedType || selectedKind.type;
   const interfaceOptions = useMemo(() => interfacesForType(resolvedType), [resolvedType]);
@@ -132,7 +134,8 @@ export function FieldCreateForm({ collection, inline = false }: Props) {
           </div>
         ) : null}
         <label className="flex h-(--control-h) items-center gap-2 text-sm md:h-(--control-h-pc-field)">
-          <input type="checkbox" name="required" value="true" className="size-4" />
+          <input type="hidden" name="required" value={required ? "true" : "false"} />
+          <Checkbox checked={required} onCheckedChange={(checked) => setRequired(checked === true)} />
           {t("required_label")}
         </label>
       </div>

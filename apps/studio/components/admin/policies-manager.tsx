@@ -22,6 +22,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SurfaceDivider } from "@/components/ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -192,16 +193,16 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
             <Input id="description" name="description" />
           </div>
         </div>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-            <input type="checkbox" name="app_access" value="true" defaultChecked className="size-4" />
+            <Checkbox name="app_access" value="true" defaultChecked />
             {t("app_access_label")}
           </label>
-          <label className="flex min-h-(--control-h) items-start gap-2 text-sm md:min-h-(--control-h-pc)">
-            <input type="checkbox" name="admin_access" value="true" className="mt-0.5 size-4" />
-            <span>
+          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
+            <Checkbox name="admin_access" value="true" />
+            <span className="flex flex-wrap items-center gap-2">
               {t("admin_access_label")}
-              <span className="ml-2 text-destructive">{t("admin_access_warning")}</span>
+              <span className="text-destructive">{t("admin_access_warning")}</span>
             </span>
           </label>
         </div>

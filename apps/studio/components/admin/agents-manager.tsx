@@ -26,6 +26,7 @@ import { ScrollFade } from "@/components/ui/scroll-fade";
 import { SurfaceDivider } from "@/components/ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/toast";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
@@ -396,15 +397,13 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
                           return (
                             <TableCell key={action}>
                               <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-                                <input
-                                  type="checkbox"
+                                <Checkbox
                                   checked={checked}
                                   aria-label={t("action_checkbox_label", {
                                     collection: row.collection,
                                     action: t(`action_${action}`),
                                   })}
-                                  onChange={(event) => toggleCapability(row.collection, action, event.target.checked)}
-                                  className="size-4"
+                                  onCheckedChange={(nextChecked) => toggleCapability(row.collection, action, nextChecked === true)}
                                 />
                                 <span className="sr-only">{t(`action_${action}`)}</span>
                               </label>

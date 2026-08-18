@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useFormat, useT } from "@/i18n/client";
@@ -390,11 +391,9 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
           </FieldValue>
         ) : (
           <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-            <input
-              type="checkbox"
-              className="size-6"
+            <Checkbox
               checked={enabled}
-              onChange={(event) => setEnabled(event.target.checked)}
+              onCheckedChange={(checked) => setEnabled(checked === true)}
             />
             {t("enable_label")}
           </label>

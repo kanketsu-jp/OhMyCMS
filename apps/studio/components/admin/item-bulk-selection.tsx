@@ -7,6 +7,7 @@ import { ErrorBanner } from "@/components/admin/error-banner";
 import { RowOptions } from "@/components/admin/row-options";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const MAX_BULK_DELETE = 100;
 
@@ -123,12 +124,10 @@ export function ItemBulkSelectAll() {
   const t = useT("items");
   const { allSelected, toggleAll } = useBulk();
   return (
-    <input
-      type="checkbox"
-      className="size-4"
+    <Checkbox
       aria-label={t(allSelected ? "bulk_clear_all" : "bulk_select_all")}
       checked={allSelected}
-      onChange={toggleAll}
+      onCheckedChange={toggleAll}
     />
   );
 }
@@ -137,12 +136,10 @@ export function ItemBulkCheckbox({ id }: { id: string }) {
   const t = useT("items");
   const { selected, toggle } = useBulk();
   return (
-    <input
-      type="checkbox"
-      className="size-4"
+    <Checkbox
       aria-label={t("bulk_select_row")}
       checked={selected.has(id)}
-      onChange={() => toggle(id)}
+      onCheckedChange={() => toggle(id)}
     />
   );
 }

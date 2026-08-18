@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/toast";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
@@ -481,24 +482,22 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
         <div className="space-y-2">
           <Label>{t("fields_list_label")}</Label>
           <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-            <input type="checkbox" checked={allFields} onChange={(event) => setAllFields(event.target.checked)} className="size-4" />
+            <Checkbox checked={allFields} onCheckedChange={(checked) => setAllFields(checked === true)} />
             {t("allow_all_label")}
           </label>
           {!allFields ? (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {columns.map((field) => (
                 <label key={field} className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedFields.includes(field)}
-                    onChange={(event) => {
+                    onCheckedChange={(checked) => {
                       setSelectedFields((current) =>
-                        event.target.checked
+                        checked === true
                           ? [...current, field]
                           : current.filter((item) => item !== field),
                       );
                     }}
-                    className="size-4"
                   />
                   {field}
                 </label>
