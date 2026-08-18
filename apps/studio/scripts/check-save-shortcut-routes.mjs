@@ -99,7 +99,12 @@ export function extractSaveRoutes(snapshotSource) {
 
 /** 写しの保存鍵が未設定なら、保存ルートの宣言は存在しない。 */
 export function isSaveShortcutUnassigned(snapshotSource) {
-  return /"key":\s*"unassigned-save"[\s\S]*?"action":\s*"save"/.test(snapshotSource);
+  return isReadableSnapshot(snapshotSource) && !/"key":\s*"mod\+enter"/.test(snapshotSource);
+}
+
+/** 生成物の配列そのものを読めていることを、保存鍵とは別に確かめる。 */
+export function isReadableSnapshot(snapshotSource) {
+  return /export const SHORTCUTS_SNAPSHOT:\s*readonly ShortcutSnapshot\[\]\s*=\s*\[[\s\S]*\]\s+as const;/.test(snapshotSource);
 }
 
 /**
@@ -218,6 +223,7 @@ function main() {
   }
 
   const derived = extractSaveRoutes(snap.source);
+  const snapshotReadable = isReadableSnapshot(snap.source);
   const saveShortcutUnassigned = isSaveShortcutUnassigned(snap.source);
   const ledger = JSON.parse(led.source);
   const ledgerRoutes = ledger.routes ?? [];
@@ -323,8 +329,8 @@ function main() {
   const outputDerived = derived ?? [];
   console.log("\n■ 対照（壊していない実物で誤検出しないことを確かめる）");
   console.log(
-    `  ${control.violations.length === 0 ? "✅" : "❌"} 実物 → 検出 ${control.violations.length} 件` +
-      (saveShortcutUnassigned ? "（保存鍵は未設定のためルート照合を対象外）" : "") +
+      `  ${control.violations.length === 0 ? "✅" : "❌"} 実物 → 検出 ${control.violations.length} 件` +
+      (saveShortcutUnassigned ? `（保存鍵は未設定・写しは読めています: ${snapshotReadable ? "SHORTCUTS_SNAPSHOT の配列を確認" : "未確認"}）` : "") +
       `（写し ${control.counts.derived} ＋ 外した ${removed.filter((r) => !outputDerived.includes(r.route)).length} ＝ 台帳 ${control.counts.ledger} ルート）`,
   );
 
@@ -339,6 +345,9 @@ function main() {
     );
   } else {
     console.log("  OK — **宣言された保存の鍵**は、台帳どおり（減っていない）。🚨 「⌘Enter が効く」ではない（この検査からは見えない）。");
+    if (saveShortcutUnassigned) {
+      console.log(`  0 件でした（写しは読めています / 台帳 ${ledgerRoutes.length} ルート）。`);
+    }
   }
   if (probeFailed) console.error("\n🚨 入口の囮に失敗した。取り出しが壊れているので、この検査の結果は信用できない。");
   if (selfFailed) console.error("\n🚨 自己検査（RED）に失敗した。この検査の結果は信用できない（緑でも意味を持たない）。");
