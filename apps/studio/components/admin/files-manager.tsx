@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileDropzone } from "@/components/admin/file-dropzone";
 import { toast } from "@/components/ui/toast";
 import { PageAction } from "@/components/admin/page-action";
@@ -68,9 +69,7 @@ export function FileUploadForm({
   return (
     <div className="space-y-3">
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
-          {error}
-        </div>
+        <ErrorBanner message={error} />
       ) : null}
       <form id="file-upload-form" action={upload.run} className="grid gap-4">
         {/* 🚨 「ファイルを選択 / ファイル未選択」を画面に出さない（オーナー指摘）。

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Save, Trash2 } from "lucide-react";
 import type { CollectionResult } from "@/lib/schema/models";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PermissionCell, cellStateOf, type CellState } from "@/components/admin/permission-grid";
 import { WideTable } from "@/components/admin/wide-table";
@@ -242,9 +243,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
   return (
     <div className="space-y-6">
       {error ? (
-         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
-          {error}
-        </div>
+        <ErrorBanner message={error} />
       ) : null}
       {/* 🚨 **これはこのポリシーだけの設定**。利用者に実際に効くのは、
           その人に紐づく**全ポリシーを合わせたもの**（`filter_json_help_combination` のとおり）。

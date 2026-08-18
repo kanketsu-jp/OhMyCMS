@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { ImageIcon, Upload, X } from "lucide-react";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import { FileDropzone } from "@/components/admin/file-dropzone";
 import { Button } from "@/components/ui/button";
 import { FieldValue } from "@/components/ui/field-value";
@@ -171,11 +172,7 @@ export function FilePicker({ inputId, name, defaultValue = "", readOnly = false 
                 {t("upload_button")}
               </Button>
             </form>
-            {error ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
-                {error}
-              </div>
-            ) : null}
+            <ErrorBanner message={error} />
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {files.map((file) => (
                 <button

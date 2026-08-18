@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Pencil, X } from "lucide-react";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import { FormDraft } from "@/components/admin/form-draft";
 import { PageAction } from "@/components/admin/page-action";
 import { FieldValue } from "@/components/ui/field-value";
@@ -103,9 +104,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
-          {error}
-        </div>
+        <ErrorBanner message={error} />
       ) : null}
       <form
         // 🚨 `key` を増やすと作り直され、`defaultValue` が引き直される（「やめる」の実体）

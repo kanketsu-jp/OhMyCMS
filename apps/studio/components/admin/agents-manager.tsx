@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { KeyRound, Ban, Plus } from "lucide-react";
 import { FieldLabel } from "@/components/admin/field-label";
 import { FormDraft } from "@/components/admin/form-draft";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { WideTable } from "@/components/admin/wide-table";
 import {
@@ -267,9 +268,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
-          {error}
-        </div>
+        <ErrorBanner message={error} />
       ) : null}
       {agents.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
@@ -376,9 +375,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <p className="mt-1 text-xs leading-5 text-muted-foreground">{t("capabilities_picker_help")}</p>
           </div>
           {collectionsError ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
-              {collectionsError}
-            </div>
+            <ErrorBanner message={collectionsError} />
           ) : null}
           {collections.length > 0 ? (
             <ScrollFade

@@ -19,6 +19,7 @@ import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
 import { richTextBlockExtensions } from "@/components/admin/rich-text-blocks";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import {
   Bold,
   Code,
@@ -464,9 +465,7 @@ export function RichTextField({
             <DialogDescription>{t("image_description")}</DialogDescription>
           </DialogHeader>
           {imageError ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {imageError}
-            </div>
+            <ErrorBanner message={imageError} />
           ) : null}
           {files.length === 0 && !imageError ? (
             <p className="text-sm text-muted-foreground">{t("image_empty")}</p>
