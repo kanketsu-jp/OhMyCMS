@@ -28,6 +28,9 @@ import type { StorageDriver } from "@/lib/storage/driver";
 //    2026-08-16 まで 50MB を直書きしていたが、**Next の受け口が既定 10MB だったので
 //    この判定へは一度も到達していなかった**（＝ 死んだ上限）。
 const MAX_TRANSFORM_DIMENSION = 4000;
+// sharp の既定値（268,402,689 px）より先に断る。通常の 4000x3000 px は通しつつ、
+// 変換時のデコードによるメモリ消費が過大にならないよう、画素数を 4000 万に制限する。
+const MAX_IMAGE_PIXELS = 40_000_000;
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 
@@ -457,6 +460,25 @@ async function imageMetadata(buffer: Buffer): Promise<{
   }
 }
 
+function assertImagePixelLimit(metadata: {
+  width: number | null;
+  height: number | null;
+  format: string | null;
+}): void {
+  if (
+    metadata.format &&
+    metadata.width !== null &&
+    metadata.height !== null &&
+    metadata.width * metadata.height > MAX_IMAGE_PIXELS
+  ) {
+    throw new ApiError(
+      413,
+      "IMAGE_TOO_MANY_PIXELS",
+      "画像の画素数が上限を超えています",
+    );
+  }
+}
+
 async function relationRows(): Promise<RelationMeta[]> {
   return db<RelationMeta>("directus_relations").select("*");
 }
@@ -642,6 +664,7 @@ export async function uploadFile(actor: Actor | null, input: UploadFileInput): P
   }
   const storage = await getStorage();
   const detected = await imageMetadata(input.body);
+  assertImagePixelLimit(detected);
   const contentType = detected.type ?? inferContentType(filename, input.contentType);
   const userId = actorUserId(actor);
   const now = new Date().toISOString();
@@ -1223,6 +1246,8 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
   }
 
   const original = await bufferFromStorage(storage, originalKey);
+  const originalMetadata = await imageMetadata(original);
+  assertImagePixelLimit(originalMetadata);
   let pipeline = sharp(original).rotate();
   if (width || height) {
     pipeline = pipeline.resize({ width, height, fit, withoutEnlargement: false });

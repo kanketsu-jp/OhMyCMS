@@ -87,7 +87,7 @@ function parseShortcuts(source) {
   const end = source.indexOf("} as const;", start);
   if (start === -1 || end === -1) return entries;
   const body = source.slice(start, end);
-  for (const m of body.matchAll(/^\s*(\w+)\s*:\s*"([^"]+)"\s*,/gm)) {
+  for (const m of body.matchAll(/^\s*(\w+)\s*:\s*"([^"]*)"\s*,/gm)) {
     entries.push({ name: m[1], combo: m[2] });
   }
   return entries;
@@ -101,6 +101,7 @@ function findConflicts(entries) {
   const seen = new Map();
   const conflicts = [];
   for (const entry of entries) {
+    if (!entry.combo) continue;
     const key = normalize(entry.combo);
     const previous = seen.get(key);
     if (previous) {
@@ -150,6 +151,7 @@ function collectAppOverrides(studioRoot) {
 function findTiptapConflicts(entries, tiptapMap, exceptions) {
   const violations = [];
   for (const entry of entries) {
+    if (!entry.combo) continue;
     const norm = normalize(entry.combo);
     const hits = tiptapMap.get(norm);
     if (!hits || hits.length === 0) continue;
@@ -306,24 +308,33 @@ if (!parsedOk) {
 }
 
 // (2) 囮1: まったく同じ組み合わせを足す
-const decoy1 = [...entries, { name: "__decoy_same", combo: entries[0]?.combo ?? "mod+k" }];
+const firstAssigned = entries.find((entry) => entry.combo);
+const decoyCombo = firstAssigned?.combo ?? "mod+k";
+const decoy1 = [
+  ...entries,
+  { name: "__decoy_base", combo: decoyCombo },
+  { name: "__decoy_same", combo: decoyCombo },
+];
 const found1 = findConflicts(decoy1).length;
 console.log(`  ${found1 > 0 ? "✅" : "❌"} 囮1: 同じ組み合わせを足す  → 検出 ${found1} 件`);
 if (found1 === 0) selfTestFailed = true;
 
 // (3) 囮2: 修飾キーの**書き順だけ**を変えた同じ組み合わせ（見落としやすい形）
-const submit = entries.find((e) => e.combo.includes("+shift+")) ?? entries[0];
-const reordered = submit
-  ? (() => {
-      const parts = submit.combo.split("+");
+const submit = entries.find((e) => e.combo.includes("+shift+")) ?? firstAssigned;
+const submitCombo = submit?.combo ?? "mod+k";
+const reordered = (() => {
+      const parts = submitCombo.split("+");
       const key = parts.pop();
       return [...parts.reverse(), key].join("+");
-    })()
-  : "mod+k";
-const decoy2 = [...entries, { name: "__decoy_reordered", combo: reordered }];
+    })();
+const decoy2 = [
+  ...entries,
+  { name: "__decoy_base_reordered", combo: submitCombo },
+  { name: "__decoy_reordered", combo: reordered },
+];
 const found2 = findConflicts(decoy2).length;
 console.log(
-  `  ${found2 > 0 ? "✅" : "❌"} 囮2: 修飾キーの書き順だけ変える（${submit?.combo} → ${reordered}）  → 検出 ${found2} 件`,
+  `  ${found2 > 0 ? "✅" : "❌"} 囮2: 修飾キーの書き順だけ変える（${submitCombo} → ${reordered}）  → 検出 ${found2} 件`,
 );
 if (found2 === 0) selfTestFailed = true;
 

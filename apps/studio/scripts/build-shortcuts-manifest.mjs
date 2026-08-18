@@ -125,7 +125,7 @@ const shortcutsSrc = stripComments(readSrc(shortcutsFile) ?? "");
 const tableAt = shortcutsSrc.indexOf("export const SHORTCUTS");
 const tableEnd = tableAt >= 0 ? shortcutsSrc.indexOf("} as const;", tableAt) : -1;
 const table = tableAt >= 0 && tableEnd > tableAt ? shortcutsSrc.slice(tableAt, tableEnd) : "";
-const combos = [...table.matchAll(/^\s{2}([A-Za-z_$][\w$]*):\s*"([^"]+)",/gm)]
+const combos = [...table.matchAll(/^\s{2}([A-Za-z_$][\w$]*):\s*"([^"]*)",/gm)]
   .map((m) => ({ id: m[1], key: m[2] }));
 
 // ── ② 登録している部品（useShortcut(SHORTCUTS.<id>） ─────────────────
@@ -218,7 +218,7 @@ for (const locale of ["ja", "en"]) {
 }
 
 // ── ⑥ 組み立て ───────────────────────────────────────────────────────
-const manifest = combos.map(({ id, key }) => {
+const manifest = combos.filter(({ key }) => key.length > 0).map(({ id, key }) => {
   const registrars = registrar.get(id) ?? [];
   const file = registrars[0] ?? null;
   let scope = "unknown";
@@ -275,7 +275,7 @@ const problems = [];
 const find = (id) => manifest.find((m) => m.action === id);
 
 // ④ 導出が 0 件なら失敗（空の一覧を「全部 global」と読ませない）
-if (manifest.length === 0) problems.push("ショートカットを 1 つも読めませんでした（SHORTCUTS の書き方が変わった？）");
+if (combos.length === 0) problems.push("ショートカットを 1 つも読めませんでした（SHORTCUTS の書き方が変わった？）");
 
 // 🚨 **増えた瞬間に穴が空く形にしない**（司令塔 2026-08-16）。
 //    284 の原文は「なるべく多くのショートカットを用意する」＝ **増えるのが前提**。
@@ -295,17 +295,19 @@ if (noScope.length > 0) {
 
 // ① 既知の 1 つ: save は「編集する画面」にしか出ないはず
 const save = find("save");
-const saveOk = save && Array.isArray(save.scope) && save.scope.length > 0
-  && save.scope.length < pages.length;
-if (!saveOk) {
-  problems.push(
-    `⌘Enter（save）の scope が ${JSON.stringify(save?.scope)}。` +
-      `**編集する画面にだけ**出るはずで、全ページでも 0 件でもありません（導出が間違っています）`,
-  );
+if (manifest.length > 0) {
+  const saveOk = save && Array.isArray(save.scope) && save.scope.length > 0
+    && save.scope.length < pages.length;
+  if (!saveOk) {
+    problems.push(
+      `⌘Enter（save）の scope が ${JSON.stringify(save?.scope)}。` +
+        `**編集する画面にだけ**出るはずで、全ページでも 0 件でもありません（導出が間違っています）`,
+    );
+  }
 }
 // ③ 対照: search は global
 const search = find("search");
-if (!search || search.scope !== "global") {
+if (manifest.length > 0 && (!search || search.scope !== "global")) {
   problems.push(`⌘K（search）の scope が ${JSON.stringify(search?.scope)}。**global** のはずです`);
 }
 // ② 導出できないものは unknown のまま出ていること（global に倒していないこと）

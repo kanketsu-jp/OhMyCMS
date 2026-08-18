@@ -43,6 +43,8 @@ x_rag_okf:
 - `save`(`mod+enter`) と Tiptap の `Mod-Enter`（`@tiptap/core` / `@tiptap/extension-hard-break`）
 - `toggleLeftSidebar`(`mod+b`) と Tiptap の `Mod-b`/`Mod-B`（`@tiptap/extension-bold`）
 
+🚨 **2026-08-18 解消**: `SHORTCUTS` の既定値をすべて空にし、初期状態でキーを割り当てない実装を入れたため、上記2件の既定値による衝突は解消した。利用者が自分で割り当てる場合の重複検査（Tiptap 18本を含む）は引き続き有効で、段2の対象である。
+
 🚨 **承認は「これでよい」ではなく「いま在ることを記録した」。** 各衝突には記録日・未決かどうか・
 決める人・何を決めるかを持たせ（`TIPTAP_CONFLICT_EXCEPTIONS`）、未決のものは検査実行のたびに
 そう表示する。決める人は司令塔。

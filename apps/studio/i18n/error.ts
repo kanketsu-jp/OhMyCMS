@@ -47,6 +47,7 @@ export const ERROR_KEYS = [
   "saml_link_requires_approval",
   // ファイル由来（storage・2026-08-16）
   "file_too_large",
+  "image_too_many_pixels",
   "file_name_too_long",
   // 🚨 中身が 0 バイトのファイル（2026-08-17）。**`field_required` と分ける**——
   //    「選んでいない」ではなく「**選んだつもりのものが空**」なので、利用者がとる行動が違う
@@ -160,6 +161,7 @@ const API_CODE_TO_KEY: Readonly<Record<string, ErrorKey>> = {
   REQUIRED_FIELD: "field_required",
   INVALID_VALUE: "invalid_field",
   FILE_TOO_LARGE: "file_too_large",
+  IMAGE_TOO_MANY_PIXELS: "image_too_many_pixels",
   FILE_NAME_TOO_LONG: "file_name_too_long",
   UPLOAD_BODY_UNREADABLE: "upload_unreadable",
   ROLE_NOT_FOUND: "not_found",
