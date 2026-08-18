@@ -56,6 +56,8 @@ export type SearchHit = {
 
 export type SearchResult = {
   items: SearchHit[];
+  /** 読めるが検索に必要な列を取得できなかったコレクション数。 */
+  skippedCollections: number;
   files: SearchHit[];
   collections: SearchHit[];
   settings: SearchHit[];
@@ -65,6 +67,7 @@ export type SearchResult = {
 
 const EMPTY: SearchResult = {
   items: [],
+  skippedCollections: 0,
   files: [],
   collections: [],
   settings: [],
@@ -172,7 +175,7 @@ export async function search(
     if (permission.allowed) readable.push(collection);
   }
 
-  const [items, files, settings, pages, users] = await Promise.all([
+  const [itemSearch, files, settings, pages, users] = await Promise.all([
     searchItems(actor, readable, overview, q),
     searchFiles(actor, q),
     searchStatic(actor, SETTINGS_ENTRIES, q, translate, "settings:read"),
@@ -181,7 +184,8 @@ export async function search(
   ]);
 
   return {
-    items,
+    items: itemSearch.hits,
+    skippedCollections: itemSearch.skippedCollections,
     files,
     // コレクション名そのもの。**読めるものだけ**（名前を見せるのも漏洩なので）。
     collections: readable
@@ -208,16 +212,35 @@ async function searchItems(
   collections: string[],
   overview: Record<string, { name: string; data_type: string; is_primary_key: boolean }[]>,
   q: string,
-): Promise<SearchHit[]> {
+): Promise<{ hits: SearchHit[]; skippedCollections: number }> {
   const hits: SearchHit[] = [];
+  let skippedCollections = 0;
 
   for (const collection of collections) {
     if (hits.length >= PER_KIND_LIMIT) break;
 
     const columns = overview[collection] ?? [];
     const primaryKey = columns.find((c) => c.is_primary_key)?.name;
-    const searchable = columns.filter((c) => isSearchableColumn(c.data_type)).map((c) => c.name);
-    if (!primaryKey || searchable.length === 0) continue;
+    const permission = await resolvePermission(actor, collection, "read");
+    const allowedFields =
+      permission.allowedFields === "*" ? null : new Set(permission.allowedFields);
+    const searchable = columns
+      .filter(
+        (column) =>
+          isSearchableColumn(column.data_type) &&
+          (allowedFields === null || allowedFields.has(column.name)),
+      )
+      .map((column) => column.name);
+    // 主キーも明示的な fields 選択の対象になるため、許可が無い場合は
+    // 検索結果から安全に遷移先を作れない。
+    if (
+      !primaryKey ||
+      (allowedFields !== null && !allowedFields.has(primaryKey)) ||
+      searchable.length === 0
+    ) {
+      skippedCollections += 1;
+      continue;
+    }
 
     // 文字列カラムのどれかに部分一致（ILIKE）。
     const filter = { _or: searchable.map((field) => ({ [field]: { _icontains: q } })) };
@@ -227,12 +250,13 @@ async function searchItems(
       result = await listItems(actor, collection, {
         filter: JSON.stringify(filter),
         limit: String(PER_KIND_LIMIT),
-        // 主キーと文字列カラムだけ取る。許可されていないフィールドは listItems が落とす。
+        // 主キーと、その利用者が読める文字列カラムだけ取る。
         fields: [primaryKey, ...searchable].join(","),
       });
     } catch {
-      // 権限やフィールドの都合で弾かれたコレクションは**黙って飛ばす**。
-      // ここで例外を投げると、1つ読めないコレクションがあるだけで検索全体が落ちる。
+      // 1つ読めないコレクションがあるだけで検索全体は落とさないが、
+      // 呼び出し側に検索できなかった件数を返す。
+      skippedCollections += 1;
       continue;
     }
 
@@ -252,7 +276,7 @@ async function searchItems(
     }
   }
 
-  return hits;
+  return { hits, skippedCollections };
 }
 
 /**

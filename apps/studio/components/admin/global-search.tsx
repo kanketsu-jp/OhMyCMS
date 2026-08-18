@@ -28,6 +28,7 @@ type SearchHit = { label: string; hint?: string; href: string };
 
 type SearchResult = {
   items: SearchHit[];
+  skippedCollections: number;
   files: SearchHit[];
   collections: SearchHit[];
   settings: SearchHit[];
@@ -37,6 +38,7 @@ type SearchResult = {
 
 const EMPTY: SearchResult = {
   items: [],
+  skippedCollections: 0,
   files: [],
   collections: [],
   settings: [],
@@ -45,7 +47,9 @@ const EMPTY: SearchResult = {
 };
 
 /** 表示する順番。仕様 §2-1 の並びに合わせる。 */
-const GROUPS: { key: keyof SearchResult; labelKey: string }[] = [
+type SearchGroupKey = Exclude<keyof SearchResult, "skippedCollections">;
+
+const GROUPS: { key: SearchGroupKey; labelKey: string }[] = [
   { key: "items", labelKey: "group_items" },
   { key: "files", labelKey: "group_files" },
   { key: "collections", labelKey: "group_collections" },
@@ -197,7 +201,7 @@ function SearchDialog({
     }
   }, [searchedQuery]);
 
-  const pageKinds = useMemo<(keyof SearchResult)[]>(() => {
+  const pageKinds = useMemo<SearchGroupKey[]>(() => {
     if (pathname.startsWith("/admin/files")) return ["files"];
     if (
       pathname.startsWith("/admin/content") ||
@@ -309,6 +313,12 @@ function SearchDialog({
             <CommandEmpty>{t("loading")}</CommandEmpty>
           ) : total === 0 ? (
             <CommandEmpty>{t("empty")}</CommandEmpty>
+          ) : null}
+
+          {result.skippedCollections > 0 ? (
+            <p className="px-3 py-2 text-sm text-muted-foreground">
+              {t("skipped_collections", { count: result.skippedCollections })}
+            </p>
           ) : null}
 
           {visibleGroups.map(({ key, labelKey }) =>

@@ -9,6 +9,7 @@
   "prompt": "探したいものを入力してください。",
   "loading": "探しています…",
   "error": "検索できませんでした。",
+  "skipped_collections": "{count} 件のコレクションは検索できませんでした。",
   "group_items": "アイテム",
   "group_files": "ファイル",
   "group_collections": "コレクション",

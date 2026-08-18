@@ -9,6 +9,7 @@
   "prompt": "Type what you are looking for.",
   "loading": "Searching…",
   "error": "Could not search.",
+  "skipped_collections": "Could not search {count} collections.",
   "group_items": "Items",
   "group_files": "Files",
   "group_collections": "Collections",
