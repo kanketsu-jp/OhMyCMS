@@ -17,7 +17,7 @@ export async function GET(request: Request, ctx: Context) {
       quality: url.searchParams.get("quality"),
     });
     const headers = new Headers({
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "public, no-cache",
       "Content-Length": String(asset.contentLength),
       "Content-Type": asset.contentType,
       "X-Content-Type-Options": asset.contentTypeOptions,

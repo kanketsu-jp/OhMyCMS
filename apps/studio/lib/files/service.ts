@@ -321,6 +321,23 @@ type FolderRow = {
   deleted_at: string | null;
 };
 
+type PublicFolderRow = Omit<FolderRow, "deleted_at">;
+
+function toPublicFolder(
+  row: FolderRow,
+  allowedFields: PermissionResolution["allowedFields"] = "*",
+): PublicFolderRow {
+  const publicFields: Omit<FolderRow, "deleted_at"> & { deleted_at?: string | null } = { ...row };
+  delete publicFields.deleted_at;
+  if (allowedFields !== "*") {
+    const allowed = new Set(allowedFields);
+    for (const field of Object.keys(publicFields)) {
+      if (!allowed.has(field)) delete publicFields[field as keyof typeof publicFields];
+    }
+  }
+  return publicFields as PublicFolderRow;
+}
+
 type SystemCollection = "directus_files" | "directus_folders";
 
 export type UploadFileInput = {
@@ -1267,7 +1284,7 @@ export async function getPublicAsset(token: string, input: TransformInput): Prom
   return getAsset(null, row.id, input);
 }
 
-export async function listFolders(actor: Actor, input: ListInput): Promise<FolderRow[]> {
+export async function listFolders(actor: Actor, input: ListInput): Promise<PublicFolderRow[]> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_folders", "read");
   const relations = permission.rowFilter ? await relationRows() : [];
@@ -1278,7 +1295,7 @@ export async function listFolders(actor: Actor, input: ListInput): Promise<Folde
     .limit(limit)
     .offset(offset);
   applyRowFilter(query, permission.rowFilter, "directus_folders", schemaOverview, relations);
-  return query;
+  return (await query).map((row) => toPublicFolder(row, permission.allowedFields));
 }
 
 export async function createFolder(actor: Actor, body: Record<string, unknown>): Promise<FolderRow> {
@@ -1308,7 +1325,7 @@ export async function createFolder(actor: Actor, body: Record<string, unknown>):
   });
 }
 
-export async function getFolder(actor: Actor, id: string): Promise<FolderRow> {
+export async function getFolder(actor: Actor, id: string): Promise<PublicFolderRow> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_folders", "read");
   const relations = permission.rowFilter ? await relationRows() : [];
@@ -1318,14 +1335,14 @@ export async function getFolder(actor: Actor, id: string): Promise<FolderRow> {
   if (!row) {
     throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
   }
-  return row;
+  return toPublicFolder(row, permission.allowedFields);
 }
 
 export async function updateFolder(
   actor: Actor,
   id: string,
   body: Record<string, unknown>,
-): Promise<FolderRow> {
+): Promise<PublicFolderRow> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_folders", "update");
   const relations = permission.rowFilter ? await relationRows() : [];
@@ -1390,7 +1407,7 @@ export async function updateFolder(
       throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
     }
     await assertFolderVisibleAfterWrite(trx, id, permission, schemaOverview, relations);
-    return row;
+    return toPublicFolder(row, permission.allowedFields);
   });
 }
 
