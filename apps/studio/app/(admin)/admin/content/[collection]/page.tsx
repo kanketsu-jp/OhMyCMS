@@ -11,7 +11,8 @@ import { ColumnPicker } from "@/components/admin/column-picker";
 import { ClickableRow } from "@/components/admin/clickable-row";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { HeaderSearch } from "@/components/admin/header-search";
-import { ItemFilter, parseFilter } from "@/components/admin/item-filter";
+import { ItemFilter } from "@/components/admin/item-filter";
+import { parseFilter } from "@/lib/items/parse-filter";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
@@ -69,7 +70,7 @@ function ContentNotFound({ t }: { t: Awaited<ReturnType<typeof getT>> }) {
     <div className="max-w-3xl space-y-6">
       <Surface>
         <SurfaceTitle>{t("not_found_collection_title")}</SurfaceTitle>
-        <p className="mt-2 text-sm text-muted-foreground">{t("not_found_body")}</p>
+        <p className="mt-2 text-base text-muted-foreground">{t("not_found_body")}</p>
         <div className="mt-6">
           <Link href="/admin/content" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
             {t("not_found_back")}

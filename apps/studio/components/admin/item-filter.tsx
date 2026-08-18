@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { useT } from "@/i18n/client";
+import type { FilterCondition } from "@/lib/items/parse-filter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Condition = { field: string; operator: string; value: unknown };
+type Condition = FilterCondition;
 
 type Props = {
   fields: readonly { field: string; label: string; type: string }[];
@@ -59,39 +60,14 @@ function valueFor(condition: Condition, type: string): unknown {
   return condition.value ?? "";
 }
 
-function isCondition(value: unknown): value is Condition {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  const entries = Object.entries(record);
-  if (entries.length !== 1 || typeof entries[0]?.[0] !== "string") return false;
-  const expression = entries[0]?.[1];
-  if (expression === null || typeof expression !== "object" || Array.isArray(expression)) return false;
-  return Object.keys(expression).length === 1;
-}
-
-export function parseFilter(value: string | undefined): { conditions: Condition[]; invalid: boolean } {
-  if (!value) return { conditions: [], invalid: false };
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { conditions: [], invalid: true };
-    const root = parsed as { _and?: unknown };
-    if (!Array.isArray(root._and) || root._and.length === 0 || !root._and.every(isCondition)) {
-      return { conditions: [], invalid: true };
-    }
-    const conditions = root._and.map((condition) => {
-      const [field, expression] = Object.entries(condition)[0];
-      const [operator, conditionValue] = Object.entries(expression as Record<string, unknown>)[0] ?? [];
-      return { field, operator, value: conditionValue };
-    });
-    if (conditions.some((condition) => !condition.operator?.startsWith("_") || typeof condition.value === "object" && !Array.isArray(condition.value))) {
-      return { conditions: [], invalid: true };
-    }
-    return { conditions, invalid: false };
-  } catch {
-    return { conditions: [], invalid: true };
-  }
-}
-
+/**
+ * アイテム一覧の一段フィルター編集部品。
+ *
+ * 🚨 条件を適用すると `q` とページ番号を消して先頭ページへ戻す。フィルター結果が空に見える状態を残さない。
+ *    演算子はフィールド型ごとに絞り、無効な条件をそのまま URL へ書かない。
+ *
+ * 参考: `lib/items/parse-filter.ts` ／ DESIGN.md §2-8
+ */
 export function ItemFilter({ fields, initialConditions, invalidFilter }: Props) {
   const t = useT("items");
   const [conditions, setConditions] = useState<Condition[]>(initialConditions);
@@ -117,7 +93,7 @@ export function ItemFilter({ fields, initialConditions, invalidFilter }: Props) 
 
   return (
     <div className="space-y-3" data-filter-ui="one-level">
-      {invalidFilter ? <p className="text-sm text-destructive">{t("filter_invalid")}</p> : null}
+      {invalidFilter ? <p className="text-base text-destructive">{t("filter_invalid")}</p> : null}
       {draft.map((condition, index) => {
         const field = fieldFor(fields, condition.field);
         const operators = operatorsFor(field?.type ?? "string");
