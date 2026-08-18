@@ -97,6 +97,11 @@ export function extractSaveRoutes(snapshotSource) {
   return [...m[1].matchAll(/"page:([^"]+)"/g)].map((x) => x[1]);
 }
 
+/** 写しの保存鍵が未設定なら、保存ルートの宣言は存在しない。 */
+export function isSaveShortcutUnassigned(snapshotSource) {
+  return /"key":\s*"unassigned-save"[\s\S]*?"action":\s*"save"/.test(snapshotSource);
+}
+
 /**
  * 判定本体。ファイルを読まず配列だけを受け取る純関数にする
  * （自己検査で、実物の写しをメモリ上で壊して確かめられるようにするため）。
@@ -213,6 +218,7 @@ function main() {
   }
 
   const derived = extractSaveRoutes(snap.source);
+  const saveShortcutUnassigned = isSaveShortcutUnassigned(snap.source);
   const ledger = JSON.parse(led.source);
   const ledgerRoutes = ledger.routes ?? [];
   const removed = ledger.removed ?? [];
@@ -254,11 +260,14 @@ function main() {
 
   // ── 自己検査: わざと壊して赤くなることを確かめる（壊し方 4 通り） ────────────
   console.log("\n■ 自己検査（この検査が本当に検出できるかを毎回その場で確かめる）");
+  // 未設定時も判定ロジック自体の自己検査は実施する。実物の照合対象が無いことと、
+  // 判定ロジックが壊れていないことは別なので、台帳を基準にした合成集合を使う。
+  const selfTestDerived = derived ?? ledgerRoutes;
   const selfTests = [
     {
       name: "壊し方1: 写しから 1 ルート消す（理由なし）",
       expect: "missing-without-reason",
-      apply: () => ({ d: derived.slice(1), l: ledgerRoutes, r: removed }),
+      apply: () => ({ d: selfTestDerived.slice(1), l: ledgerRoutes, r: removed }),
     },
     {
       name: "壊し方2: 写しを空にする（0 件は『全部ある』ではない）",
@@ -268,7 +277,7 @@ function main() {
     {
       name: "壊し方3: 写しに台帳に無いルートが増える",
       expect: "undeclared-addition",
-      apply: () => ({ d: [...derived, "/admin/zz-self-test"], l: ledgerRoutes, r: removed }),
+      apply: () => ({ d: [...selfTestDerived, "/admin/zz-self-test"], l: ledgerRoutes, r: removed }),
     },
     // 🚨 **自己検査は実データの形に依存させない。**
     //    2026-08-16、`removed` が空になった（全部戻った）瞬間に、
@@ -279,16 +288,16 @@ function main() {
       name: "壊し方4: removed に在るルートが写しにも在る（直ったのに台帳が古い）",
       expect: "declared-but-present",
       apply: () => ({
-        d: derived,
+        d: selfTestDerived,
         l: ledgerRoutes,
-        r: [{ route: derived[0], why: "自己検査のために作った値" }],
+        r: [{ route: selfTestDerived[0], why: "自己検査のために作った値" }],
       }),
     },
     {
       name: "壊し方5: removed の理由が空",
       expect: "removed-without-why",
       apply: () => ({
-        d: derived,
+        d: selfTestDerived,
         l: [...ledgerRoutes, "/admin/zz-self-test"],
         r: [{ route: "/admin/zz-self-test", why: "  " }],
       }),
@@ -305,11 +314,18 @@ function main() {
   }
 
   // ── 対照: 壊していない実物で誤検出しないこと ─────────────────────────────
-  const control = judgeSaveRoutes(derived, ledgerRoutes, removed);
+  // 🚨 既定が未設定のときは、保存の宣言された scope は存在しない。
+  //    空の写しとして judgeSaveRoutes に渡すと「見ていない」と誤判定するため、
+  //    自己検査は通常どおり行ったうえで、実物の照合だけを対象外にする。
+  const control = saveShortcutUnassigned
+    ? { violations: [], counts: { derived: 0, ledger: ledgerRoutes.length, removed: removed.length } }
+    : judgeSaveRoutes(derived, ledgerRoutes, removed);
+  const outputDerived = derived ?? [];
   console.log("\n■ 対照（壊していない実物で誤検出しないことを確かめる）");
   console.log(
     `  ${control.violations.length === 0 ? "✅" : "❌"} 実物 → 検出 ${control.violations.length} 件` +
-      `（写し ${control.counts.derived} ＋ 外した ${removed.filter((r) => !derived.includes(r.route)).length} ＝ 台帳 ${control.counts.ledger} ルート）`,
+      (saveShortcutUnassigned ? "（保存鍵は未設定のためルート照合を対象外）" : "") +
+      `（写し ${control.counts.derived} ＋ 外した ${removed.filter((r) => !outputDerived.includes(r.route)).length} ＝ 台帳 ${control.counts.ledger} ルート）`,
   );
 
   console.log("\n■ 判定");
