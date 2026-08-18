@@ -7,6 +7,7 @@ import { Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { FieldLabel } from "@/components/admin/field-label";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { PageAction } from "@/components/admin/page-action";
 import { RowOptions } from "@/components/admin/row-options";
 import { WideTable } from "@/components/admin/wide-table";
 import {
@@ -19,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,7 +42,7 @@ export type PolicyRow = {
   admin_access: boolean;
 };
 
-export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
+export function PoliciesManager({ policies, tab }: { policies: PolicyRow[]; tab: "list" | "create" }) {
   const router = useRouter();
   const t = useT("policies");
   const tError = useT("errors");
@@ -52,6 +53,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
   };
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [name, setName] = useState("");
 
   const create = useSubmitOnce(async (formData: FormData) => {
     setError(null);
@@ -95,9 +97,9 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           {error}
         </div>
       ) : null}
-      {policies.length === 0 ? (
+      {tab === "list" && policies.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
-      ) : (
+      ) : tab === "list" ? (
         // 名前・説明・アクセス種別・操作の複数列を読む一覧なので table にする。
         <WideTable>
           <Table>
@@ -141,13 +143,17 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
                       <RowOptions
                         label={t("row_options")}
                         options={[
-                          {
-                            label: t("delete_button"),
-                            icon: <Trash2 />,
-                            destructive: true,
-                            disabled: remove.isPending(policy.id),
-                            onSelect: () => setConfirming(policy.id),
-                          },
+                          ...(policy.name === "Administrator"
+                            ? []
+                            : [
+                                {
+                                  label: t("delete_button"),
+                                  icon: <Trash2 />,
+                                  destructive: true,
+                                  disabled: remove.isPending(policy.id),
+                                  onSelect: () => setConfirming(policy.id),
+                                },
+                              ]),
                         ]}
                       />
                     </ButtonGroup>
@@ -157,7 +163,7 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
             </TableBody>
           </Table>
         </WideTable>
-      )}
+      ) : null}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -180,37 +186,44 @@ export function PoliciesManager({ policies }: { policies: PolicyRow[] }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <SurfaceDivider />
-      <form id="policy-create-form" action={create.run} className="space-y-4">
-        <FormDraft formId="policy-create-form" />
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <FieldLabel htmlFor="name" required>{t("name_label")}</FieldLabel>
-            <Input id="name" name="name" required />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="description">{t("description_label")}</Label>
-            <Input id="description" name="description" />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-            <Checkbox name="app_access" value="true" defaultChecked />
-            {t("app_access_label")}
-          </label>
-          <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
-            <Checkbox name="admin_access" value="true" />
-            <span className="flex flex-wrap items-center gap-2">
-              {t("admin_access_label")}
-              <span className="text-destructive">{t("admin_access_warning")}</span>
-            </span>
-          </label>
-        </div>
-        <Button type="submit" loading={create.pending}>
-          <Plus />
-          {t("create_button")}
-        </Button>
-      </form>
+      {tab === "create" ? (
+        <>
+          <SurfaceDivider />
+          <PageAction
+            form="policy-create-form"
+            role="primary"
+            label={t("create_button")}
+            icon={<Plus />}
+            disabled={!name.trim()}
+          />
+          <form id="policy-create-form" action={create.run} className="space-y-4">
+            <FormDraft formId="policy-create-form" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <FieldLabel htmlFor="name" required>{t("name_label")}</FieldLabel>
+                <Input id="name" name="name" required value={name} onChange={(event) => setName(event.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="description">{t("description_label")}</Label>
+                <Input id="description" name="description" />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
+                <Checkbox name="app_access" value="true" defaultChecked />
+                {t("app_access_label")}
+              </label>
+              <label className="flex min-h-(--control-h) items-center gap-2 text-sm md:min-h-(--control-h-pc)">
+                <Checkbox name="admin_access" value="true" />
+                <span className="flex flex-wrap items-center gap-2">
+                  {t("admin_access_label")}
+                  <span className="text-destructive">{t("admin_access_warning")}</span>
+                </span>
+              </label>
+            </div>
+          </form>
+        </>
+      ) : null}
     </div>
   );
 }

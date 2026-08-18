@@ -24,7 +24,8 @@
     "verify:fixtures": "bun run scripts/verify-fixtures.ts",
     "verify:drive": "bun run scripts/verify-drive-oauth.ts",
     "verify:license": "bun run scripts/verify-license.ts",
-    "verify:license-race": "bun run scripts/verify-license-race.ts"
+    "verify:license-race": "bun run scripts/verify-license-race.ts",
+    "check:client-server-boundary": "node scripts/check-client-server-boundary.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1102.0",

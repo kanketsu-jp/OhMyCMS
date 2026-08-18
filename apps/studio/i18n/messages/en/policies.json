@@ -40,6 +40,7 @@
   "grid_scope_note": "What a person can actually see is the sum of every policy attached to them. A limit set here is cancelled if another policy allows \"All\".",
   "grid_scope_where": "These settings apply to the API, CLI, MCP and agents. The admin screens are gated by admin access alone, so changing this does not change what the admin screens show today.",
   "invalid_filter_json": "Enter a valid JSON row filter",
+  "list_tab": "List",
   "manage_title": "Policy management",
   "name_label": "Policy name",
   "no_collections": "No collections yet.",
@@ -62,5 +63,6 @@
   "row_none_confirm_title": "Remove everything in this row?",
   "row_options": "Row actions",
   "title": "Policies",
-  "update_button": "Update"
+  "update_button": "Update",
+  "create_tab": "Create"
 }

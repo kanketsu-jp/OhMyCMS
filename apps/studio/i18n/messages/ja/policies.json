@@ -40,6 +40,7 @@
   "grid_scope_note": "実際に見える範囲は、その利用者に付いた全ポリシーの合算です。ここでの制限は、別のポリシーが「すべて」を許可していると無効になります。",
   "grid_scope_where": "この設定が効くのは API・CLI・MCP とエージェントです。管理画面は管理者アクセスの有無だけで決まるため、ここを変えても管理画面の見え方は今日は変わりません。",
   "invalid_filter_json": "行フィルタは正しいJSONで入力してください",
+  "list_tab": "一覧",
   "manage_title": "ポリシー管理",
   "name_label": "ポリシー名",
   "no_collections": "コレクションがまだありません。",
@@ -62,5 +63,6 @@
   "row_none_confirm_title": "この行を全部なしにしますか",
   "row_options": "行の操作",
   "title": "ポリシー",
-  "update_button": "更新"
+  "update_button": "更新",
+  "create_tab": "作成"
 }
