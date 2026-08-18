@@ -59,6 +59,8 @@ type Props = {
    *    prop が無いと表現できないので、置き換え先として足した。
    */
   disabled?: boolean;
+  /** 押せない主操作の理由。無効時も操作の存在と理由を知らせる。 */
+  disabledReason?: string;
   /**
    * ▾ の中に入れる操作。**空/未指定なら chevron は出ない**（ボタン 1 つのまま）。
    *
@@ -127,6 +129,7 @@ export function PageAction({
   role = "primary",
   destructive = false,
   disabled = false,
+  disabledReason,
   options,
 }: Props) {
   const t = useT("common");
@@ -241,6 +244,7 @@ export function PageAction({
     optionsLabel: t("action_options"),
     onConfirmRequest: setConfirming,
     shortcutHint,
+    disabledReason,
   });
   const sp = renderAction({
     href, form, onClick, label, icon, pending: busy, disabled, variant, order, compact: true,
@@ -248,6 +252,7 @@ export function PageAction({
     // 🚨 SP には出さない。**下部ナビの 3 つ目**に入るもので、幅が無い
     //    （`header-back.tsx` / `global-search.tsx` も `hidden md:inline-flex` で PC だけに出している）。
     shortcutHint: null,
+    disabledReason,
   });
 
   return (
@@ -291,6 +296,7 @@ function renderAction({
   optionsLabel,
   onConfirmRequest,
   shortcutHint,
+  disabledReason,
 }: {
   href?: string;
   form?: string;
@@ -308,6 +314,7 @@ function renderAction({
   onConfirmRequest: (option: ActionOption) => void;
   /** 主ボタンの脇に出す鍵（`⌘Enter`）。**出さないときは `null`**。 */
   shortcutHint: string | null;
+  disabledReason?: string;
 }) {
   const size = "sm";
   // 🚨 SP だけ 11px にする（PC のヘッダは触らない。同じ部品から出ているため）。
@@ -375,6 +382,19 @@ function renderAction({
       <Tooltip>
         <TooltipTrigger asChild>{主}</TooltipTrigger>
         <TooltipContent side="bottom">{shortcutHint}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  if (disabled && disabledReason) {
+    mainWithTooltip = (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0} className="inline-flex">
+            {mainWithTooltip}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{disabledReason}</TooltipContent>
       </Tooltip>
     );
   }
