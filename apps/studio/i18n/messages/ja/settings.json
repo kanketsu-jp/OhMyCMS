@@ -34,5 +34,22 @@
   "title": "全体設定",
   "updated_at": "最終更新",
   "project_logo_clear": "ロゴを外す",
-  "error_logo_upload_failed": "ロゴをアップロードできませんでした。"
+  "error_logo_upload_failed": "ロゴをアップロードできませんでした。",
+  "shortcuts_title": "ショートカット",
+  "shortcuts_description": "操作ごとのキーを設定できます。初期状態では未設定です。",
+  "shortcut_search": "検索",
+  "shortcut_back": "戻る",
+  "shortcut_save_operation": "保存",
+  "shortcut_submit": "送信",
+  "shortcut_toggleLeftSidebar": "左サイドバーの開閉",
+  "shortcut_toggleRightSidebar": "右サイドバーの開閉",
+  "shortcut_empty": "未設定",
+  "shortcut_save_button": "保存",
+  "shortcut_clear": "外す",
+  "shortcut_saved": "保存しました。",
+  "shortcut_save_failed": "保存できませんでした。",
+  "shortcut_load_failed": "設定を読み込めませんでした。",
+  "shortcut_invalid": "キーの組み合わせを入力してください。",
+  "shortcut_duplicate": "そのキーは別の操作に割り当てられています。",
+  "shortcut_editor_conflict": "そのキーは本文の編集操作と重複しています。"
 }

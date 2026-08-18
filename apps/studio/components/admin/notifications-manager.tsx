@@ -106,7 +106,7 @@ export function NotificationsManager({
           `visible` は絞った後なので、**絞った結果 0 になった瞬間に操作が消えて戻せなくなる**。 */}
       {notifications.length > 0 ? (
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-muted-foreground">
+           <span className="text-sm text-muted-foreground">
             {t("unread_badge", { count: unread })}
           </span>
           <Button variant="ghost" size="sm" onClick={() => setUnreadOnly((v) => !v)}>
@@ -128,7 +128,7 @@ export function NotificationsManager({
               )}
             >
               <div className="min-w-0 space-y-1">
-                <p className="text-sm">
+                <p className="text-base">
                   {/* 辞書に無いキーは翻訳器がキーをそのまま返す。空白にはしない。 */}
                   {t(
                     notification.message_key,

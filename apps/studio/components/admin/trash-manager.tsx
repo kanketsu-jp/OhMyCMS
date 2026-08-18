@@ -158,6 +158,13 @@ function errorMessage(t: ReturnType<typeof useT>, status: number, code: string |
   return t("error_failed");
 }
 
+/**
+ * 保持期間内の削除済み項目を復元・完全削除するゴミ箱管理部品。
+ *
+ * 🚨 復元は参照関係をプレビューして必要な場合だけ確認し、完全削除は確認ダイアログを通す。理由の文言は `disabledText` の写像を使う。
+ *
+ * 参考: DESIGN.md §1-10 ／ `knowledge/decisions/trash-and-restore-ui.md` ／ `knowledge/decisions/trash-purge-is-sql-first.md`
+ */
 export function TrashManager({
   initial,
   retentionDays,

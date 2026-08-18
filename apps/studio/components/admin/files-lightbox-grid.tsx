@@ -64,6 +64,14 @@ function fileDragProps(file: FileDragProps) {
   };
 }
 
+/**
+ * ファイルをカードで並べ、画像の選択・範囲選択・ライトボックス表示を担う一覧。
+ *
+ * 🚨 選択状態は `lib/admin/files-selection.ts` に流し、PC幅のときだけ右サイドパネルを開く。
+ *    画像の `width` / `height` を落とすと、ライトボックスのズームが黙って効かない。
+ *
+ * 参考: `components/admin/image-lightbox.tsx` ／ `lib/admin/files-selection.ts`
+ */
 export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   const t = useT("files");
   const [open, setOpen] = useState(false);

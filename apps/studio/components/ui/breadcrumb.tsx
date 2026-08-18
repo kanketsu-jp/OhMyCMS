@@ -3,6 +3,15 @@ import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * 現在地までの階層を示すナビゲーション部品。
+ *
+ * 🚨 触るときの注意:
+ * - `BreadcrumbList` は折り返しを許可している。階層が長い日本語を1行に固定しない。
+ * - リンクと現在地の意味は `BreadcrumbLink` / `BreadcrumbPage` で分け、装飾だけで表現しない。
+ *
+ * 参考: DESIGN.md §2-2 ／ components/ui/breadcrumb.tsx
+ */
 function Breadcrumb({ ...props }: React.ComponentProps<"nav">) {
   return <nav data-slot="breadcrumb" {...props} />;
 }

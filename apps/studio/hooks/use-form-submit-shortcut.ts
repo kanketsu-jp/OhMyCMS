@@ -1,5 +1,6 @@
 "use client";
 
+import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
 
 type Options = {
@@ -12,7 +13,7 @@ export function useFormSubmitShortcut(formId: string, options?: Options): void {
   const disabled = options?.disabled ?? false;
 
   useShortcut(
-    "save",
+    SHORTCUTS.save,
     () => {
       if (pending || disabled) return;
 

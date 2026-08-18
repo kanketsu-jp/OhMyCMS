@@ -212,7 +212,7 @@ export function SamlSettingsManager({ settings }: { settings: SamlSettings }) {
     >
       <FormDraft formId="saml-settings-form" />
       {error ? (
-        <p className="rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive">
+        <p className="rounded-lg border border-destructive/40 px-3 py-2 text-base text-destructive">
           {error}
         </p>
       ) : null}

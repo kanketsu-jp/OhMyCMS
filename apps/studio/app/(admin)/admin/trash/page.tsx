@@ -17,7 +17,7 @@ export default async function TrashPage() {
             🚨 なお、この見える見出しはパンくずと同じ言葉なので、
                本当に要るかは別途 design が問い直す（2026-08-17 時点では残す）。 */}
         <h2 className="font-heading text-2xl font-semibold">{t("title")}</h2>
-        <p className="text-sm text-muted-foreground">{t("description")}</p>
+        <p className="text-base text-muted-foreground">{t("description")}</p>
       </div>
       {result.ok ? (
         <TrashManager

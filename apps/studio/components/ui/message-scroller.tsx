@@ -13,6 +13,16 @@ import { Button } from "@/components/ui/button"
 import { ArrowDownIcon } from "lucide-react"
 import { useT } from "@/i18n/client"
 
+/**
+ * メッセージ一覧のスクロール領域と、末尾／先頭へ移動する操作をまとめる部品。
+ *
+ * 🚨 触るときの注意:
+ * - `MessageScrollerViewport` が実際にスクロールする要素。`scroll-fade-b` と自動スクロール時の
+ *   スクロールバー制御を外側へ移さない。
+ * - ボタンの表示名は `common.scroll_to_start` / `common.scroll_to_end` を使い、英語を直書きしない。
+ *
+ * 参考: DESIGN.md §1-4 ／ `components/ui/scroll-fade.tsx`
+ */
 function MessageScrollerProvider(
   props: React.ComponentProps<typeof MessageScrollerPrimitive.Provider>
 ) {

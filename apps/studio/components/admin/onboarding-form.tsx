@@ -101,7 +101,7 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold">{t("done_title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("done_description")}</p>
+          <p className="text-base text-muted-foreground">{t("done_description")}</p>
         </div>
         <ul className="flex flex-col gap-2 text-sm">
           <li>
@@ -262,7 +262,7 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
               🚨 区切り線（<hr>）も一緒に外した。**段に分けたので、線で話題を割る必要が無い**
               ——線が段の仕事をしていたのが `7b923d9` が 5 つを 1 つに減らした理由だった。 */}
           <hr className="border-0 border-t border-border" />
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-base text-destructive">{error}</p> : null}
           <div className="flex flex-col gap-2">
             <Button
               type="submit"

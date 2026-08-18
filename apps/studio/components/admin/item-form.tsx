@@ -51,6 +51,14 @@ function isGeneratedPrimaryUuid(field: FieldResult): boolean {
 }
 
 
+/**
+ * アイテムの新規作成・表示・編集を同じフォームで扱う部品。
+ *
+ * 🚨 主キーは常に読み取り専用、表示モードの他の欄も編集不可にする。編集可能な状態は `editing` だけで決め、
+ *    保存・編集などの主操作は `PageAction` に集約して二重に描かない。
+ *
+ * 参考: `components/admin/page-action.tsx` ／ `knowledge/decisions/action-button-and-edit-mode.md`
+ */
 export function ItemForm({ collection, fields, itemId, item }: Props) {
   const locale = useLocale();
   const t = useT("fields");
@@ -250,7 +258,7 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
         );
       })}
       {visibleFields.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("empty_fields")}</p>
+        <p className="text-base text-muted-foreground">{t("empty_fields")}</p>
       ) : null}
       {/* 🚨 主要アクションは**ヘッダー（PC）と下部ナビ（SP）へ portal で出す**。
           `lib/admin/page-actions.ts` が

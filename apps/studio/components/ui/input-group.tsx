@@ -8,6 +8,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
+/**
+ * 入力欄とアイコン・補助ボタンを一つの欄として束ねる部品群。
+ *
+ * 🚨 触るときの注意:
+ * - 高さは `--control-h-*` に任せる。SPの44pxを `h-8` 等で上書きしない。
+ * - 面の中では背景だけで区別し、入力・アドオンに個別の罫線や面を重ねない。
+ *
+ * 参考: DESIGN.md §1-2 ／ knowledge/decisions/no-nested-surfaces.md
+ */
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

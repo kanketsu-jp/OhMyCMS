@@ -31,7 +31,7 @@ function ItemNotFound({
     <div className="max-w-3xl space-y-6">
       <Surface>
         <SurfaceTitle>{title}</SurfaceTitle>
-        <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+        <p className="mt-2 text-base text-muted-foreground">{body}</p>
         <div className="mt-6">
           <Link href="/admin/content" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
             {back}

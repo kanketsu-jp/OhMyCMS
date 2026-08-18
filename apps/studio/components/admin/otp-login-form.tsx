@@ -8,6 +8,14 @@ import { Input } from "@/components/ui/input";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
+/**
+ * メールでワンタイムコードを要求し、受け取ったコードでログインする2段階フォーム。
+ *
+ * 🚨 コード要求の応答に含まれる診断は初期設定中だけ表示し、通常時はアカウントの有無を画面へ出さない。
+ *    送信・検証の失敗文言は `auth` 辞書を通し、サーバの生文言を表示しない。
+ *
+ * 参考: `apps/studio/app/login/page.tsx` ／ `DESIGN.md` §2-9
+ */
 export function OtpLoginForm() {
   const router = useRouter();
   const t = useT("auth");

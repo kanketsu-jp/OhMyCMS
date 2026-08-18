@@ -21,7 +21,7 @@
   {
     "key": "mod+k",
     "action": "search",
-    "scope": "unknown",
+    "scope": "global",
     "label_key": "common.shortcut_search",
     "editor": {
       "conflicts": false
@@ -30,7 +30,7 @@
   {
     "key": "mod+arrowleft",
     "action": "back",
-    "scope": "unknown",
+    "scope": "global",
     "label_key": "common.shortcut_back",
     "editor": {
       "conflicts": false
@@ -39,7 +39,26 @@
   {
     "key": "mod+enter",
     "action": "save",
-    "scope": "unknown",
+    "scope": [
+      "page:/admin/collections/new",
+      "page:/admin/collections/[collection]/fields/new",
+      "page:/admin/content/[collection]/new",
+      "page:/admin/content/[collection]/[id]",
+      "page:/admin/files/new",
+      "page:/admin/files/new-folder",
+      "page:/admin/files/[id]",
+      "page:/admin/settings/general",
+      "page:/admin/settings/storage",
+      "page:/admin/settings/sso",
+      "page:/admin/profile",
+      "page:/admin/collections/[collection]",
+      "page:/admin/labels",
+      "page:/admin/settings/ai",
+      "page:/admin/settings/policies/[id]",
+      "page:/admin/settings/policies",
+      "page:/admin/settings/roles",
+      "page:/admin/settings/users"
+    ],
     "label_key": "common.shortcut_save",
     "editor": {
       "conflicts": true,
@@ -52,7 +71,9 @@
   {
     "key": "mod+shift+enter",
     "action": "submit",
-    "scope": "unknown",
+    "scope": [
+      "page:/admin/reports/[id]"
+    ],
     "label_key": "common.shortcut_submit",
     "editor": {
       "conflicts": false
@@ -61,7 +82,7 @@
   {
     "key": "mod+b",
     "action": "toggleLeftSidebar",
-    "scope": "unknown",
+    "scope": "global",
     "label_key": "common.shortcut_toggle_left_sidebar",
     "editor": {
       "conflicts": true,
@@ -73,7 +94,7 @@
   {
     "key": "mod+j",
     "action": "toggleRightSidebar",
-    "scope": "unknown",
+    "scope": "global",
     "label_key": "common.shortcut_toggle_right_sidebar",
     "editor": {
       "conflicts": false
@@ -114,10 +135,8 @@
 「押せないボタンの働きを鍵から起こさない」）。
 🚨 **モードだけでなく「保存できる状態か」でも変わります。**
 
-🚨 **保存を止めている画面は 4 件**（0 件なら拾い方が壊れています。この生成器が落ちます）:
+🚨 **保存を止めている画面は 2 件**（0 件なら拾い方が壊れています。この生成器が落ちます）:
 
-- `/admin/settings/general` … 押せない条件: `!dirty`
-- `/admin/settings/policies` … 押せない条件: `!name.trim()`
 - `/admin/settings/sso` … 押せない条件: `!ready`
 - `/admin/settings/storage` … 押せない条件: `!dirty`
 

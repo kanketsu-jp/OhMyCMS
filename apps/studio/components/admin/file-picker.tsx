@@ -172,7 +172,7 @@ export function FilePicker({ inputId, name, defaultValue = "", readOnly = false 
               </Button>
             </form>
             {error ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
                 {error}
               </div>
             ) : null}
@@ -203,7 +203,7 @@ export function FilePicker({ inputId, name, defaultValue = "", readOnly = false 
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="text-center text-sm text-muted-foreground">
+                      <div className="text-center text-base text-muted-foreground">
                         <ImageIcon className="mx-auto mb-2 size-8" />
                         {file.filename_download.split(".").pop()?.toUpperCase() ?? t("file_extension_fallback")}
                       </div>

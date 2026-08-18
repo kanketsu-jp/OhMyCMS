@@ -44,7 +44,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
   const format = useFormat();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /**
    * 表示モード ⇄ 編集モード（規約 `knowledge/decisions/action-button-and-edit-mode.md`）。
@@ -67,18 +66,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
   const [logoId, setLogoId] = useState(settings.project_logo ?? "");
   const [logoError, setLogoError] = useState<string | null>(null);
 
-
-  function updateDirty(form: HTMLFormElement, logoOverride?: string) {
-    const data = new FormData(form);
-    setDirty(
-      String(data.get("project_name") ?? "") !== settings.project_name ||
-        String(data.get("project_color") ?? "") !== settings.project_color ||
-        (logoOverride ?? String(data.get("project_logo") ?? "")) !== (settings.project_logo ?? "") ||
-        String(data.get("default_locale") ?? "") !== settings.default_locale ||
-        String(data.get("public_note") ?? "") !== settings.public_note,
-    );
-  }
-
   async function uploadLogo(files: File[]) {
     const file = files[0];
     if (!file) return;
@@ -91,11 +78,7 @@ export function SettingsManager({ settings }: { settings: Settings }) {
       return;
     }
     const payload = (await response.json()) as { data?: { id?: string } };
-    if (payload.data?.id) {
-      setLogoId(payload.data.id);
-      const form = document.getElementById("settings-form");
-      if (form instanceof HTMLFormElement) updateDirty(form, payload.data.id);
-    }
+    if (payload.data?.id) setLogoId(payload.data.id);
     else setLogoError(t("error_logo_upload_failed"));
   }
 
@@ -103,7 +86,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
   function cancelEditing() {
     setError(null);
     setLogoId(settings.project_logo ?? "");
-    setDirty(false);
     setEditing(false);
     setFormKey((k) => k + 1);
   }
@@ -156,7 +138,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
 
     toast.success(t("saved"));
     setEditing(false);
-    setDirty(false);
     // ヘッダのサービス名などが即座に変わるようサーバ側を引き直す。
     router.refresh();
   }
@@ -199,7 +180,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
       key={formKey}
       id="settings-form"
       action={save}
-      onChange={(event) => updateDirty(event.currentTarget)}
       className="max-w-2xl space-y-6"
     >
       <FormDraft formId="settings-form" />
@@ -270,16 +250,7 @@ export function SettingsManager({ settings }: { settings: Settings }) {
               className="h-10 w-auto rounded"
             />
             {editing ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setLogoId("");
-                  const form = document.getElementById("settings-form");
-                  if (form instanceof HTMLFormElement) updateDirty(form, "");
-                }}
-              >
+              <Button type="button" variant="ghost" size="sm" onClick={() => setLogoId("")}>
                 {t("project_logo_clear")}
               </Button>
             ) : null}
@@ -372,8 +343,6 @@ export function SettingsManager({ settings }: { settings: Settings }) {
             form="settings-form"
             role="primary"
             pending={saving}
-            disabled={!dirty}
-            disabledReason={tCommon("no_changes_to_save")}
             label={tCommon("action_save")}
             icon={<Check />}
           />
@@ -383,10 +352,7 @@ export function SettingsManager({ settings }: { settings: Settings }) {
           role="primary"
           label={tCommon("action_edit")}
           icon={<Pencil />}
-          onClick={() => {
-            setDirty(false);
-            setEditing(true);
-          }}
+          onClick={() => setEditing(true)}
         />
       )}
     </form>

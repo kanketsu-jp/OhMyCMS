@@ -14,6 +14,15 @@ type FilePreviewLightboxProps = {
   };
 };
 
+/**
+ * ファイル詳細の画像を押して拡大表示する入口。
+ *
+ * 🚨 この部品は画像の表示と開閉だけを担当し、拡大表示の実体は `ImageLightbox` に任せる。
+ * 画像の alt と寸法は呼び出し側から渡された値を使い、別のプレビュー実装を増やさない。
+ *
+ * 参考: `apps/studio/components/admin/image-lightbox.tsx` ／ `DESIGN.md` §0-1
+ */
+
 export function FilePreviewLightbox({ image }: FilePreviewLightboxProps) {
   const [open, setOpen] = useState(false);
 

@@ -153,7 +153,7 @@ function PanelLogsAccordionItem({
   return (
     <PanelSection value="history" title={t("history")}>
         {current.status === "loading" ? (
-          <p className="text-sm text-muted-foreground">{t("history_loading")}</p>
+          <p className="text-base text-muted-foreground">{t("history_loading")}</p>
         ) : current.status === "error" ? (
           <PanelError
             message={t("history_error")}
@@ -165,7 +165,7 @@ function PanelLogsAccordionItem({
           }}
           />
         ) : current.status === "empty" ? (
-          <p className="text-sm text-muted-foreground">{t("history_empty")}</p>
+          <p className="text-base text-muted-foreground">{t("history_empty")}</p>
         ) : (
           <ul className="flex max-w-full flex-col gap-1 overflow-x-auto">
             {current.entries.map((entry, index) => (

@@ -333,7 +333,7 @@ export default async function FilesPage({ searchParams }: Props) {
           {/* 🚨 絞り込み中であることと、**解除の出口**を必ず出す。
               出さないと「ファイルが減った」ように見えて、戻し方が分からない。 */}
           {activeLabel ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               {t("filtered_by_label", { name: activeLabel.name })}{" "}
               <Link href={clearLabelHref} className="underline">
                 {t("clear_filter")}
@@ -341,7 +341,7 @@ export default async function FilesPage({ searchParams }: Props) {
             </p>
           ) : null}
           {activeQuery ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               {t("filtered_by_query", { q: activeQuery })}{" "}
               <Link href={clearQueryHref} className="underline">
                 {t("clear_filter")}

@@ -17,6 +17,15 @@ import {
 } from "@/components/ui/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
 
+/**
+ * コマンド検索の一覧と、そのダイアログ表示を構成する部品群。
+ *
+ * 🚨 触るときの注意:
+ * - `CommandInput` の高さは `InputGroup` に任せ、`h-8` で上書きしない（SPの44pxを守る）。
+ * - ダイアログ内の入力は面の入れ子を避けるため、既存の `InputGroup` の境界設定を維持する。
+ *
+ * 参考: DESIGN.md §1-2 ／ components/ui/dialog.tsx ／ components/ui/input-group.tsx
+ */
 function Command({
   className,
   ...props

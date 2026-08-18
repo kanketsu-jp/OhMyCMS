@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { BugReportAction } from "@/components/admin/bug-report-action";
 import { NotificationsManager } from "@/components/admin/notifications-manager";
 import { PageTabs } from "@/components/admin/page-tabs";
-import { BugReportTrigger } from "@/components/admin/bug-report-trigger";
 import { ReportRooms } from "@/components/admin/report-rooms";
 import { buttonVariants } from "@/components/ui/button";
 import { getFormat, getT } from "@/i18n/server";
@@ -62,6 +62,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
 
     return (
       <div className="max-w-3xl space-y-6">
+        <BugReportAction label={tR("nav_create")} />
         <PageTabs tabs={topTabs} />
 
         <PageTabs
@@ -87,7 +88,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
             //    ここは「お知らせ」の中なので、戻り先も**この画面の未解決タブ**にする。
             emptyAction={
               status === "open" ? (
-                <BugReportTrigger label={tR("nav_create")} className={buttonVariants()} />
+                <p className="text-base text-muted-foreground">{tR("empty_open_action_hint")}</p>
               ) : (
                 <Link
                   href="/admin/notifications?tab=reports&status=open"

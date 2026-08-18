@@ -25,6 +25,15 @@ type ButtonGroupProps = ButtonGroupBaseProps & {
   orientation?: "horizontal" | "vertical";
 };
 
+/**
+ * 主操作とそのオプションを隙間なく束ねるボタングループ。
+ *
+ * 🚨 触るときの注意:
+ * - オプションがある操作は、単独ボタンを離して並べずこの部品で接続する（DESIGN.md §2-1）。
+ * - 子の角丸と境界線を自動で調整するため、呼び出し側で個別に打ち消さない。
+ *
+ * 参考: DESIGN.md §2-1 ／ knowledge/decisions/action-button-and-edit-mode.md
+ */
 function ButtonGroup({
   className,
   orientation,

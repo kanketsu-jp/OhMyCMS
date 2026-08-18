@@ -34,6 +34,13 @@ function itemCardGridClass(columns: ItemCardColumns): string {
   }
 }
 
+/**
+ * アイテム一覧のカード表示。先頭列をタイトル、残りを最大3項目の詳細として出す。
+ *
+ * 🚨 カードは表示形式の一つであり、編集や削除の状態をここに複製しない。表示切り替えは呼び出し側で行う。
+ *
+ * 参考: `components/admin/item-calendar.tsx` ／ `components/admin/files-view-switch.tsx`
+ */
 export async function ItemCards({ items, columns, pk, collection, lookup }: Props) {
   const locale = await getLocale();
   const [titleField, ...detailFields] = columns;

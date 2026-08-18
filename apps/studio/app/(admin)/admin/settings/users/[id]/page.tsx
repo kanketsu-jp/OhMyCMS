@@ -97,15 +97,15 @@ export default async function UserDetailPage({ params }: Props) {
             </dd>
           </dl>
           {/* 🚨 **できないことを、その場に書く。** 編集の場所を探させない。 */}
-          <p className="mt-4 text-sm text-muted-foreground">{t("detail_read_only_note")}</p>
+          <p className="mt-4 text-base text-muted-foreground">{t("detail_read_only_note")}</p>
         </Surface>
         <Surface>
           <SurfaceTitle>{t("effective_view_title")}</SurfaceTitle>
-          <p className="mb-4 text-sm text-muted-foreground">{t("effective_view_description")}</p>
+            <p className="mb-4 text-base text-muted-foreground">{t("effective_view_description")}</p>
           {!effectiveResult.ok ? (
             <ErrorBanner message={tError(effectiveResult.messageKey)} />
           ) : effectiveResult.data.data.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("effective_view_empty")}</p>
+            <p className="text-base text-muted-foreground">{t("effective_view_empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <div className="min-w-[48rem] text-sm">

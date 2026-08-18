@@ -135,7 +135,7 @@ export function PanelStorage() {
            「設定した気でいるのに保存先が違う」が起きるので、足りない環境変数の名前まで出す。
       */}
       {status.misconfigured ? (
-        <p className="text-sm text-destructive">
+         <p className="text-base text-destructive">
           {t("storage_misconfigured", { names: status.missing.join(", ") })}
         </p>
       ) : null}

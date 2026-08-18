@@ -303,7 +303,7 @@ export function ProfileSettings({ avatarEmoji, firstName, lastName }: Props) {
             />
             </div>
             {nameError !== null ? (
-              <p className="text-sm text-destructive">{nameError}</p>
+              <p className="text-base text-destructive">{nameError}</p>
             ) : null}
           </div>
           {/* 🚨 **主ボタンはモードで変わる**（規約 §2）。固定の「名前を保存」は**廃止**した

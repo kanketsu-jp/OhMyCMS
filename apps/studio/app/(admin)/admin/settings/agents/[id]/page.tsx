@@ -93,7 +93,7 @@ export default async function AgentDetailPage({ params }: Props) {
             <dd>{agent.origin ?? t("no_origin")}</dd>
           </dl>
           {/* 🚨 **見えないものを、見えないと書く。** 探させない。 */}
-          <p className="mt-4 text-sm text-muted-foreground">{t("detail_no_token_note")}</p>
+        <p className="mt-4 text-base text-muted-foreground">{t("detail_no_token_note")}</p>
         </Surface>
       ) : null}
     </div>

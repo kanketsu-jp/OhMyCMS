@@ -17,6 +17,14 @@ type FolderRow = {
   parent: string | null;
 };
 
+/**
+ * ファイルアップロード画面のフォーム。
+ *
+ * 🚨 成功時はトーストだけで終わらせず、一覧へ遷移する。フォームの選択表示が残り、
+ *    利用者が同じファイルを再送してしまうため、`router.push` と `router.refresh` を外さない。
+ *
+ * 参考: `components/admin/file-dropzone.tsx` ／ DESIGN.md §2-9
+ */
 export function FileUploadForm({
   folders,
   initialFolder,
@@ -60,7 +68,7 @@ export function FileUploadForm({
   return (
     <div className="space-y-3">
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
           {error}
         </div>
       ) : null}

@@ -21,6 +21,14 @@ function Snippet({
   return <CodeBlock title={label} value={value} targetId={targetId} />;
 }
 
+/**
+ * MCP クライアントへ接続するための URL・CLI・JSON 設定を表示する部品。
+ *
+ * 🚨 接続先とトークンのプレースホルダーは呼び出し元から受け取り、ここで実値を生成・保存しない。
+ *    表示する説明文は `mcp` 辞書を通し、コード例の値だけを動的に埋め込む。
+ *
+ * 参考: `apps/studio/app/(admin)/admin/settings/ai/page.tsx` ／ `DESIGN.md` §0-1
+ */
 export function McpConnection({ url, entrypoint }: Props) {
   const t = useT("mcp");
   const tokenPlaceholder = t("token_placeholder");

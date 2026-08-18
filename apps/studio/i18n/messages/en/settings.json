@@ -34,5 +34,22 @@
   "title": "Settings",
   "updated_at": "Last updated",
   "project_logo_clear": "Remove logo",
-  "error_logo_upload_failed": "Could not upload the logo."
+  "error_logo_upload_failed": "Could not upload the logo.",
+  "shortcuts_title": "Shortcuts",
+  "shortcuts_description": "Set a key combination for each operation. Shortcuts are unset initially.",
+  "shortcut_search": "Search",
+  "shortcut_back": "Back",
+  "shortcut_save_operation": "Save",
+  "shortcut_submit": "Submit",
+  "shortcut_toggleLeftSidebar": "Toggle left sidebar",
+  "shortcut_toggleRightSidebar": "Toggle right sidebar",
+  "shortcut_empty": "Not set",
+  "shortcut_save_button": "Save",
+  "shortcut_clear": "Remove",
+  "shortcut_saved": "Saved.",
+  "shortcut_save_failed": "Could not save.",
+  "shortcut_load_failed": "Could not load settings.",
+  "shortcut_invalid": "Enter a key combination.",
+  "shortcut_duplicate": "That key is already assigned to another operation.",
+  "shortcut_editor_conflict": "That key conflicts with a text editing command."
 }

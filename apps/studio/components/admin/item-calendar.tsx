@@ -59,6 +59,14 @@ function calendarDays(month: { year: number; month: number }): CalendarDay[] {
   return days;
 }
 
+/**
+ * 日付フィールドを持つアイテム一覧を月間カレンダーで表示する Server Component。
+ *
+ * 🚨 日付と件数の表示は `getFormat()` を通す。日付が無い項目は無理に別の日へ置かず、
+ *    `dateField` が無い場合は案内だけを返す。
+ *
+ * 参考: `components/admin/item-cards.tsx` ／ DESIGN.md §1-5
+ */
 export async function ItemCalendar({ items, fields, pk, collection, dateField, month }: Props) {
   const t = await getT("items");
   const format = await getFormat();

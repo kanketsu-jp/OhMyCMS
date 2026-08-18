@@ -10,6 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 
+/**
+ * 開発用ログインの入力フォーム。開発環境の認証確認用で、通常のログイン画面とは別経路。
+ *
+ * 🚨 API の生エラー文言を画面へ出さず、`errorKeyFromPayload` から辞書へ写すこと。
+ * 送信処理は二重送信防止の `useSubmitOnce` の中に置く。
+ *
+ * 参考: `apps/studio/components/admin/password-login-form.tsx` ／ `apps/studio/i18n/error.ts`
+ */
+
 export function DevLoginForm() {
   const router = useRouter();
   const t = useT("auth");
@@ -73,7 +82,7 @@ export function DevLoginForm() {
         />
         {t("admin_checkbox")}
       </label>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-base text-destructive">{error}</p> : null}
       <Button type="submit" className="w-full" disabled={submit.pending || pending}>
         {pending ? t("dev_login_pending") : t("dev_login")}
       </Button>

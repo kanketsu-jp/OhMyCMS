@@ -42,6 +42,13 @@ type Draft = {
   drive_client_id: string;
 };
 
+/**
+ * S3 と Google ドライブのストレージ設定を表示・編集する部品。
+ *
+ * 🚨 秘密のキーはサーバから値を受け取らず、編集時に入力された場合だけ送る。表示モードでは `FieldValue` と未設定表示を使う。
+ *
+ * 参考: DESIGN.md §1-8・§1-12 ／ `components/ui/field-value.tsx` ／ `knowledge/decisions/secrets-storage-by-recoverability.md`
+ */
 export function StorageSettingsManager({ settings }: { settings: StorageSettings }) {
   const t = useT("storage");
   const tCommon = useT("common");
@@ -213,7 +220,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
     >
       <FormDraft formId="storage-settings-form" />
       {error ? (
-        <p className="rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive">
+        <p className="rounded-lg border border-destructive/40 px-3 py-2 text-base text-destructive">
           {error}
         </p>
       ) : null}

@@ -54,5 +54,6 @@
   "attach_retry": "The report itself was saved. {failed} of {total} images could not be sent. Press again to send just the images to this report (no new report is created).",
   "attach_retry_button": "Send the images again",
   "attach_retry_note": "This report is already saved. Pressing again sends only the images. Edits to the body will not be included.",
-  "empty_resolved_action": "See the open reports"
+  "empty_resolved_action": "See the open reports",
+  "empty_open_action_hint": "To report a problem, use \"Report a problem\" at the top of the screen."
 }

@@ -5,6 +5,15 @@ import { Avatar as AvatarPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * ユーザー画像とフォールバック、バッジを表示する共有部品。
+ *
+ * 🚨 触るときの注意:
+ * - サイズは `size` と子部品の data 属性で連動する。個別の子だけ寸法を変えない。
+ * - 境界線は `border-border` とダーク用の mix-blend を使う。生の色を足さない。
+ *
+ * 参考: DESIGN.md §0-1 ／ components/ui/avatar.tsx
+ */
 function Avatar({
   className,
   size = "default",

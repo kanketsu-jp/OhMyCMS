@@ -27,6 +27,15 @@ type FolderRow = {
   name: string;
 };
 
+/**
+ * ファイルのメタデータ表示・編集・削除を管理する部品。
+ *
+ * 🚨 既定は表示モードで、編集できる欄だけ `editing` で入力欄にする。削除は本文の主操作に
+ * せず `PageAction` のオプションへ置く。サーバへ送る処理は `useSubmitOnce` を通す。
+ *
+ * 参考: `knowledge/decisions/action-button-and-edit-mode.md` ／ `DESIGN.md` §1-12・§2-5
+ */
+
 export function FileDetailManager({ file, folders }: { file: FileRow; folders: FolderRow[] }) {
   const t = useT("files");
   const tCommon = useT("common");
@@ -94,7 +103,7 @@ export function FileDetailManager({ file, folders }: { file: FileRow; folders: F
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
           {error}
         </div>
       ) : null}

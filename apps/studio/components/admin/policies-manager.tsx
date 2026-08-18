@@ -42,6 +42,13 @@ export type PolicyRow = {
   admin_access: boolean;
 };
 
+/**
+ * ポリシーの一覧と作成フォームを管理する画面部品。
+ *
+ * 🚨 一覧と作成は `tab` で分け、空の一覧では表を描画しない。行の破壊操作は `RowOptions` と確認ダイアログを使う。
+ *
+ * 参考: DESIGN.md §1-5・§1-6 ／ `components/admin/row-options.tsx` ／ `knowledge/decisions/action-button-and-edit-mode.md`
+ */
 export function PoliciesManager({ policies, tab }: { policies: PolicyRow[]; tab: "list" | "create" }) {
   const router = useRouter();
   const t = useT("policies");
@@ -93,7 +100,7 @@ export function PoliciesManager({ policies, tab }: { policies: PolicyRow[]; tab:
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
           {error}
         </div>
       ) : null}

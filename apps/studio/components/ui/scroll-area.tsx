@@ -5,6 +5,15 @@ import { ScrollArea as ScrollAreaPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * スクロールバーとフォーカス表示を備えたスクロール領域。
+ *
+ * 🚨 触るときの注意:
+ * - 実際のスクロール内容は `Viewport` に入れる。`ScrollBar` の外側へ置くとスクロールバーと同期しない。
+ * - thumb とフォーカスリングは意味トークンを使う。生の色や個別の `dark:` を足さない。
+ *
+ * 参考: DESIGN.md §1-3 ／ `components/ui/scroll-fade.tsx`
+ */
 function ScrollArea({
   className,
   children,

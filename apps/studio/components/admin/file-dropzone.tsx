@@ -241,7 +241,7 @@ export function FileDropzone({
         onChange={(event) => accept(event.target.files)}
       />
 
-      <p className="text-sm text-muted-foreground">{t("upload_public_notice")}</p>
+      <p className="text-base text-muted-foreground">{t("upload_public_notice")}</p>
 
       {files.length > 0 ? (
         <>

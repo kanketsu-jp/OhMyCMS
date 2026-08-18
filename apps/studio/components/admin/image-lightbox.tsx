@@ -51,6 +51,14 @@ function useContentBoxKey(enabled: boolean): string {
   );
 }
 
+/**
+ * 画像を一覧として閲覧し、前後移動とズームを提供するライトボックス。
+ *
+ * 🚨 `images` の画像には、分かる限り `width` / `height` を渡す。欠けるとズームが黙って効かない。
+ *    `portal` は表示領域を限定するときだけ props ごと渡し、空の `portal` を渡さない。
+ *
+ * 参考: `components/admin/files-lightbox-grid.tsx` ／ `components/admin/file-thumbnail.tsx`
+ */
 export function ImageLightbox({
   images,
   index,

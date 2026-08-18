@@ -11,6 +11,14 @@ import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 import { errorKeyFromPayload } from "@/i18n/error";
 
+/**
+ * 現在のフォルダ配下に新しいフォルダを作るフォーム。
+ *
+ * 🚨 作成後の戻り先は `parent` によって決まる。API の成功後に一覧を更新し、作成画面に留めない。
+ *    表示文言と API エラーの表示は辞書キーを通し、生のレスポンス文言を画面へ出さない。
+ *
+ * 参考: `apps/studio/app/(admin)/admin/files/new-folder/page.tsx` ／ `DESIGN.md` §2-9
+ */
 export function NewFolderForm({ parent }: { parent: string | null }) {
   const t = useT("folders");
   const tError = useT("errors");
@@ -48,7 +56,7 @@ export function NewFolderForm({ parent }: { parent: string | null }) {
   return (
     <form id="folder-create-form" action={create.run} className="flex flex-col gap-4">
       <FormDraft formId="folder-create-form" />
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-base text-destructive">{error}</p> : null}
       <Input
         name="name"
         required

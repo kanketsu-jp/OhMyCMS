@@ -167,7 +167,7 @@ export function PanelApiMcp() {
             <ScrollBar orientation="horizontal" forceMount />
             </ScrollArea>
           ) : (
-            <p className="text-sm text-muted-foreground">{t("api_rest_none")}</p>
+            <p className="text-base text-muted-foreground">{t("api_rest_none")}</p>
           )}
         </section>
 
@@ -176,7 +176,7 @@ export function PanelApiMcp() {
         <section className="space-y-2">
           <h3 className="text-sm font-medium">{t("api_mcp_heading")}</h3>
           {/* 🚨 件数を出す。**一部だけ出して「これで全部」に見せない**（サンプルを母集団にしない）。 */}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             {t("api_mcp_count")}: {tools.length} / {TOOLS.length}
           </p>
           <ul className="space-y-2">
@@ -189,11 +189,11 @@ export function PanelApiMcp() {
                   </span>
                 </p>
                 {/* 🚨 この説明文は MCP の目録（正）から来ている。**ここで書き直さない** */}
-                <p className="text-sm text-muted-foreground">{tool.description}</p>
+                <p className="text-base text-muted-foreground">{tool.description}</p>
               </li>
             ))}
           </ul>
-          <p className="text-sm text-muted-foreground">{t("api_mcp_source")}</p>
+          <p className="text-base text-muted-foreground">{t("api_mcp_source")}</p>
         </section>
     </PanelSection>
   );

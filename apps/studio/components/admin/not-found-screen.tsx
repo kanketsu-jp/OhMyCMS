@@ -46,7 +46,7 @@ export async function NotFoundScreen() {
           理由と実測は lib/admin/page-missing.ts の冒頭。 */}
       <MarkPageMissing />
       <h2 className="text-lg font-medium">{t("page_not_found_title")}</h2>
-      <p className="text-sm text-muted-foreground">{t("page_not_found_body")}</p>
+      <p className="text-base text-muted-foreground">{t("page_not_found_body")}</p>
       <Link
         href="/admin"
         className="text-sm text-primary hover:text-primary/80 active:text-primary/80"

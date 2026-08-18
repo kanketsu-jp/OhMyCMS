@@ -5,6 +5,15 @@ import { Tooltip as TooltipPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * 補助説明を浮かせて表示するツールチップ部品群。
+ *
+ * 🚨 触るときの注意:
+ * - 利用前に祖先へ `TooltipProvider` を1つ置く。項目ごとにProviderを増やさない。
+ * - 長い説明文や必須の操作名を隠す用途にせず、ボタンの `aria-label` と辞書化を本体側で維持する。
+ *
+ * 参考: DESIGN.md §2-3 ／ `components/ui/sidebar.tsx`
+ */
 function TooltipProvider({
   delayDuration = 0,
   ...props

@@ -6,6 +6,15 @@ import { Checkbox as CheckboxPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { CheckIcon } from "lucide-react"
 
+/**
+ * 選択状態をチェック表示で操作するフォーム部品。
+ *
+ * 🚨 触るときの注意:
+ * - タップ領域は `after` の擬似要素で確保している。サイズを見た目だけで縮めない。
+ * - checked / invalid / disabled の色は意味トークンと `dark:` の組み合わせを保つ。
+ *
+ * 参考: DESIGN.md §1-12 ／ components/ui/checkbox.tsx
+ */
 function Checkbox({
   className,
   ...props

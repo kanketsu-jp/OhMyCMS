@@ -6,6 +6,15 @@ import { ChevronRightIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * 右クリック位置に操作項目を開くコンテキストメニュー部品群。
+ *
+ * 🚨 触るときの注意:
+ * - 開くメニューには `min-w` を残し、日本語の項目を1文字ずつ縦に潰さない（DESIGN.md §2-3）。
+ * - 項目のタップ高さは `min-h-(--control-h)` で共有している。呼び出し側で小さくしない。
+ *
+ * 参考: DESIGN.md §2-3 ／ components/ui/dropdown-menu.tsx
+ */
 function ContextMenu({
   ...props
 }: React.ComponentProps<typeof MenuPrimitive.Root>) {

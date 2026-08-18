@@ -95,6 +95,16 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * 全画面で使う操作ボタン。
+ *
+ * 🚨 触るときの注意:
+ * - `hover:` と `active:` はタッチ端末の押下感のため必ず対で扱う。
+ * - `loading` は見た目だけで、二重送信の制御は `hooks/use-submit-once.ts` に任せる。
+ * - このファイルは Server Component からも使われるため、`"use client"` を追加しない。
+ *
+ * 参考: DESIGN.md §2 ／ components/ui/button.tsx
+ */
 function Button({
   className,
   variant = "default",

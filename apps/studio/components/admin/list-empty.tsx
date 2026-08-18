@@ -44,5 +44,5 @@ import type { ReactNode } from "react";
  * 文字列以外（リンクを含む案内など）も渡せるように `children` で受ける。
  */
 export function ListEmpty({ children }: { children: ReactNode }) {
-  return <p className="text-sm text-muted-foreground">{children}</p>;
+  return <p className="text-base text-muted-foreground">{children}</p>;
 }

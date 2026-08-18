@@ -79,6 +79,13 @@ function FilterBlock({ value, targetId }: { value: string; targetId: string }) {
   return <CodeBlock value={value} targetId={targetId} />;
 }
 
+/**
+ * ポリシーごとのコレクション権限を格子と編集フォームで管理する部品。
+ *
+ * 🚨 格子のマスは削除や切り替えではなく編集を開く。行の一括変更は既存の条件付き権限を上書きしない。
+ *
+ * 参考: `components/admin/permission-grid.tsx` ／ DESIGN.md §2-1 ／ `knowledge/decisions/relation-permission-boundary.md`
+ */
 export function PolicyPermissionsManager({ policyId, collections, permissions }: Props) {
   const router = useRouter();
   const t = useT("policies");
@@ -235,7 +242,7 @@ export function PolicyPermissionsManager({ policyId, collections, permissions }:
   return (
     <div className="space-y-6">
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
           {error}
         </div>
       ) : null}

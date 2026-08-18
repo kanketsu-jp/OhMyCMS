@@ -43,12 +43,12 @@ export type LabelRow = {
  *    利用者から見て「同じ色の名前なのに違う色」になる）。
  */
 const COLOR_CLASS: Record<string, string> = {
-  slate: "text-slate-500",
-  red: "text-red-500",
-  amber: "text-amber-500",
-  emerald: "text-emerald-500",
-  sky: "text-sky-500",
-  violet: "text-violet-500",
+  slate: "text-slate-500 dark:text-slate-400",
+  red: "text-red-500 dark:text-red-400",
+  amber: "text-amber-500 dark:text-amber-400",
+  emerald: "text-emerald-500 dark:text-emerald-400",
+  sky: "text-sky-500 dark:text-sky-400",
+  violet: "text-violet-500 dark:text-violet-400",
 };
 
 /**

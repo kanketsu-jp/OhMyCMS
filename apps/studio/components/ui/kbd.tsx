@@ -1,5 +1,14 @@
 import { cn } from "@/lib/utils"
 
+/**
+ * キーボードショートカットを示す表示部品。
+ *
+ * 🚨 触るときの注意:
+ * - 操作を詰まらせるバッジとして使わず、ショートカットの補助表示に限定する（DESIGN.md §2-4）。
+ * - ツールチップ内では背景と文字のトークンを反転させる指定を保ち、ダークでも読めるようにする。
+ *
+ * 参考: DESIGN.md §2-4 ／ components/ui/tooltip.tsx
+ */
 function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
   return (
     <kbd

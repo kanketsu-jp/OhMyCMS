@@ -66,6 +66,16 @@ type Props = {
   inline?: boolean;
 };
 
+/**
+ * コレクションへフィールドを追加するフォーム。基本設定と詳細設定を同じ送信にまとめる。
+ *
+ * 🚨 `type` と `interface` は選択状態から解決した hidden 値を送る。表示用の種類だけを
+ * 変更して API の値を別に組み立てないこと。通常表示では `PageAction` を使い、inline 時だけ
+ * フォーム内のボタンを使う。
+ *
+ * 参考: `apps/studio/lib/schema/interfaces.ts` ／ `knowledge/decisions/user-tables-have-one-entrance.md`
+ */
+
 export function FieldCreateForm({ collection, inline = false }: Props) {
   const t = useT("fields");
   const [kindId, setKindId] = useState<FieldKindId>("short_text");

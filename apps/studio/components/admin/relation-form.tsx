@@ -20,6 +20,13 @@ type Props = {
   collectionNames: string[];
 };
 
+/**
+ * コレクション間の m2o / o2m リレーションを作成するフォーム。
+ *
+ * 🚨 `FORM_ID` と `useFormSubmitShortcut` の対象を同時に変更する。入力中のショートカットはフォームのネイティブ検証を通す。
+ *
+ * 参考: DESIGN.md §0-1 ／ `components/admin/use-shortcut.tsx` ／ `components/admin/page-action.tsx`
+ */
 export function RelationForm({ collection, collectionNames }: Props) {
   const t = useT("relations");
   const [kind, setKind] = useState<RelationKind>("m2o");

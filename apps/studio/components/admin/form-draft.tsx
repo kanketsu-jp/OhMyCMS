@@ -28,6 +28,14 @@ const PENDING_KEY = "ohmycms:draft:pending";
 const SECRET_FIELD_PATTERN = /password|secret|token|key/i;
 const SAVE_DELAY_MS = 300;
 
+/**
+ * フォームの下書き保存と、未保存のまま画面を離れるときの確認を担う部品。
+ *
+ * 🚨 `beforeunload` だけはブラウザの確認文言を辞書化できない。通常のリンク遷移は先に止め、
+ *    `AlertDialog` で確認してから自分で移動する。`window.confirm` に戻さない。
+ *
+ * 参考: `knowledge/decisions/i18n-required.md` ／ DESIGN.md §2-9
+ */
 export function FormDraft({ formId }: Props) {
   /**
    * 🚨 **離脱の確認から `window.confirm` を外した**（2026-08-17）。

@@ -32,7 +32,7 @@ export default async function OnboardingPage() {
       <div className="flex w-full max-w-sm flex-col gap-6">
         <div className="flex flex-col gap-1 text-center">
           <h1 className="text-xl font-semibold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
+          <p className="text-base text-muted-foreground">{t("description")}</p>
         </div>
         <hr className="border-0 border-t border-border" />
         {/* 🚨 「既定のパスワードのまま」の表示は、**フォーム側が持つ**。

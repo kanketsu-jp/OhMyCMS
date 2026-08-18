@@ -36,6 +36,13 @@ export type RoleRow = {
   parent: string | null;
 };
 
+/**
+ * ロールの一覧・作成・削除を管理する部品。
+ *
+ * 🚨 ロールが0件のときは空の表を出さず、行の削除は確認ダイアログを経由する。一覧と作成の境目を保つ。
+ *
+ * 参考: DESIGN.md §1-5・§1-6 ／ `components/admin/list-empty.tsx` ／ `components/admin/wide-table.tsx`
+ */
 export function RolesManager({ roles }: { roles: RoleRow[] }) {
   const router = useRouter();
   const t = useT("roles");
@@ -85,7 +92,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
           {error}
         </div>
       ) : null}

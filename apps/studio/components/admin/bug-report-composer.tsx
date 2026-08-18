@@ -268,14 +268,14 @@ export function BugReportComposer({ onDone }: Props) {
         below={
           <div className="flex flex-col gap-2">
             {fieldError === "body" ? (
-              <p className="text-sm text-destructive">{t("error_body_required")}</p>
+              <p className="text-base text-destructive">{t("error_body_required")}</p>
             ) : null}
 
             {/* 🚨 **黙って動きを変えない。** 記録が済んだあとは、押しても報告は増えず
                 画像だけを送り直す。**書き足した本文は反映されない**ので、そこも言う
                 （言わないと「直したのに直っていない」になる）。 */}
             {recordedReportId !== null ? (
-              <p className="text-sm text-muted-foreground">{t("attach_retry_note")}</p>
+                <p className="text-base text-muted-foreground">{t("attach_retry_note")}</p>
             ) : null}
 
             {/* 5W1H の Why。**必須にしない**（書けない場面があるし、無くても報告は成立する）。 */}
@@ -353,7 +353,7 @@ export function BugReportComposer({ onDone }: Props) {
                 </AttachmentGroup>
               ) : null}
               {attachmentError ? (
-                <p className="text-sm text-destructive">{t("attach_too_many")}</p>
+                <p className="text-base text-destructive">{t("attach_too_many")}</p>
               ) : null}
             </div>
           </div>

@@ -83,7 +83,7 @@ export function PanelFileDetail() {
   if (files.length > 1) {
     return (
       <PanelSection value="file-detail" title={t("file_detail")}>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           {t("file_detail_selected", { count: String(files.length) })}
         </p>
       </PanelSection>

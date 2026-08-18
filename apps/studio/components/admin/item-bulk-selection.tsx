@@ -27,6 +27,14 @@ function useBulk(): BulkContextValue {
   return value;
 }
 
+/**
+ * アイテム一覧の複数選択状態と一括削除操作を提供するラッパー。
+ *
+ * 🚨 子のチェックボックスはこの Context 経由で同じ選択集合を使う。別状態を持つと、
+ *    ヘッダーの全選択と各行の表示がずれる。削除上限は API と同じ 100 件。
+ *
+ * 参考: `components/admin/row-options.tsx` ／ DESIGN.md §2-5
+ */
 export function ItemBulkSelection({
   collection,
   ids,

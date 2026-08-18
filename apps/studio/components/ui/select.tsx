@@ -7,6 +7,15 @@ import { cn } from "@/lib/utils"
 import { useInsideSurface } from "@/components/ui/surface"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
+/**
+ * 選択肢をポップアップで選ぶフォーム部品群。
+ *
+ * 🚨 触るときの注意:
+ * - `SelectTrigger` は面の内外で境界の表現を切り替える。面の中に別の罫線を重ねない。
+ * - `SelectContent` は最小幅 `min-w-36` を持つ。日本語の選択肢が1文字ずつ縦に潰れないよう外さない。
+ *
+ * 参考: DESIGN.md §1-8・§2-3 ／ `components/ui/surface.tsx`
+ */
 const Select = SelectPrimitive.Root
 
 function SelectGroup({

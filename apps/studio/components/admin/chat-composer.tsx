@@ -45,6 +45,15 @@ type ChatTextareaProps = {
   ariaInvalid?: boolean;
 };
 
+/**
+ * 報告やチャットの本文入力と送信操作を共通化する部品。
+ *
+ * 🚨 `submitIcon` は必須で、送信ボタンのアイコンを既定に落とさない。入力欄の下に
+ * 補助表示を足すときは `below` を使い、各画面で送信ボタンの構造を作り直さない。
+ *
+ * 参考: `DESIGN.md` §3-1 ／ `components/admin/bug-report-composer.tsx`
+ */
+
 export function ChatComposer({
   value,
   onChange,

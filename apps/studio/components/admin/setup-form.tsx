@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
+/**
+ * 初回セットアップ用のパスワード入力フォーム。
+ *
+ * 🚨 認証画面の表示文言は `auth` 辞書を通す。API の生エラーは表示せず、失敗時は固定キーにする。
+ *
+ * 参考: DESIGN.md §0-1・§1-8 ／ `i18n/messages/ja/auth.json` ／ `i18n/messages/en/auth.json`
+ */
 export function SetupForm() {
   const router = useRouter();
   const t = useT("auth");
@@ -52,7 +59,7 @@ export function SetupForm() {
           autoComplete="current-password"
         />
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-base text-destructive">{error}</p> : null}
       <Button type="submit" size="entry" disabled={submit.pending || pending}>
         {pending ? t("sign_in_pending") : t("sign_in")}
       </Button>

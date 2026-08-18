@@ -13,6 +13,14 @@ import {
 import { useT } from "@/i18n/client";
 import { clearSelection } from "@/lib/admin/files-selection";
 
+/**
+ * ファイル一覧の余白を右クリックしたときの作成メニュー。
+ *
+ * 🚨 タイル上の選択を消す判定は `a,button` の祖先で行う。器そのものを判定すると、
+ *    Surface が全面を覆うため「タイルの無い所」を一度も検出できない。
+ *
+ * 参考: `components/admin/file-tile-menu.tsx` ／ DESIGN.md §2-1
+ */
 export function FilesPageMenu({
   newFileHref,
   newFolderHref,

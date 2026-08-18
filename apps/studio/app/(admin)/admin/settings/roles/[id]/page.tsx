@@ -65,7 +65,7 @@ export default async function RoleDetailPage({ params }: Props) {
             <dd>{role.parent ?? t("none_option")}</dd>
           </dl>
           {/* 🚨 **できないことを、その場に書く。** 編集の場所を探させない。 */}
-          <p className="mt-4 text-sm text-muted-foreground">{t("detail_read_only_note")}</p>
+        <p className="mt-4 text-base text-muted-foreground">{t("detail_read_only_note")}</p>
         </Surface>
       ) : null}
     </div>

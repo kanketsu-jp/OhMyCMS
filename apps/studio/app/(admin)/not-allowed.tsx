@@ -23,7 +23,7 @@ export async function NotAllowedScreen({ brand, logo }: NotAllowedScreenProps) {
           <h1 className="text-2xl font-semibold tracking-normal">
             {t("not_allowed_title")}
           </h1>
-          <p className="text-sm leading-6 text-muted-foreground">
+          <p className="text-base leading-6 text-muted-foreground">
             {t("not_allowed_message")}
           </p>
         </div>

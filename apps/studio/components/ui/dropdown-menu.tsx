@@ -6,6 +6,16 @@ import { CheckIcon, ChevronRightIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * 選択肢や補助操作を開くドロップダウンメニュー部品群。
+ *
+ * 🚨 触るときの注意:
+ * - 開く面は `min-w` と `w-(--radix-dropdown-menu-trigger-width)` を保ち、日本語を縦に潰さない。
+ * - 各項目の `min-h` はSPのタップ領域のために共通部品側で持つ。個別に小さくしない。
+ * - ショートカットはバッジで常設せず、ツールチップを使う（DESIGN.md §2-4）。
+ *
+ * 参考: DESIGN.md §2-3〜§2-4 ／ components/ui/button-group.tsx
+ */
 function DropdownMenu({
   ...props
 }: React.ComponentProps<typeof MenuPrimitive.Root>) {

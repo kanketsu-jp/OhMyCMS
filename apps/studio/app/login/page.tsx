@@ -37,10 +37,10 @@ export default async function LoginPage() {
           <span className="truncate">{brand}</span>
         </h1>
         {settings.public_note ? (
-          <p className="text-center text-sm text-muted-foreground">{settings.public_note}</p>
+          <p className="text-center text-base text-muted-foreground">{settings.public_note}</p>
         ) : null}
         {showDefaultPasswordWarning ? (
-          <p className="text-center text-sm text-destructive">
+          <p className="text-center text-base text-destructive">
             {t("default_password_notice")}
           </p>
         ) : null}

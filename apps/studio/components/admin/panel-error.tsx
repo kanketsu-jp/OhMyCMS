@@ -66,7 +66,7 @@ export function PanelError({
   if (expired) {
     return (
       <div className="flex flex-col items-start gap-2">
-        <p className="text-sm text-muted-foreground">{tError("unauthenticated")}</p>
+        <p className="text-base text-muted-foreground">{tError("unauthenticated")}</p>
         <Link href="/login" className={buttonVariants({ variant: "outline", size: "sm" }) + " rounded-none"}>
           {t("relogin")}
         </Link>
@@ -76,7 +76,7 @@ export function PanelError({
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="text-base text-muted-foreground">{message}</p>
       {/* 🚨 角丸を使わない（`DESIGN.md` §1-1）。小さくしない（§2-2・§1-7）。 */}
       <Button
         type="button"

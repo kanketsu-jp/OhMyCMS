@@ -1,35 +1,6 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { SHORTCUTS, type ShortcutName } from "@/components/admin/shortcuts";
-
-const ShortcutContext = createContext<Record<string, string>>({});
-
-export function ShortcutProvider({ children }: { children: ReactNode }) {
-  const [shortcuts, setShortcuts] = useState<Record<string, string>>({});
-  useEffect(() => {
-    void fetch("/api/auth/preferences")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload: { data?: Record<string, unknown> } | null) => {
-        if (!payload?.data) return;
-        setShortcuts(
-          Object.fromEntries(
-            Object.entries(payload.data)
-              .filter(([key, value]) => key.startsWith("shortcut.") && typeof value === "string")
-              .map(([key, value]) => [key.slice("shortcut.".length), value]),
-          ) as Record<string, string>,
-        );
-      })
-      .catch(() => undefined);
-  }, []);
-  return <ShortcutContext.Provider value={shortcuts}>{children}</ShortcutContext.Provider>;
-}
-
-export function useConfiguredShortcut(name: ShortcutName): string {
-  const value = useContext(ShortcutContext)[name] ?? SHORTCUTS[name];
-  return value.startsWith("unassigned-") ? "" : value;
-}
 
 /**
  * ショートカットの実装（React 側）。組み合わせの一覧は `shortcuts.ts` が持つ（ここには書かない）。
@@ -96,13 +67,12 @@ export function matchesShortcut(event: KeyboardEvent, combo: string, isMac: bool
 }
 
 export function useShortcut(
-  name: ShortcutName,
+  combo: string,
   handler: () => void,
   options?: { whileTyping?: boolean },
 ): void {
   const whileTyping = options?.whileTyping ?? false;
   const isMac = useIsMac();
-  const combo = useConfiguredShortcut(name);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

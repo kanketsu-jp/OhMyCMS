@@ -61,6 +61,13 @@ type Props = {
   access: AccessRow[];
 };
 
+/**
+ * 利用者とポリシーの割り当て一覧・追加・解除を管理する部品。
+ *
+ * 🚨 解除は利用者削除ではないため `UserMinus` を使い、既存の一覧が空なら表を描画しない。利用者の行だけ詳細へ遷移する。
+ *
+ * 参考: DESIGN.md §1-5 ／ `components/admin/list-empty.tsx` ／ `knowledge/decisions/relation-permission-boundary.md`
+ */
 export function UsersPolicyManager({ users, policies, access }: Props) {
   const router = useRouter();
   const t = useT("users");
@@ -111,7 +118,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
           {error}
         </div>
       ) : null}

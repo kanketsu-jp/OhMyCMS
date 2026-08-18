@@ -304,7 +304,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                 {tFields("internal_fields_title", { count: 内部項目.length })}
               </AccordionTrigger>
               <AccordionContent>
-                <p className="mb-2 text-sm text-muted-foreground">{tFields("internal_fields_note")}</p>
+                <p className="mb-2 text-base text-muted-foreground">{tFields("internal_fields_note")}</p>
                 <WideTable>
                   <Table>
                     <TableHeader>
@@ -345,7 +345,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
       {/* 🚨 面の上の線と見出しがくっつかないよう、線の下に 24px（DESIGN.md §1-9・/admin/version と同じ形）。 */}
       <Surface className="pt-6">
         <SurfaceTitle>{tCollections("display_name_heading")}</SurfaceTitle>
-        <p className="text-sm text-muted-foreground">{tCollections("display_name_help")}</p>
+        <p className="text-base text-muted-foreground">{tCollections("display_name_help")}</p>
         <form
           action={`/admin/actions/collections/${encoded}/translations`}
           method="post"
@@ -384,7 +384,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           🚨 選ばない（`""`）も**必ず出す**。一度選んだ人が**戻せなくなる**ため。 */}
       <Surface className="pt-6">
         <SurfaceTitle>{tCollections("icon_heading")}</SurfaceTitle>
-        <p className="text-sm text-muted-foreground">{tCollections("icon_help")}</p>
+        <p className="text-base text-muted-foreground">{tCollections("icon_help")}</p>
         <form
           action={`/admin/actions/collections/${encoded}/icon`}
           method="post"
@@ -494,7 +494,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               </Table>
             </WideTable>
           ) : (
-            <p className="text-sm text-muted-foreground">{tRelations("empty_relations")}</p>
+            <p className="text-base text-muted-foreground">{tRelations("empty_relations")}</p>
           )
         ) : null}
       </Surface>

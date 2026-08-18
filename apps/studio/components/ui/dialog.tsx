@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 import { useT } from "@/i18n/client"
 
+/**
+ * 操作のためのモーダル面と、その構成部品群。
+ *
+ * 🚨 触るときの注意:
+ * - SP は画面いっぱい、PC は中央の箱という寸法を保つ。確認用の `AlertDialog` も同じ方針。
+ * - `SurfaceDepthContext` を渡して面の入れ子を防ぐ。入力に独自の面・罫線を重ねない。
+ *
+ * 参考: DESIGN.md §1-1 ／ knowledge/decisions/no-nested-surfaces.md
+ */
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -41,7 +50,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-foreground/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}

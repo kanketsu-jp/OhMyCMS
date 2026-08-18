@@ -8,6 +8,14 @@ import { Input } from "@/components/ui/input";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
 
+/**
+ * メールアドレスとパスワードでログインする入口フォーム。
+ *
+ * 🚨 入口画面の主操作は送信だけにし、送信中は二重送信を防いでボタンへ状態を反映する。
+ *    入力のラベル・プレースホルダーと失敗文言は `auth` 辞書を通す。
+ *
+ * 参考: `apps/studio/app/login/page.tsx` ／ `DESIGN.md` §2-9
+ */
 export function PasswordLoginForm() {
   const router = useRouter();
   const t = useT("auth");
@@ -67,7 +75,7 @@ export function PasswordLoginForm() {
           autoComplete="current-password"
         />
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-base text-destructive">{error}</p> : null}
       {/* 🚨 入口の画面なので `entry`（56px）。**操作が1つしかない画面に限る** */}
       <Button type="submit" size="entry" disabled={submit.pending || pending}>
         {pending ? t("sign_in_pending") : t("sign_in")}

@@ -5,6 +5,15 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 
+/**
+ * 横幅が収まらない表を、スクロール可能な器とともに表示する部品群。
+ *
+ * 🚨 触るときの注意:
+ * - スクロールするのは `ScrollFade` の器。表を別の外側で包んで fade を二重にしない。
+ * - 0件のときに列見出しだけの表を出さず、画面側で空状態へ出し分ける。
+ *
+ * 参考: DESIGN.md §1-4・§1-5 ／ `components/ui/scroll-fade.tsx`
+ */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     // 🚨 スクロールするのはこの器なので、fade も**この器そのもの**に当たる（外側に巻かない）。

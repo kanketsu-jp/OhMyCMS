@@ -57,6 +57,15 @@ type CapabilitiesState = {
 
 const permissionActions = ["read", "create", "update", "delete"] as const satisfies readonly PermissionAction[];
 
+/**
+ * API エージェントの発行・権限設定・失効をまとめて扱う管理部品。
+ *
+ * 🚨 権限の選択状態と JSON 入力は同じ `capabilities` に反映する。片方だけ直すと、
+ * 画面のチェック状態と発行されるトークンの権限が食い違う。
+ *
+ * 参考: `knowledge/areas/permissions.md` ／ `apps/studio/lib/permissions/resolve.ts`
+ */
+
 function parseOptionalJson(text: string, invalidMessage: string): { ok: true; value: unknown } | { ok: false; message: string } {
   if (text.trim() === "") return { ok: true, value: null };
   try {
@@ -243,7 +252,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <KeyRound />
             {t("token_heading")}
           </div>
-          <p className="text-sm text-destructive">{t("token_warning")}</p>
+          <p className="text-base text-destructive">{t("token_warning")}</p>
           {/* 🚨 ここだけ背景を外す。**外の箱が既に面**（destructive の警告箱: 背景 + 罫線 1px + 角丸）
               なので、CodeBlock の既定の背景をそのまま入れると**背景の中に背景＝面が 2 段**になる
               （2026-08-15 実測。外 背景あり/罫線1px/角丸8px、中 背景あり/角丸10px）。
@@ -258,7 +267,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
           {error}
         </div>
       ) : null}
@@ -367,7 +376,7 @@ export function AgentsManager({ agents }: { agents: AgentRow[] }) {
             <p className="mt-1 text-xs leading-5 text-muted-foreground">{t("capabilities_picker_help")}</p>
           </div>
           {collectionsError ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
               {collectionsError}
             </div>
           ) : null}

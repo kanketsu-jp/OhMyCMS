@@ -2,6 +2,15 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * チャットや報告スレッドのメッセージを、話者ごとのまとまりで配置する部品群。
+ *
+ * 🚨 触るときの注意:
+ * - `Message` の `align` は左右の配置だけを変える。行全体に hover を足さず、操作要素側で状態を表す。
+ * - アバターの表示位置とフッターの位置は、メッセージの行構造に依存するため個別画面で上書きしない。
+ *
+ * 参考: DESIGN.md §2 ／ `components/ui/message-scroller.tsx`
+ */
 function MessageGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

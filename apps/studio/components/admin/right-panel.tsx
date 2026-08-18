@@ -61,7 +61,6 @@ type RightPanelApi = {
   toggle: () => void;
   push: (entry: PanelEntry) => void;
   pop: () => void;
-  focusSection: (id: string) => void;
 };
 
 const RightPanelContext = createContext<RightPanelApi | null>(null);
@@ -104,7 +103,6 @@ export function RightPanelProvider({
   const pathname = usePathname();
   const [openedAt, setOpenedAt] = useState<string | null>(null);
   const [stack, setStack] = useState<PanelEntry[]>([]);
-  const [focusRequest, setFocusRequest] = useState<{ id: string; version: number } | null>(null);
   const isOpen = openedAt === pathname;
 
   // 🚨 戻る／進むのときは、経路で導出するだけでは閉じない。
@@ -140,20 +138,16 @@ export function RightPanelProvider({
   }, [pathname]);
 
   const pop = useCallback(() => setStack((current) => current.slice(0, -1)), []);
-  const focusSection = useCallback((id: string) => {
-    setFocusRequest((current) => ({ id, version: (current?.version ?? 0) + 1 }));
-    setOpenedAt(pathname);
-  }, [pathname]);
 
   const api = useMemo<RightPanelApi>(
-    () => ({ isOpen, depth: stack.length + 1, open, close, toggle, push, pop, focusSection }),
-    [isOpen, stack.length, open, close, toggle, push, pop, focusSection],
+    () => ({ isOpen, depth: stack.length + 1, open, close, toggle, push, pop }),
+    [isOpen, stack.length, open, close, toggle, push, pop],
   );
 
   return (
     <RightPanelContext value={api}>
       {children}
-      <RightPanelSurface brand={brand} stack={isOpen ? stack : []} focusRequest={focusRequest} />
+      <RightPanelSurface brand={brand} stack={isOpen ? stack : []} />
     </RightPanelContext>
   );
 }
@@ -164,7 +158,7 @@ export function RightPanelToggle() {
   const isMac = useIsMac();
   const { toggle, isOpen } = useRightPanel();
 
-  useShortcut("toggleRightSidebar", toggle);
+  useShortcut(SHORTCUTS.toggleRightSidebar, toggle);
 
   return (
     // 🚨 **アイコンだけのボタンなので、目で見る人には名前が 1 文字も出ていなかった**
@@ -202,15 +196,7 @@ export function RightPanelToggle() {
   );
 }
 
-function RightPanelSurface({
-  brand,
-  stack,
-  focusRequest,
-}: {
-  brand: string;
-  stack: PanelEntry[];
-  focusRequest: { id: string; version: number } | null;
-}) {
+function RightPanelSurface({ brand, stack }: { brand: string; stack: PanelEntry[] }) {
   const { isOpen, close } = useRightPanel();
   const isDesktop = useIsDesktop();
 
@@ -222,7 +208,7 @@ function RightPanelSurface({
     return (
       // 面は「罫線・背景・影」のうち1つだけ（憲章 §1）。左サイドバーと同じく罫線1本。
       <aside className="flex w-80 shrink-0 flex-col border-l">
-        <PanelBody brand={brand} stack={stack} focusRequest={focusRequest} />
+        <PanelBody brand={brand} stack={stack} />
       </aside>
     );
   }
@@ -230,8 +216,8 @@ function RightPanelSurface({
   return (
     <Dialog open onOpenChange={(next) => { if (!next) close(); }}>
       {/* SP は `dialog.tsx` の既定で画面いっぱいになる（design が 0d56b4b で入れた）。 */}
-      <DialogContent showCloseButton={false} style={{ padding: 0 }}>
-        <PanelBody brand={brand} stack={stack} focusRequest={focusRequest} inDialog />
+      <DialogContent showCloseButton={false} className="p-0">
+        <PanelBody brand={brand} stack={stack} inDialog />
       </DialogContent>
     </Dialog>
   );
@@ -240,12 +226,10 @@ function RightPanelSurface({
 function PanelBody({
   brand,
   stack,
-  focusRequest,
   inDialog = false,
 }: {
   brand: string;
   stack: PanelEntry[];
-  focusRequest: { id: string; version: number } | null;
   inDialog?: boolean;
 }) {
   const tCommon = useT("common");
@@ -277,37 +261,35 @@ function PanelBody({
     //    ＝ 横に流せる箱（ScrollArea）は在ったのに、**その外側が縮めなかった**ので効いていなかった。
     // 🚨 PC でも同じ器を使う。PC は幅が決まっているので見た目は変わらない（実測で確認済み）。
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="shrink-0 border-b">
-        <div className="flex min-h-14 items-center gap-1" style={{ paddingInline: "0.5rem" }}>
-          {/* 🚨 戻るボタンは**深さが2以上のときだけ**。押し込んだ側に描かせない
-              （描かせると、押し込む場所ごとに戻る動きが割れる）。 */}
-          {depth > 1 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={pop}
-              aria-label={tCommon("shortcut_back")}
-            >
-              <ArrowLeftIcon />
-            </Button>
-          ) : null}
-          {/* ダイアログには見出しの要素が要る（読み上げの対象になる）。 */}
-          {inDialog ? <DialogTitle asChild>{heading}</DialogTitle> : heading}
+      <div className="flex min-h-14 shrink-0 items-center gap-1 border-b px-2">
+        {/* 🚨 戻るボタンは**深さが2以上のときだけ**。押し込んだ側に描かせない
+            （描かせると、押し込む場所ごとに戻る動きが割れる）。 */}
+        {depth > 1 ? (
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
-            onClick={close}
-            aria-label={tCommon("close")}
+            onClick={pop}
+            aria-label={tCommon("shortcut_back")}
           >
-            <XIcon />
+            <ArrowLeftIcon />
           </Button>
-        </div>
+        ) : null}
+        {/* ダイアログには見出しの要素が要る（読み上げの対象になる）。 */}
+        {inDialog ? <DialogTitle asChild>{heading}</DialogTitle> : heading}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={close}
+          aria-label={tCommon("close")}
+        >
+          <XIcon />
+        </Button>
       </div>
 
-      <ScrollFade direction="vertical" className="min-h-0 flex-1">
-        {top ? top.node : <PageInfoPanel focusRequest={focusRequest} />}
+      <ScrollFade direction="vertical" className="min-h-0 flex-1 px-3 py-2">
+        {top ? top.node : <PageInfoPanel />}
       </ScrollFade>
     </div>
   );
