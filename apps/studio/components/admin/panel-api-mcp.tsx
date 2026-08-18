@@ -125,7 +125,7 @@ export function PanelApiMcp() {
             <h3 className="text-sm font-medium">{t("api_prompt_heading")}</h3>
             <CopyButton value={prompt} selectTargetId="panel-api-prompt" what={t("api_prompt_heading")} />
           </div>
-          <ScrollArea className="w-full max-w-full rounded-md bg-muted [&>[data-slot=scroll-area-viewport]]:max-w-full">
+          <ScrollArea className="-mx-2 w-[calc(100%+1rem)] max-w-none rounded-md bg-muted [&>[data-slot=scroll-area-viewport]]:max-w-full">
             <pre id="panel-api-prompt" className="w-max p-2 text-sm whitespace-pre text-muted-foreground">
               {prompt}
             </pre>
@@ -153,7 +153,7 @@ export function PanelApiMcp() {
             {curl ? <CopyButton value={curl} selectTargetId="panel-api-curl" what={t("api_rest_what")} /> : null}
           </div>
           {curl ? (
-            <ScrollArea className="w-full max-w-full rounded-md bg-muted [&>[data-slot=scroll-area-viewport]]:max-w-full">
+            <ScrollArea className="-mx-2 w-[calc(100%+1rem)] max-w-none rounded-md bg-muted [&>[data-slot=scroll-area-viewport]]:max-w-full">
               <pre id="panel-api-curl" className="w-max p-2 text-sm whitespace-pre text-muted-foreground">
                 {curl}
               </pre>
