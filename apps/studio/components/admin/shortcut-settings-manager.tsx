@@ -21,6 +21,26 @@ function emptyState(): PreferenceState {
   return Object.fromEntries(shortcutNames.map((name) => [name, null])) as PreferenceState;
 }
 
+function shortcutLabel(
+  t: ReturnType<typeof useT>,
+  name: ShortcutName,
+): string {
+  switch (name) {
+    case "search":
+      return t("shortcut_search");
+    case "back":
+      return t("shortcut_back");
+    case "save":
+      return t("shortcut_save_operation");
+    case "submit":
+      return t("shortcut_submit");
+    case "toggleLeftSidebar":
+      return t("shortcut_toggleLeftSidebar");
+    case "toggleRightSidebar":
+      return t("shortcut_toggleRightSidebar");
+  }
+}
+
 function comboFromEvent(event: KeyboardEvent<HTMLInputElement>, isMac: boolean): string | null {
   const key = event.key.toLowerCase();
   if (["control", "meta", "shift", "alt"].includes(key)) return null;
@@ -132,7 +152,7 @@ export function ShortcutSettingsManager() {
           const conflict = reserved.includes(draft[name].toLowerCase());
           return (
             <div key={name} className="grid gap-2">
-              <Label htmlFor={`shortcut-${name}`}>{t(`shortcut_${name}`)}</Label>
+              <Label htmlFor={`shortcut-${name}`}>{shortcutLabel(t, name)}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   id={`shortcut-${name}`}

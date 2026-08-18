@@ -3,6 +3,7 @@ import { getUserPreferences, setUserPreference } from "@/lib/auth/preferences";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 import { SHORTCUTS, type ShortcutName } from "@/components/admin/shortcuts";
+import { tiptapCombos } from "../../../../scripts/tiptap-combos.mjs";
 
 export const runtime = "nodejs";
 
@@ -14,9 +15,7 @@ function normalizeShortcut(value: string): string {
 }
 
 async function tiptapShortcuts(): Promise<Set<string>> {
-  const modulePath = new URL("../../../../scripts/tiptap-combos.mjs", import.meta.url);
-  const tiptapModule = (await import(modulePath.href)) as { tiptapCombos: () => { combos: Set<string> } };
-  return tiptapModule.tiptapCombos().combos;
+  return tiptapCombos().combos;
 }
 
 function shortcutName(key: string): ShortcutName {
