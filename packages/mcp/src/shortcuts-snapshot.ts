@@ -47,7 +47,7 @@ export type ShortcutSnapshot = {
 
 export const SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot[] = [
   {
-    "key": "mod+k",
+    "key": "unassigned-search",
     "action": "search",
     "scope": "global",
     "label_key": "common.shortcut_search",
@@ -56,7 +56,7 @@ export const SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot[] = [
     }
   },
   {
-    "key": "mod+arrowleft",
+    "key": "unassigned-back",
     "action": "back",
     "scope": "global",
     "label_key": "common.shortcut_back",
@@ -65,7 +65,7 @@ export const SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot[] = [
     }
   },
   {
-    "key": "mod+enter",
+    "key": "unassigned-save",
     "action": "save",
     "scope": [
       "page:/admin/collections/new",
@@ -89,15 +89,11 @@ export const SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot[] = [
     ],
     "label_key": "common.shortcut_save",
     "editor": {
-      "conflicts": true,
-      "owner": [
-        "@tiptap/core",
-        "@tiptap/extension-hard-break"
-      ]
+      "conflicts": false
     }
   },
   {
-    "key": "mod+shift+enter",
+    "key": "unassigned-submit",
     "action": "submit",
     "scope": [
       "page:/admin/reports/[id]"
@@ -108,19 +104,16 @@ export const SHORTCUTS_SNAPSHOT: readonly ShortcutSnapshot[] = [
     }
   },
   {
-    "key": "mod+b",
+    "key": "unassigned-toggle-left-sidebar",
     "action": "toggleLeftSidebar",
     "scope": "global",
     "label_key": "common.shortcut_toggle_left_sidebar",
     "editor": {
-      "conflicts": true,
-      "owner": [
-        "@tiptap/extension-bold"
-      ]
+      "conflicts": false
     }
   },
   {
-    "key": "mod+j",
+    "key": "unassigned-toggle-right-sidebar",
     "action": "toggleRightSidebar",
     "scope": "global",
     "label_key": "common.shortcut_toggle_right_sidebar",

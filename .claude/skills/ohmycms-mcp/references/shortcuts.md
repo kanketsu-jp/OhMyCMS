@@ -19,7 +19,7 @@
 ```json
 [
   {
-    "key": "mod+k",
+    "key": "unassigned-search",
     "action": "search",
     "scope": "global",
     "label_key": "common.shortcut_search",
@@ -28,7 +28,7 @@
     }
   },
   {
-    "key": "mod+arrowleft",
+    "key": "unassigned-back",
     "action": "back",
     "scope": "global",
     "label_key": "common.shortcut_back",
@@ -37,7 +37,7 @@
     }
   },
   {
-    "key": "mod+enter",
+    "key": "unassigned-save",
     "action": "save",
     "scope": [
       "page:/admin/collections/new",
@@ -61,15 +61,11 @@
     ],
     "label_key": "common.shortcut_save",
     "editor": {
-      "conflicts": true,
-      "owner": [
-        "@tiptap/core",
-        "@tiptap/extension-hard-break"
-      ]
+      "conflicts": false
     }
   },
   {
-    "key": "mod+shift+enter",
+    "key": "unassigned-submit",
     "action": "submit",
     "scope": [
       "page:/admin/reports/[id]"
@@ -80,19 +76,16 @@
     }
   },
   {
-    "key": "mod+b",
+    "key": "unassigned-toggle-left-sidebar",
     "action": "toggleLeftSidebar",
     "scope": "global",
     "label_key": "common.shortcut_toggle_left_sidebar",
     "editor": {
-      "conflicts": true,
-      "owner": [
-        "@tiptap/extension-bold"
-      ]
+      "conflicts": false
     }
   },
   {
-    "key": "mod+j",
+    "key": "unassigned-toggle-right-sidebar",
     "action": "toggleRightSidebar",
     "scope": "global",
     "label_key": "common.shortcut_toggle_right_sidebar",
@@ -135,8 +128,10 @@
 「押せないボタンの働きを鍵から起こさない」）。
 🚨 **モードだけでなく「保存できる状態か」でも変わります。**
 
-🚨 **保存を止めている画面は 2 件**（0 件なら拾い方が壊れています。この生成器が落ちます）:
+🚨 **保存を止めている画面は 4 件**（0 件なら拾い方が壊れています。この生成器が落ちます）:
 
+- `/admin/settings/general` … 押せない条件: `!dirty`
+- `/admin/settings/policies` … 押せない条件: `!name.trim()`
 - `/admin/settings/sso` … 押せない条件: `!ready`
 - `/admin/settings/storage` … 押せない条件: `!dirty`
 
