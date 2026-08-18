@@ -121,7 +121,7 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                       🚨 **ボタンの中に置く**。外に出すと押せる範囲が2つに割れて見える。 */}
                   <SlashIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
                   {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
-                  <BreadcrumbPage title={currentLabel} className="block min-w-0 truncate">
+                  <BreadcrumbPage title={currentLabel} className="block min-w-0 truncate rounded-md">
                     {shorten(currentLabel)}
                   </BreadcrumbPage>
                 </Button>
@@ -216,7 +216,7 @@ export function Breadcrumbs({ brand }: { brand: string }) {
                 正しい振る舞い**だから。消すと、開くものが無いのにボタンを出すことになる。
                 （転送をやめた時・`/admin` 以外でパンくずを使った時に、そのまま表に出る） */}
             {/* 畳んだときに全体が読めるよう、元の名前を title に残す。 */}
-            <BreadcrumbPage title={currentLabel} className="truncate">
+            <BreadcrumbPage title={currentLabel} className="truncate rounded-md">
               {shorten(currentLabel)}
             </BreadcrumbPage>
           </BreadcrumbItem>

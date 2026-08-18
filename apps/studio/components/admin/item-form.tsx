@@ -162,6 +162,7 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
         const ui = resolveFieldInterface(field);
         const widthClass = ui === "json" ? "md:max-w-2xl" : fieldWidthClass(field);
         const inputValue = field.type === "dateTime" ? dateTimeValue(value) : valueForInput(value);
+        const displayEmpty = !editing && isEmptyFieldValue(value, ui);
         const emptyFieldClass =
           editing && isEmptyFieldValue(value, ui)
             ? "border border-dashed border-muted-foreground/60 bg-muted/20 p-1"
@@ -206,7 +207,9 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
               ) : null}
             </div>
             <div className={`${widthClass} ${emptyFieldClass}`}>
-              {ui === "file" && !pkReadonly ? (
+              {displayEmpty ? (
+                <FieldValue id={fieldName}>{tCommon("not_set")}</FieldValue>
+              ) : ui === "file" && !pkReadonly ? (
                 <FilePicker
                   inputId={fieldName}
                   name={fieldName}
