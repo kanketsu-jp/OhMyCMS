@@ -17,6 +17,16 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLocale, useT } from "@/i18n/client";
 import { fieldLabel } from "@/lib/schema/labels";
+import { FilesViewOptions } from "@/components/admin/files-view-options";
+import { FilesViewSwitch } from "@/components/admin/files-view-switch";
+import {
+  CARD_COLUMN_CHOICES,
+  FILE_COLUMNS,
+  readCardColumns,
+  readColumns,
+  type CardColumns,
+  type FileColumn,
+} from "@/lib/admin/files-view";
 
 /**
  * 右サイドバー ③「表示・切り替え」の中身。
@@ -67,10 +77,17 @@ function fieldNames(fields: readonly FieldResult[]): string[] {
 }
 
 export function PanelDisplay() {
-  const locale = useLocale();
   const t = useT("panel");
   const pathname = usePathname();
   const collection = collectionFromPathname(pathname);
+
+  if (pathname === "/admin/files") {
+    return (
+      <PanelSection value="display" title={t("display")}>
+        <FilesPanelDisplay />
+      </PanelSection>
+    );
+  }
 
   if (collection === null) return null;
 
@@ -78,6 +95,52 @@ export function PanelDisplay() {
     <PanelSection value="display" title={t("display")}>
       <PanelDisplayControls collection={collection} pathname={pathname} />
     </PanelSection>
+  );
+}
+
+function FilesPanelDisplay() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const view = searchParams.get("view") === "table" ? "table" : "grid";
+  const columns = readColumns(searchParams.get("cols") ?? undefined);
+  const cardColumns = readCardColumns(searchParams.get("cards") ?? undefined);
+
+  const hrefWithQuery = (key: string, value: string | null): string => {
+    const next = new URLSearchParams(searchParams);
+    if (value === null) next.delete(key);
+    else next.set(key, value);
+    next.delete("page");
+    const query = next.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  };
+
+  const columnHref = Object.fromEntries(
+    FILE_COLUMNS.map((column) => {
+      const next = columns.includes(column)
+        ? columns.filter((one) => one !== column)
+        : FILE_COLUMNS.filter((one) => columns.includes(one) || one === column);
+      return [column, hrefWithQuery("cols", next.join(","))];
+    }),
+  ) as Record<FileColumn, string>;
+
+  const gridCardColumnsHref = Object.fromEntries(
+    CARD_COLUMN_CHOICES.map((count) => [count, hrefWithQuery("cards", String(count))]),
+  ) as Record<CardColumns, string>;
+
+  const tableHref = hrefWithQuery("view", "table");
+  const gridHref = hrefWithQuery("view", null);
+
+  return (
+    <div className="flex max-w-full flex-col gap-4 overflow-x-auto">
+      <FilesViewSwitch
+        view={view}
+        tableHref={tableHref}
+        gridHref={gridHref}
+        cardColumns={cardColumns}
+        gridCardColumnsHref={gridCardColumnsHref}
+      />
+      <FilesViewOptions view={view} columns={columns} columnHref={columnHref} />
+    </div>
   );
 }
 

@@ -5,18 +5,12 @@ import { FilesDropUpload } from "@/components/admin/files-drop-upload";
 import { FilesLightboxGrid } from "@/components/admin/files-lightbox-grid";
 import { FilesPageMenu } from "@/components/admin/files-page-menu";
 import { FilesTable } from "@/components/admin/files-table";
-import { FilesViewOptions } from "@/components/admin/files-view-options";
-import { FilesViewSwitch } from "@/components/admin/files-view-switch";
 import { FolderGrid } from "@/components/admin/folder-grid";
 import { HeaderSearch } from "@/components/admin/header-search";
 import {
-  CARD_COLUMN_CHOICES,
-  FILE_COLUMNS,
   cardGridClass,
   readCardColumns,
   readColumns,
-  type CardColumns,
-  type FileColumn,
 } from "@/lib/admin/files-view";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { ListPagination } from "@/components/admin/list-pagination";
@@ -149,58 +143,6 @@ export default async function FilesPage({ searchParams }: Props) {
   const columns = readColumns(query.cols);
   const cardColumns = readCardColumns(query.cards);
 
-  /** 1 つのクエリだけ差し替えた行き先（他は保つ）。🚨 `viewHref` と同じ形。 */
-  const withQuery = (key: string, value: string | null): string => {
-    const params = new URLSearchParams();
-    for (const [name, raw] of Object.entries(query)) {
-      if (name === key || raw === undefined) continue;
-      for (const one of Array.isArray(raw) ? raw : [raw]) {
-        if (one !== "") params.append(name, one);
-      }
-    }
-    // 🚨 `null` は「そのクエリを消す」。**空文字は消さない**——
-    //    `?cols=` は「全部外した」という指定で、消すと既定へ戻ってしまう。
-    if (value !== null) params.set(key, value);
-    const search = params.toString();
-    return search ? `/admin/files?${search}` : "/admin/files";
-  };
-
-  /**
-   * その列を**入れ替えた**ときの行き先。
-   * 🚨 **関数ではなく表で渡す**（サーバ側の描画から関数は渡せない）。
-   */
-  const columnHref = Object.fromEntries(
-    FILE_COLUMNS.map((column) => {
-      const next = columns.includes(column)
-        ? columns.filter((one) => one !== column)
-        : FILE_COLUMNS.filter((one) => columns.includes(one) || one === column);
-      return [column, withQuery("cols", next.join(","))];
-    }),
-  ) as Record<FileColumn, string>;
-
-  const gridCardColumnsHref = Object.fromEntries(
-    CARD_COLUMN_CHOICES.map((count) => {
-      const [path, search = ""] = withQuery("cards", String(count)).split("?");
-      const params = new URLSearchParams(search);
-      params.delete("view");
-      const next = params.toString();
-      return [count, next ? `${path}?${next}` : path];
-    }),
-  ) as Record<CardColumns, string>;
-
-  const viewHref = (target: "grid" | "table"): string => {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(query)) {
-      if (key === "view" || value === undefined) continue;
-      for (const one of Array.isArray(value) ? value : [value]) {
-        if (one !== "") params.append(key, one);
-      }
-    }
-    if (target === "table") params.set("view", "table");
-    const search = params.toString();
-    return search ? `/admin/files?${search}` : "/admin/files";
-  };
-
   // 🚨 全件は取らない（憲章 §4）。1件だけ多く取って「次があるか」を判定し、描くときに切り落とす。
   // COUNT(*) は撃たない。総件数はこの画面では使わない。
   const params = new URLSearchParams({
@@ -312,25 +254,7 @@ export default async function FilesPage({ searchParams }: Props) {
         <FilesDropUpload folder={currentFolderId}>
         <FilesPageMenu newFileHref={newFileHref} newFolderHref={newFolderHref}>
         <Surface>
-          <div className="flex items-center justify-between gap-3">
-        {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
-            見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
-            辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
-            <div className="flex items-center gap-1">
-              <FilesViewSwitch
-                view={view}
-                tableHref={viewHref("table")}
-                cardColumns={cardColumns}
-                gridCardColumnsHref={gridCardColumnsHref}
-              />
-              <FilesViewOptions
-                view={view}
-                columns={columns}
-                columnHref={columnHref}
-              />
-            </div>
-          </div>
-          {/* 🚨 絞り込み中であることと、**解除の出口**を必ず出す。
+           {/* 🚨 絞り込み中であることと、**解除の出口**を必ず出す。
               出さないと「ファイルが減った」ように見えて、戻し方が分からない。 */}
           {activeLabel ? (
             <p className="text-base text-muted-foreground">

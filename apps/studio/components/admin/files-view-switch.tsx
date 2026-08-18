@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { List } from "lucide-react";
+import { Grid2X2, List } from "lucide-react";
 
 import {
   Select,
@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 export function FilesViewSwitch({
   view,
   tableHref,
+  gridHref,
   cardColumns,
   gridCardColumnsHref,
 }: {
@@ -42,6 +43,7 @@ export function FilesViewSwitch({
    *    （境界を越えられず 500 になる。実際に踏んだ）。
    */
   tableHref: string;
+  gridHref: string;
   cardColumns: CardColumns;
   gridCardColumnsHref: Record<CardColumns, string>;
 }) {
@@ -75,6 +77,18 @@ export function FilesViewSwitch({
           </SelectContent>
         </Select>
       </span>
+      <Link
+        href={gridHref}
+        aria-current={view === "grid" ? "true" : undefined}
+        aria-label={t("view_grid")}
+        title={t("view_grid")}
+        className={cn(
+          "inline-flex size-8 items-center justify-center rounded-md",
+          view === "grid" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground active:text-foreground",
+        )}
+      >
+        <Grid2X2 className="size-4" />
+      </Link>
       <Link
         href={tableHref}
         // 🚨 いまの見え方を読み上げにも伝える。見た目の色だけだと、目で見ない人に分からない。
