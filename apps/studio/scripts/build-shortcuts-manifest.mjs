@@ -58,6 +58,7 @@ import { tiptapCombos } from "./tiptap-combos.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const AS_JSON = process.argv.includes("--json");
+const AS_JSON_WITH_ENTRIES = process.argv.includes("--json-with-entries");
 // 🚨 **生成物は、更新しないと腐る**（今日の⑤「古くなったら鳴る」）。
 //    → `--write` で書き、既定では**書いてあるものと突き合わせて、ずれていたら落とす**。
 //    先例: `check-mcp-catalog.mjs`（**写しを置き、ずれたら落ちる検査を付ける**）。
@@ -150,12 +151,15 @@ for (const file of sources) {
 // ── ③ 入口（layout と各 page）からの到達 ─────────────────────────────
 const layoutFile = resolve(root, "app/(admin)/layout.tsx");
 const layoutReach = existsSync(layoutFile) ? reachableFrom(layoutFile) : new Set();
+const layoutRead = readSrc(layoutFile) !== null;
 const pages = trackedGlob("app/(admin)/**/page.tsx", { cwd: root })
   .map((rel) => ({
     route: `/${rel.replace(/^app\/\(admin\)\//, "").replace(/\/page\.tsx$/, "")}`,
     file: resolve(root, rel),
   }));
 const pageReach = pages.map((p) => ({ ...p, reach: reachableFrom(p.file) }));
+const pagesRead = pages.filter((p) => readSrc(p.file) !== null).length;
+const entryCount = (layoutRead ? 1 : 0) + pagesRead;
 
 // ── ④ `save` の追加条件（PAGE_ACTIONS の「主要かつ submit」） ────────
 const actionsSrc = stripComments(readSrc(resolve(root, "lib/admin/page-actions.ts")) ?? "");
@@ -265,9 +269,11 @@ const manifest = combos.filter(({ key }) => key.length > 0).map(({ id, key }) =>
 });
 
 if (AS_JSON) {
-  console.log(JSON.stringify(
-    manifest.map(({ _why, _label_exists, _registrar, ...rest }) => rest), null, 2,
-  ));
+  const output = manifest.map(({ _why, _label_exists, _registrar, ...rest }) => rest);
+  console.log(JSON.stringify(AS_JSON_WITH_ENTRIES ? {
+    shortcuts: output,
+    entries: { layout: layoutRead ? 1 : 0, pages: pagesRead, total: entryCount },
+  } : output, null, 2));
 }
 
 // ── ⑦ 自己検査（司令塔が決めた受入 4 点） ────────────────────────────

@@ -413,18 +413,26 @@ const serverText = SERVER_FILES.filter((f) => isTracked(f))
     let raw = "";
     let generatorExit = 0;
     try {
-      raw = execFileSync("node", [join(HERE, "build-shortcuts-manifest.mjs"), "--json"], { encoding: "utf8" });
+      raw = execFileSync("node", [join(HERE, "build-shortcuts-manifest.mjs"), "--json", "--json-with-entries"], { encoding: "utf8" });
     } catch (error) {
       raw = error.stdout ?? "";
       generatorExit = error.status ?? 1;
     }
     let live;
+    let entries;
     try {
-      live = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      live = parsed?.shortcuts;
+      entries = parsed?.entries;
     } catch {
       console.error("🚨 ショートカットの生成器から JSON を取れませんでした。**「ずれ無し」ではなく「測れていません」です。**");
       console.error(`   生成器の終了コード: ${generatorExit} ／ 出力の先頭: ${JSON.stringify(raw.slice(0, 80))}`);
       console.error("   → `node scripts/build-shortcuts-manifest.mjs --json` を直に走らせてください。");
+      process.exit(1);
+    }
+    if (!Array.isArray(live) || !entries || !Number.isInteger(entries.total)) {
+      console.error("🚨 ショートカットの生成器から、入口数を含む JSON を取れませんでした。**測れていません**");
+      console.error("   → `node scripts/build-shortcuts-manifest.mjs --json --json-with-entries` を直に走らせてください。");
       process.exit(1);
     }
     // 🚨 JSON は取れたが生成器が落ちている ＝ **polish 側の別件**。
@@ -435,11 +443,13 @@ const serverText = SERVER_FILES.filter((f) => isTracked(f))
           "\n     🚨 これは **build-shortcuts-manifest.mjs 側（polish）の別件**で、この写しのずれではありません。",
       );
     }
-    // 🚨 **0 件は失敗**（空の一覧を「全部 global」と読ませない・司令塔 2026-08-16）。
-    if (!Array.isArray(live) || live.length === 0) {
-      console.error("🚨 ショートカットを 1 件も導出できませんでした。**「無い」ではなく「見ていない」です。**");
+    // 🚨 **入口 0 本は失敗**（空の一覧を「全部 global」と読ませない）。
+    //    ショートカット 0 件は正常な初期状態なので、入口の実測と分けて判定する。
+    if (entries.total === 0) {
+      console.error("🚨 入口を 1 本も読めませんでした。**ショートカットが無いのではなく、見ていない 0 です。**");
       process.exit(1);
     }
+    console.log(`  ショートカット ${live.length} 件（入口 ${entries.total} 本: layout ${entries.layout} + page ${entries.pages}）`);
     // 🚨 **`--write` なら、ここで写しも作り直す（そして続行する）。**
     //    以前は「作り直して配列へ入れ直してください」と**手作業を案内**していた。
     //    生成器（polish の持ち物）の形が変わった瞬間に**全員のコミットが止まり**、
@@ -533,9 +543,13 @@ const serverText = SERVER_FILES.filter((f) => isTracked(f))
       process.exit(1);
     }
     // 🚨 **数だけ出さない。実物を 1 本添える**（抽出が正気かをその場で確かめられるように）。
-    const sample = live[0];
     console.log(`  ショートカット ${live.length} 件 — 正と写しが一致 ／ scope を導出できなかったもの: ${unknown} 件`);
-    console.log(`     例 ${sample.key} → ${sample.action} / scope=${JSON.stringify(sample.scope).slice(0, 60)}`);
+    if (live.length > 0) {
+      const sample = live[0];
+      console.log(`     例 ${sample.key} → ${sample.action} / scope=${JSON.stringify(sample.scope).slice(0, 60)}`);
+    } else {
+      console.log("     0 件でした（入口は上記のとおり読めています）");
+    }
     }
   }
 
@@ -706,7 +720,7 @@ if (!WRITE) {
     //    「**写しがずれた**」＝ **この検査の存在理由そのもの**だった。
     //    🚨 これは【鳴る】。**数が合わなければ落ちる**（＝足したことに気づける）。
     //    通っていることまでは保証しない（**通したかは人が台で確かめる**）。
-    const EXIT_BRANCHES = 17;
+    const EXIT_BRANCHES = 18;
     const branches = (self.match(/process\.exit\(1\)/g) ?? []).length;
     if (branches !== EXIT_BRANCHES) {
       console.error(`🚨 落ちる分岐の数が変わりました（記録 ${EXIT_BRANCHES} → いま ${branches}）。`);
