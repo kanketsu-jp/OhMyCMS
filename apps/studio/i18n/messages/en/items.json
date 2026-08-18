@@ -73,4 +73,15 @@
   "list_description": "Browse and search this collection's items, and open one to edit it.",
   "value_fields_count": "{count} fields",
   "value_list_count": "{count} items"
+  ,"bulk_selected": "{count} selected"
+  ,"bulk_clear": "Clear selection"
+  ,"bulk_options": "Selected item actions"
+  ,"bulk_delete": "Delete selected items"
+  ,"bulk_select_all": "Select all"
+  ,"bulk_clear_all": "Clear all"
+  ,"bulk_select_row": "Select this item"
+  ,"bulk_confirm_title": "Delete selected items?"
+  ,"bulk_confirm": "This will delete {count} items. Continue?"
+  ,"bulk_partial": "Failed to delete {failed} of {total} items."
+  ,"bulk_limit": "You can delete up to {count} items at once."
 }

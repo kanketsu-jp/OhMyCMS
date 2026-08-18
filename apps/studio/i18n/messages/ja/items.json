@@ -73,4 +73,15 @@
   "list_description": "このコレクションの項目を一覧・検索し、開いて編集できます。",
   "value_fields_count": "{count} 項目",
   "value_list_count": "{count} 件"
+  ,"bulk_selected": "{count} 件選択中"
+  ,"bulk_clear": "選択を解除"
+  ,"bulk_options": "選択した項目の操作"
+  ,"bulk_delete": "選択した項目を削除"
+  ,"bulk_select_all": "すべて選ぶ"
+  ,"bulk_clear_all": "すべて解除"
+  ,"bulk_select_row": "この項目を選ぶ"
+  ,"bulk_confirm_title": "選択した項目を削除しますか"
+  ,"bulk_confirm": "{count} 件を削除します。続けますか。"
+  ,"bulk_partial": "{total} 件中 {failed} 件の削除に失敗しました。"
+  ,"bulk_limit": "一度に削除できる上限は {count} 件です。"
 }

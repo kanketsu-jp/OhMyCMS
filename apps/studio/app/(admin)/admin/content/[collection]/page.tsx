@@ -16,6 +16,7 @@ import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RowOptions } from "@/components/admin/row-options";
+import { ItemBulkCheckbox, ItemBulkSelectAll, ItemBulkSelection } from "@/components/admin/item-bulk-selection";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getLocale, getT } from "@/i18n/server";
 import { resolveCalendarField, resolveCalendarMonth } from "@/lib/admin/calendar-field";
@@ -447,8 +448,12 @@ export default async function ContentPage({ params, searchParams }: Props) {
               ) : null}
             </div>
           ) : null}
-          {itemsResult.ok ? (
-            <>
+           {itemsResult.ok ? (
+             <ItemBulkSelection
+               collection={collection}
+               ids={itemsResult.data.data.map((item) => String(item[pk] ?? ""))}
+             >
+             <>
               <div data-list-layout={layout}>
                 {layout === "cards" ? (
                   <ItemCards
@@ -475,7 +480,8 @@ export default async function ContentPage({ params, searchParams }: Props) {
                           {/* 🚨 欄名は辞書を通す（設問286 A）。辞書が無ければ fieldLabel が
                               生の識別子に落ちるので、名前を付けるまで表示は変わらない。
                               各所で `?? field.field` と書くと必ず割れるので、必ずこの関数を通す。 */}
-                          {columns.map((field) => {
+                           <TableHead className="w-8"><ItemBulkSelectAll /></TableHead>
+                           {columns.map((field) => {
                             const sortable = isSortableField(field);
                             const active = activeSort?.field === field.field ? activeSort.direction : null;
                             return (
@@ -512,20 +518,23 @@ export default async function ContentPage({ params, searchParams }: Props) {
                               </TableHead>
                             );
                           })}
-                          <TableHead className="w-44">{t("actions_header")}</TableHead>
+                            <TableHead className="w-44">{t("actions_header")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {itemsResult.data.data.map((item, index) => {
                           const id = String(item[pk] ?? "");
-                          return (
-                            <ClickableRow key={id || index} href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}>
-                              {columns.map((field) => (
+                           return (
+                             <ClickableRow key={id || index} href={`/admin/content/${encoded}/${encodeURIComponent(id)}`}>
+                               <TableCell className="w-8" onClick={(event) => event.stopPropagation()}>
+                                 <ItemBulkCheckbox id={id} />
+                               </TableCell>
+                                {columns.map((field) => (
                                 <TableCell key={field.field} className="max-w-64 truncate">
                                   <FieldDisplay field={field} value={item[field.field]} lookup={lookup} />
                                 </TableCell>
                               ))}
-                              <TableCell>
+                               <TableCell>
                                 {/* 🚨 行の操作が 2 つ以上なら、破壊的なほうは ▾ の中へ
                                     （`knowledge/decisions/action-button-and-edit-mode.md`）。
                                     🚨 form は**残す**。`RowOptions` の `formId` が指す相手そのもので、
@@ -611,8 +620,9 @@ export default async function ContentPage({ params, searchParams }: Props) {
                   </Link>
                 </div>
               </div>
-            </>
-          ) : null}
+             </>
+             </ItemBulkSelection>
+           ) : null}
         </Surface>
       </div>
     </>
