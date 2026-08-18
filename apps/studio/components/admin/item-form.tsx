@@ -50,6 +50,30 @@ function isGeneratedPrimaryUuid(field: FieldResult): boolean {
   return field.type === "uuid" && field.schema?.is_primary_key === true;
 }
 
+function isEmptyFieldValue(value: unknown, ui: string): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") {
+    if (value.trim() === "") return true;
+    if (ui === "richtext") {
+      try {
+        const parsed: unknown = JSON.parse(value);
+        return isEmptyRichTextDocument(parsed);
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+  if (ui === "richtext") return isEmptyRichTextDocument(value);
+  return false;
+}
+
+function isEmptyRichTextDocument(value: unknown): boolean {
+  if (!value || typeof value !== "object" || !("content" in value)) return false;
+  const content = (value as { content?: unknown }).content;
+  return Array.isArray(content) && content.length === 0;
+}
+
 
 /**
  * アイテムの新規作成・表示・編集を同じフォームで扱う部品。
@@ -138,6 +162,10 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
         const ui = resolveFieldInterface(field);
         const widthClass = ui === "json" ? "md:max-w-2xl" : fieldWidthClass(field);
         const inputValue = field.type === "dateTime" ? dateTimeValue(value) : valueForInput(value);
+        const emptyFieldClass =
+          editing && isEmptyFieldValue(value, ui)
+            ? "border border-dashed border-muted-foreground/60 bg-muted/20 p-1"
+            : "";
         // 🚨 `pkReadonly` のときだけ。**表示モードで全部の欄にコピーボタンを出さない**
         //    （出すと画面が賑やかになり、「この欄だけ特別」という元の意味も消える）。
         const canCopyReadonly =
@@ -177,7 +205,7 @@ export function ItemForm({ collection, fields, itemId, item }: Props) {
                 />
               ) : null}
             </div>
-            <div className={widthClass}>
+            <div className={`${widthClass} ${emptyFieldClass}`}>
               {ui === "file" && !pkReadonly ? (
                 <FilePicker
                   inputId={fieldName}
