@@ -281,11 +281,14 @@ export type PublicFileRow = Omit<FileRow, "compressed_key" | "deleted_at"> & {
 };
 
 /**
- * 🚨 **`compressed_key` を落とす唯一の場所。ここが守り手そのもの。**
+ * 🚨 **API に返さない列を落とす唯一の場所。ここが守り手そのもの。**
  * この関数の中の `as` は**意図した1箇所**で、外に増やさないこと。
  */
-function toPublicFile(row: FileRow): PublicFileRow {
-  // compressed_key だけを落とす（他の列は今までどおり返す）。
+function toPublicFile(
+  row: FileRow,
+  allowedFields: PermissionResolution["allowedFields"] = "*",
+): PublicFileRow {
+  // 内部列と、呼び出し元の列権限で許可されていない列を落とす。
   const publicFields: Omit<FileRow, "compressed_key" | "deleted_at"> & { compressed_key?: string | null; deleted_at?: string | null } = {
     ...row,
   };
@@ -293,6 +296,12 @@ function toPublicFile(row: FileRow): PublicFileRow {
   // 🚨 **型で外しただけでは消えない**（このファイルの上に「型は守り手ではない」と書いてある）。
   //    実行時にも落とす。落とさないと `{ ...row }` でそのまま外へ出る。
   delete publicFields.deleted_at;
+  if (allowedFields !== "*") {
+    const allowed = new Set(allowedFields);
+    for (const field of Object.keys(publicFields)) {
+      if (!allowed.has(field)) delete publicFields[field as keyof typeof publicFields];
+    }
+  }
   return publicFields as PublicFileRow;
 }
 
@@ -562,6 +571,9 @@ async function storageForRow(row: FileRow): Promise<StorageDriver> {
 }
 
 export async function uploadFile(actor: Actor | null, input: UploadFileInput): Promise<PublicFileRow> {
+  // 初期設定の setup session は actor=null で通す。それ以外の入口は、directus_files
+  // の create 権限をここで統一して確認する（files API / Drive import / onboarding）。
+  if (actor) await permissionForAction(actor, "directus_files", "create");
   if (input.body.byteLength > maxUploadBytes()) {
     throw new ApiError(413, "FILE_TOO_LARGE", `ファイルサイズは${maxUploadMb()}MB以下にしてください`);
   }
@@ -723,14 +735,17 @@ export async function listFiles(actor: Actor, input: ListInput): Promise<PublicF
     });
   }
   applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
-  return (await query).map(toPublicFile);
+  return (await query).map((row) => toPublicFile(row, permission.allowedFields));
 }
 
 export async function getFile(actor: Actor, id: string): Promise<PublicFileRow> {
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_files", "read");
   const relations = permission.rowFilter ? await relationRows() : [];
-  return toPublicFile(await findFile(id, permission.rowFilter, schemaOverview, relations));
+  return toPublicFile(
+    await findFile(id, permission.rowFilter, schemaOverview, relations),
+    permission.allowedFields,
+  );
 }
 
 export async function updateFile(
