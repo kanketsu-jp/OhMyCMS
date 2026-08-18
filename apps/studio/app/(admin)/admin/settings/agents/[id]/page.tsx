@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { DetailFields } from "@/components/admin/detail-fields";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -75,23 +76,21 @@ export default async function AgentDetailPage({ params }: Props) {
       {agent ? (
         <Surface>
           <SurfaceTitle>{agent.name}</SurfaceTitle>
-          <dl className="grid gap-3 text-sm sm:grid-cols-[10rem_1fr]">
-            <dt className="text-muted-foreground">{t("state_label")}</dt>
-            <dd>{t(`state_${state}`)}</dd>
-            <dt className="text-muted-foreground">{t("created_at_label")}</dt>
-            <dd>{format.dateTime(new Date(agent.created_at))}</dd>
-            <dt className="text-muted-foreground">{t("expires_at_label")}</dt>
-            <dd>{format.dateTime(new Date(agent.expires_at))}</dd>
-            <dt className="text-muted-foreground">{t("revoked_at_label")}</dt>
-            {/* 🚨 失効していないことを空欄にしない。「していません」と書く。 */}
-            <dd>
-              {agent.revoked_at === null
-                ? t("not_revoked")
-                : format.dateTime(new Date(agent.revoked_at))}
-            </dd>
-            <dt className="text-muted-foreground">{t("origin_label")}</dt>
-            <dd>{agent.origin ?? t("no_origin")}</dd>
-          </dl>
+          <DetailFields
+            fields={[
+              { label: t("state_label"), value: t(`state_${state}`) },
+              { label: t("created_at_label"), value: format.dateTime(new Date(agent.created_at)) },
+              { label: t("expires_at_label"), value: format.dateTime(new Date(agent.expires_at)) },
+              {
+                label: t("revoked_at_label"),
+                value:
+                  agent.revoked_at === null
+                    ? t("not_revoked")
+                    : format.dateTime(new Date(agent.revoked_at)),
+              },
+              { label: t("origin_label"), value: agent.origin ?? t("no_origin") },
+            ]}
+          />
           {/* 🚨 **見えないものを、見えないと書く。** 探させない。 */}
         <p className="mt-4 text-base text-muted-foreground">{t("detail_no_token_note")}</p>
         </Surface>

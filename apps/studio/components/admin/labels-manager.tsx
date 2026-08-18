@@ -240,7 +240,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
           <ListEmpty>{t("empty")}</ListEmpty>
         ) : (
           // 1行はラベル名と補助操作だけなので、表ではなく名前中心のリストにする。
-          <ul className="divide-y">
+          <ul className="space-y-2">
             {labels.map((label) => (
               <li key={label.id} className="flex items-center gap-3 py-2">
                 <Tag

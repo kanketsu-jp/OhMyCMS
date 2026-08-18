@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { DetailFields } from "@/components/admin/detail-fields";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -79,23 +80,20 @@ export default async function UserDetailPage({ params }: Props) {
           {/* 🚨 名前が無い人が居る（SSO で来ると空のことが在る）。**メールを見出しにする**——
               **必ず在るもの**を見出しにしないと、見出しが空の画面ができる。 */}
           <SurfaceTitle>{user.email}</SurfaceTitle>
-          <dl className="grid gap-3 text-sm sm:grid-cols-[10rem_1fr]">
-            <dt className="text-muted-foreground">{t("name_label")}</dt>
-            {/* 🚨 空を空白で出さない。「無い」と書く。 */}
-            <dd>{name === "" ? t("no_name") : name}</dd>
-            <dt className="text-muted-foreground">{t("status_label")}</dt>
-            <dd>{user.status}</dd>
-            <dt className="text-muted-foreground">{t("provider_label")}</dt>
-            {/* 🚨 `provider` は「どの入口から入った人か」。空なら「不明」ではなく「未設定」。
-                **測っていないことと、値が無いことを混ぜない**。 */}
-            <dd>{user.provider ?? t("no_provider")}</dd>
-            <dt className="text-muted-foreground">{t("last_access_label")}</dt>
-            <dd>
-              {user.last_access === null
-                ? t("never_accessed")
-                : format.dateTime(new Date(user.last_access))}
-            </dd>
-          </dl>
+          <DetailFields
+            fields={[
+              { label: t("name_label"), value: name === "" ? t("no_name") : name },
+              { label: t("status_label"), value: user.status },
+              { label: t("provider_label"), value: user.provider ?? t("no_provider") },
+              {
+                label: t("last_access_label"),
+                value:
+                  user.last_access === null
+                    ? t("never_accessed")
+                    : format.dateTime(new Date(user.last_access)),
+              },
+            ]}
+          />
           {/* 🚨 **できないことを、その場に書く。** 編集の場所を探させない。 */}
           <p className="mt-4 text-base text-muted-foreground">{t("detail_read_only_note")}</p>
         </Surface>

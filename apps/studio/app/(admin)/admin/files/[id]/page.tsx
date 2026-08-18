@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { DetailFields } from "@/components/admin/detail-fields";
 import { FileDetailManager } from "@/components/admin/file-detail-manager";
 import { FileLabelsEditor, type LabelRow } from "@/components/admin/file-labels-editor";
 import { FilePreviewLightbox } from "@/components/admin/file-preview-lightbox";
@@ -123,23 +124,35 @@ export default async function FileDetailPage({ params }: Props) {
                 </div>
               )}
             </div>
-            <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-muted-foreground">{t("id_label")}</dt>
-                <dd className="mt-1 flex flex-wrap items-center gap-2">
-                  <span id="file-detail-id" className="break-all">{file.id}</span>
-                   <CopyButton what={t("id_label")} value={file.id} selectTargetId="file-detail-id" data-copy-target="file-detail-id" />
-                </dd>
-              </div>
-              <div><dt className="text-muted-foreground">{t("type_label")}</dt><dd>{file.type ?? ""}</dd></div>
-              <div><dt className="text-muted-foreground">{t("size_label")}</dt><dd>{format.fileSize(file.filesize)}</dd></div>
-              <div><dt className="text-muted-foreground">{t("dimensions_label")}</dt><dd>{file.width && file.height ? `${file.width} x ${file.height}` : "-"}</dd></div>
-               <div><dt className="text-muted-foreground">{t("uploaded_on")}</dt><dd>{format.dateTime(file.uploaded_on)}</dd></div>
-               <div>
-                 <dt className="text-muted-foreground">{t("access_label")}</dt>
-                  <dd>{t(`access_${file.visibility}`)}</dd>
-               </div>
-            </dl>
+            <div className="mt-4">
+              <DetailFields
+                columns={2}
+                fields={[
+                   {
+                     label: t("id_label"),
+                     value: (
+                       <span className="flex flex-wrap items-center gap-2">
+                         <span id="file-detail-id" className="break-all">{file.id}</span>
+                         <CopyButton
+                           what={t("id_label")}
+                           value={file.id}
+                           selectTargetId="file-detail-id"
+                           data-copy-target="file-detail-id"
+                         />
+                       </span>
+                     ),
+                   },
+                   { label: t("type_label"), value: file.type ?? "" },
+                   { label: t("size_label"), value: format.fileSize(file.filesize) },
+                   {
+                     label: t("dimensions_label"),
+                     value: file.width && file.height ? `${file.width} x ${file.height}` : "-",
+                   },
+                   { label: t("uploaded_on"), value: format.dateTime(file.uploaded_on) },
+                   { label: t("access_label"), value: t(`access_${file.visibility}`) },
+                ]}
+              />
+            </div>
           </Surface>
           <Surface>
             <SurfaceTitle>{t("metadata_title")}</SurfaceTitle>

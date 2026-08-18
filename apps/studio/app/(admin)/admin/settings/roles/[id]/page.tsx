@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { DetailFields } from "@/components/admin/detail-fields";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -55,15 +56,13 @@ export default async function RoleDetailPage({ params }: Props) {
       {role ? (
         <Surface>
           <SurfaceTitle>{role.name}</SurfaceTitle>
-          <dl className="grid gap-3 text-sm sm:grid-cols-[10rem_1fr]">
-            <dt className="text-muted-foreground">{t("name_label")}</dt>
-            <dd>{role.name}</dd>
-            <dt className="text-muted-foreground">{t("description_label")}</dt>
-            {/* 🚨 空を空白で出さない。「無い」と書く（`no_description` は既に辞書に在る）。 */}
-            <dd>{role.description ?? t("no_description")}</dd>
-            <dt className="text-muted-foreground">{t("parent_label")}</dt>
-            <dd>{role.parent ?? t("none_option")}</dd>
-          </dl>
+          <DetailFields
+            fields={[
+              { label: t("name_label"), value: role.name },
+              { label: t("description_label"), value: role.description ?? t("no_description") },
+              { label: t("parent_label"), value: role.parent ?? t("none_option") },
+            ]}
+          />
           {/* 🚨 **できないことを、その場に書く。** 編集の場所を探させない。 */}
         <p className="mt-4 text-base text-muted-foreground">{t("detail_read_only_note")}</p>
         </Surface>
