@@ -492,6 +492,52 @@ function applyRowFilter(
   );
 }
 
+function assertFieldsAllowed(
+  body: Record<string, unknown>,
+  allowedFields: PermissionResolution["allowedFields"],
+  writableFields: ReadonlySet<string>,
+): void {
+  const allowed = new Set(allowedFields);
+  for (const key of Object.keys(body)) {
+    if (!writableFields.has(key)) {
+      throw new ApiError(400, "INVALID_FIELD", `更新できないフィールドです: ${key}`);
+    }
+    if (allowedFields !== "*" && !allowed.has(key)) {
+      throw new ApiError(403, "FIELD_FORBIDDEN", `更新できないフィールドです: ${key}`);
+    }
+  }
+}
+
+async function assertFileVisibleAfterWrite(
+  trx: Knex.Transaction,
+  id: string,
+  permission: PermissionResolution,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+): Promise<void> {
+  if (!permission.rowFilter) return;
+  const check = trx<FileRow>("directus_files").whereNull("deleted_at").where({ id });
+  applyRowFilter(check, permission.rowFilter, "directus_files", schemaOverview, relations);
+  if (!(await check.first("id"))) {
+    throw new ApiError(403, "PERMISSION_DENIED", "書き込んだ内容が権限の範囲外です");
+  }
+}
+
+async function assertFolderVisibleAfterWrite(
+  trx: Knex.Transaction,
+  id: string,
+  permission: PermissionResolution,
+  schemaOverview: SchemaOverview,
+  relations: RelationMeta[],
+): Promise<void> {
+  if (!permission.rowFilter) return;
+  const check = trx<FolderRow>("directus_folders").whereNull("deleted_at").where({ id });
+  applyRowFilter(check, permission.rowFilter, "directus_folders", schemaOverview, relations);
+  if (!(await check.first("id"))) {
+    throw new ApiError(403, "PERMISSION_DENIED", "書き込んだ内容が権限の範囲外です");
+  }
+}
+
 async function findFile(
   id: string,
   rowFilter: FilterObject | null,
@@ -756,12 +802,11 @@ export async function updateFile(
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_files", "update");
   const relations = permission.rowFilter ? await relationRows() : [];
-  const allowed = new Set(["title", "description", "tags", "folder", "visibility"]);
-  for (const key of Object.keys(body)) {
-    if (!allowed.has(key)) {
-      throw new ApiError(400, "INVALID_FIELD", `更新できないフィールドです: ${key}`);
-    }
-  }
+  assertFieldsAllowed(
+    body,
+    permission.allowedFields,
+    new Set(["title", "description", "tags", "folder", "visibility"]),
+  );
 
   const patch: { title?: string | null; description?: string | null; tags?: string | null; folder?: string | null; visibility?: FileVisibility } = {
     title: optionalString(body.title, "title"),
@@ -778,22 +823,27 @@ export async function updateFile(
   );
   if (patch.visibility !== undefined) update.is_public = patch.visibility !== "private";
 
-  const [row] = await liveFiles()
-    .where({ id })
-    .modify((query) => {
-      applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
-    })
-    .update({
-      ...update,
-      modified_by: actorUserId(actor),
-      modified_on: new Date().toISOString(),
-    })
-    .returning("*");
+  const row = await db.transaction(async (trx) => {
+    const [updated] = await trx<FileRow>("directus_files")
+      .whereNull("deleted_at")
+      .where({ id })
+      .modify((query) => {
+        applyRowFilter(query, permission.rowFilter, "directus_files", schemaOverview, relations);
+      })
+      .update({
+        ...update,
+        modified_by: actorUserId(actor),
+        modified_on: new Date().toISOString(),
+      })
+      .returning("*");
 
-  if (!row) {
-    throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
-  }
-  return toPublicFile(row);
+    if (!updated) {
+      throw new ApiError(404, "FILE_NOT_FOUND", "ファイルが見つかりません");
+    }
+    await assertFileVisibleAfterWrite(trx, id, permission, schemaOverview, relations);
+    return updated;
+  });
+  return toPublicFile(row, permission.allowedFields);
 }
 
 export async function rotatePublicToken(actor: Actor, id: string): Promise<PublicFileRow> {
@@ -1254,12 +1304,7 @@ export async function updateFolder(
   const schemaOverview = await getSchemaOverview();
   const permission = await permissionForAction(actor, "directus_folders", "update");
   const relations = permission.rowFilter ? await relationRows() : [];
-  const allowed = new Set(["name", "parent", "color"]);
-  for (const key of Object.keys(body)) {
-    if (!allowed.has(key)) {
-      throw new ApiError(400, "INVALID_FIELD", `更新できないフィールドです: ${key}`);
-    }
-  }
+  assertFieldsAllowed(body, permission.allowedFields, new Set(["name", "parent", "color"]));
 
   const update: Record<string, unknown> = {};
   if ("name" in body) {
@@ -1307,17 +1352,21 @@ export async function updateFolder(
     update.color = color;
   }
 
-  const [row] = await liveFolders()
-    .where({ id })
-    .modify((query) => {
-      applyRowFilter(query, permission.rowFilter, "directus_folders", schemaOverview, relations);
-    })
-    .update(update)
-    .returning("*");
-  if (!row) {
-    throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
-  }
-  return row;
+  return db.transaction(async (trx) => {
+    const [row] = await trx<FolderRow>("directus_folders")
+      .whereNull("deleted_at")
+      .where({ id })
+      .modify((query) => {
+        applyRowFilter(query, permission.rowFilter, "directus_folders", schemaOverview, relations);
+      })
+      .update(update)
+      .returning("*");
+    if (!row) {
+      throw new ApiError(404, "FOLDER_NOT_FOUND", "フォルダが見つかりません");
+    }
+    await assertFolderVisibleAfterWrite(trx, id, permission, schemaOverview, relations);
+    return row;
+  });
 }
 
 export async function deleteFolder(actor: Actor, id: string): Promise<void> {
