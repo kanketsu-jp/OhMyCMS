@@ -79,6 +79,21 @@ function addWhere(
   }
 }
 
+function addWhereLike(
+  builder: ItemQueryBuilder,
+  booleanOperator: "and" | "or",
+  column: string,
+  operator: "like" | "ilike",
+  value: string,
+): void {
+  const sql = `?? ${operator} ? escape '\\'`;
+  if (booleanOperator === "or") {
+    builder.orWhereRaw(sql, [column, value]);
+  } else {
+    builder.whereRaw(sql, [column, value]);
+  }
+}
+
 function addWhereNull(
   builder: ItemQueryBuilder,
   booleanOperator: "and" | "or",
@@ -141,6 +156,10 @@ function asBetween(value: unknown, operator: string): [unknown, unknown] {
   throw new ApiError(400, "INVALID_FILTER", `${operator}は2要素の配列で指定してください`);
 }
 
+function escapeLikePattern(value: unknown): string {
+  return String(value).replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
 function applyOperator(
   builder: ItemQueryBuilder,
   column: string,
@@ -186,23 +205,47 @@ function applyOperator(
       else addWhereNull(builder, booleanOperator, column, false);
       return;
     case "_contains":
-      addWhere(builder, booleanOperator, column, "like", `%${String(value)}%`);
+      addWhereLike(
+        builder,
+        booleanOperator,
+        column,
+        "like",
+        `%${escapeLikePattern(value)}%`,
+      );
       return;
     case "_ncontains":
       addGroupedWhere(builder, booleanOperator, (group) => {
         group
           .whereNull(column)
-          .orWhereRaw("?? not like ?", [column, `%${String(value)}%`]);
+          .orWhereRaw("?? not like ? escape '\\'", [column, `%${escapeLikePattern(value)}%`]);
       });
       return;
     case "_icontains":
-      addWhere(builder, booleanOperator, column, "ilike", `%${String(value)}%`);
+      addWhereLike(
+        builder,
+        booleanOperator,
+        column,
+        "ilike",
+        `%${escapeLikePattern(value)}%`,
+      );
       return;
     case "_starts_with":
-      addWhere(builder, booleanOperator, column, "like", `${String(value)}%`);
+      addWhereLike(
+        builder,
+        booleanOperator,
+        column,
+        "like",
+        `${escapeLikePattern(value)}%`,
+      );
       return;
     case "_ends_with":
-      addWhere(builder, booleanOperator, column, "like", `%${String(value)}`);
+      addWhereLike(
+        builder,
+        booleanOperator,
+        column,
+        "like",
+        `%${escapeLikePattern(value)}`,
+      );
       return;
     case "_between": {
       const [start, end] = asBetween(value, operator);

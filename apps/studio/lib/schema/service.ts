@@ -151,17 +151,27 @@ function parseFieldSchema(input: unknown): FieldSchemaSpec | undefined {
   }
 
   const schema = input as FieldSchemaSpec;
-  if (schema.max_length !== undefined && !Number.isInteger(schema.max_length)) {
-    throw new ApiError(400, "INVALID_SCHEMA", "max_lengthは整数で指定してください");
+  if (
+    schema.max_length !== undefined &&
+    (!Number.isInteger(schema.max_length) || schema.max_length < 1 || schema.max_length > 10_485_760)
+  ) {
+    throw new ApiError(400, "INVALID_SCHEMA", "max_lengthは1〜10485760の整数で指定してください");
   }
   if (
     schema.numeric_precision !== undefined &&
-    !Number.isInteger(schema.numeric_precision)
+    (!Number.isInteger(schema.numeric_precision) ||
+      schema.numeric_precision < 1 ||
+      schema.numeric_precision > 1_000)
   ) {
-    throw new ApiError(400, "INVALID_SCHEMA", "numeric_precisionは整数で指定してください");
+    throw new ApiError(400, "INVALID_SCHEMA", "numeric_precisionは1〜1000の整数で指定してください");
   }
-  if (schema.numeric_scale !== undefined && !Number.isInteger(schema.numeric_scale)) {
-    throw new ApiError(400, "INVALID_SCHEMA", "numeric_scaleは整数で指定してください");
+  if (
+    schema.numeric_scale !== undefined &&
+    (!Number.isInteger(schema.numeric_scale) ||
+      schema.numeric_scale < 0 ||
+      schema.numeric_scale > 1_000)
+  ) {
+    throw new ApiError(400, "INVALID_SCHEMA", "numeric_scaleは0〜1000の整数で指定してください");
   }
 
   return schema;
