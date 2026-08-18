@@ -174,8 +174,8 @@ function SearchDialog({
     }
   }, []);
 
-  const runSearch = useCallback(async () => {
-    const q = query.trim();
+  const runSearch = useCallback(async (value: string) => {
+    const q = value.trim();
     if (q.length === 0 || q === searchedQuery) return;
     setSearchedQuery(q);
     setLoading(true);
@@ -195,7 +195,7 @@ function SearchDialog({
     } finally {
       setLoading(false);
     }
-  }, [query, searchedQuery]);
+  }, [searchedQuery]);
 
   const pageKinds = useMemo<(keyof SearchResult)[]>(() => {
     if (pathname.startsWith("/admin/files")) return ["files"];
@@ -294,9 +294,9 @@ function SearchDialog({
           value={query}
           onValueChange={onQueryChange}
           onKeyDown={(event) => {
-            if (event.key === "Enter") void runSearch();
+            if (event.key === "Enter") void runSearch(event.currentTarget.value);
           }}
-          onBlur={() => void runSearch()}
+          onBlur={(event) => void runSearch(event.currentTarget.value)}
           placeholder={t("placeholder")}
         />
         {/* CommandList はそれ自体がスクロールする箱（`command.tsx` が `scroll-fade-y` を持つ）。 */}

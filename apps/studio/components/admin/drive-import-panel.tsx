@@ -75,10 +75,10 @@ export function DriveImportPanel({
     setFiles(payload.data.files);
   });
 
-  const runSearch = () => {
-    const value = search.trim();
-    if (value === searched) return;
-    setSearched(value);
+  const runSearch = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed === searched) return;
+    setSearched(trimmed);
     void list.run();
   };
 
@@ -133,9 +133,9 @@ export function DriveImportPanel({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") runSearch();
+                if (event.key === "Enter") runSearch(event.currentTarget.value);
               }}
-              onBlur={runSearch}
+              onBlur={(event) => runSearch(event.currentTarget.value)}
               placeholder={t("drive_search_placeholder")}
               aria-label={t("drive_search_placeholder")}
             />

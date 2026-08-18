@@ -202,9 +202,9 @@ export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
               value={search}
               onValueChange={setSearch}
               onKeyDown={(event) => {
-                if (event.key === "Enter") applySearch(search);
+                if (event.key === "Enter") applySearch(event.currentTarget.value);
               }}
-              onBlur={() => applySearch(search)}
+              onBlur={(event) => applySearch(event.currentTarget.value)}
               placeholder={t("labels_search_placeholder")}
             />
             <CommandList>

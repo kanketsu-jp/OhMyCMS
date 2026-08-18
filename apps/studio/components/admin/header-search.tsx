@@ -106,9 +106,9 @@ export function HeaderSearch({ placeholder }: { placeholder?: string }) {
         className="h-full border-0 bg-transparent shadow-none focus-visible:ring-0"
         aria-busy={pending}
         onKeyDown={(event) => {
-          if (event.key === "Enter") apply(draft);
+          if (event.key === "Enter") apply(event.currentTarget.value);
         }}
-        onBlur={() => apply(draft)}
+        onBlur={(event) => apply(event.currentTarget.value)}
       />
     </div>,
     slot,
