@@ -14,7 +14,11 @@ export async function GET() {
     // 🚨 このエンドポイントは**認証不要**なので、例外メッセージを返すと
     // 誰でも DB の接続先やホスト名を読める。詳細はログにだけ出す。
     // （knex の接続エラーは接続文字列を含むことがある）
-    console.error("[health] DB への疎通に失敗:", error);
+    const code =
+      error && typeof error === "object" && "code" in error && typeof error.code === "string"
+        ? /^(?:E[A-Z]+|[0-9A-Z]{5})$/.exec(error.code)?.[0] ?? "UNKNOWN"
+        : "UNKNOWN";
+    console.error("[health] DB への疎通に失敗", { code });
     return Response.json(
       { status: "error", db: "unavailable" },
       { status: 500 },
