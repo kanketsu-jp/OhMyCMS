@@ -8,6 +8,7 @@ import {
 import { getAccountEmail } from "@/lib/drive/client";
 import { exchangeCode } from "@/lib/drive/oauth";
 import { saveConnection } from "@/lib/drive/tokens";
+import { requireCapability } from "@/lib/permissions/resolve";
 import { errorResponse } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   try {
     const actor = await requireActor(request);
+    requireCapability(actor, "settings:write");
     const userId = actor.type === "human" ? actor.userId : actor.onBehalfOf;
 
     // Google 側で断られたとき（同意しなかった等）。**理由はそのまま画面へ出さない**。

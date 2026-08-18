@@ -1,5 +1,6 @@
 import { requireActor } from "@/lib/auth/context";
 import { connectionStatus, disconnect } from "@/lib/drive/tokens";
+import { requireCapability } from "@/lib/permissions/resolve";
 import { getSettings } from "@/lib/settings/service";
 import { errorResponse, ok } from "@/lib/schema/api";
 
@@ -17,6 +18,7 @@ function userIdOf(actor: Awaited<ReturnType<typeof requireActor>>): string {
 export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
+    requireCapability(actor, "settings:read");
     const settings = await getSettings();
     return ok({
       data: {
@@ -39,6 +41,7 @@ export async function GET(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const actor = await requireActor(request);
+    requireCapability(actor, "settings:write");
     await disconnect(userIdOf(actor));
     return new Response(null, { status: 204 });
   } catch (error) {

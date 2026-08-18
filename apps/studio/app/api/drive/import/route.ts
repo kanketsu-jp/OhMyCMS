@@ -1,6 +1,7 @@
 import { requireActor } from "@/lib/auth/context";
 import { driveOAuthConfig } from "@/lib/drive/config";
 import { importFromDrive } from "@/lib/drive/import";
+import { requireCapability } from "@/lib/permissions/resolve";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 
 export const runtime = "nodejs";
@@ -12,6 +13,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const actor = await requireActor(request);
+    requireCapability(actor, "settings:write");
     const config = await driveOAuthConfig(request);
     const body = await readJsonObject(request);
     const row = await importFromDrive(actor, config.clientId, {

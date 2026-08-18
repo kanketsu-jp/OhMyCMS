@@ -2,6 +2,7 @@ import { requireActor } from "@/lib/auth/context";
 import { listDriveFiles } from "@/lib/drive/client";
 import { driveOAuthConfig } from "@/lib/drive/config";
 import { getAccessTokenFor } from "@/lib/drive/tokens";
+import { requireCapability } from "@/lib/permissions/resolve";
 import { errorResponse, ok } from "@/lib/schema/api";
 
 export const runtime = "nodejs";
@@ -16,6 +17,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
+    requireCapability(actor, "settings:read");
     const userId = actor.type === "human" ? actor.userId : actor.onBehalfOf;
     const config = await driveOAuthConfig(request);
     const accessToken = await getAccessTokenFor(userId, config.clientId);

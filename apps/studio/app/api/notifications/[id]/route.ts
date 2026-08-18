@@ -1,4 +1,5 @@
 import { requireActor } from "@/lib/auth/context";
+import { requireCapability } from "@/lib/permissions/resolve";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { markRead } from "@/lib/notifications/service";
 
@@ -15,6 +16,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, { params }: Params) {
   try {
     const actor = await requireActor(request);
+    requireCapability(actor, "settings:write");
     const recipient = actor.type === "human" ? actor.userId : actor.onBehalfOf;
     const { id } = await params;
     const body = await readJsonObject(request);

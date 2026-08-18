@@ -7,6 +7,7 @@ import {
   driveOAuthConfig,
 } from "@/lib/drive/config";
 import { authorizationUrl, createPkcePair } from "@/lib/drive/oauth";
+import { requireCapability } from "@/lib/permissions/resolve";
 import { errorResponse } from "@/lib/schema/api";
 
 export const runtime = "nodejs";
@@ -20,7 +21,8 @@ export const runtime = "nodejs";
  */
 export async function GET(request: Request) {
   try {
-    await requireActor(request);
+    const actor = await requireActor(request);
+    requireCapability(actor, "settings:write");
     const config = await driveOAuthConfig(request);
     const state = randomToken(32);
     const { codeVerifier, codeChallenge } = createPkcePair();

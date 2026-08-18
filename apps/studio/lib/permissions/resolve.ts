@@ -261,3 +261,13 @@ export async function requireAdminAccess(actor: Actor, capability: AdminCapabili
     throw new ApiError(403, "ADMIN_ACCESS_REQUIRED", "管理者権限が必要です");
   }
 }
+
+/**
+ * 管理系 capability だけを確認する入口。人間のセッションは従来どおり通す。
+ * items の resolvePermission を持たないドメイン API でも、agent の委任範囲を越えないようにする。
+ */
+export function requireCapability(actor: Actor, capability: AdminCapability): void {
+  if (actor.type === "agent" && !capabilityAllowsAdmin(actor.capabilities, capability)) {
+    throw new ApiError(403, "CAPABILITY_DENIED", "このcapabilityでは操作が許可されていません");
+  }
+}
