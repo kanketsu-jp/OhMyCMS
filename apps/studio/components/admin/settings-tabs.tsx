@@ -1,45 +1,36 @@
-"use client";
+import type { ReactNode } from "react";
 
-import { useState, type ReactNode } from "react";
+import { PageTabs } from "@/components/admin/page-tabs";
+import { getT } from "@/i18n/server";
 
-import { HeaderTabs } from "@/components/admin/header-tabs";
-import { Button } from "@/components/ui/button";
-import { useT } from "@/i18n/client";
-
-export function SettingsTabs({ general, shortcuts }: { general: ReactNode; shortcuts: ReactNode }) {
-  const t = useT("settings");
-  const [value, setValue] = useState<"general" | "shortcuts">("general");
+export async function SettingsTabs({
+  general,
+  shortcuts,
+  tab,
+}: {
+  general: ReactNode;
+  shortcuts: ReactNode;
+  tab: "general" | "shortcuts";
+}) {
+  const t = await getT("settings");
 
   return (
     <>
-      <HeaderTabs>
-        <div role="tablist" aria-label={t("title")} className="flex h-full items-end gap-1">
-          <Button
-            type="button"
-            role="tab"
-            aria-selected={value === "general"}
-            variant={value === "general" ? "secondary" : "ghost"}
-            onClick={() => setValue("general")}
-          >
-            {t("general_tab")}
-          </Button>
-          <Button
-            type="button"
-            role="tab"
-            aria-selected={value === "shortcuts"}
-            variant={value === "shortcuts" ? "secondary" : "ghost"}
-            onClick={() => setValue("shortcuts")}
-          >
-            {t("shortcuts_tab")}
-          </Button>
-        </div>
-      </HeaderTabs>
-      <div role="tabpanel" hidden={value !== "general"}>
-        {general}
-      </div>
-      <div role="tabpanel" hidden={value !== "shortcuts"}>
-        {shortcuts}
-      </div>
+      <PageTabs
+        tabs={[
+          {
+            href: "/admin/settings/general?tab=general",
+            label: t("general_tab"),
+            current: tab === "general",
+          },
+          {
+            href: "/admin/settings/general?tab=shortcuts",
+            label: t("shortcuts_tab"),
+            current: tab === "shortcuts",
+          },
+        ]}
+      />
+      {tab === "shortcuts" ? shortcuts : general}
     </>
   );
 }
