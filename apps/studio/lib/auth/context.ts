@@ -37,6 +37,7 @@ type SessionUserRow = {
   user_id: string;
   email: string;
   role: string | null;
+  status: string;
   auth_data: unknown;
   avatar_emoji: string | null;
   first_name: string | null;
@@ -110,6 +111,7 @@ async function resolveHuman(token: string): Promise<HumanActor> {
     })
     .where("directus_sessions.token", tokenHash)
     .where("directus_sessions.expires", ">", db.fn.now())
+    .where("directus_users.status", "active")
     .first();
 
   if (!row) {
