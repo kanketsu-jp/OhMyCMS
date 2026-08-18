@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { toast } from "@/components/ui/toast";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
@@ -265,7 +266,7 @@ export function FilesTable({
 
     {/* 🚨 幅の狭い端末で表がはみ出さないよう、**表だけを横に流す**。
         ページごと横に流すと、他の要素まで一緒に動いて読めなくなる。 */}
-    <div className="w-full overflow-x-auto">
+    <ScrollFade direction="horizontal" className="w-full">
       <table className="w-full min-w-xl border-collapse text-sm">
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
@@ -376,7 +377,7 @@ export function FilesTable({
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollFade>
     </>
   );
 }
