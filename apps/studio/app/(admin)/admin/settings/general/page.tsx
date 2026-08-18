@@ -4,6 +4,8 @@ import { MailTestButton } from "@/components/admin/mail-test-button";
 import { SettingsManager } from "@/components/admin/settings-manager";
 import { apiFetch } from "@/lib/admin/api";
 import type { Settings } from "@/lib/settings/service";
+import { ShortcutSettingsManager } from "@/components/admin/shortcut-settings-manager";
+import { SettingsTabs } from "@/components/admin/settings-tabs";
 
 /**
  * 全体設定（F2 §2-A）。
@@ -15,15 +17,17 @@ export default async function GeneralSettingsPage() {
 
   return (
     <div className="max-w-4xl space-y-6">
-
-      {result.ok ? (
-        <>
-          <SettingsManager settings={result.data.data} />
-          <MailTestButton />
-        </>
-      ) : (
-        <ErrorBanner message={tError(result.messageKey)} />
-      )}
+      <SettingsTabs
+        general={result.ok ? (
+            <>
+              <SettingsManager settings={result.data.data} />
+              <MailTestButton />
+            </>
+          ) : (
+            <ErrorBanner message={tError(result.messageKey)} />
+        )}
+        shortcuts={<ShortcutSettingsManager />}
+      />
     </div>
   );
 }

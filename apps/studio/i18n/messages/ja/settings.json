@@ -35,6 +35,8 @@
   "updated_at": "最終更新",
   "project_logo_clear": "ロゴを外す",
   "error_logo_upload_failed": "ロゴをアップロードできませんでした。",
+  "general_tab": "一般",
+  "shortcuts_tab": "ショートカット",
   "shortcuts_title": "ショートカット",
   "shortcuts_description": "操作ごとのキーを設定できます。初期状態では未設定です。",
   "shortcut_search": "検索",
@@ -51,5 +53,6 @@
   "shortcut_load_failed": "設定を読み込めませんでした。",
   "shortcut_invalid": "キーの組み合わせを入力してください。",
   "shortcut_duplicate": "そのキーは別の操作に割り当てられています。",
-  "shortcut_editor_conflict": "そのキーは本文の編集操作と重複しています。"
+  "shortcut_editor_conflict": "そのキーは本文の編集操作と重複しています。",
+  "shortcut_reset": "既定に戻す"
 }
