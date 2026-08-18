@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { FieldResult } from "@/lib/schema/models";
 import { apiFetch } from "@/lib/admin/api";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ParentBackLink } from "@/components/admin/parent-back-link";
 import { ItemForm } from "@/components/admin/item-form";
 import { errorKeyFromQuery } from "@/i18n/error";
 import { getT } from "@/i18n/server";
@@ -77,11 +78,7 @@ export default async function EditItemPage({ params, searchParams }: Props) {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <Link href={`/admin/content/${encoded}`} className="text-sm text-muted-foreground hover:text-foreground">
-          {t("back_to_list")}
-        </Link>
-      </div>
+      <ParentBackLink href={`/admin/content/${encoded}`}>{t("back_to_list")}</ParentBackLink>
       <ErrorBanner
         message={
           errorMessage ??

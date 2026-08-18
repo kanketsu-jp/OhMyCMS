@@ -1,6 +1,6 @@
-import Link from "next/link";
 import type { CollectionResult } from "@/lib/schema/models";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ParentBackLink } from "@/components/admin/parent-back-link";
 import { PolicyPermissionsManager } from "@/components/admin/policy-permissions-manager";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
@@ -38,11 +38,7 @@ export default async function PolicyDetailPage({ params }: Props) {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div>
-        <Link href="/admin/settings/policies" className="text-sm text-muted-foreground hover:text-foreground">
-          {t("back_to_list")}
-        </Link>
-      </div>
+      <ParentBackLink href="/admin/settings/policies">{t("back_to_list")}</ParentBackLink>
       <ErrorBanner
         message={
           (!policyResult.ok ? tError(policyResult.messageKey) : null) ??

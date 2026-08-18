@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { DetailFields } from "@/components/admin/detail-fields";
+import { ParentBackLink } from "@/components/admin/parent-back-link";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -42,16 +41,8 @@ export default async function RoleDetailPage({ params }: Props) {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div>
-        {/* 🚨 戻る導線を必ず置く（`policies/[id]` と同じ形）。
-            下層に入って戻れないと、利用者はブラウザの戻るに頼ることになる。 */}
-        <Link
-          href="/admin/settings/roles"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          {t("back_to_list")}
-        </Link>
-      </div>
+      {/* 🚨 戻る導線を必ず置く（`policies/[id]` と同じ形）。 */}
+      <ParentBackLink href="/admin/settings/roles">{t("back_to_list")}</ParentBackLink>
       <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
       {role ? (
         <Surface>

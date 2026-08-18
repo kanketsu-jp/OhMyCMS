@@ -5,6 +5,7 @@ import type { CollectionResult, FieldResult, RelationResult } from "@/lib/schema
 import { apiFetch, hasApiCode } from "@/lib/admin/api";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ParentBackLink } from "@/components/admin/parent-back-link";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { WideTable } from "@/components/admin/wide-table";
 import { FieldCreateForm } from "@/components/admin/field-create-form";
@@ -143,11 +144,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
   if (!collectionResult.ok) {
     return (
       <div className="max-w-6xl space-y-6">
-        <div>
-          <Link href="/admin/collections" className="text-sm text-muted-foreground transition-colors hover:text-foreground active:text-foreground">
-            {tCollections("back_to_list")}
-          </Link>
-        </div>
+        <ParentBackLink href="/admin/collections">{tCollections("back_to_list")}</ParentBackLink>
         <ErrorBanner message={errorMessage ?? tError(collectionResult.messageKey)} />
       </div>
     );
@@ -164,11 +161,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           いま**タイトルはヘッダーのパンくず**が、**概要は右パネル**が持っているので、
           この行が並べるものは何も残らない（`PageAction` は portal で外へ出る）。
           ❌ 戻さないこと。戻すと**同じ役目のものが2箇所**に出る。 */}
-      <div>
-        <Link href="/admin/collections" className="text-sm text-muted-foreground transition-colors hover:text-foreground active:text-foreground">
-          {tCollections("back_to_list")}
-        </Link>
-      </div>
+      <ParentBackLink href="/admin/collections">{tCollections("back_to_list")}</ParentBackLink>
       {/* 🚨 **囲まない**（`PageAction` は portal で外へ出るので、ここに中身は残らない）。
           🚨 form は**残す**。`form="collection-delete-form"` が指す相手そのものなので、
              消すと削除ボタンが黙って効かなくなる（中身は空でよい）。 */}

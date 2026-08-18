@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, UserMinus } from "lucide-react";
 import { FieldLabel } from "@/components/admin/field-label";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { WideTable } from "@/components/admin/wide-table";
@@ -117,11 +118,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
 
   return (
     <div className="space-y-4">
-      {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
-          {error}
-        </div>
-      ) : null}
+      <ErrorBanner message={error} />
       {access.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
       ) : (

@@ -8,6 +8,7 @@ import { FieldLabel } from "@/components/admin/field-label";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { PageAction } from "@/components/admin/page-action";
+import { ErrorBanner } from "@/components/admin/error-banner";
 import { RowOptions } from "@/components/admin/row-options";
 import { WideTable } from "@/components/admin/wide-table";
 import {
@@ -99,11 +100,7 @@ export function PoliciesManager({ policies, tab }: { policies: PolicyRow[]; tab:
 
   return (
     <div className="space-y-4">
-      {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">
-          {error}
-        </div>
-      ) : null}
+      <ErrorBanner message={error} />
       {tab === "list" && policies.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
       ) : tab === "list" ? (

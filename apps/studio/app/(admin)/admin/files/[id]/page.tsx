@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { FileIcon } from "lucide-react";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ParentBackLink } from "@/components/admin/parent-back-link";
 import { DetailFields } from "@/components/admin/detail-fields";
 import { FileDetailManager } from "@/components/admin/file-detail-manager";
 import { FileLabelsEditor, type LabelRow } from "@/components/admin/file-labels-editor";
@@ -86,11 +86,7 @@ export default async function FileDetailPage({ params }: Props) {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div>
-        <Link href="/admin/files" className="text-sm text-muted-foreground hover:text-foreground active:text-foreground">
-          {t("back_to_files")}
-        </Link>
-      </div>
+      <ParentBackLink href="/admin/files">{t("back_to_files")}</ParentBackLink>
       <ErrorBanner
         message={
           (!fileResult.ok ? tError(fileResult.messageKey) : null) ??

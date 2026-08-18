@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { DetailFields } from "@/components/admin/detail-fields";
+import { ParentBackLink } from "@/components/admin/parent-back-link";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { getFormat, getT } from "@/i18n/server";
 import { apiFetch } from "@/lib/admin/api";
@@ -64,14 +63,7 @@ export default async function AgentDetailPage({ params }: Props) {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div>
-        <Link
-          href="/admin/settings/agents"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          {t("back_to_list")}
-        </Link>
-      </div>
+      <ParentBackLink href="/admin/settings/agents">{t("back_to_list")}</ParentBackLink>
       <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
       {agent ? (
         <Surface>

@@ -5,6 +5,7 @@ import { PageAction } from "@/components/admin/page-action";
 import { FormDraft } from "@/components/admin/form-draft";
 import { Input } from "@/components/ui/input";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ParentBackLink } from "@/components/admin/parent-back-link";
 import { Label } from "@/components/ui/label";
 import { Surface } from "@/components/ui/surface";
 import { errorKeyFromQuery } from "@/i18n/error";
@@ -35,14 +36,7 @@ export default async function NewCollectionPage({ searchParams }: Props) {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
-        <Link
-          href="/admin/collections"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          {t("back_to_list")}
-        </Link>
-      </div>
+      <ParentBackLink href="/admin/collections">{t("back_to_list")}</ParentBackLink>
       <ErrorBanner message={errorMessage} />
       <Surface>
         <form id="collection-create-form" action="/admin/actions/collections" method="post" className="grid gap-4">

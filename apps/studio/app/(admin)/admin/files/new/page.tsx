@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ErrorBanner } from "@/components/admin/error-banner";
+import { ParentBackLink } from "@/components/admin/parent-back-link";
 import { DriveImportPanel } from "@/components/admin/drive-import-panel";
 import { FileUploadForm } from "@/components/admin/files-manager";
 import { Surface } from "@/components/ui/surface";
@@ -45,11 +45,7 @@ export default async function NewFilePage({ searchParams }: Props) {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
-        <Link href={backHref} className="text-sm text-muted-foreground hover:text-foreground active:text-foreground">
-          {t("back_to_list")}
-        </Link>
-      </div>
+      <ParentBackLink href={backHref}>{t("back_to_list")}</ParentBackLink>
       <ErrorBanner message={!result.ok ? tError(result.messageKey) : null} />
       <Surface>
         <FileUploadForm folders={folders} initialFolder={query.folder} />
