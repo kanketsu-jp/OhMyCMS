@@ -7,7 +7,7 @@
  */
 
 import { getSamlConfig, isSamlUsable } from "@/lib/auth/saml/config";
-import { createSamlClient } from "@/lib/auth/saml/client";
+import { createSamlClient, purgeExpiredSamlRecords, samlRequestSource } from "@/lib/auth/saml/client";
 import { safeRelativePath } from "@/lib/auth/urls";
 import { acsUrl, metadataUrl } from "@/lib/auth/saml/urls";
 import { errorResponse } from "@/lib/schema/api";
@@ -22,10 +22,11 @@ export async function GET(request: Request) {
       throw new ApiError(503, "SAML_NOT_CONFIGURED", "SSO が設定されていません");
     }
 
+    await purgeExpiredSamlRecords();
     const client = createSamlClient(config, {
       spEntityId: config.spEntityId?.trim() || metadataUrl(request),
       acsUrl: acsUrl(request),
-    });
+    }, samlRequestSource(request));
 
     // RelayState = ログイン後に戻る先。IdP を往復して ACS へ戻ってくる。
     // 🚨 **外部サイトへ飛ばせないように、このサイトの中に限る**（`safeRelativePath` に理由）。

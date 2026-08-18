@@ -13,6 +13,16 @@ import { toPem, type SamlConfig } from "./config";
 
 /** AuthnRequest の ID を覚えておく時間。IdP の画面でパスワードを入れる時間を見込む。 */
 const REQUEST_TTL_MS = 30 * 60 * 1000;
+const REQUEST_RATE_WINDOW_MS = 60 * 1000;
+const REQUEST_RATE_LIMIT = 5;
+
+export function samlRequestSource(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",", 1)[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "unknown"
+  );
+}
 
 /**
  * `InResponseTo` 照合のための保管庫を **DB** にする。
@@ -20,25 +30,39 @@ const REQUEST_TTL_MS = 30 * 60 * 1000;
  * 🚨 ライブラリの既定は**プロセス内メモリ**で、再起動と多重起動のどちらでも壊れる
  *    （`20260814020100_create_ohmycms_saml_requests.ts` に理由を書いた）。
  */
-export const requestStore: CacheProvider = {
-  async saveAsync(key: string, value: string): Promise<CacheItem | null> {
-    const createdAt = Date.now();
-    const inserted = await db("ohmycms_saml_requests")
-      .insert({
-        request_id: key,
-        // 🚨 渡された値をそのまま持つ。`getAsync` はこれを返さなければならない（下記）。
-        value,
-        created_at: new Date(createdAt),
-        expires_at: new Date(createdAt + REQUEST_TTL_MS),
-      })
-      .onConflict("request_id")
-      .ignore()
-      .returning("request_id");
+function createRequestStore(source?: string): CacheProvider {
+  return {
+    async saveAsync(key: string, value: string): Promise<CacheItem | null> {
+      const createdAt = Date.now();
+      const inserted = await db.transaction(async (trx): Promise<Array<{ request_id: string }>> => {
+        await trx("ohmycms_saml_requests").where("expires_at", "<", new Date(createdAt)).del();
+        if (source) {
+          await trx.raw("select pg_advisory_xact_lock(hashtext(?))", [source]);
+          const recent = await trx("ohmycms_saml_requests")
+            .where({ source })
+            .where("created_at", ">", new Date(createdAt - REQUEST_RATE_WINDOW_MS))
+            .count<{ count: string }>("*")
+            .first();
+          if (Number(recent?.count ?? 0) >= REQUEST_RATE_LIMIT) return [];
+        }
+        return (await trx("ohmycms_saml_requests")
+          .insert({
+            request_id: key,
+            // 🚨 渡された値をそのまま持つ。`getAsync` はこれを返さなければならない（下記）。
+            value,
+            source: source ?? null,
+            created_at: new Date(createdAt),
+            expires_at: new Date(createdAt + REQUEST_TTL_MS),
+          })
+          .onConflict("request_id")
+          .ignore()
+          .returning("request_id")) as Array<{ request_id: string }>;
+      });
 
-    // 既にある ID は上書きしない（ライブラリの契約どおり null を返す）。
-    if (inserted.length === 0) return null;
-    return { value, createdAt };
-  },
+      // 既にある ID は上書きしない（ライブラリの契約どおり null を返す）。
+      if (inserted.length === 0) return null;
+      return { value, createdAt };
+    },
 
   /**
    * 🚨 **キーを返してはいけない。保存した値を返す。**
@@ -48,21 +72,24 @@ export const requestStore: CacheProvider = {
    *    **正しい応答が `SubjectInResponseTo is not valid` で落ちる**（実測で踏んだ。
    *    `20260814020200_add_value_to_ohmycms_saml_requests.ts` に経緯を書いた）。
    */
-  async getAsync(key: string): Promise<string | null> {
-    const row = (await db("ohmycms_saml_requests")
-      .where({ request_id: key })
-      .where("expires_at", ">", new Date())
-      .first()) as { value: string | null; created_at: Date } | undefined;
-    if (!row) return null;
-    return row.value ?? new Date(row.created_at).toISOString();
-  },
+    async getAsync(key: string): Promise<string | null> {
+      const row = (await db("ohmycms_saml_requests")
+        .where({ request_id: key })
+        .where("expires_at", ">", new Date())
+        .first()) as { value: string | null; created_at: Date } | undefined;
+      if (!row) return null;
+      return row.value ?? new Date(row.created_at).toISOString();
+    },
 
-  async removeAsync(key: string | null): Promise<string | null> {
-    if (!key) return null;
-    const deleted = await db("ohmycms_saml_requests").where({ request_id: key }).del();
-    return deleted > 0 ? key : null;
-  },
-};
+    async removeAsync(key: string | null): Promise<string | null> {
+      if (!key) return null;
+      const deleted = await db("ohmycms_saml_requests").where({ request_id: key }).del();
+      return deleted > 0 ? key : null;
+    },
+  };
+}
+
+export const requestStore: CacheProvider = createRequestStore();
 
 /** 期限切れの記録を落とす。ログインのたびに少しずつ掃除する（cron を持たないため）。 */
 export async function purgeExpiredSamlRecords(): Promise<void> {
@@ -76,7 +103,11 @@ export type SamlEndpoints = {
   acsUrl: string;
 };
 
-export function createSamlClient(config: SamlConfig, endpoints: SamlEndpoints): SAML {
+export function createSamlClient(
+  config: SamlConfig,
+  endpoints: SamlEndpoints,
+  source?: string,
+): SAML {
   return new SAML({
     // ── SP 側 ──
     issuer: endpoints.spEntityId,
@@ -116,7 +147,7 @@ export function createSamlClient(config: SamlConfig, endpoints: SamlEndpoints): 
     //    `ifPresent` = 付いていたら必ず照合する。付いていない場合の防御は
     //    Assertion ID のリプレイ台帳（`verify.ts`）が受け持つ。
     validateInResponseTo: "ifPresent" as SAML["options"]["validateInResponseTo"],
-    cacheProvider: requestStore,
+    cacheProvider: source ? createRequestStore(source) : requestStore,
     requestIdExpirationPeriodMs: REQUEST_TTL_MS,
 
     // AuthnRequest には署名しない（SP の秘密鍵を持たないため。`config.ts` の方針）。
