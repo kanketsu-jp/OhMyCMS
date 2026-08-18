@@ -52,7 +52,11 @@ function useExistingAnchors(ids: readonly string[]): Set<string> {
   return new Set(key ? key.split(",") : []);
 }
 
-export function PageInfoPanel() {
+export function PageInfoPanel({
+  focusRequest,
+}: {
+  focusRequest: { id: string; version: number } | null;
+}) {
   const t = useT("panel");
   // 名前空間を付けない。page-meta が名前空間つきの完全なキーを持っているため。
   const tKey = useT();
@@ -76,6 +80,7 @@ export function PageInfoPanel() {
   const selectedCount = useSelectedFiles().length;
   const pageMissing = usePageMissing();
   const [value, setValue] = useState<string[]>(["overview"]);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
   // 🚨 **初回のマウント時も「選ばれている」ことが在る。**
   //    パネルは閉じているあいだ描かれないので、一覧が `open()` を呼んで初めてこの部品が生まれる。
   //    ＝ そのときには既に選択が 1 件在り、`useRef(selectedCount)` の初期値も 1 になるので、
@@ -88,6 +93,26 @@ export function PageInfoPanel() {
     // 🚨 増えた瞬間だけ動かす。毎回上書きすると、利用者が手で閉じた節が勝手に開き直る。
     if (had === 0 && selectedCount > 0) setValue(["file-detail"]);
   }, [selectedCount]);
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    const sectionValue = focusRequest.id === "panel-section-mail-test" ? "mail-test" : null;
+    if (!sectionValue) return;
+
+    const frame = requestAnimationFrame(() => {
+      setValue((current) => (current.includes(sectionValue) ? current : [...current, sectionValue]));
+      setHighlighted(focusRequest.id);
+    });
+    const scrollFrame = requestAnimationFrame(() => {
+      document.getElementById(focusRequest.id)?.scrollIntoView({ block: "nearest" });
+    });
+    const timeout = window.setTimeout(() => setHighlighted(null), 5000);
+    return () => {
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(scrollFrame);
+      window.clearTimeout(timeout);
+    };
+  }, [focusRequest]);
 
   return (
     <Accordion value={value} onValueChange={(v) => setValue(Array.isArray(v) ? v : [v])}>
@@ -104,6 +129,18 @@ export function PageInfoPanel() {
           {tKey(meta.descriptionKey)}
           {/* 🚨 いまの保管先（D5）。`/admin/files` 以外では null を返すので、他のページには出ない。 */}
           <PanelStorage />
+        </PanelSection>
+      ) : null}
+
+      {pathname === "/admin/settings/general" ? (
+        <PanelSection
+          id="panel-section-mail-test"
+          value="mail-test"
+          title={tKey("panel.mail_test_hint_title")}
+          className={highlighted === "panel-section-mail-test" ? "ring-2 ring-primary/50" : undefined}
+          contentClassName="text-muted-foreground"
+        >
+          {tKey("panel.mail_test_hint")}
         </PanelSection>
       ) : null}
 

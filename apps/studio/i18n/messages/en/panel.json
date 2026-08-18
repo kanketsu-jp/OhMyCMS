@@ -54,7 +54,7 @@
   "open": "About this page",
   "show_hint": "Show the explanation",
   "mail_test_hint_title": "About the test email",
-  "mail_test_hint": "Checks whether the mail settings work. It is sent to the email address of the person currently signed in. Only people who can change settings can use it.",
+  "mail_test_hint": "A test email is actually sent to the email address of the person currently signed in. It cannot be sent when the address or mail settings are missing. It uses the same mail route as confirmation-code emails, but it does not send a real confirmation code.",
   "overview": "Overview",
   "sections": "Contents",
   "storage_bucket": "Bucket",
