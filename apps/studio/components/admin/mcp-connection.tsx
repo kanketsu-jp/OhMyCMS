@@ -6,7 +6,6 @@ import { useT } from "@/i18n/client";
 
 type Props = {
   url: string;
-  entrypoint: string;
 };
 
 function Snippet({
@@ -29,21 +28,21 @@ function Snippet({
  *
  * 参考: `apps/studio/app/(admin)/admin/settings/ai/page.tsx` ／ `DESIGN.md` §0-1
  */
-export function McpConnection({ url, entrypoint }: Props) {
+export function McpConnection({ url }: Props) {
   const t = useT("mcp");
   const tokenPlaceholder = t("token_placeholder");
   const cliCommand = [
     "claude mcp add ohmycms --scope local \\",
     `  --env OHMYCMS_URL=${url} \\`,
     `  --env OHMYCMS_TOKEN=${tokenPlaceholder} \\`,
-    `  -- node ${entrypoint}`,
+    "  -- ohmycms-mcp",
   ].join("\n");
   const clientConfig = JSON.stringify(
     {
       mcpServers: {
         ohmycms: {
-          command: "node",
-          args: [entrypoint],
+          command: "ohmycms-mcp",
+          args: [],
           env: {
             OHMYCMS_URL: url,
             OHMYCMS_TOKEN: tokenPlaceholder,

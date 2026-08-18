@@ -8,6 +8,7 @@ import { tiptapCombos } from "../../../../scripts/tiptap-combos.mjs";
 export const runtime = "nodejs";
 
 const PREFERENCE_KEY_MAX_LENGTH = 128;
+const PREFERENCE_VALUE_MAX_BYTES = 64 * 1024;
 
 function normalizeShortcut(value: string): string {
   const parts = value.toLowerCase().split("+");
@@ -53,6 +54,10 @@ export async function PATCH(request: Request) {
     const key = preferenceKey(body.key);
     if (!("value" in body)) {
       throw new ApiError(400, "INVALID_BODY", "設定値を指定してください");
+    }
+    const serializedValue = JSON.stringify(body.value);
+    if (serializedValue === undefined || new TextEncoder().encode(serializedValue).byteLength > PREFERENCE_VALUE_MAX_BYTES) {
+      throw new ApiError(413, "PREFERENCE_VALUE_TOO_LARGE", "設定値が大きすぎます");
     }
 
     if (key.startsWith("shortcut.")) {

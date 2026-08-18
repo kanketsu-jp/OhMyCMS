@@ -1,4 +1,5 @@
 import { db } from "@/lib/db/knex";
+import { createHash } from "node:crypto";
 import type { Knex } from "knex";
 import { isCollectionIcon } from "@/lib/admin/collection-icons";
 import { ApiError, rethrowAsConflict } from "./errors";
@@ -585,6 +586,7 @@ export async function updateCollection(
   collection: string,
   body: Record<string, unknown>,
 ): Promise<CollectionResult> {
+  assertSafeIdentifier(collection);
   if (typeof body.collection === "string" && body.collection !== collection) {
     throw new ApiError(400, "RENAME_UNSUPPORTED", "MVPではテーブル名の変更に対応していません");
   }
@@ -1055,7 +1057,9 @@ async function findForeignKeyConstraint(
 
 function relationConstraintName(manyCollection: string, manyField: string): string {
   const name = `${manyCollection}_${manyField}_foreign`;
-  return name.length <= 63 ? name : name.slice(0, 63);
+  if (name.length <= 63) return name;
+  const suffix = createHash("sha256").update(name).digest("hex").slice(0, 8);
+  return `${name.slice(0, 54)}_${suffix}`;
 }
 
 export async function listRelations(): Promise<RelationResult[]> {

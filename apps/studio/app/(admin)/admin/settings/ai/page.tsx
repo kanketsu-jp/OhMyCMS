@@ -1,4 +1,3 @@
-import path from "node:path";
 import { KeyRound } from "lucide-react";
 
 import { AgentsManager } from "@/components/admin/agents-manager";
@@ -29,10 +28,6 @@ type AgentRow = {
 type ConnectionInfo = {
   url: string;
 };
-
-function mcpEntrypoint(): string {
-  return path.resolve(process.cwd(), "../../packages/mcp/dist/index.js");
-}
 
 export default async function AiSettingsPage({ searchParams }: Props) {
   const params = await searchParams;
@@ -95,7 +90,7 @@ async function McpSettingsPanel() {
           <ErrorBanner message={tError(result.messageKey)} />
         ) : (
           <Surface>
-            <McpConnection url={result.data.data.url} entrypoint={mcpEntrypoint()} />
+            <McpConnection url={result.data.data.url} />
           </Surface>
         )}
       </div>

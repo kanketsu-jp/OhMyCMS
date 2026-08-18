@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db/knex";
 import { asJsonObject } from "@/lib/auth/json-object";
+import { ApiError } from "@/lib/schema/errors";
 import { sha256Hex, randomToken } from "./crypto";
 import type { GoogleIdentity } from "./google";
 
@@ -47,6 +48,18 @@ export async function upsertGoogleUser(identity: GoogleIdentity): Promise<Direct
     return existing;
   }
 
+  const emailUser = await db<DirectusUserRow>("directus_users")
+    .select("id", "first_name", "last_name", "email", "role", "status")
+    .where("email", identity.email)
+    .first();
+  if (emailUser) {
+    throw new ApiError(
+      409,
+      "GOOGLE_EMAIL_CONFLICT",
+      "このGoogleアカウントではログインできません。別のログイン方法をお試しください",
+    );
+  }
+
   const id = randomUUID();
   const user = {
     id,
@@ -63,7 +76,18 @@ export async function upsertGoogleUser(identity: GoogleIdentity): Promise<Direct
     auth_data: { email_verified: identity.emailVerified, picture: identity.picture },
   };
 
-  await db("directus_users").insert(user);
+  try {
+    await db("directus_users").insert(user);
+  } catch (error) {
+    if ((error as { code?: unknown }).code === "23505") {
+      throw new ApiError(
+        409,
+        "GOOGLE_EMAIL_CONFLICT",
+        "このGoogleアカウントではログインできません。別のログイン方法をお試しください",
+      );
+    }
+    throw error;
+  }
 
   return {
     id,
