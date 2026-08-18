@@ -40,7 +40,6 @@ import {
 
 import { GlobalSearchButton } from "@/components/admin/global-search";
 import { matchesNavGroup, type NavGroup, type NavLink } from "@/components/admin/nav-links";
-import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
 import { UserMenu } from "@/components/admin/user-menu";
 import {
@@ -86,7 +85,7 @@ export function LeftSidebarProvider({ children, defaultOpen = true }: ProviderPr
 export function LeftSidebarToggle() {
   const { state, toggleSidebar } = useSidebar();
 
-  useShortcut(SHORTCUTS.toggleLeftSidebar, toggleSidebar);
+  useShortcut("toggleLeftSidebar", toggleSidebar);
 
   return (
     <SidebarTrigger

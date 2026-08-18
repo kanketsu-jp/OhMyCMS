@@ -164,7 +164,7 @@ export function RightPanelToggle() {
   const isMac = useIsMac();
   const { toggle, isOpen } = useRightPanel();
 
-  useShortcut(SHORTCUTS.toggleRightSidebar, toggle);
+  useShortcut("toggleRightSidebar", toggle);
 
   return (
     // 🚨 **アイコンだけのボタンなので、目で見る人には名前が 1 文字も出ていなかった**

@@ -6,7 +6,6 @@ import { useRef, useState } from "react";
 
 import { ChatComposer } from "@/components/admin/chat-composer";
 import { Button } from "@/components/ui/button";
-import { SHORTCUTS } from "@/components/admin/shortcuts";
 import { useShortcut } from "@/components/admin/use-shortcut";
 import {
   Message,
@@ -89,7 +88,7 @@ export function ReportThread({ report, attachments, messages, viewerId, canManag
   });
 
   useShortcut(
-    SHORTCUTS.submit,
+    "submit",
     () => {
       // useShortcut は document に付くので、同じ組み合わせを持つ部品が
       // 2つ載っていると両方動く。いま入力している欄のフォームだけ送る。

@@ -107,7 +107,7 @@ export function HeaderBack() {
     }
     router.push(parent?.href ?? "/admin");
   }, [router, parent]);
-  useShortcut(SHORTCUTS.back, goBack);
+  useShortcut("back", goBack);
 
   return (
     // 🚨 **ショートカットはバッジで出さない。ツールチップで見せる**

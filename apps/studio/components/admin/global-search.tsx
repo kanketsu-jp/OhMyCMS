@@ -93,7 +93,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   // 🚨 `⌘K` は検索が占有する（`shortcuts.ts`）。**入力中でも効かせる**のは、
   //    これが編集操作ではなく**どこからでも呼べる移動手段**だから（従来の挙動も同じ）。
   //    その代わり `⌘K` を他の用途へ割り当てないこと（WYSIWYG のリンク挿入も別のキーにする）。
-  useShortcut(SHORTCUTS.search, toggle, { whileTyping: true });
+  useShortcut("search", toggle, { whileTyping: true });
 
   const api = useMemo(() => ({ open: () => setOpen(true) }), []);
 

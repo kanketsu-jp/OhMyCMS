@@ -7,8 +7,8 @@ import { createPortal, useFormStatus } from "react-dom";
 
 import { ConfirmDialog, submitFormById, type ConfirmSpec } from "@/components/admin/confirm-dialog";
 
-import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
-import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
+import { formatShortcut } from "@/components/admin/shortcuts";
+import { useConfiguredShortcut, useIsMac, useShortcut } from "@/components/admin/use-shortcut";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -174,7 +174,8 @@ export function PageAction({
    *   **環境で変わる**。mac は ⌘Enter / それ以外は Ctrl+Enter）。
    */
   const isMac = useIsMac();
-  const shortcutHint = form && role === "primary" ? formatShortcut(SHORTCUTS.save, isMac) : null;
+  const saveShortcut = useConfiguredShortcut("save");
+  const shortcutHint = form && role === "primary" && saveShortcut ? formatShortcut(saveShortcut, isMac) : null;
 
   // 🚨 **確認待ちの項目は、メニューの外で持つ**（`confirm-dialog.tsx` の申し送り）。
   //    🚨 そして **ダイアログは 1 つだけ描く**——`renderAction` は PC 用と SP 用で
@@ -195,7 +196,7 @@ export function PageAction({
   const order = role === "secondary" ? "order-first" : undefined;
 
   useShortcut(
-    SHORTCUTS.save,
+    "save",
     () => {
       // 🚨 `disabled` はボタンだけでなく**ここでも**見る。見ないと、押せないボタンの
       //    ぶんまで ⌘S が送ってしまい、「画面では止まっているのに保存される」ことになる。

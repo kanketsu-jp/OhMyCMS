@@ -15,15 +15,15 @@
  */
 export const SHORTCUTS = {
   /** 横断検索を開く。🚨 **既に検索が占有している**。他に割り当てないこと（f2j-state.md §11-9） */
-  search: "unassigned-search",
+  search: "mod+k",
   /** ひとつ前の画面へ戻る */
-  back: "unassigned-back",
+  back: "mod+arrowleft",
   /** 保存 */
-  save: "unassigned-save",
+  save: "mod+enter",
   /** 送信（保存より強い操作。⇧ を足して取り違えを防ぐ） */
-  submit: "unassigned-submit",
+  submit: "mod+shift+enter",
   /** 左サイドバーの開閉 */
-  toggleLeftSidebar: "unassigned-toggle-left-sidebar",
+  toggleLeftSidebar: "mod+b",
   /**
    * 右サイドバーの開閉。
    * 🚨 `mod+i` にしない。WYSIWYG（Tiptap）の斜体と衝突する。
@@ -35,7 +35,7 @@ export const SHORTCUTS = {
    *    `useShortcut` は入力中を避けるので実害は出ないが、
    *    **「入力欄の外では効いて、中では効かない」ショートカットは説明できない**。
    */
-  toggleRightSidebar: "unassigned-toggle-right-sidebar",
+  toggleRightSidebar: "mod+j",
 } as const;
 
 export type ShortcutName = keyof typeof SHORTCUTS;
