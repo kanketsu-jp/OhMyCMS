@@ -72,6 +72,10 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   const selectedFiles = useSelectedFiles();
   const previewRequest = usePreviewRequest();
   const lastClickedIdRef = useRef<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressTriggeredRef = useRef(false);
   const panel = useRightPanel();
   const imageFiles = useMemo(() => files.filter(isImage), [files]);
   const imageIdsKey = useMemo(() => imageFiles.map((file) => file.id).join("\u0000"), [imageFiles]);
@@ -245,6 +249,42 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     replaceSelection(next);
   }
 
+  function cancelLongPress(): void {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressStartRef.current = null;
+  }
+
+  function onTouchStart(event: React.TouchEvent, file: FileRow): void {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    longPressStartRef.current = { x: touch.clientX, y: touch.clientY };
+    longPressTriggeredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      longPressTriggeredRef.current = true;
+      setSelectionMode(true);
+      replaceSelection([file]);
+    }, 500);
+  }
+
+  function onTouchMove(event: React.TouchEvent): void {
+    const start = longPressStartRef.current;
+    const touch = event.touches[0];
+    if (!start || !touch) return;
+    if (Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 10) {
+      cancelLongPress();
+    }
+  }
+
+  function onTouchEnd(event: React.TouchEvent): void {
+    const wasLongPress = longPressTriggeredRef.current;
+    cancelLongPress();
+    if (wasLongPress) event.preventDefault();
+  }
+
   function selectRange(file: FileRow): void {
     const startId = lastClickedIdRef.current;
     if (!startId) {
@@ -264,20 +304,35 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   }
 
   function selectFromEvent(event: TileEvent, file: FileRow): void {
-    if (event.metaKey || event.ctrlKey) return;
+    if (event.metaKey || event.ctrlKey) {
+      event.preventDefault();
+      toggle(file);
+      return;
+    }
+    if (longPressTriggeredRef.current) {
+      event.preventDefault();
+      longPressTriggeredRef.current = false;
+      return;
+    }
     if (event.detail > 1) return;
     event.preventDefault();
+    if (selectionMode) {
+      toggle(file);
+      return;
+    }
     if (event.shiftKey) {
       selectRange(file);
       return;
     }
-    toggle(file);
+    lastClickedIdRef.current = file.id;
+    replaceSelection([file]);
   }
 
   useEffect(() => {
     const clearOnEscape = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.key !== "Escape") return;
       clearSelection();
+      setSelectionMode(false);
     };
     document.addEventListener("keydown", clearOnEscape);
     return () => document.removeEventListener("keydown", clearOnEscape);
@@ -305,6 +360,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
         const tileClassName = cn(
           "min-w-0 rounded-md p-3 transition-colors hover:bg-muted active:bg-muted/80",
           selected && "ring-2 ring-ring",
+          selectionMode && "bg-muted/40",
         );
 
         if (isImage(file)) {
@@ -331,6 +387,12 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
                  🚨 **SP の実機で押した手応えは、まだ測っていません**（本来の目的はそこ）。 */
               className={cn(tileClassName, "text-left")}
               onClick={(event) => selectFromEvent(event, file)}
+              onTouchStart={(event) => onTouchStart(event, file)}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              onContextMenu={(event) => {
+                if (selectionMode || longPressTriggeredRef.current) event.preventDefault();
+              }}
               onDoubleClick={() => openImage(file)}
             >
               <FileThumbnail id={file.id} alt={label} />
@@ -360,6 +422,12 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
               data-selected={selected ? "true" : undefined}
               className={tileClassName}
               onClick={(event) => selectFromEvent(event, file)}
+              onTouchStart={(event) => onTouchStart(event, file)}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              onContextMenu={(event) => {
+                if (selectionMode || longPressTriggeredRef.current) event.preventDefault();
+              }}
             >
               <div data-surface-exempt className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-muted">
                 <div className="text-center text-muted-foreground">
