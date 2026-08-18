@@ -4,9 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -163,55 +161,41 @@ function SearchDialog({
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  // 打つたびに投げないよう遅延させる。最後の入力だけを使う。
-  const latest = useRef(0);
+  const [searchedQuery, setSearchedQuery] = useState("");
 
-  /**
-   * 入力が変わったときの後始末は**ハンドラ側**でやる。
-   * 🚨 effect の中で直接 setState すると react-hooks/set-state-in-effect に落ちる
-   *    （lint がエラーにする）。空になった瞬間の結果消去はここが正しい場所。
-   */
+  /** 空になった瞬間は、検索を待たずに結果を消す。 */
   const onQueryChange = useCallback((value: string) => {
     setQuery(value);
     if (value.trim().length === 0) {
       setResult(EMPTY);
+      setSearchedQuery("");
       setLoading(false);
       setFailed(false);
     }
   }, []);
 
-  useEffect(() => {
+  const runSearch = useCallback(async () => {
     const q = query.trim();
-    if (q.length === 0) return;
-
-    const token = ++latest.current;
-    const timer = setTimeout(async () => {
-      // 状態の更新はすべてこの非同期コールバックの中で行う（effect の直下では行わない）。
-      setLoading(true);
-      setFailed(false);
-      try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        // 打つのが速いと応答が前後する。**最後の入力の結果だけ**を採用する。
-        if (token !== latest.current) return;
-        if (!response.ok) {
-          setResult(EMPTY);
-          setFailed(true);
-          return;
-        }
-        const payload = (await response.json()) as { data: SearchResult };
-        setResult(payload.data ?? EMPTY);
-      } catch {
-        if (token === latest.current) {
-          setResult(EMPTY);
-          setFailed(true);
-        }
-      } finally {
-        if (token === latest.current) setLoading(false);
+    if (q.length === 0 || q === searchedQuery) return;
+    setSearchedQuery(q);
+    setLoading(true);
+    setFailed(false);
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      if (!response.ok) {
+        setResult(EMPTY);
+        setFailed(true);
+        return;
       }
-    }, 200);
-
-    return () => clearTimeout(timer);
-  }, [query]);
+      const payload = (await response.json()) as { data: SearchResult };
+      setResult(payload.data ?? EMPTY);
+    } catch {
+      setResult(EMPTY);
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [query, searchedQuery]);
 
   const pageKinds = useMemo<(keyof SearchResult)[]>(() => {
     if (pathname.startsWith("/admin/files")) return ["files"];
@@ -309,6 +293,10 @@ function SearchDialog({
           autoFocus
           value={query}
           onValueChange={onQueryChange}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void runSearch();
+          }}
+          onBlur={() => void runSearch()}
           placeholder={t("placeholder")}
         />
         {/* CommandList はそれ自体がスクロールする箱（`command.tsx` が `scroll-fade-y` を持つ）。 */}

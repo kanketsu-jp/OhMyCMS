@@ -55,6 +55,7 @@ export function DriveImportPanel({
   const [connection, setConnection] = useState<Connection | null>(initialConnection);
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [search, setSearch] = useState("");
+  const [searched, setSearched] = useState("");
 
   const list = useSubmitOnce(async () => {
     const url = new URL("/api/drive/files", window.location.origin);
@@ -73,6 +74,13 @@ export function DriveImportPanel({
     const payload = (await response.json()) as { data: { files: DriveFile[] } };
     setFiles(payload.data.files);
   });
+
+  const runSearch = () => {
+    const value = search.trim();
+    if (value === searched) return;
+    setSearched(value);
+    void list.run();
+  };
 
   const importFile = useSubmitOnce(
     async (file: DriveFile) => {
@@ -124,6 +132,10 @@ export function DriveImportPanel({
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") runSearch();
+              }}
+              onBlur={runSearch}
               placeholder={t("drive_search_placeholder")}
               aria-label={t("drive_search_placeholder")}
             />

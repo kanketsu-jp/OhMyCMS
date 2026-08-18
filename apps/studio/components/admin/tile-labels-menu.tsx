@@ -53,6 +53,7 @@ export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
   const [all, setAll] = useState<LabelRow[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [pendingSystemRemoval, setPendingSystemRemoval] = useState<LabelRow | null>(null);
 
   const load = useSubmitOnce(async () => {
@@ -74,6 +75,7 @@ export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
   const closeDialog = () => {
     setOpen(false);
     setSearch("");
+    setAppliedSearch("");
     setSelected(new Set());
     setPendingSystemRemoval(null);
   };
@@ -114,6 +116,7 @@ export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
       setAll(null);
       setSelected(new Set());
       setSearch("");
+      setAppliedSearch("");
       void load.run();
       return;
     }
@@ -138,7 +141,12 @@ export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
   };
 
   const selectedLabels = all?.filter((label) => selected.has(label.id)) ?? [];
-  const createName = search.trim();
+  const applySearch = (value: string) => {
+    const next = value.trim();
+    if (next === appliedSearch) return;
+    setAppliedSearch(next);
+  };
+  const createName = appliedSearch.trim();
 
   return (
     <>
@@ -188,11 +196,15 @@ export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
               })}
             </div>
           ) : null}
-          <Command>
+          <Command shouldFilter={false}>
             <CommandInput
               autoFocus
               value={search}
               onValueChange={setSearch}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") applySearch(search);
+              }}
+              onBlur={() => applySearch(search)}
               placeholder={t("labels_search_placeholder")}
             />
             <CommandList>
@@ -220,28 +232,34 @@ export function TileLabelsMenu({ endpoint }: { endpoint: string }) {
                   </CommandEmpty>
                   {all.length > 0 ? (
                     <CommandGroup>
-                      {all.map((label) => {
-                        const on = selected.has(label.id);
-                        const name = labelDisplayName(tl, label);
-                        return (
-                          <CommandItem
-                            key={label.id}
-                            value={name}
-                            aria-checked={on}
-                            role="menuitemcheckbox"
-                            disabled={save.pending}
-                            onSelect={() => {
-                              toggleLabel(label.id);
-                            }}
-                          >
-                            <Check className={on ? "size-4" : "size-4 opacity-0"} aria-hidden />
-                            <span>{name}</span>
-                            {label.is_system ? (
-                              <Lock className="ml-auto size-3.5 opacity-60" />
-                            ) : null}
-                          </CommandItem>
-                        );
-                      })}
+                      {all
+                        .filter((label) =>
+                          labelDisplayName(tl, label)
+                            .toLocaleLowerCase()
+                            .includes(appliedSearch.toLocaleLowerCase()),
+                        )
+                        .map((label) => {
+                          const on = selected.has(label.id);
+                          const name = labelDisplayName(tl, label);
+                          return (
+                            <CommandItem
+                              key={label.id}
+                              value={name}
+                              aria-checked={on}
+                              role="menuitemcheckbox"
+                              disabled={save.pending}
+                              onSelect={() => {
+                                toggleLabel(label.id);
+                              }}
+                            >
+                              <Check className={on ? "size-4" : "size-4 opacity-0"} aria-hidden />
+                              <span>{name}</span>
+                              {label.is_system ? (
+                                <Lock className="ml-auto size-3.5 opacity-60" />
+                              ) : null}
+                            </CommandItem>
+                          );
+                        })}
                     </CommandGroup>
                   ) : null}
                 </>

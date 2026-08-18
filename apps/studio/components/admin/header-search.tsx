@@ -2,7 +2,7 @@
 
 import { SearchIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 
 import { Input } from "@/components/ui/input";
@@ -52,8 +52,11 @@ export function HeaderSearch({ placeholder }: { placeholder?: string }) {
   const slot = useSlot("header-search");
 
   const current = params.get("q") ?? "";
+  const [draft, setDraft] = useState(current);
+  const [pending, startTransition] = useTransition();
 
   const apply = (value: string) => {
+    if (value === current) return;
     const next = new URLSearchParams(params.toString());
     // 🚨 空文字は鍵ごと落とす。残すと `?q=` が URL に居座り、
     //    「絞っていないのに絞っているように見える」状態になる。
@@ -63,7 +66,9 @@ export function HeaderSearch({ placeholder }: { placeholder?: string }) {
     //    **結果が在るのに空に見える**（`pagination-href.ts` と同じ考え方）。
     next.delete("page");
     const search = next.toString();
-    router.replace(search ? `${pathname}?${search}` : pathname);
+    startTransition(() => {
+      router.replace(search ? `${pathname}?${search}` : pathname);
+    });
   };
 
   if (!slot) return null;
@@ -89,16 +94,21 @@ export function HeaderSearch({ placeholder }: { placeholder?: string }) {
     //    🚨 **AN1 はここには届かない。** この入力は `bg-transparent` を自分で指定しており、
     //      `components/ui/input.tsx` を変えても上書きされる（だから区画側に敷いている）。
     <div className="hidden min-w-0 flex-1 items-center bg-input px-3 lg:flex">
-      <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      <SearchIcon aria-hidden="true" className={`size-4 shrink-0 text-muted-foreground ${pending ? "animate-spin" : ""}`} />
       <Input
         type="search"
-        defaultValue={current}
+        value={draft}
+        onChange={(event) => setDraft(event.currentTarget.value)}
         placeholder={placeholder ?? t("in_page_placeholder")}
         aria-label={placeholder ?? t("in_page_placeholder")}
         // 🚨 面を持たせない（`DESIGN.md` §1-1 / §2-8「入力欄に見えるものは、打てること」）。
         //    ヘッダーは平らなので、枠線も背景も持たせず、**打てることは placeholder と caret で示す**。
         className="h-full border-0 bg-transparent shadow-none focus-visible:ring-0"
-        onChange={(event) => apply(event.currentTarget.value)}
+        aria-busy={pending}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") apply(draft);
+        }}
+        onBlur={() => apply(draft)}
       />
     </div>,
     slot,
