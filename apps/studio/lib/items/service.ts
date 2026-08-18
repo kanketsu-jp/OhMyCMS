@@ -677,6 +677,10 @@ async function resolveRelationsForItems(
         });
       }
       if (childSort) {
+        assertSortAllowed(
+          parseQueryOptions({ sort: childSort }).sort,
+          targetPermission.allowedFields,
+        );
         applyValidatedSort(
           query,
           relation.targetCollection,
@@ -750,6 +754,10 @@ async function resolveRelationsForItems(
       });
     }
     if (childSort) {
+      assertSortAllowed(
+        parseQueryOptions({ sort: childSort }).sort,
+        targetPermission.allowedFields,
+      );
       applyValidatedSort(
         query,
         relation.targetCollection,
