@@ -19,75 +19,61 @@
 ```json
 [
   {
-    "key": "unassigned-search",
+    "key": "mod+k",
     "action": "search",
-    "scope": "global",
+    "scope": "unknown",
     "label_key": "common.shortcut_search",
     "editor": {
       "conflicts": false
     }
   },
   {
-    "key": "unassigned-back",
+    "key": "mod+arrowleft",
     "action": "back",
-    "scope": "global",
+    "scope": "unknown",
     "label_key": "common.shortcut_back",
     "editor": {
       "conflicts": false
     }
   },
   {
-    "key": "unassigned-save",
+    "key": "mod+enter",
     "action": "save",
-    "scope": [
-      "page:/admin/collections/new",
-      "page:/admin/collections/[collection]/fields/new",
-      "page:/admin/content/[collection]/new",
-      "page:/admin/content/[collection]/[id]",
-      "page:/admin/files/new",
-      "page:/admin/files/new-folder",
-      "page:/admin/files/[id]",
-      "page:/admin/settings/general",
-      "page:/admin/settings/storage",
-      "page:/admin/settings/sso",
-      "page:/admin/profile",
-      "page:/admin/collections/[collection]",
-      "page:/admin/labels",
-      "page:/admin/settings/ai",
-      "page:/admin/settings/policies/[id]",
-      "page:/admin/settings/policies",
-      "page:/admin/settings/roles",
-      "page:/admin/settings/users"
-    ],
+    "scope": "unknown",
     "label_key": "common.shortcut_save",
     "editor": {
-      "conflicts": false
+      "conflicts": true,
+      "owner": [
+        "@tiptap/core",
+        "@tiptap/extension-hard-break"
+      ]
     }
   },
   {
-    "key": "unassigned-submit",
+    "key": "mod+shift+enter",
     "action": "submit",
-    "scope": [
-      "page:/admin/reports/[id]"
-    ],
+    "scope": "unknown",
     "label_key": "common.shortcut_submit",
     "editor": {
       "conflicts": false
     }
   },
   {
-    "key": "unassigned-toggle-left-sidebar",
+    "key": "mod+b",
     "action": "toggleLeftSidebar",
-    "scope": "global",
+    "scope": "unknown",
     "label_key": "common.shortcut_toggle_left_sidebar",
     "editor": {
-      "conflicts": false
+      "conflicts": true,
+      "owner": [
+        "@tiptap/extension-bold"
+      ]
     }
   },
   {
-    "key": "unassigned-toggle-right-sidebar",
+    "key": "mod+j",
     "action": "toggleRightSidebar",
-    "scope": "global",
+    "scope": "unknown",
     "label_key": "common.shortcut_toggle_right_sidebar",
     "editor": {
       "conflicts": false

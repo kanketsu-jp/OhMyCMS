@@ -12,6 +12,7 @@ import { HeaderBack } from "@/components/admin/header-back";
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { LeftSidebar, LeftSidebarProvider, LeftSidebarToggle } from "@/components/admin/left-sidebar";
 import { RightPanelProvider, RightPanelToggle } from "@/components/admin/right-panel";
+import { ShortcutProvider } from "@/components/admin/use-shortcut";
 import { collectionLabelMap } from "@/lib/schema/collection-labels";
 import { getLocale, getT } from "@/i18n/server";
 import { projectColor } from "@/lib/settings/project-color";
@@ -222,7 +223,8 @@ export default async function AdminLayout({
       {/* 🚨 検索の本体（ダイアログと ⌘K）は**ここで1つだけ**描く。
           起動ボタンは左サイドバーと SP のドロワーの2箇所に置くので、
           部品ごとに本体を持たせるとダイアログも ⌘K の購読も2つになる。 */}
-      <CollectionLabelsProvider value={collectionLabels}>
+       <CollectionLabelsProvider value={collectionLabels}>
+      <ShortcutProvider>
       <GlobalSearchProvider>
       <LeftSidebarProvider defaultOpen={leftSidebarDefaultOpen}>
       <RightPanelProvider brand={brand}>
@@ -409,9 +411,10 @@ export default async function AdminLayout({
       {/* 🚨 `MobileNav` も Provider の中に置く。SP のドロワー内の `UserMenu` から
           右パネルを開くものが入るため。`MobileNav` は fixed なので、flex の並びには影響しない。 */}
       </RightPanelProvider>
-      </LeftSidebarProvider>
-      </GlobalSearchProvider>
-      </CollectionLabelsProvider>
+       </LeftSidebarProvider>
+       </GlobalSearchProvider>
+       </ShortcutProvider>
+       </CollectionLabelsProvider>
     </div>
   );
 }
