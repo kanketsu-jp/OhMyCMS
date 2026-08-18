@@ -23,8 +23,7 @@ export async function ensureDeletedAtColumn(
 
   const 登録 = await conn("directus_collections").where({ collection }).first();
   if (!登録) {
-    // 🚨 登録が無い表は対象外。**覚える**（毎回問い合わせない）。列は在りません。
-    確認済み.add(collection);
+    // 🚨 登録が無い表は対象外。**覚えない**（後から同名で作られる可能性がある）。
     return;
   }
 
