@@ -61,6 +61,7 @@ type RightPanelApi = {
   toggle: () => void;
   push: (entry: PanelEntry) => void;
   pop: () => void;
+  focusSection: (id: string) => void;
 };
 
 const RightPanelContext = createContext<RightPanelApi | null>(null);
@@ -103,6 +104,7 @@ export function RightPanelProvider({
   const pathname = usePathname();
   const [openedAt, setOpenedAt] = useState<string | null>(null);
   const [stack, setStack] = useState<PanelEntry[]>([]);
+  const [focusRequest, setFocusRequest] = useState<{ id: string; version: number } | null>(null);
   const isOpen = openedAt === pathname;
 
   // 🚨 戻る／進むのときは、経路で導出するだけでは閉じない。
@@ -138,16 +140,20 @@ export function RightPanelProvider({
   }, [pathname]);
 
   const pop = useCallback(() => setStack((current) => current.slice(0, -1)), []);
+  const focusSection = useCallback((id: string) => {
+    setFocusRequest((current) => ({ id, version: (current?.version ?? 0) + 1 }));
+    setOpenedAt(pathname);
+  }, [pathname]);
 
   const api = useMemo<RightPanelApi>(
-    () => ({ isOpen, depth: stack.length + 1, open, close, toggle, push, pop }),
-    [isOpen, stack.length, open, close, toggle, push, pop],
+    () => ({ isOpen, depth: stack.length + 1, open, close, toggle, push, pop, focusSection }),
+    [isOpen, stack.length, open, close, toggle, push, pop, focusSection],
   );
 
   return (
     <RightPanelContext value={api}>
       {children}
-      <RightPanelSurface brand={brand} stack={isOpen ? stack : []} />
+      <RightPanelSurface brand={brand} stack={isOpen ? stack : []} focusRequest={focusRequest} />
     </RightPanelContext>
   );
 }
@@ -196,7 +202,15 @@ export function RightPanelToggle() {
   );
 }
 
-function RightPanelSurface({ brand, stack }: { brand: string; stack: PanelEntry[] }) {
+function RightPanelSurface({
+  brand,
+  stack,
+  focusRequest,
+}: {
+  brand: string;
+  stack: PanelEntry[];
+  focusRequest: { id: string; version: number } | null;
+}) {
   const { isOpen, close } = useRightPanel();
   const isDesktop = useIsDesktop();
 
@@ -208,7 +222,7 @@ function RightPanelSurface({ brand, stack }: { brand: string; stack: PanelEntry[
     return (
       // 面は「罫線・背景・影」のうち1つだけ（憲章 §1）。左サイドバーと同じく罫線1本。
       <aside className="flex w-80 shrink-0 flex-col border-l">
-        <PanelBody brand={brand} stack={stack} />
+        <PanelBody brand={brand} stack={stack} focusRequest={focusRequest} />
       </aside>
     );
   }
@@ -217,7 +231,7 @@ function RightPanelSurface({ brand, stack }: { brand: string; stack: PanelEntry[
     <Dialog open onOpenChange={(next) => { if (!next) close(); }}>
       {/* SP は `dialog.tsx` の既定で画面いっぱいになる（design が 0d56b4b で入れた）。 */}
       <DialogContent showCloseButton={false} style={{ padding: 0 }}>
-        <PanelBody brand={brand} stack={stack} inDialog />
+        <PanelBody brand={brand} stack={stack} focusRequest={focusRequest} inDialog />
       </DialogContent>
     </Dialog>
   );
@@ -226,10 +240,12 @@ function RightPanelSurface({ brand, stack }: { brand: string; stack: PanelEntry[
 function PanelBody({
   brand,
   stack,
+  focusRequest,
   inDialog = false,
 }: {
   brand: string;
   stack: PanelEntry[];
+  focusRequest: { id: string; version: number } | null;
   inDialog?: boolean;
 }) {
   const tCommon = useT("common");
@@ -291,7 +307,7 @@ function PanelBody({
       </div>
 
       <ScrollFade direction="vertical" className="min-h-0 flex-1">
-        {top ? top.node : <PageInfoPanel />}
+        {top ? top.node : <PageInfoPanel focusRequest={focusRequest} />}
       </ScrollFade>
     </div>
   );

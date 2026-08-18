@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { useT } from "@/i18n/client";
+import { InfoHint } from "@/components/admin/info-hint";
 
 type MailTestResult = "idle" | "ok" | "failed" | "not_configured";
 
@@ -27,10 +28,11 @@ export function MailTestButton() {
   });
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-1">
       <Button type="button" variant="outline" onClick={() => void test.run()} disabled={test.pending}>
         {test.pending ? t("mail_testing") : t("mail_test")}
       </Button>
+      <InfoHint sectionId="panel-section-mail-test" />
       {result === "ok" ? (
         <span className="text-sm text-muted-foreground">{t("mail_test_ok")}</span>
       ) : null}
