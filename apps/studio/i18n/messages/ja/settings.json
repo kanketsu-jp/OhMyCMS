@@ -38,7 +38,7 @@
   "general_tab": "一般",
   "shortcuts_tab": "ショートカット",
   "shortcuts_title": "ショートカット",
-  "shortcuts_description": "操作ごとのキーを設定できます。初期状態では未設定です。",
+  "shortcuts_description": "操作ごとのキーを設定できます。初期状態では既定のキーが設定されています。",
   "shortcut_search": "検索",
   "shortcut_back": "戻る",
   "shortcut_save_operation": "保存",

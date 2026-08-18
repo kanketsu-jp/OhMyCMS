@@ -38,7 +38,7 @@
   "general_tab": "General",
   "shortcuts_tab": "Shortcuts",
   "shortcuts_title": "Shortcuts",
-  "shortcuts_description": "Set a key combination for each operation. Shortcuts are unset initially.",
+  "shortcuts_description": "Set a key combination for each operation. Default shortcuts are set initially.",
   "shortcut_search": "Search",
   "shortcut_back": "Back",
   "shortcut_save_operation": "Save",
