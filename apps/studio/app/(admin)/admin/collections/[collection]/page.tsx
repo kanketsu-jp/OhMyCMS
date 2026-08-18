@@ -10,6 +10,7 @@ import { ListEmpty } from "@/components/admin/list-empty";
 import { WideTable } from "@/components/admin/wide-table";
 import { FieldCreateForm } from "@/components/admin/field-create-form";
 import { PageAction } from "@/components/admin/page-action";
+import { PageTabs } from "@/components/admin/page-tabs";
 import { sectionAnchorId } from "@/components/admin/page-sections";
 import { RelationForm } from "@/components/admin/relation-form";
 import { errorKeyFromQuery } from "@/i18n/error";
@@ -40,7 +41,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ collection: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; tab?: string }>;
 };
 
 type CollectionRelationRow = {
@@ -89,6 +90,9 @@ function fieldTranslationFormId(field: string) {
 
 export default async function CollectionDetailPage({ params, searchParams }: Props) {
   const query = await searchParams;
+  const tab = query.tab === "field-create" || query.tab === "relations" || query.tab === "relation-create"
+    ? query.tab
+    : "fields";
   // 🚨 URL の値は鍵としてしか受け取らない（許可リスト・fail closed）。i18n/error.ts 参照。
   const tError = await getT("errors");
   const errorKey = errorKeyFromQuery(query.error);
@@ -162,17 +166,25 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           この行が並べるものは何も残らない（`PageAction` は portal で外へ出る）。
           ❌ 戻さないこと。戻すと**同じ役目のものが2箇所**に出る。 */}
       <ParentBackLink href="/admin/collections">{tCollections("back_to_list")}</ParentBackLink>
+      <PageTabs
+        tabs={[
+          { href: `/admin/collections/${encoded}?tab=fields`, label: tFields("list_tab"), current: tab === "fields" },
+          { href: `/admin/collections/${encoded}?tab=field-create`, label: tFields("add_tab"), current: tab === "field-create" },
+          { href: `/admin/collections/${encoded}?tab=relations`, label: tRelations("list_tab"), current: tab === "relations" },
+          { href: `/admin/collections/${encoded}?tab=relation-create`, label: tRelations("add_tab"), current: tab === "relation-create" },
+        ]}
+      />
       {/* 🚨 **囲まない**（`PageAction` は portal で外へ出るので、ここに中身は残らない）。
           🚨 form は**残す**。`form="collection-delete-form"` が指す相手そのものなので、
              消すと削除ボタンが黙って効かなくなる（中身は空でよい）。 */}
       <form id="collection-delete-form" action={`/admin/actions/collections/${encoded}/delete`} method="post" />
       {/* 🚨 項目追加は本文フォームを主とし、ヘッダーからも同じフォームを送れるようにする。削除は ▾ の中。 */}
-      <PageAction
-        form="field-create-form"
-        label={tFields("add_button")}
-        icon={<Save />}
-        options={[
-          {
+      {tab === "fields" || tab === "relations" ? (
+        <PageAction
+          href={`/admin/collections/${encoded}?tab=${tab === "fields" ? "field-create" : "relation-create"}`}
+          label={tab === "fields" ? tFields("add_button") : tRelations("add_button")}
+          icon={<Save />}
+          options={[{
             label: tCollections("delete_button"),
             formId: "collection-delete-form",
             destructive: true,
@@ -182,9 +194,9 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
               confirmLabel: tCollections("delete_button"),
               tone: "danger",
             },
-          },
-        ]}
-      />
+          }]}
+        />
+      ) : null}
       <ErrorBanner
         message={
           errorMessage ??
@@ -192,7 +204,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           (!relationsResult.ok ? tError(relationsResult.messageKey) : null)
         }
       />
-      <Surface id={sectionAnchorId("fields.list_title")}>
+      {tab === "fields" ? <Surface id={sectionAnchorId("fields.list_title")}>
         {/* 🚨 見出しは出さない（堀池・2026-08-15「「〜一覧」の見出しは全部消す」）。
             見て分かるものに名前を付けない。**右サイドバーの「項目一覧」には出る**ので、
             辞書の鍵は消さないこと（消すと項目一覧の名前が消える）。 */}
@@ -330,11 +342,11 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             {tItems("manage_link")}
           </Link>
         </div>
-      </Surface>
-      <Surface id={sectionAnchorId("fields.add_title")}>
+      </Surface> : null}
+      {tab === "field-create" ? <Surface id={sectionAnchorId("fields.add_title")}>
         <SurfaceTitle>{tFields("add_title")}</SurfaceTitle>
-        <FieldCreateForm collection={encoded} inline />
-      </Surface>
+        <FieldCreateForm collection={encoded} />
+      </Surface> : null}
       {/* 🚨 面の上の線と見出しがくっつかないよう、線の下に 24px（DESIGN.md §1-9・/admin/version と同じ形）。 */}
       <Surface>
         <SurfaceTitle>{tCollections("display_name_heading")}</SurfaceTitle>
@@ -426,7 +438,7 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
           </div>
         </form>
       </Surface>
-      <Surface id={sectionAnchorId("relations.list_title")}>
+      {tab === "relations" ? <Surface id={sectionAnchorId("relations.list_title")}>
         {relationsResult.ok ? (
           collectionRelations.length > 0 ? (
             <WideTable>
@@ -490,11 +502,11 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
             <p className="text-base text-muted-foreground">{tRelations("empty_relations")}</p>
           )
         ) : null}
-      </Surface>
-      <Surface id={sectionAnchorId("relations.add_title")}>
+      </Surface> : null}
+      {tab === "relation-create" ? <Surface id={sectionAnchorId("relations.add_title")}>
         <SurfaceTitle>{tRelations("add_title")}</SurfaceTitle>
         <RelationForm collection={collection} collectionNames={collectionNames} />
-      </Surface>
+      </Surface> : null}
     </div>
   );
 }

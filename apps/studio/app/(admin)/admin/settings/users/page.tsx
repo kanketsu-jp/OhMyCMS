@@ -2,6 +2,7 @@ import { ErrorBanner } from "@/components/admin/error-banner";
 import { UsersPolicyManager } from "@/components/admin/users-policy-manager";
 import { Surface, SurfaceTitle } from "@/components/ui/surface";
 import { ListPagination } from "@/components/admin/list-pagination";
+import { PageTabs } from "@/components/admin/page-tabs";
 import {
   PAGE_SIZE,
   currentPage,
@@ -37,13 +38,14 @@ type AccessRow = {
 };
 
 type Props = {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; tab?: string }>;
 };
 
 export default async function UsersPage({ searchParams }: Props) {
   const t = await getT("users");
   const tError = await getT("errors");
   const query = await searchParams;
+  const tab = query.tab === "create" ? "create" : "list";
   const page = currentPage(query.page);
 
   // 🚨 ページを送るのは**割り当ての一覧（access）だけ**。
@@ -74,6 +76,12 @@ export default async function UsersPage({ searchParams }: Props) {
           (!accessResult.ok ? tError(accessResult.messageKey) : null)
         }
       />
+      <PageTabs
+        tabs={[
+          { href: "/admin/settings/users?tab=list", label: t("list_tab"), current: tab === "list" },
+          { href: "/admin/settings/users?tab=create", label: t("create_tab"), current: tab === "create" },
+        ]}
+      />
       <Surface>
         <SurfaceTitle>{t("assignment_card_title")}</SurfaceTitle>
         {usersResult.ok && policiesResult.ok && accessResult.ok ? (
@@ -81,9 +89,10 @@ export default async function UsersPage({ searchParams }: Props) {
             users={usersResult.data.data}
             policies={policiesResult.data.data}
             access={access}
+            tab={tab}
           />
         ) : null}
-        {accessResult.ok ? (
+        {accessResult.ok && tab === "list" ? (
           <ListPagination
             page={page}
             hasNext={hasNext}

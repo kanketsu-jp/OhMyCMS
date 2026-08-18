@@ -12,6 +12,8 @@
   "error_forbidden": "You don't have permission",
   "error_remove_failed": "Failed to remove",
   "manage_card_title": "Role Management",
+  "list_tab": "List",
+  "create_tab": "Create",
   "name_label": "Role Name",
   "no_description": "No description",
   "none_option": "None",

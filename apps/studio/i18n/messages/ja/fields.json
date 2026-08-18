@@ -1,5 +1,7 @@
 {
   "add_button": "追加",
+  "add_tab": "フィールド作成",
+  "list_tab": "フィールド一覧",
   "add_title": "フィールド追加",
   "advanced_title": "詳しい設定",
   "advanced_type_auto": "自動（上の選択に従う）",

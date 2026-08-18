@@ -52,11 +52,15 @@
 「押せないボタンの働きを鍵から起こさない」）。
 🚨 **モードだけでなく「保存できる状態か」でも変わります。**
 
-🚨 **保存を止めている画面は 3 件**（0 件なら拾い方が壊れています。この生成器が落ちます）:
+🚨 **保存を止めている画面は 7 件**（0 件なら拾い方が壊れています。この生成器が落ちます）:
 
+- `/admin/collections/[collection]` … 押せない条件: `fieldName.trim() === ""`
+- `/admin/collections/[collection]/fields/new` … 押せない条件: `fieldName.trim() === ""`
 - `/admin/settings/policies` … 押せない条件: `!name.trim()`
+- `/admin/settings/roles` … 押せない条件: `!name.trim()`
 - `/admin/settings/sso` … 押せない条件: `!ready`
 - `/admin/settings/storage` … 押せない条件: `!dirty`
+- `/admin/settings/users` … 押せない条件: `assignDisabled`
 
 実測（2026-08-16）: `/admin/settings/storage` は編集モードでも**何も変えなければ** ⌘Enter で
 送信 **0 件**。値を 1 つ変えると送信 **1 件**（`storage-settings-form`）。

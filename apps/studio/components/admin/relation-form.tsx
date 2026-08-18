@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { FieldLabel } from "@/components/admin/field-label";
-import { Button } from "@/components/ui/button";
+import { PageAction } from "@/components/admin/page-action";
 import { Input } from "@/components/ui/input";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
 import { useT } from "@/i18n/client";
@@ -30,6 +31,9 @@ type Props = {
 export function RelationForm({ collection, collectionNames }: Props) {
   const t = useT("relations");
   const [kind, setKind] = useState<RelationKind>("m2o");
+  const [field, setField] = useState("");
+  const [relatedField, setRelatedField] = useState("");
+  const [oneField, setOneField] = useState("");
   const isManyToOne = kind === "m2o";
   const encoded = encodeURIComponent(collection);
 
@@ -67,6 +71,8 @@ export function RelationForm({ collection, collectionNames }: Props) {
         <Input
           id="relation-field"
           name="field"
+          value={field}
+          onChange={(event) => setField(event.target.value)}
           required={isManyToOne}
           disabled={!isManyToOne}
           pattern="[A-Za-z_][A-Za-z0-9_]*"
@@ -90,6 +96,8 @@ export function RelationForm({ collection, collectionNames }: Props) {
         <Input
           id="related-field"
           name="related_field"
+          value={relatedField}
+          onChange={(event) => setRelatedField(event.target.value)}
           required={!isManyToOne}
           disabled={isManyToOne}
           pattern="[A-Za-z_][A-Za-z0-9_]*"
@@ -100,12 +108,19 @@ export function RelationForm({ collection, collectionNames }: Props) {
         <Input
           id="one-field"
           name="one_field"
+          value={oneField}
+          onChange={(event) => setOneField(event.target.value)}
           required={!isManyToOne}
           disabled={isManyToOne}
           pattern="[A-Za-z_][A-Za-z0-9_]*"
         />
       </div>
-      <Button type="submit">{t("add_button")}</Button>
+      <PageAction
+        form={FORM_ID}
+        label={t("add_button")}
+        icon={<Plus />}
+        disabled={isManyToOne ? field.trim() === "" : relatedField.trim() === "" || oneField.trim() === ""}
+      />
     </form>
   );
 }

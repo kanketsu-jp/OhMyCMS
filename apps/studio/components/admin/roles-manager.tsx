@@ -8,6 +8,7 @@ import { FieldLabel } from "@/components/admin/field-label";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { PageAction } from "@/components/admin/page-action";
 import { WideTable } from "@/components/admin/wide-table";
 import {
   AlertDialog,
@@ -24,7 +25,6 @@ import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/client";
 import { errorKeyFromPayload } from "@/i18n/error";
 import { Label } from "@/components/ui/label";
-import { SurfaceDivider } from "@/components/ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
@@ -44,7 +44,7 @@ export type RoleRow = {
  *
  * 参考: DESIGN.md §1-5・§1-6 ／ `components/admin/list-empty.tsx` ／ `components/admin/wide-table.tsx`
  */
-export function RolesManager({ roles }: { roles: RoleRow[] }) {
+export function RolesManager({ roles, tab }: { roles: RoleRow[]; tab: "list" | "create" }) {
   const router = useRouter();
   const t = useT("roles");
   const tError = useT("errors");
@@ -55,6 +55,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
   };
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [name, setName] = useState("");
 
   const create = useSubmitOnce(async (formData: FormData) => {
     setError(null);
@@ -93,9 +94,9 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
   return (
     <div className="space-y-4">
       <ErrorBanner message={error} />
-      {roles.length === 0 ? (
+      {tab === "list" && roles.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
-      ) : (
+      ) : tab === "list" ? (
         // 名前・説明・親ロール・操作の複数列を読む一覧なので table にする。
         <WideTable>
           <Table>
@@ -152,7 +153,7 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
             </TableBody>
           </Table>
         </WideTable>
-      )}
+      ) : null}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -175,31 +176,37 @@ export function RolesManager({ roles }: { roles: RoleRow[] }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <SurfaceDivider />
-      <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px_auto] md:items-end">
-        <FormDraft formId="role-create-form" />
-        <div className="space-y-1.5">
-          <FieldLabel htmlFor="name" required>{t("name_label")}</FieldLabel>
-          <Input id="name" name="name" required />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="description">{t("description_label")}</Label>
-          <Input id="description" name="description" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="parent">{t("parent_label")}</Label>
-          <select id="parent" name="parent" className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
-            <option value="">{t("none_option")}</option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>{role.name}</option>
-            ))}
-          </select>
-        </div>
-        <Button type="submit" loading={create.pending}>
-          <Plus />
-          {t("create_button")}
-        </Button>
-      </form>
+      {tab === "create" ? (
+        <>
+          <PageAction
+            form="role-create-form"
+            role="primary"
+            label={t("create_button")}
+            icon={<Plus />}
+            disabled={!name.trim()}
+          />
+          <form id="role-create-form" action={create.run} className="grid gap-4 md:grid-cols-[1fr_1fr_220px] md:items-end">
+            <FormDraft formId="role-create-form" />
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="name" required>{t("name_label")}</FieldLabel>
+              <Input id="name" name="name" required value={name} onChange={(event) => setName(event.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="description">{t("description_label")}</Label>
+              <Input id="description" name="description" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="parent">{t("parent_label")}</Label>
+              <select id="parent" name="parent" className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
+                <option value="">{t("none_option")}</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>{role.name}</option>
+                ))}
+              </select>
+            </div>
+          </form>
+        </>
+      ) : null}
     </div>
   );
 }

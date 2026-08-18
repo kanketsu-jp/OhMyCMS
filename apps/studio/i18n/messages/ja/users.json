@@ -1,6 +1,8 @@
 {
   "assign_button": "割り当て",
   "assignment_card_title": "ポリシー割り当て",
+  "list_tab": "一覧",
+  "create_tab": "作成",
   "assignment_removed": "割り当てを削除しました",
   "description": "ユーザーへのポリシー割り当てを管理します。",
   "delete_confirm": "元に戻せません。",

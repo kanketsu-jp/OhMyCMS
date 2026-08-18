@@ -1,5 +1,7 @@
 {
   "add_button": "追加",
+  "add_tab": "リレーション作成",
+  "list_tab": "リレーション一覧",
   "add_title": "リレーション追加",
   "current_field_header": "このコレクションのフィールド",
   "delete_button": "削除",

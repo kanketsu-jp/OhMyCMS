@@ -78,6 +78,7 @@ type Props = {
 
 export function FieldCreateForm({ collection, inline = false }: Props) {
   const t = useT("fields");
+  const [fieldName, setFieldName] = useState("");
   const [kindId, setKindId] = useState<FieldKindId>("short_text");
   const [advancedType, setAdvancedType] = useState("");
   const [advancedInterface, setAdvancedInterface] = useState("");
@@ -113,7 +114,14 @@ export function FieldCreateForm({ collection, inline = false }: Props) {
       <div className="grid gap-4 md:grid-cols-[1fr_220px_150px_110px_auto] md:items-end">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="field">{t("name_label")}</Label>
-          <Input id="field" name="field" required pattern="[A-Za-z_][A-Za-z0-9_]*" />
+            <Input
+              id="field"
+              name="field"
+              value={fieldName}
+              onChange={(event) => setFieldName(event.target.value)}
+              required
+              pattern="[A-Za-z_][A-Za-z0-9_]*"
+            />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="field_kind">{t("kind_label")}</Label>
@@ -213,6 +221,7 @@ export function FieldCreateForm({ collection, inline = false }: Props) {
           role="primary"
           label={t("add_button")}
           icon={<Check />}
+          disabled={fieldName.trim() === ""}
         />
       )}
     </form>

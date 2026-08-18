@@ -8,6 +8,7 @@ import { FieldLabel } from "@/components/admin/field-label";
 import { ErrorBanner } from "@/components/admin/error-banner";
 import { FormDraft } from "@/components/admin/form-draft";
 import { ListEmpty } from "@/components/admin/list-empty";
+import { PageAction } from "@/components/admin/page-action";
 import { WideTable } from "@/components/admin/wide-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -21,7 +22,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { SurfaceDivider } from "@/components/ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import { useFormSubmitShortcut } from "@/hooks/use-form-submit-shortcut";
@@ -60,6 +60,7 @@ type Props = {
   users: UserRow[];
   policies: PolicyRow[];
   access: AccessRow[];
+  tab: "list" | "create";
 };
 
 /**
@@ -69,7 +70,7 @@ type Props = {
  *
  * 参考: DESIGN.md §1-5 ／ `components/admin/list-empty.tsx` ／ `knowledge/decisions/relation-permission-boundary.md`
  */
-export function UsersPolicyManager({ users, policies, access }: Props) {
+export function UsersPolicyManager({ users, policies, access, tab }: Props) {
   const router = useRouter();
   const t = useT("users");
   const tError = useT("errors");
@@ -119,9 +120,9 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
   return (
     <div className="space-y-4">
       <ErrorBanner message={error} />
-      {access.length === 0 ? (
+      {tab === "list" && access.length === 0 ? (
         <ListEmpty>{t("empty")}</ListEmpty>
-      ) : (
+      ) : tab === "list" ? (
         // ユーザーとポリシーを別列で照合する一覧なので table にする。
         <WideTable>
           <Table>
@@ -194,7 +195,7 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
             </TableBody>
           </Table>
         </WideTable>
-      )}
+      ) : null}
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -217,33 +218,36 @@ export function UsersPolicyManager({ users, policies, access }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <SurfaceDivider />
-      <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-        <FormDraft formId="user-policy-assign-form" />
-        <div className="space-y-1.5">
-          <FieldLabel htmlFor="user" required>{t("user_label")}</FieldLabel>
-          <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>{user.email}</option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <FieldLabel htmlFor="policy" required>{t("policy_label")}</FieldLabel>
-          <select id="policy" name="policy" required className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
-            {policies.map((policy) => (
-              <option key={policy.id} value={policy.id}>{policy.name}</option>
-            ))}
-          </select>
-        </div>
-        {/* 🚨 選ぶものが無いなら押させない（憲章 §3c）。
-            select が空だと送信しても中身が無く、サーバへ無意味な要求が飛ぶ。
-            由来: `19e6f3c` でヘッダーへ移したとき、この判定を落としていた（saml が実測で検出）。 */}
-        <Button type="submit" loading={assign.pending} disabled={assignDisabled}>
-          <Plus />
-          {t("assign_button")}
-        </Button>
-      </form>
+      {tab === "create" ? (
+        <>
+          <PageAction
+            form="user-policy-assign-form"
+            role="primary"
+            label={t("assign_button")}
+            icon={<Plus />}
+            disabled={assignDisabled}
+          />
+          <form id="user-policy-assign-form" action={assign.run} className="grid gap-4 md:grid-cols-[1fr_1fr] md:items-end">
+            <FormDraft formId="user-policy-assign-form" />
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="user" required>{t("user_label")}</FieldLabel>
+              <select id="user" name="user" required className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>{user.email}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="policy" required>{t("policy_label")}</FieldLabel>
+              <select id="policy" name="policy" required className="h-(--control-h) w-full rounded-lg bg-input px-2 text-base md:h-(--control-h-pc-field) md:text-sm">
+                {policies.map((policy) => (
+                  <option key={policy.id} value={policy.id}>{policy.name}</option>
+                ))}
+              </select>
+            </div>
+          </form>
+        </>
+      ) : null}
     </div>
   );
 }

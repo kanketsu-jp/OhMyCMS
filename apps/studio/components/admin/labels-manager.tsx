@@ -21,6 +21,7 @@ import { useSubmitOnce } from "@/hooks/use-submit-once";
 import { labelDisplayName } from "@/components/admin/label-display-name";
 import { ListEmpty } from "@/components/admin/list-empty";
 import { useT } from "@/i18n/client";
+import { PageAction } from "@/components/admin/page-action";
 
 export type LabelRow = {
   id: string;
@@ -62,7 +63,7 @@ const COLOR_CLASS: Record<string, string> = {
  *    仕組み側は `system_key` で引いていて**名前では引いていない**ので、
  *    名前を変えても取り込みの印付けは壊れない。
  */
-export function LabelsManager({ initial }: { initial: LabelRow[] }) {
+export function LabelsManager({ initial, tab }: { initial: LabelRow[]; tab: "list" | "create" }) {
   const t = useT("labels");
   /**
    * 🚨 **これも注意書きであって、守りではありません**（2026-08-15 実測）。
@@ -234,7 +235,7 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
 
   return (
     <div className="space-y-8">
-      <section className="space-y-3">
+      {tab === "list" ? <section className="space-y-3">
         <h2 className="text-sm font-medium">{t("list_heading")}</h2>
         {labels.length === 0 ? (
           <ListEmpty>{t("empty")}</ListEmpty>
@@ -336,9 +337,9 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
           </ul>
         )}
         <p className="text-xs text-muted-foreground">{t("system_hint")}</p>
-      </section>
+      </section> : null}
 
-      <section className="space-y-3">
+      {tab === "create" ? <section className="space-y-3">
         <h2 className="text-sm font-medium">{t("create_heading")}</h2>
         <form
           id="label-create-form"
@@ -379,11 +380,14 @@ export function LabelsManager({ initial }: { initial: LabelRow[] }) {
               ))}
             </select>
           </div>
-          <Button type="submit" disabled={createDisabled}>
-            {create.pending ? t("creating") : t("create_submit")}
-          </Button>
         </form>
-      </section>
+        <PageAction
+          form="label-create-form"
+          label={create.pending ? t("creating") : t("create_submit")}
+          icon={<Tag />}
+          disabled={createDisabled}
+        />
+      </section> : null}
 
       {/* 確認は AlertDialog。理由は remove の上に書いた（辞書の外に OS の文言を出さない）。 */}
       <AlertDialog

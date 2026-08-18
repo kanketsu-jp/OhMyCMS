@@ -12,6 +12,8 @@
   "error_forbidden": "権限がありません",
   "error_remove_failed": "削除できません",
   "manage_card_title": "ロール管理",
+  "list_tab": "一覧",
+  "create_tab": "作成",
   "name_label": "ロール名",
   "no_description": "説明なし",
   "none_option": "なし",

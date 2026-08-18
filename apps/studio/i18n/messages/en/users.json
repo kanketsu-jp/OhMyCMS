@@ -1,6 +1,8 @@
 {
   "assign_button": "Assign",
   "assignment_card_title": "Policy Assignments",
+  "list_tab": "List",
+  "create_tab": "Create",
   "assignment_removed": "Assignment removed",
   "description": "Manage policy assignments for users.",
   "delete_confirm": "This cannot be undone.",
