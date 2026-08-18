@@ -82,7 +82,7 @@ export function PanelFileDetail() {
 
   if (files.length > 1) {
     return (
-      <PanelSection value="file-detail" title={t("file_detail")}>
+      <PanelSection id="panel-section-file-detail" value="file-detail" title={t("file_detail")}>
         <p className="text-base text-muted-foreground">
           {t("file_detail_selected", { count: String(files.length) })}
         </p>
@@ -98,7 +98,7 @@ export function PanelFileDetail() {
     file.width !== null && file.height !== null ? `${file.width} x ${file.height}` : null;
 
   return (
-    <PanelSection value="file-detail" title={t("file_detail")}>
+    <PanelSection id="panel-section-file-detail" value="file-detail" title={t("file_detail")}>
       <dl className="flex flex-col gap-1.5">
         <Row label={t("file_detail_name")}>{file.filename_download || file.title}</Row>
         {file.type ? <Row label={t("file_detail_type")}>{file.type}</Row> : null}

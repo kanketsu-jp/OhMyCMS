@@ -232,8 +232,10 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
   function replaceSelection(next: readonly FileRow[]): void {
     if (next.length === 0) {
       clearSelection();
+      panel.close();
       return;
     }
+    const shouldFocusDetail = selectedFiles.length === 0;
     setSelection(next);
     // 🚨 **狭い画面では開かない**（司令塔の決め・2026-08-17・案ア）。
     //    実測（幅 390）: 1 枚選ぶと右サイドバーではなく**全画面のダイアログ**が開き、
@@ -245,7 +247,7 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     //    **名指しされた B5 を優先する**（司令塔の判断）。
     //    🚨 判定は**押した手の中**で行う（描画中に window を見ると水和で食い違う）。
     if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-      panel.open();
+      if (shouldFocusDetail) panel.focusSection("panel-section-file-detail");
     }
   }
 
@@ -340,11 +342,12 @@ export function FilesLightboxGrid({ files }: { files: FileRow[] }) {
     const clearOnEscape = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.key !== "Escape") return;
       clearSelection();
+      panel.close();
       setSelectionMode(false);
     };
     document.addEventListener("keydown", clearOnEscape);
     return () => document.removeEventListener("keydown", clearOnEscape);
-  }, []);
+  }, [panel]);
 
   return (
     <>

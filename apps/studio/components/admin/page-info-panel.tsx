@@ -96,7 +96,11 @@ export function PageInfoPanel({
 
   useEffect(() => {
     if (!focusRequest) return;
-    const sectionValue = focusRequest.id === "panel-section-mail-test" ? "mail-test" : null;
+    const sectionValue = focusRequest.id === "panel-section-mail-test"
+      ? "mail-test"
+      : focusRequest.id === "panel-section-file-detail"
+        ? "file-detail"
+        : null;
     if (!sectionValue) return;
 
     const frame = requestAnimationFrame(() => {
