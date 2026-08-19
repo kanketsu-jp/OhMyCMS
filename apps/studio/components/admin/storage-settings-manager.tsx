@@ -29,6 +29,11 @@ type StorageSettings = {
   drive_client_id: string;
   sources: Record<string, SettingsSource>;
   updated_at: string | null;
+  image_input_max_dimension: string;
+  image_output_max_dimension: string;
+  image_max_operations: string;
+  image_max_concurrency: string;
+  image_transform_timeout_ms: string;
 };
 
 type Draft = {
@@ -40,6 +45,11 @@ type Draft = {
   s3_force_path_style: boolean;
   s3_key_prefix: string;
   drive_client_id: string;
+  image_input_max_dimension: string;
+  image_output_max_dimension: string;
+  image_max_operations: string;
+  image_max_concurrency: string;
+  image_transform_timeout_ms: string;
 };
 
 /**
@@ -65,6 +75,11 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       s3_force_path_style: settings.s3_force_path_style === "true",
       drive_client_id: settings.drive_client_id,
       s3_key_prefix: settings.s3_key_prefix,
+      image_input_max_dimension: settings.image_input_max_dimension,
+      image_output_max_dimension: settings.image_output_max_dimension,
+      image_max_operations: settings.image_max_operations,
+      image_max_concurrency: settings.image_max_concurrency,
+      image_transform_timeout_ms: settings.image_transform_timeout_ms,
     }),
     [settings],
   );
@@ -87,6 +102,13 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
     draft.s3_force_path_style !== initial.s3_force_path_style ||
     draft.s3_key_prefix !== initial.s3_key_prefix ||
     draft.drive_client_id !== initial.drive_client_id;
+  const imageLimitsDirty =
+    draft.image_input_max_dimension !== initial.image_input_max_dimension ||
+    draft.image_output_max_dimension !== initial.image_output_max_dimension ||
+    draft.image_max_operations !== initial.image_max_operations ||
+    draft.image_max_concurrency !== initial.image_max_concurrency ||
+    draft.image_transform_timeout_ms !== initial.image_transform_timeout_ms;
+  const isDirty = dirty || imageLimitsDirty;
 
   const sourceLabel = (key: string) => {
     const source = settings.sources?.[key] ?? "default";
@@ -108,6 +130,11 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
       s3_key_prefix: draft.s3_key_prefix,
       // 🚨 秘密ではないので、他の設定と同じようにそのまま送る（伏せ字の口を通さない）。
       drive_client_id: draft.drive_client_id,
+      image_input_max_dimension: draft.image_input_max_dimension,
+      image_output_max_dimension: draft.image_output_max_dimension,
+      image_max_operations: draft.image_max_operations,
+      image_max_concurrency: draft.image_max_concurrency,
+      image_transform_timeout_ms: draft.image_transform_timeout_ms,
     };
     if (draft.s3_access_key_id.trim().length > 0) {
       patch.s3_access_key_id = draft.s3_access_key_id;
@@ -239,6 +266,30 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
 
       <section className="flex flex-col gap-3">
         <div>
+          <h2 className="text-sm font-semibold">{t("image_limits_heading")}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t("image_limits_description")}</p>
+        </div>
+        {(["image_input_max_dimension", "image_output_max_dimension", "image_max_operations", "image_max_concurrency", "image_transform_timeout_ms"] as const).map((key) => (
+          <div className="grid gap-2" key={key}>
+            <Label htmlFor={`storage-${key}`}>{t(`${key}_label`)}</Label>
+            <Input
+              id={`storage-${key}`}
+              type="number"
+              min={1}
+              value={draft[key]}
+              readOnly={!editing}
+              placeholder={!editing ? tCommon("not_set") : undefined}
+              onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">{t(`${key}_help`)} <span className="ml-2">({sourceLabel(key)})</span></p>
+          </div>
+        ))}
+      </section>
+
+      <Separator />
+
+      <section className="flex flex-col gap-3">
+        <div>
           <h2 className="text-sm font-semibold">{t("credentials_heading")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t("credentials_description")}</p>
         </div>
@@ -310,7 +361,7 @@ export function StorageSettingsManager({ settings }: { settings: StorageSettings
             form="storage-settings-form"
             role="primary"
             pending={save.pending}
-            disabled={!dirty}
+            disabled={!isDirty}
             label={tCommon("action_save")}
             icon={<Check />}
           />

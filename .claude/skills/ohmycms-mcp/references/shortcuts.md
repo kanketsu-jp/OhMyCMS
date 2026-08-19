@@ -59,7 +59,7 @@
 - `/admin/settings/policies` … 押せない条件: `!name.trim()`
 - `/admin/settings/roles` … 押せない条件: `!name.trim()`
 - `/admin/settings/sso` … 押せない条件: `!ready`
-- `/admin/settings/storage` … 押せない条件: `!dirty`
+- `/admin/settings/storage` … 押せない条件: `!isDirty`
 - `/admin/settings/users` … 押せない条件: `assignDisabled`
 
 実測（2026-08-16）: `/admin/settings/storage` は編集モードでも**何も変えなければ** ⌘Enter で

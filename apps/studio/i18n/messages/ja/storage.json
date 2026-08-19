@@ -38,5 +38,17 @@
   "drive_heading": "Google ドライブ連携",
   "drive_description": "ドライブからファイルを取り込むための設定です。取り込むと、そのファイルはこのCMSに複製されます。",
   "drive_client_id_label": "クライアント ID",
-  "drive_client_id_help": "Google Cloud で「デスクトップアプリ」として作ったクライアントの ID。秘密鍵は要りません（設定しても使いません）。空のあいだは連携の導線を出しません。"
+  "drive_client_id_help": "Google Cloud で「デスクトップアプリ」として作ったクライアントの ID。秘密鍵は要りません（設定しても使いません）。空のあいだは連携の導線を出しません。",
+  "image_limits_heading": "画像変換の上限",
+  "image_limits_description": "画像の入力・出力サイズ、同時実行数、変換の打ち切り時間を設定します。既定値は安全側に設定されています。",
+  "image_input_max_dimension_label": "入力画像の最大辺（px）",
+  "image_input_max_dimension_help": "これより大きい画像は変換せず、元の画像を返します。",
+  "image_output_max_dimension_label": "出力画像の最大辺（px）",
+  "image_output_max_dimension_help": "指定された幅や高さが大きくても、この値を超える画像は作りません。",
+  "image_max_operations_label": "1回の操作数",
+  "image_max_operations_help": "一括変換で1回に処理できる変換数の上限です。",
+  "image_max_concurrency_label": "同時に走る変換数",
+  "image_max_concurrency_help": "同時に実行する画像変換の上限です。",
+  "image_transform_timeout_ms_label": "変換の打ち切り時間（ms）",
+  "image_transform_timeout_ms_help": "重い変換をこの時間で打ち切ります。"
 }

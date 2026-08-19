@@ -22,12 +22,12 @@ import { authorizeTarget } from "@/lib/labels/service";
 import { liveRows } from "@/lib/files/live";
 import { getStorage, getStorageByName } from "@/lib/storage";
 import type { StorageDriver } from "@/lib/storage/driver";
+import { getSettings } from "@/lib/settings/service";
 
 // 🚨 上限は `lib/files/upload-limit.ts` が唯一の出どころ（そこに理由を書いてある）。
 //    ここに数字を書き戻さないこと。**Next の受け口の上限とも、同じ値から配っている。**
 //    2026-08-16 まで 50MB を直書きしていたが、**Next の受け口が既定 10MB だったので
 //    この判定へは一度も到達していなかった**（＝ 死んだ上限）。
-const MAX_TRANSFORM_DIMENSION = 4000;
 // sharp の既定値（268,402,689 px）より先に断る。通常の 4000x3000 px は通しつつ、
 // 変換時のデコードによるメモリ消費が過大にならないよう、画素数を 4000 万に制限する。
 const MAX_IMAGE_PIXELS = 40_000_000;
@@ -200,6 +200,49 @@ function liveFolders() {
 export const FOLDER_COLORS = new Set(["slate", "red", "amber", "emerald", "sky", "violet"]);
 
 type ResizeFit = "cover" | "contain" | "inside" | "outside";
+
+type ImageTransformLimits = {
+  inputMaxDimension: number;
+  outputMaxDimension: number;
+  maxOperations: number;
+  maxConcurrency: number;
+  timeoutMs: number;
+};
+
+const HARD_INPUT_MAX_DIMENSION = 6000;
+const HARD_OUTPUT_MAX_DIMENSION = 3000;
+
+function positiveSetting(value: string, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function imageTransformLimits(): Promise<ImageTransformLimits> {
+  const settings = await getSettings();
+  return {
+    inputMaxDimension: Math.min(positiveSetting(settings.image_input_max_dimension, HARD_INPUT_MAX_DIMENSION), HARD_INPUT_MAX_DIMENSION),
+    outputMaxDimension: Math.min(positiveSetting(settings.image_output_max_dimension, HARD_OUTPUT_MAX_DIMENSION), HARD_OUTPUT_MAX_DIMENSION),
+    maxOperations: positiveSetting(settings.image_max_operations, 5),
+    maxConcurrency: positiveSetting(settings.image_max_concurrency, 25),
+    timeoutMs: positiveSetting(settings.image_transform_timeout_ms, 7500),
+  };
+}
+
+let activeTransforms = 0;
+const transformWaiters: Array<() => void> = [];
+
+async function withTransformSlot<T>(limit: number, operation: () => Promise<T>): Promise<T> {
+  if (activeTransforms >= limit) {
+    await new Promise<void>((resolve) => transformWaiters.push(resolve));
+  }
+  activeTransforms += 1;
+  try {
+    return await operation();
+  } finally {
+    activeTransforms -= 1;
+    transformWaiters.shift()?.();
+  }
+}
 
 type FileRow = {
   id: string;
@@ -1051,13 +1094,13 @@ export async function deleteStoredObjects(fileId: string): Promise<StoredObjectR
   return { removed, missing };
 }
 
-function parseDimension(value: string | null | undefined, field: string): number | undefined {
+function parseDimension(value: string | null | undefined, field: string, maximum: number): number | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_TRANSFORM_DIMENSION) {
-    throw new ApiError(400, "INVALID_TRANSFORM", `${field}は1〜4000の整数で指定してください`);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new ApiError(400, "INVALID_TRANSFORM", `${field}は1以上の整数で指定してください`);
   }
-  return parsed;
+  return Math.min(parsed, maximum);
 }
 
 function parseQuality(value: string | null | undefined): number {
@@ -1096,8 +1139,11 @@ function normalizedTransformString(input: {
   fit: ResizeFit;
   format: string;
   quality: string;
+  outputMaxDimension: number;
+  inputMaxDimension: number;
+  timeoutMs: number;
 }): string {
-  return `width=${input.width}&height=${input.height}&fit=${input.fit}&format=${input.format}&quality=${input.quality}`;
+  return `width=${input.width}&height=${input.height}&fit=${input.fit}&format=${input.format}&quality=${input.quality}&outputMax=${input.outputMaxDimension}&inputMax=${input.inputMaxDimension}&timeout=${input.timeoutMs}`;
 }
 
 function safeDeliveryHeaders(type: string | null, filename: string): {
@@ -1189,8 +1235,9 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
   const originalKey = ensureStoredFile(row);
   const originalHeaders = safeDeliveryHeaders(row.type, row.filename_download);
 
-  const width = parseDimension(input.width, "width");
-  const height = parseDimension(input.height, "height");
+  const limits = await imageTransformLimits();
+  const width = parseDimension(input.width, "width", limits.outputMaxDimension);
+  const height = parseDimension(input.height, "height", limits.outputMaxDimension);
   const hasTransformParams = Boolean(
     width ||
       height ||
@@ -1247,6 +1294,9 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
     fit,
     format: output.format,
     quality: String(quality),
+    outputMaxDimension: limits.outputMaxDimension,
+    inputMaxDimension: limits.inputMaxDimension,
+    timeoutMs: limits.timeoutMs,
   });
   const hash = createHash("sha256").update(normalized).digest("hex");
   const transformedKey = `${id}/transformed/${hash}.${output.ext}`;
@@ -1265,11 +1315,34 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
   const original = await bufferFromStorage(storage, originalKey);
   const originalMetadata = await imageMetadata(original);
   assertImagePixelLimit(originalMetadata);
+  // Directus と同じく、入力画像の最大辺を超えるものは変換しない。
+  // 画素数上限（40MP）はデコードを拒否する別の守りであり、この判定とは役割が異なる。
+  if (
+    (originalMetadata.width !== null && originalMetadata.width > limits.inputMaxDimension) ||
+    (originalMetadata.height !== null && originalMetadata.height > limits.inputMaxDimension)
+  ) {
+    return {
+      body: original,
+      contentType: originalHeaders.contentType,
+      contentLength: original.byteLength,
+      contentDisposition: originalHeaders.contentDisposition,
+      contentTypeOptions: originalHeaders.contentTypeOptions,
+    };
+  }
   let pipeline = sharp(original).rotate();
   if (width || height) {
     pipeline = pipeline.resize({ width, height, fit, withoutEnlargement: false });
   }
-  const transformed = await pipeline.toFormat(output.format, { quality }).toBuffer();
+  // 1 回の要求で行う変換は常に 1 操作。上限 5 は将来の一括変換でも同じ設定を使う。
+  if (limits.maxOperations < 1) {
+    throw new ApiError(503, "TRANSFORM_UNAVAILABLE", "画像変換を実行できません");
+  }
+  const transformed = await withTransformSlot(limits.maxConcurrency, () =>
+    pipeline
+      .timeout({ seconds: limits.timeoutMs / 1000 })
+      .toFormat(output.format, { quality })
+      .toBuffer(),
+  );
   await storage.put(transformedKey, transformed, output.mime);
   return {
     body: transformed,

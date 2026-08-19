@@ -38,5 +38,17 @@
   "drive_heading": "Google Drive",
   "drive_description": "Settings for importing files from Drive. Imported files are copied into this CMS.",
   "drive_client_id_label": "Client ID",
-  "drive_client_id_help": "The ID of a client created as a Desktop app in Google Cloud. No client secret is needed. While this is empty, the connect action stays hidden."
+  "drive_client_id_help": "The ID of a client created as a Desktop app in Google Cloud. No client secret is needed. While this is empty, the connect action stays hidden.",
+  "image_limits_heading": "Image transformation limits",
+  "image_limits_description": "Configure input and output dimensions, concurrency, and the timeout for image transformations. Defaults are set defensively.",
+  "image_input_max_dimension_label": "Maximum input edge (px)",
+  "image_input_max_dimension_help": "Images larger than this are returned without transformation.",
+  "image_output_max_dimension_label": "Maximum output edge (px)",
+  "image_output_max_dimension_help": "Requested dimensions are capped at this value.",
+  "image_max_operations_label": "Operations per request",
+  "image_max_operations_help": "The maximum number of transformations allowed in one batch operation.",
+  "image_max_concurrency_label": "Concurrent transformations",
+  "image_max_concurrency_help": "The maximum number of image transformations running at once.",
+  "image_transform_timeout_ms_label": "Transformation timeout (ms)",
+  "image_transform_timeout_ms_help": "Heavy transformations are stopped after this duration."
 }

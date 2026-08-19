@@ -52,6 +52,11 @@ export const SETTINGS_DEFAULTS = {
   smtp_host: "",
   smtp_port: "",
   smtp_user: "",
+  image_input_max_dimension: "6000",
+  image_output_max_dimension: "3000",
+  image_max_operations: "5",
+  image_max_concurrency: "25",
+  image_transform_timeout_ms: "7500",
 } as const;
 
 export type Settings = {
@@ -76,6 +81,11 @@ export type Settings = {
   smtp_host: string;
   smtp_port: string;
   smtp_user: string;
+  image_input_max_dimension: string;
+  image_output_max_dimension: string;
+  image_max_operations: string;
+  image_max_concurrency: string;
+  image_transform_timeout_ms: string;
   smtp_password_set: boolean;
   /** 各項目が「DB の値」なのか「環境変数・既定値」なのか。GUI が出所を出せるようにする。 */
   sources: Record<SettingsKey, SettingsSource>;
@@ -105,7 +115,12 @@ export type SettingsKey =
   | "smtp_host"
   | "smtp_port"
   | "smtp_user"
-  | "smtp_password";
+  | "smtp_password"
+  | "image_input_max_dimension"
+  | "image_output_max_dimension"
+  | "image_max_operations"
+  | "image_max_concurrency"
+  | "image_transform_timeout_ms";
 
 export type SecretSettingsKey =
   | "s3_access_key_id"
@@ -150,6 +165,11 @@ const WRITABLE_KEYS: SettingsKey[] = [
   "smtp_port",
   "smtp_user",
   "smtp_password",
+  "image_input_max_dimension",
+  "image_output_max_dimension",
+  "image_max_operations",
+  "image_max_concurrency",
+  "image_transform_timeout_ms",
 ];
 
 /** 環境変数から読む「初期値」。空文字は未設定として扱う（compose が空を渡してくるため）。 */
@@ -202,6 +222,11 @@ type SettingsRow = {
   smtp_port: string | null;
   smtp_user: string | null;
   smtp_password: string | null;
+  image_input_max_dimension: string | null;
+  image_output_max_dimension: string | null;
+  image_max_operations: string | null;
+  image_max_concurrency: string | null;
+  image_transform_timeout_ms: string | null;
   updated_at: Date | string | null;
   /** オンボーディングが済んだ時刻。null なら未完了。 */
   onboarding_completed_at: Date | string | null;
@@ -274,6 +299,11 @@ export async function getSettings(): Promise<Settings> {
   const smtpPort = resolve("smtp_port", SETTINGS_DEFAULTS.smtp_port);
   const smtpUser = resolve("smtp_user", SETTINGS_DEFAULTS.smtp_user);
   const smtpPassword = resolveSecret("smtp_password");
+  const imageInputMaxDimension = resolve("image_input_max_dimension", SETTINGS_DEFAULTS.image_input_max_dimension);
+  const imageOutputMaxDimension = resolve("image_output_max_dimension", SETTINGS_DEFAULTS.image_output_max_dimension);
+  const imageMaxOperations = resolve("image_max_operations", SETTINGS_DEFAULTS.image_max_operations);
+  const imageMaxConcurrency = resolve("image_max_concurrency", SETTINGS_DEFAULTS.image_max_concurrency);
+  const imageTransformTimeoutMs = resolve("image_transform_timeout_ms", SETTINGS_DEFAULTS.image_transform_timeout_ms);
 
   return {
     project_name: name.value,
@@ -297,6 +327,11 @@ export async function getSettings(): Promise<Settings> {
     smtp_port: smtpPort.value,
     smtp_user: smtpUser.value,
     smtp_password_set: smtpPassword.set,
+    image_input_max_dimension: imageInputMaxDimension.value,
+    image_output_max_dimension: imageOutputMaxDimension.value,
+    image_max_operations: imageMaxOperations.value,
+    image_max_concurrency: imageMaxConcurrency.value,
+    image_transform_timeout_ms: imageTransformTimeoutMs.value,
     sources: {
       project_name: name.source,
       // ロゴは環境変数を持たない（ファイルIDなので DB にしか居ない）。
@@ -320,6 +355,11 @@ export async function getSettings(): Promise<Settings> {
       smtp_port: smtpPort.source,
       smtp_user: smtpUser.source,
       smtp_password: smtpPassword.source,
+      image_input_max_dimension: imageInputMaxDimension.source,
+      image_output_max_dimension: imageOutputMaxDimension.source,
+      image_max_operations: imageMaxOperations.source,
+      image_max_concurrency: imageMaxConcurrency.source,
+      image_transform_timeout_ms: imageTransformTimeoutMs.source,
     },
     updated_at: row?.updated_at
       ? new Date(row.updated_at).toISOString()
@@ -406,6 +446,20 @@ function validate(input: Record<string, unknown>): Partial<Record<SettingsKey, s
       const port = Number(value);
       if (!Number.isInteger(port) || port < 1 || port > 65535) {
         throw new ApiError(400, "INVALID_FIELD", "smtp_port は 1〜65535 の整数で指定してください");
+      }
+    }
+    const imageLimits: Record<string, { min: number; max: number }> = {
+      image_input_max_dimension: { min: 1, max: 6000 },
+      image_output_max_dimension: { min: 1, max: 3000 },
+      image_max_operations: { min: 1, max: 5 },
+      image_max_concurrency: { min: 1, max: 25 },
+      image_transform_timeout_ms: { min: 1, max: 7500 },
+    };
+    const imageLimit = imageLimits[key];
+    if (imageLimit && value) {
+      const number = Number(value);
+      if (!Number.isInteger(number) || number < imageLimit.min || number > imageLimit.max) {
+        throw new ApiError(400, "INVALID_FIELD", `${key} は ${imageLimit.min}〜${imageLimit.max} の整数で指定してください`);
       }
     }
     // 空文字は「消す」と同じ扱いにする（GUI の入力欄を空にしたら初期値へ戻る）。
