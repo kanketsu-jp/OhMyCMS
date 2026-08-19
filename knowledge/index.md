@@ -74,6 +74,7 @@ x_rag_okf:
 - [共有ファイルは、窓に自分の行を置かない](./decisions/shared-files-are-not-left-in-the-window.md) — `decisions/shared-files-are-not-left-in-the-window`
 - [共有資源（受入ハーネス・Docker・node_modules）は同時に1つしか使わない](./decisions/shared-resources-are-exclusive.md) — `decisions/shared-resources-are-exclusive`
 - [ショートカットはエディタのキーバインドと衝突しない](./decisions/shortcuts-must-not-collide-with-editor.md) — `decisions/shortcuts-must-not-collide-with-editor`
+- [sharp の脆弱性は Next.js の更新を待って解消する](./decisions/sharp-update-with-nextjs.md) — `decisions/sharp-update-with-nextjs`
 - [v0.9 は Next.js 単一アプリ、分離時は Hono](./decisions/single-nextjs-app-then-hono.md) — `decisions/single-nextjs-app-then-hono`
 - [singleton は旗だけ在って中身が無い。v1 では作らない](./decisions/singleton-is-a-flag-without-behavior.md) — `decisions/singleton-is-a-flag-without-behavior`
 - [ゴミ箱に入れた権限は、許可を出さない（入り口より先に読み手を塞ぐ）](./decisions/soft-deleted-permissions-must-not-grant.md) — `decisions/soft-deleted-permissions-must-not-grant`
