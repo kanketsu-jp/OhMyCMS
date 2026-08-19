@@ -54,5 +54,17 @@
   "shortcut_invalid": "Enter a key combination.",
   "shortcut_duplicate": "That key is already assigned to another operation.",
   "shortcut_editor_conflict": "That key conflicts with a text editing command.",
-  "shortcut_reset": "Restore default"
+  "shortcut_reset": "Restore default",
+  "smtp_heading": "Outgoing mail (SMTP)",
+  "smtp_priority_help": "Values saved here take priority over environment variables. Environment variables are used as initial values only when no value is saved here. You can send a test email before saving.",
+  "smtp_host_label": "SMTP host",
+  "smtp_host_help": "The host name of the SMTP server.",
+  "smtp_port_label": "SMTP port",
+  "smtp_port_help": "A port number from 1 to 65535.",
+  "smtp_user_label": "SMTP username",
+  "smtp_user_help": "The username used to authenticate with the SMTP server.",
+  "smtp_password_label": "SMTP password",
+  "smtp_password_help": "Enter this only when changing it. Saving it empty keeps the saved password.",
+  "smtp_password_placeholder": "Enter only to change",
+  "smtp_password_masked": "●●●●●●●● (saved)"
 }

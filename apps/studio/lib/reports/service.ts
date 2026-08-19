@@ -134,7 +134,12 @@ export type MailConfig = {
  * 解決をしている）。宛先(OHMYCMS_BUGREPORT_TO)と送信元(SMTP_FROM)は DB 化していないため
  * 環境変数のまま。揃っていなければ null。空文字は未設定として扱う。
  */
-export async function mailConfig(): Promise<MailConfig | null> {
+export async function mailConfig(overrides?: {
+  host?: string;
+  port?: string;
+  user?: string;
+  password?: string;
+}): Promise<MailConfig | null> {
   const pick = (name: string) => {
     const value = process.env[name]?.trim();
     return value ? value : undefined;
@@ -142,10 +147,10 @@ export async function mailConfig(): Promise<MailConfig | null> {
 
   const settings = await getSettings();
   const to = pick("OHMYCMS_BUGREPORT_TO");
-  const host = settings.smtp_host || undefined;
-  const port = settings.smtp_port || undefined;
-  const user = settings.smtp_user || undefined;
-  const password = await getSecretSetting("smtp_password");
+  const host = overrides?.host !== undefined ? overrides.host.trim() || undefined : settings.smtp_host || undefined;
+  const port = overrides?.port !== undefined ? overrides.port.trim() || undefined : settings.smtp_port || undefined;
+  const user = overrides?.user !== undefined ? overrides.user.trim() || undefined : settings.smtp_user || undefined;
+  const password = overrides?.password?.trim() || await getSecretSetting("smtp_password");
   const from = pick("SMTP_FROM") ?? user;
 
   if (!to || !host || !port || !user || !password || !from) return null;

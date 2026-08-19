@@ -462,7 +462,9 @@ function validate(input: Record<string, unknown>): Partial<Record<SettingsKey, s
         throw new ApiError(400, "INVALID_FIELD", `${key} は ${imageLimit.min}〜${imageLimit.max} の整数で指定してください`);
       }
     }
-    // 空文字は「消す」と同じ扱いにする（GUI の入力欄を空にしたら初期値へ戻る）。
+    // SMTP パスワードは画面に値を返さないため、空欄は「変更しない」とする。
+    // それ以外は空文字で DB の値を消し、環境変数・既定値へ戻す。
+    if (key === "smtp_password" && value.length === 0) continue;
     patch[key] = value.length > 0 ? value : null;
   }
 

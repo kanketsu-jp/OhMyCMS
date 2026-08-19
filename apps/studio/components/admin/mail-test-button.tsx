@@ -14,7 +14,18 @@ export function MailTestButton() {
 
   const test = useSubmitOnce(async () => {
     setResult("idle");
-    const response = await fetch("/api/settings/mail-test", { method: "POST" });
+    const form = document.getElementById("settings-form");
+    const values = form instanceof HTMLFormElement ? new FormData(form) : null;
+    const response = await fetch("/api/settings/mail-test", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        smtp_host: values?.get("smtp_host") ?? undefined,
+        smtp_port: values?.get("smtp_port") ?? undefined,
+        smtp_user: values?.get("smtp_user") ?? undefined,
+        smtp_password: values?.get("smtp_password") ?? undefined,
+      }),
+    });
 
     if (response.ok) {
       setResult("ok");

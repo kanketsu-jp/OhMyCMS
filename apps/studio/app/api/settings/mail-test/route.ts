@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/admin/permissions-api";
 import { requireActor } from "@/lib/auth/context";
 import { sendTestMail } from "@/lib/auth/otp-mailer";
 import { mailConfig } from "@/lib/reports/service";
-import { errorResponse, ok } from "@/lib/schema/api";
+import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
 import { ApiError } from "@/lib/schema/errors";
 
 export const runtime = "nodejs";
@@ -17,7 +17,21 @@ export async function POST(request: Request) {
       throw new ApiError(400, "MAIL_NOT_CONFIGURED", "メールの設定がありません");
     }
 
-    const config = await mailConfig();
+    const body = request.headers.get("content-type")?.includes("application/json")
+      ? await readJsonObject(request)
+      : {};
+    const stringValue = (key: string) => {
+      const value = body[key];
+      return value === undefined ? undefined : typeof value === "string" ? value : null;
+    };
+    const host = stringValue("smtp_host");
+    const port = stringValue("smtp_port");
+    const user = stringValue("smtp_user");
+    const password = stringValue("smtp_password");
+    if (host === null || port === null || user === null || password === null) {
+      throw new ApiError(400, "INVALID_FIELD", "SMTP設定は文字列で指定してください");
+    }
+    const config = await mailConfig({ host, port, user, password: password || undefined });
     if (!config) {
       throw new ApiError(400, "MAIL_NOT_CONFIGURED", "メールの設定がありません");
     }

@@ -26,6 +26,10 @@ type Settings = {
   project_color: string;
   default_locale: string;
   public_note: string;
+  smtp_host: string;
+  smtp_port: string;
+  smtp_user: string;
+  smtp_password_set: boolean;
   sources: Record<string, SettingsSource>;
   updated_at: string | null;
 };
@@ -110,6 +114,10 @@ export function SettingsManager({ settings }: { settings: Settings }) {
         project_logo: String(formData.get("project_logo") ?? ""),
         default_locale: String(formData.get("default_locale") ?? ""),
         public_note: String(formData.get("public_note") ?? ""),
+        smtp_host: String(formData.get("smtp_host") ?? ""),
+        smtp_port: String(formData.get("smtp_port") ?? ""),
+        smtp_user: String(formData.get("smtp_user") ?? ""),
+        smtp_password: String(formData.get("smtp_password") ?? ""),
       }),
     });
     setSaving(false);
@@ -318,6 +326,29 @@ export function SettingsManager({ settings }: { settings: Settings }) {
           {t("public_note_help")}
           <span className="ml-2">（{sourceLabel("public_note")}）</span>
         </p>
+      </div>
+
+      <div className="grid gap-2 border-t pt-6">
+        <h2 className="text-base font-semibold">{t("smtp_heading")}</h2>
+        <p className="text-sm text-muted-foreground">{t("smtp_priority_help")}</p>
+        {field("smtp_host", "smtp_host_label", "smtp_host_help", settings.smtp_host)}
+        {field("smtp_port", "smtp_port_label", "smtp_port_help", settings.smtp_port)}
+        {field("smtp_user", "smtp_user_label", "smtp_user_help", settings.smtp_user)}
+        <div className="grid gap-2">
+          <Label htmlFor="settings-smtp_password">{t("smtp_password_label")}</Label>
+          <Input
+            id="settings-smtp_password"
+            name="smtp_password"
+            type="password"
+            readOnly={!editing}
+            defaultValue=""
+            placeholder={editing ? t("smtp_password_placeholder") : settings.smtp_password_set ? t("smtp_password_masked") : tCommon("not_set")}
+          />
+          <p className="text-xs text-muted-foreground">
+            {t("smtp_password_help")}
+            <span className="ml-2">（{sourceLabel("smtp_password")}）</span>
+          </p>
+        </div>
       </div>
 
       <p className="text-xs text-muted-foreground">{t("reset_hint")}</p>

@@ -54,5 +54,17 @@
   "shortcut_invalid": "キーの組み合わせを入力してください。",
   "shortcut_duplicate": "そのキーは別の操作に割り当てられています。",
   "shortcut_editor_conflict": "そのキーは本文の編集操作と重複しています。",
-  "shortcut_reset": "既定に戻す"
+  "shortcut_reset": "既定に戻す",
+  "smtp_heading": "メール送信（SMTP）",
+  "smtp_priority_help": "ここで保存した値が環境変数より優先されます。環境変数は、ここに保存された値がない項目の初期値として使われます。保存前でもテスト送信できます。",
+  "smtp_host_label": "SMTPホスト",
+  "smtp_host_help": "SMTPサーバーのホスト名です。",
+  "smtp_port_label": "SMTPポート",
+  "smtp_port_help": "1〜65535のポート番号です。",
+  "smtp_user_label": "SMTP利用者名",
+  "smtp_user_help": "SMTPサーバーの認証に使う利用者名です。",
+  "smtp_password_label": "SMTPパスワード",
+  "smtp_password_help": "変更するときだけ入力してください。空のまま保存すると、保存済みのパスワードは変わりません。",
+  "smtp_password_placeholder": "変更するときだけ入力",
+  "smtp_password_masked": "●●●●●●●●（保存済み）"
 }
