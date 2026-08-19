@@ -59,6 +59,31 @@ AI ネイティブな CMS。Bun ワークスペース構成で、**`apps/studio`
 
 **重要：** 既定値の **`pass132`** のまま**公開しない**でください。`pass132` はこのリポジトリと `.env.example` に平文で書かれている**公開値**であり、秘密ではありません。2026-08-13 に、公開中の URL へ焼き直した結果、**外から `pass132` だけで管理者になれました**（実際に起きた事故です）。公開する前に `.env` の値をランダムな文字列へ変えてください。
 
+### 種（`OHMYCMS_SEED`）を設定している場合
+
+`OHMYCMS_SETUP_PASSWORD` を設定せず `OHMYCMS_SEED` だけを設定したときは、
+最初のログインのパスワードは**種から決まります**。次のコマンドで計算できます。
+
+```bash
+printf '%s|ohmycms|setup-password' '<種>' | \
+  openssl dgst -sha256 -binary | openssl base64 -A | tr '+/' '-_' | tr -d '=' | cut -c1-20
+```
+
+🚨 種がシェルの履歴に残ります。残したくないときはファイル経由で:
+
+```bash
+printf '%s|ohmycms|setup-password' "$(cat ~/.ohmycms-seed)" | \
+  openssl dgst -sha256 -binary | openssl base64 -A | tr '+/' '-_' | tr -d '=' | cut -c1-20
+```
+
+**コマンドが正しく動くかの確認**（既知の値で検算できます）:
+
+| 種 | 出るはずの値 |
+|---|---|
+| `test-seed-0123456789` | `UeLyRcJiPuP_XK1vhc1T` |
+
+これと違う値が出たら、`printf` の書式か種の位置が入れ替わっています。
+
 **注：** ログインに続けて失敗すると、一定時間入れなくなります。IP 単位のレート制限は入れていません（プロキシや Docker を挟むと送信元が潰れて正しく数えられないため。前段の構成を決めてから導入します）。同時実行数の上限はプロセス内で持っているので、**複数レプリカに分けると共有されません**。
 
 ## ステップ 3 — 開発環境で動かす（任意）
@@ -76,6 +101,33 @@ bun run dev                                # http://localhost:3102
 **注：** 起動 A（Docker）は **3101**、開発環境は **3102** を使います。
 
 ## 本番へ出すとき
+
+### 環境変数は 2 つで足ります
+
+```
+OHMYCMS_SEED=<openssl rand -base64 32 で作る>
+OHMYCMS_PUBLIC_URL=https://<公開するドメイン>
+```
+
+この 2 つだけで、DB もアプリも起動します（**2026-08-19 に本番で実測**）。
+種から次の 4 つが決まるので、個別に設定する必要がありません。
+
+| 決まるもの | 用途名 |
+|---|---|
+| DB のパスワード | `db-password` |
+| 秘密の暗号鍵（`OHMYCMS_SECRET_KEY`） | `secret-key` |
+| 最初のログイン | `setup-password` |
+| ゴミ箱掃除のトークン | `trash-purge-token` |
+
+計算式は `SHA-256(種 + "|ohmycms|" + 用途名)` で、**個別の環境変数を設定すればそちらが勝ちます**。
+
+🚨 **種を無くすと、DB に入れません。** 作ったらパスワード管理ツールへ控えてください。
+
+🚨 **既に動いている本番の種を変えないでください。** DB のパスワードは最初の起動時にしか
+設定されないため、種を変えると DB に繋がらなくなります（`POSTGRES_PASSWORD` を明示して
+上書きすれば回避できます）。
+
+詳しくは [`knowledge/decisions/one-seed-many-secrets.md`](./knowledge/decisions/one-seed-many-secrets.md)。
 
 ```bash
 docker compose -f compose.yml -f compose.prod.yml up -d --build

@@ -35,7 +35,14 @@ export function FilesPageMenu({
   return (
     <ContextMenu>
       <ContextMenuTrigger
-        className="block"
+        className="block min-h-[60svh]"
+        /**
+         * 🚨 受け口に最低の高さを持たせる（2026-08-20 堀池さん報告）。
+         *    `block` だけだと受け口の高さが中身の高さになるので、
+         *    **中身が空のときは「この場所は空です。」の 1 行ぶんしかなく**、
+         *    その下の余白を右クリックするとブラウザの標準メニューが出ていた。
+         *    `min-h` なので、中身が多いときは中身に合わせて伸びる。
+         */
         /**
          * タイルの無い所を押したら選択を外す。
          *

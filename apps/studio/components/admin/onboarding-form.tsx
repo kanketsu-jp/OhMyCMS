@@ -134,9 +134,15 @@ export function OnboardingForm({ defaultProjectName, usingDefaultPassword }: Onb
             {t("done_storage")} — {t("done_later")}
           </li>
         </ul>
+        {/* 🚨 size="entry" を使う（2026-08-20 堀池さん報告「高さが低すぎる（py がない）」）。
+            Button は padding-y を持たず、高さを min-h だけで作っている。
+            以前は `md:min-h-0` でその min-h を打ち消していたので、
+            PC のとき高さが文字の行のぶんしか無かった。
+            この画面の他のボタン（次へ）も size="entry" なので、そちらに揃える。 */}
         <Button
           type="button"
-          className="min-h-(--control-h) w-full md:min-h-0"
+          size="entry"
+          className="w-full"
           onClick={() => {
             router.push("/admin");
             router.refresh();
