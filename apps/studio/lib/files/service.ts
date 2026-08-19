@@ -438,6 +438,7 @@ export type TransformInput = {
   fit?: string | null;
   format?: string | null;
   quality?: string | null;
+  withoutEnlargement?: string | null;
 };
 
 function actorUserId(actor: Actor | null): string | null {
@@ -1133,17 +1134,31 @@ function parseFormat(value: string | null | undefined, currentMime: string): {
   throw new ApiError(400, "INVALID_TRANSFORM", "formatが不正です");
 }
 
+function parseWithoutEnlargement(value: string | null | undefined): boolean {
+  if (value === undefined || value === null || value === "") return false;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new ApiError(400, "INVALID_TRANSFORM", "withoutEnlargementはtrueまたはfalseで指定してください");
+}
+
+function countTransformOperations(input: TransformInput): number {
+  return [input.width, input.height, input.fit, input.format, input.quality, input.withoutEnlargement]
+    .filter((value) => value !== undefined && value !== null && value !== "")
+    .length;
+}
+
 function normalizedTransformString(input: {
   width: string;
   height: string;
   fit: ResizeFit;
   format: string;
   quality: string;
+  withoutEnlargement: string;
   outputMaxDimension: number;
   inputMaxDimension: number;
   timeoutMs: number;
 }): string {
-  return `width=${input.width}&height=${input.height}&fit=${input.fit}&format=${input.format}&quality=${input.quality}&outputMax=${input.outputMaxDimension}&inputMax=${input.inputMaxDimension}&timeout=${input.timeoutMs}`;
+  return `width=${input.width}&height=${input.height}&fit=${input.fit}&format=${input.format}&quality=${input.quality}&withoutEnlargement=${input.withoutEnlargement}&outputMax=${input.outputMaxDimension}&inputMax=${input.inputMaxDimension}&timeout=${input.timeoutMs}`;
 }
 
 function safeDeliveryHeaders(type: string | null, filename: string): {
@@ -1236,6 +1251,9 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
   const originalHeaders = safeDeliveryHeaders(row.type, row.filename_download);
 
   const limits = await imageTransformLimits();
+  if (countTransformOperations(input) > limits.maxOperations) {
+    throw new ApiError(400, "TRANSFORM_TOO_MANY_OPERATIONS", "画像変換の指定が多すぎます");
+  }
   const width = parseDimension(input.width, "width", limits.outputMaxDimension);
   const height = parseDimension(input.height, "height", limits.outputMaxDimension);
   const hasTransformParams = Boolean(
@@ -1243,7 +1261,8 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
       height ||
       input.fit ||
       input.format ||
-      input.quality,
+      input.quality ||
+      input.withoutEnlargement,
   );
 
   // 🚨 変換キャッシュの読み書きも、元と**同じ保管先**で行う。
@@ -1287,6 +1306,7 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
 
   const fit = parseFit(input.fit);
   const quality = parseQuality(input.quality);
+  const withoutEnlargement = parseWithoutEnlargement(input.withoutEnlargement);
   const output = parseFormat(input.format, row.type);
   const normalized = normalizedTransformString({
     width: String(width ?? ""),
@@ -1294,6 +1314,7 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
     fit,
     format: output.format,
     quality: String(quality),
+    withoutEnlargement: String(withoutEnlargement),
     outputMaxDimension: limits.outputMaxDimension,
     inputMaxDimension: limits.inputMaxDimension,
     timeoutMs: limits.timeoutMs,
@@ -1331,11 +1352,7 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
   }
   let pipeline = sharp(original).rotate();
   if (width || height) {
-    pipeline = pipeline.resize({ width, height, fit, withoutEnlargement: false });
-  }
-  // 1 回の要求で行う変換は常に 1 操作。上限 5 は将来の一括変換でも同じ設定を使う。
-  if (limits.maxOperations < 1) {
-    throw new ApiError(503, "TRANSFORM_UNAVAILABLE", "画像変換を実行できません");
+    pipeline = pipeline.resize({ width, height, fit, withoutEnlargement });
   }
   const transformed = await withTransformSlot(limits.maxConcurrency, () =>
     pipeline

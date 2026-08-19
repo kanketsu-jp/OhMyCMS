@@ -33,5 +33,6 @@
   "page_not_found_title": "This page does not exist",
   "page_not_found_body": "The URL may have changed, or the page may have been deleted.",
   "page_not_found_home": "Go to the admin home",
-  "network": "Could not reach the server. Check your connection and try again."
+  "network": "Could not reach the server. Check your connection and try again.",
+  "transform_too_many_operations": "Too many image transformation options. Remove some options and try again."
 }

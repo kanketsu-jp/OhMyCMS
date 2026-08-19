@@ -15,6 +15,7 @@ export async function GET(request: Request, ctx: Context) {
       fit: url.searchParams.get("fit"),
       format: url.searchParams.get("format"),
       quality: url.searchParams.get("quality"),
+      withoutEnlargement: url.searchParams.get("withoutEnlargement"),
     });
     const headers = new Headers({
       "Cache-Control": "public, no-cache",
