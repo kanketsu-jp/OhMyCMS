@@ -26,6 +26,11 @@
 #    ＝ 戻すときは ① 予定を消す → ② **command を先に外す** → ③ image を戻す、の順。
 FROM postgres:17.10-trixie
 
+COPY docker/db-entrypoint.sh /usr/local/bin/db-entrypoint-seed.sh
+RUN chmod +x /usr/local/bin/db-entrypoint-seed.sh
+ENTRYPOINT ["/usr/local/bin/db-entrypoint-seed.sh"]
+CMD ["postgres"]
+
 # PGDG の apt リポジトリは base image に設定済みなので、拡張だけを入れる。
 RUN apt-get update \
  && apt-get install -y --no-install-recommends postgresql-17-cron \

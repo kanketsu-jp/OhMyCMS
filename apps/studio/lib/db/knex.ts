@@ -1,4 +1,5 @@
 import knex, { type Knex } from "knex";
+import { getConnectionString } from "./connection-string";
 
 // 開発時のホットリロードで接続が増え続けるのを防ぐため、
 // globalThis に Knex インスタンスをキャッシュしてシングルトン化する。
@@ -7,7 +8,7 @@ const globalForDb = globalThis as unknown as {
 };
 
 function createKnexInstance(): Knex {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = getConnectionString();
   if (!connectionString) {
     throw new Error("DATABASE_URL 環境変数が設定されていません");
   }

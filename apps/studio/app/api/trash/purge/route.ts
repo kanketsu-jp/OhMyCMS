@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { deriveBase64Url } from "@/lib/config/derive";
 import { db } from "@/lib/db/knex";
 import { ApiError } from "@/lib/schema/errors";
 import { errorResponse, ok, readJsonObject } from "@/lib/schema/api";
@@ -7,7 +8,8 @@ import { purgeExpiredFiles } from "@/lib/trash/purge-files";
 export const runtime = "nodejs";
 
 function requirePurgeToken(request: Request): void {
-  const expected = process.env.OHMYCMS_TRASH_PURGE_TOKEN?.trim();
+  const expected =
+    process.env.OHMYCMS_TRASH_PURGE_TOKEN?.trim() || deriveBase64Url("trash-purge-token");
   if (!expected) {
     throw new ApiError(503, "PURGE_TOKEN_NOT_CONFIGURED", "掃除用の認証鍵が設定されていません");
   }

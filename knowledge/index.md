@@ -58,6 +58,7 @@ x_rag_okf:
 - [開発サーバを外部へ公開しない（公開するのは本番ビルドだけ）](./decisions/never-expose-dev-server.md) — `decisions/never-expose-dev-server`
 - [Directus をフォークしない](./decisions/no-directus-fork.md) — `decisions/no-directus-fork`
 - [面（Surface）は1段まで。入れ子を構造的に禁止する](./decisions/no-nested-surfaces.md) — `decisions/no-nested-surfaces`
+- [設定は種 1 つ。値はそこから導出し、明示が勝つ](decisions/one-seed-many-secrets.md)
 - [組織テーブルを作らない](./decisions/no-organization-table.md) — `decisions/no-organization-table`
 - [「まだ許可されていない」は、ログイン画面へ送らない](./decisions/not-yet-allowed-is-not-logged-out.md) — `decisions/not-yet-allowed-is-not-logged-out`
 - [範囲違いで画面を増やさない／1 件のページは「出すものが在るか」で決める](./decisions/one-list-per-subject-not-one-per-scope.md) — `decisions/one-list-per-subject-not-one-per-scope`

@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import path from "node:path";
+import { getConnectionString } from "./connection-string";
 
 // Knex CLI 単体実行時は Next.js の .env.local 自動ロードが効かないため、
 // 明示的に .env.local を読み込む（読み込み専用・ファイルは変更しない）。
@@ -13,7 +14,7 @@ if (!process.env.DATABASE_URL) {
 
 import type { Knex } from "knex";
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = getConnectionString();
 if (!connectionString) {
   throw new Error(
     "DATABASE_URL 環境変数が設定されていません（.env.local を確認してください）",

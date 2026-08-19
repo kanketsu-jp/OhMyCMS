@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { verifyPassword } from "@/lib/auth/password";
+import { deriveBase64Url } from "@/lib/config/derive";
 import { storedSetupPasswordHash } from "@/lib/settings/service";
 
 export const DEFAULT_SETUP_PASSWORD = "pass132";
@@ -13,7 +14,11 @@ let setupFailedAttempts = 0;
 let setupLockedUntil: number | null = null;
 
 export function setupPassword(): string {
-  return process.env.OHMYCMS_SETUP_PASSWORD?.trim() || DEFAULT_SETUP_PASSWORD;
+  return (
+    process.env.OHMYCMS_SETUP_PASSWORD?.trim() ||
+    deriveBase64Url("setup-password", 20) ||
+    DEFAULT_SETUP_PASSWORD
+  );
 }
 
 function verifyAgainstEnvironment(input: string): boolean {

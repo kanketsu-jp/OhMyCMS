@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { deriveBase64 } from "@/lib/config/derive";
 import { ApiError } from "@/lib/schema/errors";
 
 /**
@@ -21,7 +22,7 @@ const IV_BYTES = 12;
 const KEY_BYTES = 32;
 
 function secretKey(): Buffer {
-  const raw = process.env.OHMYCMS_SECRET_KEY?.trim();
+  const raw = process.env.OHMYCMS_SECRET_KEY?.trim() || deriveBase64("secret-key") || "";
   if (!raw) {
     throw new ApiError(
       400,
