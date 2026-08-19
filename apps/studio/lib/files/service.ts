@@ -1339,7 +1339,8 @@ export async function getAsset(actor: Actor | null, id: string, input: Transform
   }
   const transformed = await withTransformSlot(limits.maxConcurrency, () =>
     pipeline
-      .timeout({ seconds: limits.timeoutMs / 1000 })
+      // 設定は Directus 互換のミリ秒で保持し、sharp には早く切る整数秒で渡す。
+      .timeout({ seconds: Math.floor(limits.timeoutMs / 1000) })
       .toFormat(output.format, { quality })
       .toBuffer(),
   );
