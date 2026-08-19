@@ -20,7 +20,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
+import { SHORTCUTS, shortcutLabel } from "@/components/admin/shortcuts";
 import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
 import { useT } from "@/i18n/client";
 
@@ -112,6 +112,28 @@ export function GlobalSearchButton({ className }: { className?: string }) {
   const t = useT("search");
   const { open } = useGlobalSearch();
   const isMac = useIsMac();
+  const shortcutHint = shortcutLabel(SHORTCUTS.search, isMac);
+  const trigger = (
+    <button
+      type="button"
+      onClick={open}
+      aria-label={t("open_hint")}
+      // 🚨 **入力欄に見せない**（堀池・2026-08-17 Z1 原文
+      //    「検索窓は検索窓としての機能ではない。モーダルを開くだけ。
+      //      ならば、検索する みたいなボタンにして。…いまは背景色と同化してわかりずらいので修正」）。
+      //    🚨 決めたのは 🅐（ボタンにする）。**打てるようにする案は採らない**——
+      //    打つ窓はヘッダー側（L1 の 4 つ目・画面の中を絞る）で、
+      //    サイドバーは**入口**、という分担にしたため（header と合意済み）。
+      //    直したのは 3 つ:
+      //      ① 塗り（bg-muted/60）をやめ、**枠**にした（背景と同化しない）
+      //      ② 角丸をやめた（DESIGN.md §1-1 クロームは平ら）
+      //      ③ 文字を左いっぱいに伸ばさない（伸ばすと入力欄の形になる）
+      className={`flex h-(--control-h) w-full items-center gap-2 border px-2.5 text-sm text-foreground transition-colors hover:bg-muted active:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
+    >
+      <SearchIcon className="size-4 shrink-0" />
+      <span className="text-left">{t("placeholder")}</span>
+    </button>
+  );
 
   return (
     // 🚨 **ショートカットはバッジで出さない。ツールチップで見せる**
@@ -120,31 +142,17 @@ export function GlobalSearchButton({ className }: { className?: string }) {
     //    🚨 **「すべて」なので、ここも対象**。実測（2026-08-17）: バッジは画面全体で 3 件在り、
     //      ヘッダーの 2 件（もどる・保存）は 0d42cc1 で外した。**残っていたのがここ 1 件**。
     //    🚨 これは header(L3) が shell(L1) の持ち場へ入って直した分。1 行だけで、検索の中身は触っていない。
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={open}
-          aria-label={t("open_hint")}
-          // 🚨 **入力欄に見せない**（堀池・2026-08-17 Z1 原文
-          //    「検索窓は検索窓としての機能ではない。モーダルを開くだけ。
-          //      ならば、検索する みたいなボタンにして。…いまは背景色と同化してわかりずらいので修正」）。
-          //    🚨 決めたのは 🅐（ボタンにする）。**打てるようにする案は採らない**——
-          //    打つ窓はヘッダー側（L1 の 4 つ目・画面の中を絞る）で、
-          //    サイドバーは**入口**、という分担にしたため（header と合意済み）。
-          //    直したのは 3 つ:
-          //      ① 塗り（bg-muted/60）をやめ、**枠**にした（背景と同化しない）
-          //      ② 角丸をやめた（DESIGN.md §1-1 クロームは平ら）
-          //      ③ 文字を左いっぱいに伸ばさない（伸ばすと入力欄の形になる）
-          className={`flex h-(--control-h) w-full items-center gap-2 border px-2.5 text-sm text-foreground transition-colors hover:bg-muted active:bg-muted md:h-(--control-h-pc) ${className ?? ""}`}
-        >
-          <SearchIcon className="size-4 shrink-0" />
-          <span className="text-left">{t("placeholder")}</span>
-        </button>
-      </TooltipTrigger>
-      {/* 記号は環境で変わるので辞書に持たせない（mac は ⌘K / それ以外は Ctrl+K）。 */}
-      <TooltipContent side="right">{formatShortcut(SHORTCUTS.search, isMac)}</TooltipContent>
-    </Tooltip>
+    <>
+    {shortcutHint ? (
+      <Tooltip>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        {/* 記号は環境で変わるので辞書に持たせない（mac は ⌘K / それ以外は Ctrl+K）。 */}
+        <TooltipContent side="right">{shortcutHint}</TooltipContent>
+      </Tooltip>
+    ) : (
+      trigger
+    )}
+    </>
   );
 }
 

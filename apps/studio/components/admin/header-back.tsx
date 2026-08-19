@@ -9,7 +9,7 @@ import { Undo2Icon } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
+import { SHORTCUTS, shortcutLabel } from "@/components/admin/shortcuts";
 import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
 import { useT } from "@/i18n/client";
 
@@ -27,6 +27,7 @@ export function HeaderBack() {
   const t = useT("common");
   const router = useRouter();
   const isMac = useIsMac();
+  const shortcutHint = shortcutLabel(SHORTCUTS.back, isMac);
 
   /**
    * 🚨 **アプリの外へ出さない**（2026-08-17・「初めて触る人の目」で見つけた）。
@@ -116,21 +117,35 @@ export function HeaderBack() {
     //    🚨 これは **L1（30 分前）の「ショートカットキーも表示しながら」の反転**。
     //      堀池さんが実物を見て「窮屈」と判断されたもので、前の指示が誤りだったのではない。
     //      **消さずに経緯を残す**（次の人が「表示しろと書いてある」と戻さないように）。
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={goBack}
-          className="min-w-0 text-muted-foreground"
-        >
-          <Undo2Icon aria-hidden="true" />
-          <span className="truncate">{t("back")}</span>
-        </Button>
-      </TooltipTrigger>
-      {/* 🚨 名前は既にボタンに見えているので、ツールチップは**鍵だけ**にする
-          （同じ語を 2 回出さない）。記号は環境で変わるので辞書に入れない。 */}
-      <TooltipContent side="bottom">{formatShortcut(SHORTCUTS.back, isMac)}</TooltipContent>
-    </Tooltip>
+    <>
+    {shortcutHint ? (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={goBack}
+            className="min-w-0 text-muted-foreground"
+          >
+            <Undo2Icon aria-hidden="true" />
+            <span className="truncate">{t("back")}</span>
+          </Button>
+        </TooltipTrigger>
+        {/* 🚨 名前は既にボタンに見えているので、ツールチップは**鍵だけ**にする
+            （同じ語を 2 回出さない）。記号は環境で変わるので辞書に入れない。 */}
+        <TooltipContent side="bottom">{shortcutHint}</TooltipContent>
+      </Tooltip>
+    ) : (
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={goBack}
+        className="min-w-0 text-muted-foreground"
+      >
+        <Undo2Icon aria-hidden="true" />
+        <span className="truncate">{t("back")}</span>
+      </Button>
+    )}
+    </>
   );
 }

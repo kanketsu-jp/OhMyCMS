@@ -79,3 +79,10 @@ export function formatShortcut(combo: string, isMac: boolean): string {
 
   return isMac ? pieces.join("") : pieces.join("+");
 }
+
+/** 表示用のショートカット文字列。割り当てが無いときは null（ツールチップを出さない合図）。 */
+export function shortcutLabel(combo: string, isMac: boolean): string | null {
+  if (!combo) return null;
+  const s = formatShortcut(combo, isMac);
+  return s ? s : null;
+}

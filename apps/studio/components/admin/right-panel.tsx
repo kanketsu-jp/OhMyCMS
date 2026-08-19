@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { PageInfoPanel } from "@/components/admin/page-info-panel";
 import { usePageTrail } from "@/components/admin/page-trail";
-import { SHORTCUTS, formatShortcut } from "@/components/admin/shortcuts";
+import { SHORTCUTS, shortcutLabel } from "@/components/admin/shortcuts";
 import { useIsMac, useShortcut } from "@/components/admin/use-shortcut";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useT } from "@/i18n/client";
@@ -164,6 +164,7 @@ export function RightPanelToggle() {
   const t = useT("panel");
   const isMac = useIsMac();
   const { toggle, isOpen } = useRightPanel();
+  const shortcutHint = shortcutLabel(SHORTCUTS.toggleRightSidebar, isMac);
 
   useShortcut(SHORTCUTS.toggleRightSidebar, toggle);
 
@@ -197,7 +198,7 @@ export function RightPanelToggle() {
       </TooltipTrigger>
       {/* 🚨 記号は環境で変わるので辞書に入れない（header-back と同じ作法）。 */}
       <TooltipContent side="bottom">
-        {`${t("open")}  ${formatShortcut(SHORTCUTS.toggleRightSidebar, isMac)}`}
+        {shortcutHint ? `${t("open")}  ${shortcutHint}` : t("open")}
       </TooltipContent>
     </Tooltip>
   );
